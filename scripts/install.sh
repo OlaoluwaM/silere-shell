@@ -81,8 +81,7 @@ _secure_fresh_default_install() {
 _is_silere_checkout() {
     local path="$1"
     [ -f "$path/shell.qml" ] \
-        && [ -f "$path/services/qmldir" ] \
-        && [ -f "$path/scripts/update.sh" ]
+        && [ -f "$path/services/qmldir" ]
 }
 
 _matugen_table_present() {
@@ -573,7 +572,6 @@ _optdep hyprlock      "lock screen"
 _optdep_any "power actions" "suspend / reboot / shutdown" systemctl loginctl
 _optdep notify-send   "low-battery + hot-CPU alerts"
 _optdep timeout       "bounded update checks"
-_optdep ssh-keygen    "signed shell updates"
 
 # ── compositor ───────────────────────────────────────────────────────────────────
 # The whole install can succeed on a session Silere cannot run on: every step
@@ -700,27 +698,12 @@ if [ -d "$INSTALL_DIR/.git" ]; then
     _is_silere_checkout "$INSTALL_DIR" \
         || _die "$INSTALL_DIR is a Git repository but not a Silere checkout — choose another path"
     _ok "already cloned at $INSTALL_DIR"
-    install_has_changes=false
     if [ -n "$(git -C "$INSTALL_DIR" status --porcelain --untracked-files=normal)" ]; then
-        install_has_changes=true
         _warn "local Silere edits detected; the installer will not remove them"
         [ -x "$INSTALL_DIR/scripts/repair.sh" ] \
             && _warn "preview a safe restore with: bash $INSTALL_DIR/scripts/repair.sh"
     fi
-    if _ask "Install the latest signed release?"; then
-        spin_start "checking release..."
-        if ! GIT_TERMINAL_PROMPT=0 bash "$INSTALL_DIR/scripts/update.sh" >/dev/null \
-                || ! GIT_TERMINAL_PROMPT=0 bash "$INSTALL_DIR/scripts/update.sh" --apply >/dev/null; then
-            spin_stop
-            if $install_has_changes; then
-                _die "the signed update could not preserve the local edits — repair or stash them, then retry"
-            fi
-            _die "signed release update failed — check the connection or update manually"
-        fi
-        spin_stop; _ok "up to date"
-    else
-        _skip "using existing clone"
-    fi
+    _skip "using existing clone"
 elif [ -e "$INSTALL_DIR" ] || [ -L "$INSTALL_DIR" ]; then
     if _ask "Path exists but is not a git repo. Move it aside and clone fresh?"; then
         install_backup="$(_move_aside_path "$INSTALL_DIR")" \
@@ -756,7 +739,7 @@ if $fresh_clone; then
 fi
 
 ROOT="$INSTALL_DIR"
-did_tmpl=false did_toml=false did_autostart=false did_update=false
+did_tmpl=false did_toml=false did_autostart=false
 autostart_ready=false
 ROOT_PRINTF_BYTES="$(_shell_quote "$(_shell_printf_bytes "$ROOT")")"
 MATUGEN_OUTPUT_TOML="$(_toml_basic_string "$CONFIG_HOME/matugen/silere-shell.json")"
@@ -980,22 +963,6 @@ else
 fi
 fi
 
-# ── update-check timer ──────────────────────────────────────────────────────────────
-_section "update-check timer"
-
-if ! command -v systemctl >/dev/null 2>&1; then
-    _skip "systemctl not found"
-elif _ask_no "Install daily update-check timer (flags pending updates in the bar)?"; then
-    if "$ROOT/scripts/update.sh" --timer-enable 2>/dev/null; then
-        _ok "enabled — checks for Silere updates and shows a bar badge when one is ready"
-        did_update=true
-    else
-        _warn "units installed but enable failed — run: systemctl --user enable --now silere-update.timer"
-    fi
-else
-    _skip "skipped — enable later with: $ROOT/scripts/update.sh --timer-enable"
-fi
-
 # ── summary ──────────────────────────────────────────────────────────────────────
 printf "\n${BOLD}==> done${R}\n"
 printf "    ${GREEN}ok${R}      installed at %s\n" "$ROOT"
@@ -1003,7 +970,6 @@ $did_font      && printf "    ${GREEN}ok${R}      JetBrainsMono Nerd Font\n" || 
 $did_tmpl      && printf "    ${GREEN}ok${R}      matugen template\n" || printf "    ${DIM}skip${R}    matugen template\n"
 $did_toml      && printf "    ${GREEN}ok${R}      matugen toml\n"     || printf "    ${DIM}skip${R}    matugen toml\n"
 $did_autostart && printf "    ${GREEN}ok${R}      autostart\n"        || printf "    ${DIM}skip${R}    autostart\n"
-$did_update    && printf "    ${GREEN}ok${R}      update-check timer\n" || printf "    ${DIM}skip${R}    update-check timer\n"
 # a missing runtime and an unwired autostart are independent, so report them
 # separately — chaining them tells a user to restart into a shell nothing launches
 printf '\n'

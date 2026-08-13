@@ -3,8 +3,8 @@
 Notable changes to Silere Shell, following
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow
 [Semantic Versioning](https://semver.org/) loosely while in `0.x`: minor versions
-change features, patch versions fix them. The updater follows signed stable tags;
-the settings file carries its own `__version` and migrates separately.
+change features, patch versions fix them. The settings file carries its own
+`__version` and migrates separately.
 
 Only work since the latest release is listed here. Completed notes move to
 [`docs/releases`](docs/releases/) and stay linked below.

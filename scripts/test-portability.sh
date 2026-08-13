@@ -15,24 +15,7 @@ assert_eq() {
     [ "$actual" = "$expected" ] || fail "$label (expected '$expected', got '$actual')"
 }
 
-_prepare_release_signer() {
-    local repo="$1" key="$TMP/release-signing-key"
-    if [ ! -f "$key" ]; then
-        ssh-keygen -q -t ed25519 -N '' -C silere-test -f "$key" >/dev/null
-    fi
-    git -C "$repo" config gpg.format ssh
-    git -C "$repo" config user.signingkey "$key"
-    mkdir -p "$repo/security"
-    printf 'silere-test namespaces="git" %s\n' "$(<"$key.pub")" \
-        > "$repo/security/update-signers"
-}
-
-_sign_release() {
-    local repo="$1" tag="$2"
-    git -C "$repo" tag -s -m "$tag" "$tag"
-}
-
-test_xdg_paths_and_timer_default() (
+test_xdg_paths_and_answer_parsing() (
     local home="$TMP/xdg-home" actual
     mkdir -p "$home"
 
@@ -48,21 +31,12 @@ test_xdg_paths_and_timer_default() (
     )"
     assert_eq "/absolute/config" "$actual" "uninstaller absolute XDG config"
 
-    actual="$(
-        HOME="$home" XDG_CONFIG_HOME=relative/config XDG_CACHE_HOME=relative/cache \
-            SILERE_SCRIPT_LIB_ONLY=1 bash -c \
-            'source "$1"; printf "%s|%s" "$CACHE_DIR" "$SYSTEMD_USER_DIR"' \
-            _ "$ROOT/scripts/update.sh"
-    )"
-    assert_eq "$home/.cache/silere-shell|$home/.config/systemd/user" "$actual" \
-        "updater relative XDG fallbacks"
-
     HOME="$home" XDG_CONFIG_HOME=relative/config SILERE_SCRIPT_LIB_ONLY=1 \
         source "$ROOT/scripts/install.sh"
     _answered_yes y || fail "lowercase yes was rejected"
     _answered_yes Yes || fail "mixed-case yes was rejected"
     if _answered_yes "" || _answered_yes n; then
-        fail "daily update timer was not default-off"
+        fail "an empty or negative answer was read as yes"
     fi
 )
 
@@ -381,334 +355,6 @@ test_niri_config_discovery() {
     assert_eq "$TMP/niri/custom.kdl" "$actual" "flagless niri falls back to NIRI_CONFIG"
 }
 
-test_atomic_units() (
-    SILERE_SCRIPT_LIB_ONLY=1 source "$ROOT/scripts/update.sh"
-    local generated source_root="$ROOT" odd_root
-    SYSTEMD_USER_DIR="$TMP/units"
-    mkdir -p "$SYSTEMD_USER_DIR"
-    printf 'old service\n' > "$SYSTEMD_USER_DIR/$SERVICE_UNIT"
-    printf 'old timer\n' > "$SYSTEMD_USER_DIR/$TIMER_UNIT"
-
-    _write_update_units || fail "atomic unit writer failed"
-    [ "$(<"$ROOT/scripts/$TIMER_UNIT")" = "$(<"$SYSTEMD_USER_DIR/$TIMER_UNIT")" ] \
-        || fail "timer unit content mismatch"
-    grep -qF '__ROOT__' "$SYSTEMD_USER_DIR/$SERVICE_UNIT" \
-        && fail "service placeholder was not replaced"
-    grep -qF "scripts/update.sh" "$SYSTEMD_USER_DIR/$SERVICE_UNIT" \
-        || fail "service ExecStart was not generated"
-    grep -qF 'TimeoutStartSec=5min' "$SYSTEMD_USER_DIR/$SERVICE_UNIT" \
-        || fail "generated update service has no bounded start timeout"
-    if find "$SYSTEMD_USER_DIR" -maxdepth 1 -name '.silere-update.*.??????' -print -quit | grep -q .; then
-        fail "temporary unit file was left behind"
-    fi
-
-    # Exercise both escaping layers with a legal custom checkout path. systemd
-    # expands $ and %; its unit parser consumes the quote/backslash escapes.
-    odd_root="$TMP/unit-\${HOME}-%-quote\"-slash\\-amp&-pipe|"
-    mkdir -p "$odd_root/scripts" "$TMP/odd-units"
-    cp "$source_root/scripts/$SERVICE_UNIT" "$source_root/scripts/$TIMER_UNIT" \
-        "$odd_root/scripts/"
-    ROOT="$odd_root"
-    SYSTEMD_USER_DIR="$TMP/odd-units"
-    generated="$(_systemd_execstart)"
-    _write_update_units || fail "special-character unit writer failed"
-    assert_eq "ExecStart=$generated" \
-        "$(grep '^ExecStart=' "$SYSTEMD_USER_DIR/$SERVICE_UNIT")" \
-        "generated service preserved its escaped ExecStart"
-    [[ "$generated" == *'$${HOME}'* ]] \
-        || fail "generated service did not preserve a literal dollar in the checkout path"
-    [[ "$generated" == *'%%'* && "$generated" == *'quote\"'* \
-        && "$generated" == *'slash\\'* ]] \
-        || fail "generated service did not escape special checkout path characters"
-)
-
-test_atomic_update_cache() (
-    local test_home="$TMP/update-cache-home"
-    local victim="$TMP/update-cache-victim"
-    HOME="$test_home"
-    XDG_CACHE_HOME="$test_home/cache"
-    SILERE_SCRIPT_LIB_ONLY=1 source "$ROOT/scripts/update.sh"
-
-    umask 022
-    _write_cache_file "$FLAG" "seed" || fail "update cache directory creation failed"
-    assert_eq "700" "$(stat -c '%a' "$test_home/cache")" "fresh update cache parent mode"
-    assert_eq "700" "$(stat -c '%a' "$CACHE_DIR")" "fresh update cache mode"
-    chmod 0755 "$CACHE_DIR"
-    _write_cache_file "$FLAG" "seed-again" || fail "update cache directory reharden failed"
-    assert_eq "700" "$(stat -c '%a' "$CACHE_DIR")" "existing update cache mode"
-    rm -f "$FLAG"
-    printf 'do not replace\n' > "$victim"
-    ln -s "$victim" "$FLAG"
-
-    _write_cache_file "$FLAG" "2" $'first change\nsecond change' \
-        || fail "atomic update cache writer failed"
-    assert_eq $'2\nfirst change\nsecond change' "$(<"$FLAG")" \
-        "atomic update cache content"
-    assert_eq "do not replace" "$(<"$victim")" \
-        "atomic update cache symlink target"
-    [ ! -L "$FLAG" ] || fail "atomic update cache left the stale symlink in place"
-    if find "$CACHE_DIR" -maxdepth 1 -name '.update-pending.??????' -print -quit | grep -q .; then
-        fail "temporary update cache file was left behind"
-    fi
-)
-
-test_update_refuses_dirty_apply() (
-    export GIT_CONFIG_GLOBAL=/dev/null
-    export GIT_CONFIG_NOSYSTEM=1
-    local remote="$TMP/update-remote.git"
-    local seed="$TMP/update-seed"
-    local client="$TMP/update-client"
-    local test_home="$TMP/update-home"
-    local old_head remote_head version_out stub_dir="$TMP/update-stubs"
-    local lock_stub_dir="$TMP/update-lock-stubs"
-
-    git init --bare -q "$remote"
-    git --git-dir="$remote" symbolic-ref HEAD refs/heads/main
-    git init -q "$seed"
-    git -C "$seed" config user.name "Silere test"
-    git -C "$seed" config user.email "test@example.invalid"
-    _prepare_release_signer "$seed"
-    mkdir -p "$seed/scripts/lib"
-    cp "$ROOT/scripts/update.sh" "$seed/scripts/update.sh"
-    cp "$ROOT/scripts/lib/xdg.sh" "$seed/scripts/lib/xdg.sh"
-    printf 'upstream v1\n' > "$seed/tracked.qml"
-    git -C "$seed" add scripts security tracked.qml
-    git -C "$seed" commit -qm "initial"
-    git -C "$seed" branch -M main
-    _sign_release "$seed" v1.0.0
-    git -C "$seed" remote add origin "$remote"
-    git -C "$seed" push -q -u origin main --tags
-
-    git clone -q "$remote" "$client"
-    git -C "$client" config user.name "Silere test"
-    git -C "$client" config user.email "test@example.invalid"
-    version_out="$(HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" \
-        bash "$client/scripts/update.sh" --version)"
-    assert_eq "tag=v1.0.0" "$(printf '%s\n' "$version_out" | grep '^tag=')" \
-        "--version release tag"
-    assert_eq "ahead=0" "$(printf '%s\n' "$version_out" | grep '^ahead=')" \
-        "--version no-tag commit count"
-    printf 'upstream v2\n' > "$seed/tracked.qml"
-    git -C "$seed" commit -qam "upstream update"
-    _sign_release "$seed" v1.0.1
-    git -C "$seed" push -q origin main --tags
-
-    mkdir -p "$test_home" "$stub_dir" "$lock_stub_dir"
-    printf '#!/bin/sh\nexit 1\n' > "$stub_dir/systemctl"
-    printf '#!/bin/sh\nexit 0\n' > "$stub_dir/notify-send"
-    chmod +x "$stub_dir/systemctl" "$stub_dir/notify-send"
-    HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" PATH="$stub_dir:$PATH" \
-        bash "$client/scripts/update.sh" >/dev/null
-    remote_head="$(git -C "$client" rev-parse origin/main)"
-    printf '#!/bin/sh\nexit 1\n' > "$lock_stub_dir/flock"
-    chmod +x "$lock_stub_dir/flock"
-    if HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" \
-            PATH="$lock_stub_dir:$stub_dir:$PATH" \
-            bash "$client/scripts/update.sh" >/dev/null 2>&1; then
-        fail "concurrent update check unexpectedly acquired the update lock"
-    fi
-    [ -f "$test_home/cache/silere-shell/update-pending" ] \
-        || fail "lock contention cleared the pending update flag"
-
-    printf 'local customization\n' >> "$client/tracked.qml"
-    old_head="$(git -C "$client" rev-parse HEAD)"
-
-    if HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" PATH="$stub_dir:$PATH" \
-        bash "$client/scripts/update.sh" --apply >/dev/null 2>&1; then
-        fail "dirty update apply unexpectedly succeeded"
-    fi
-    assert_eq "$old_head" "$(git -C "$client" rev-parse HEAD)" "dirty update apply HEAD"
-    grep -qF 'local customization' "$client/tracked.qml" \
-        || fail "dirty update apply changed the local edit"
-    [ -z "$(git -C "$client" stash list)" ] \
-        || fail "dirty update apply created a stash"
-
-    git -C "$client" restore tracked.qml
-    git -C "$client" checkout -qb feature
-    assert_eq "branch=feature" "$(HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" \
-        PATH="$stub_dir:$PATH" bash "$client/scripts/update.sh" --version | grep '^branch=')" \
-        "feature-branch version reporting"
-    if HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" PATH="$stub_dir:$PATH" \
-        bash "$client/scripts/update.sh" --apply >/dev/null 2>&1; then
-        fail "feature-branch update apply unexpectedly succeeded"
-    fi
-    assert_eq "feature" "$(git -C "$client" symbolic-ref --quiet --short HEAD)" \
-        "feature-branch update apply branch"
-    assert_eq "$old_head" "$(git -C "$client" rev-parse HEAD)" \
-        "feature-branch update apply HEAD"
-    [ -f "$test_home/cache/silere-shell/update-pending" ] \
-        || fail "feature-branch apply cleared the pending update flag"
-
-    git -C "$client" checkout -q main
-    git -C "$client" checkout -q --detach "$old_head"
-    assert_eq "branch=HEAD" "$(HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" \
-        PATH="$stub_dir:$PATH" bash "$client/scripts/update.sh" --version | grep '^branch=')" \
-        "detached-HEAD version reporting"
-    if HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" PATH="$stub_dir:$PATH" \
-        bash "$client/scripts/update.sh" --apply >/dev/null 2>&1; then
-        fail "detached-HEAD update apply unexpectedly succeeded"
-    fi
-    [ -z "$(git -C "$client" symbolic-ref --quiet --short HEAD || true)" ] \
-        || fail "detached-HEAD update apply attached the checkout"
-    assert_eq "$old_head" "$(git -C "$client" rev-parse HEAD)" \
-        "detached-HEAD update apply HEAD"
-    [ -f "$test_home/cache/silere-shell/update-pending" ] \
-        || fail "detached-HEAD apply cleared the pending update flag"
-
-    git -C "$client" checkout -q main
-    git -C "$client" update-ref -d refs/remotes/origin/main
-    mkdir -p "$test_home/cache/silere-shell"
-    printf '1\nupstream update\n' > "$test_home/cache/silere-shell/update-pending"
-    if HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" PATH="$stub_dir:$PATH" \
-        bash "$client/scripts/update.sh" --apply >/dev/null 2>&1; then
-        fail "update apply succeeded without origin/main"
-    fi
-    [ -f "$test_home/cache/silere-shell/update-pending" ] \
-        || fail "missing origin/main cleared the pending update flag"
-    assert_eq "$old_head" "$(git -C "$client" rev-parse HEAD)" "missing origin/main apply HEAD"
-
-    git -C "$client" update-ref refs/remotes/origin/main "$remote_head"
-    git -C "$client" remote set-url origin "$TMP/unavailable-update-origin.git"
-    if ! HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" \
-            PATH="$stub_dir:$PATH" \
-            bash "$client/scripts/update.sh" --apply >/dev/null 2>&1; then
-        fail "update apply contacted origin instead of using its fetched ref"
-    fi
-    assert_eq "$remote_head" "$(git -C "$client" rev-parse HEAD)" "offline update apply HEAD"
-    [ ! -e "$test_home/cache/silere-shell/update-pending" ] \
-        || fail "successful offline apply left the pending update flag"
-)
-
-test_update_reporting() (
-    export GIT_CONFIG_GLOBAL=/dev/null
-    export GIT_CONFIG_NOSYSTEM=1
-    local remote="$TMP/report-remote.git"
-    local seed="$TMP/report-seed"
-    local client="$TMP/report-client"
-    local test_home="$TMP/report-home"
-    local stub_dir="$TMP/report-stubs"
-    local cache="$test_home/cache/silere-shell"
-    local out target checked
-
-    git init --bare -q "$remote"
-    git --git-dir="$remote" symbolic-ref HEAD refs/heads/main
-    git init -q "$seed"
-    git -C "$seed" config user.name "Silere test"
-    git -C "$seed" config user.email "test@example.invalid"
-    _prepare_release_signer "$seed"
-    mkdir -p "$seed/scripts/lib"
-    cp "$ROOT/scripts/update.sh" "$seed/scripts/update.sh"
-    cp "$ROOT/scripts/lib/xdg.sh" "$seed/scripts/lib/xdg.sh"
-    printf 'v1\n' > "$seed/tracked.qml"
-    git -C "$seed" add scripts security tracked.qml
-    git -C "$seed" commit -qm "initial"
-    git -C "$seed" branch -M main
-    _sign_release "$seed" v9.9.0
-    git -C "$seed" remote add origin "$remote"
-    git -C "$seed" push -q -u origin main --tags
-
-    printf 'installed revision\n' >> "$seed/tracked.qml"
-    git -C "$seed" commit -qam "installed revision"
-    git -C "$seed" tag scratch
-    git -C "$seed" push -q origin main --tags
-
-    git clone --depth 1 -q "file://$remote" "$client"
-    assert_eq "true" "$(git -C "$client" rev-parse --is-shallow-repository)" \
-        "reporting fixture starts shallow"
-    printf 'v2\n' > "$seed/tracked.qml"
-    git -C "$seed" commit -qam "upstream update"
-    _sign_release "$seed" v9.9.1
-    git -C "$seed" push -q --tags origin main
-
-    mkdir -p "$test_home" "$stub_dir"
-    printf '%s\n' \
-        '#!/bin/sh' \
-        'mode=${SILERE_TIMER_MODE:-unsupported}' \
-        'case "$*" in' \
-        '  *"show-environment"*) [ "$mode" != unsupported ];;' \
-        '  *"is-enabled --quiet silere-update.timer"*) [ "$mode" != disabled ] && [ "$mode" != unsupported ];;' \
-        '  *"NextElapseUSecRealtime"*)' \
-        '    case "$mode" in enabled) echo "@1700000000";; empty) echo;; *) exit 1;; esac;;' \
-        '  *) exit 1;;' \
-        'esac' > "$stub_dir/systemctl"
-    printf '#!/bin/sh\nexit 0\n' > "$stub_dir/notify-send"
-    chmod +x "$stub_dir/systemctl" "$stub_dir/notify-send"
-
-    _run() { HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" PATH="$stub_dir:$PATH" \
-        bash "$client/scripts/update.sh" "$@"; }
-
-    assert_eq $'supported=0\nenabled=0' "$(_run --timer-status)" \
-        "timer status without a user manager"
-    assert_eq $'supported=1\nenabled=0' "$(SILERE_TIMER_MODE=disabled _run --timer-status)" \
-        "disabled timer status"
-    assert_eq $'supported=1\nenabled=1\nnext=1700000000' \
-        "$(SILERE_TIMER_MODE=enabled _run --timer-status)" "scheduled timer status"
-    assert_eq $'supported=1\nenabled=1\nnext=' \
-        "$(SILERE_TIMER_MODE=empty _run --timer-status)" "empty timer schedule status"
-    assert_eq $'supported=1\nenabled=1\nnext=' \
-        "$(SILERE_TIMER_MODE=legacy _run --timer-status)" "legacy timer status"
-
-    _run >/dev/null
-    assert_eq "false" "$(git -C "$client" rev-parse --is-shallow-repository)" \
-        "update check expands an existing shallow clone"
-    out="$(_run --version)"
-    printf '%s\n' "$out" | grep -qE '^sha=[0-9a-f]{7,}$' || fail "--version omitted the commit sha"
-    printf '%s\n' "$out" | grep -qE '^date=[0-9]{4}-[0-9]{2}-[0-9]{2}$' || fail "--version omitted the build date"
-    assert_eq "tag=v9.9.0" "$(printf '%s\n' "$out" | grep '^tag=')" "--version tag"
-    assert_eq "ahead=1" "$(printf '%s\n' "$out" | grep '^ahead=')" "--version commits since tag"
-    assert_eq "branch=main" "$(printf '%s\n' "$out" | grep '^branch=')" "--version branch"
-    assert_eq "dirty=0" "$(printf '%s\n' "$out" | grep '^dirty=')" "--version clean checkout"
-
-    printf 'local edit\n' >> "$client/tracked.qml"
-    assert_eq "dirty=1" "$(_run --version | grep '^dirty=')" "--version dirty checkout"
-    git -C "$client" checkout -q -- tracked.qml
-
-    checked="$(cat "$cache/update-checked")"
-    printf '%s' "$checked" | grep -qE '^[0-9]{10,}$' \
-        || fail "update check did not record a usable timestamp"
-    assert_eq "1" "$(sed -n '1p' "$cache/update-pending")" "pending update count"
-    target="$(sed -n '2p' "$cache/update-pending")"
-    printf '%s' "$target" | grep -qE '^target [0-9a-f]{7,} v9\.9\.1 verified$' \
-        || fail "pending update flag has no resolvable target revision: $target"
-    assert_eq "upstream update" "$(sed -n '3p' "$cache/update-pending" | cut -d' ' -f2-)" \
-        "pending update summary"
-
-    _run --apply >/dev/null
-    [ ! -e "$cache/update-pending" ] || fail "apply left the pending update flag"
-    assert_eq "$checked" "$(cat "$cache/update-checked")" "apply discarded the last-checked time"
-    assert_eq "tag=v9.9.1" "$(_run --version | grep '^tag=')" "--version tag after apply"
-
-    printf '1\nstale pending entry\n' > "$cache/update-pending"
-    printf '1\n' > "$cache/update-checked"
-    _run >/dev/null
-    [ ! -e "$cache/update-pending" ] \
-        || fail "already-current check did not clear a stale pending flag"
-    [ "$(cat "$cache/update-checked")" -gt 1 ] \
-        || fail "already-current check did not refresh its timestamp"
-
-    printf 'untrusted v3\n' > "$seed/tracked.qml"
-    git -C "$seed" commit -qam "untrusted upstream"
-    git -C "$seed" tag -a -m "unsigned release" v9.9.2
-    git -C "$seed" push -q --tags origin main
-    if _run >/dev/null 2>&1; then
-        fail "update check accepted an unsigned release"
-    fi
-    if _run --apply >/dev/null 2>&1; then
-        fail "update apply accepted an unsigned release"
-    fi
-    assert_eq "v2" "$(<"$client/tracked.qml")" "unsigned release worktree"
-    [ ! -e "$cache/update-pending" ] \
-        || fail "unsigned release left an installable update flag"
-
-    printf '4242\n' > "$cache/update-checked"
-    git -C "$client" remote set-url origin "$TMP/unavailable-report-origin.git"
-    if _run >/dev/null 2>&1; then
-        fail "update check unexpectedly succeeded against an unavailable origin"
-    fi
-    assert_eq "4242" "$(cat "$cache/update-checked")" \
-        "failed fetch preserved the last successful check time"
-)
-
 test_repair_workflow() (
     export GIT_CONFIG_GLOBAL=/dev/null
     export GIT_CONFIG_NOSYSTEM=1
@@ -772,82 +418,7 @@ test_repair_workflow() (
         "nested repair left its parent worktree untouched"
 )
 
-test_update_rolls_back_broken_merge() (
-    export GIT_CONFIG_GLOBAL=/dev/null
-    export GIT_CONFIG_NOSYSTEM=1
-    local remote="$TMP/rollback-remote.git"
-    local seed="$TMP/rollback-seed"
-    local client="$TMP/rollback-client"
-    local test_home="$TMP/rollback-home"
-    local stub_dir="$TMP/rollback-stubs"
-    local good_head
-
-    git init --bare -q "$remote"
-    git --git-dir="$remote" symbolic-ref HEAD refs/heads/main
-    git init -q "$seed"
-    git -C "$seed" config user.name "Silere test"
-    git -C "$seed" config user.email "test@example.invalid"
-    _prepare_release_signer "$seed"
-    mkdir -p "$seed/scripts/lib"
-    cp "$ROOT/scripts/update.sh" "$seed/scripts/update.sh"
-    cp "$ROOT/scripts/lib/xdg.sh" "$seed/scripts/lib/xdg.sh"
-    # the gate runs whatever type-checker the merged tree ships, so the fixture owns
-    # the verdict. update.sh itself must stay byte-identical across these commits:
-    # it is mid-execution when the merge rewrites the worktree.
-    printf '#!/bin/sh\nexit 0\n' > "$seed/scripts/test-qml-headless.sh"
-    printf 'upstream v1\n' > "$seed/tracked.qml"
-    git -C "$seed" add scripts security tracked.qml
-    git -C "$seed" commit -qm "initial"
-    git -C "$seed" branch -M main
-    _sign_release "$seed" v1.0.0
-    git -C "$seed" remote add origin "$remote"
-    git -C "$seed" push -q -u origin main --tags
-
-    git clone -q "$remote" "$client"
-    git -C "$client" config user.name "Silere test"
-    git -C "$client" config user.email "test@example.invalid"
-    good_head="$(git -C "$client" rev-parse HEAD)"
-
-    mkdir -p "$test_home" "$stub_dir"
-    printf '#!/bin/sh\nexit 1\n' > "$stub_dir/systemctl"
-    printf '#!/bin/sh\nexit 0\n' > "$stub_dir/notify-send"
-    # the gate skips itself when qs is absent, so without this stub the rollback
-    # assertions below would pass on a machine that never ran the check at all
-    printf '#!/bin/sh\nexit 0\n' > "$stub_dir/qs"
-    chmod +x "$stub_dir/systemctl" "$stub_dir/notify-send" "$stub_dir/qs"
-
-    printf 'upstream v2\n' > "$seed/tracked.qml"
-    printf '#!/bin/sh\nexit 1\n' > "$seed/scripts/test-qml-headless.sh"
-    git -C "$seed" commit -qam "broken upstream"
-    _sign_release "$seed" v1.0.1
-    git -C "$seed" push -q origin main --tags
-
-    HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" PATH="$stub_dir:$PATH" \
-        bash "$client/scripts/update.sh" >/dev/null
-    if HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" PATH="$stub_dir:$PATH" \
-            bash "$client/scripts/update.sh" --apply >/dev/null 2>&1; then
-        fail "an update that fails the load gate was applied anyway"
-    fi
-    assert_eq "$good_head" "$(git -C "$client" rev-parse HEAD)" "rolled back HEAD"
-    assert_eq "upstream v1" "$(cat "$client/tracked.qml")" "rolled back worktree"
-    [ -f "$test_home/cache/silere-shell/update-pending" ] \
-        || fail "rollback cleared the pending update flag"
-
-    # positive control: the same path must still apply when the merged tree loads,
-    # or a gate that always failed would satisfy every assertion above
-    printf '#!/bin/sh\nexit 0\n' > "$seed/scripts/test-qml-headless.sh"
-    printf 'upstream v3\n' > "$seed/tracked.qml"
-    git -C "$seed" commit -qam "working upstream"
-    _sign_release "$seed" v1.0.2
-    git -C "$seed" push -q origin main --tags
-    HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" PATH="$stub_dir:$PATH" \
-        bash "$client/scripts/update.sh" >/dev/null
-    HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" PATH="$stub_dir:$PATH" \
-        bash "$client/scripts/update.sh" --apply >/dev/null
-    assert_eq "upstream v3" "$(cat "$client/tracked.qml")" "applied a tree that loads"
-)
-
-test_xdg_paths_and_timer_default
+test_xdg_paths_and_answer_parsing
 test_fresh_install_permissions
 test_marker_removal
 test_uninstall_targets_and_backups
@@ -857,20 +428,15 @@ test_font_archive_selection
 test_install_path_safety
 test_hypr_discovery
 test_niri_config_discovery
-test_atomic_units
-test_atomic_update_cache
-# These workflows build git fixtures. Local minimal environments may skip them;
+# This workflow builds a git fixture. Local minimal environments may skip it;
 # CI opts into making an accidental missing dependency a hard failure.
-if command -v git >/dev/null 2>&1 && command -v ssh-keygen >/dev/null 2>&1; then
-    test_update_refuses_dirty_apply
-    test_update_rolls_back_broken_merge
-    test_update_reporting
+if command -v git >/dev/null 2>&1; then
     test_repair_workflow
 else
     if [ "${SILERE_REQUIRE_GIT_TESTS:-0}" = 1 ]; then
-        fail "git and ssh-keygen are required for updater and repair workflow tests"
+        fail "git is required for the repair workflow test"
     fi
-    printf 'SKIP: updater and repair workflows (git or ssh-keygen unavailable)\n'
+    printf 'SKIP: repair workflow (git unavailable)\n'
 fi
 
 printf 'portability regression tests passed\n'

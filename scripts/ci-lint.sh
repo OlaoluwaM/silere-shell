@@ -193,7 +193,7 @@ for f in "${script_files[@]}"; do
 done
 
 section "locale-stable parsers"
-for f in scripts/check.sh scripts/install.sh scripts/update.sh scripts/uninstall.sh; do
+for f in scripts/check.sh scripts/install.sh scripts/uninstall.sh; do
   if grep -q '^export LC_ALL=C$' "$f"; then ok "$f"; else fail "$f must set LC_ALL=C"; fi
 done
 check_qml_locale_count() {
@@ -210,20 +210,6 @@ check_qml_locale_count services/CpuTemp.qml 1
 check_qml_locale_count services/Network.qml 1
 check_qml_locale_count services/PowerProfiles.qml 1
 check_qml_locale_count services/Updates.qml 1
-
-section "signed shell updates"
-if awk 'NF == 0 || /^#/ { next } \
-        NF == 4 && $1 == "silere-release" && $2 == "namespaces=\"git\"" \
-        && $3 == "ssh-ed25519" && $4 ~ /^AAA[A-Za-z0-9+\/=]+$/ { valid++; next } \
-        { bad=1 } END { exit bad || valid < 1 }' security/update-signers \
-        && grep -qF 'verify-tag "$release_tag"' scripts/update.sh \
-        && grep -qF 'tag --merged origin/main' scripts/update.sh \
-        && grep -qF 'verify-tag "$GITHUB_REF_NAME"' .github/workflows/release.yml \
-        && ! grep -qF 'ShellUpdate.apply()' modules/bar/widgets/ShellUpdateWidget.qml; then
-  ok "shell updater" "trust key, signed release gates, and review-only bar action"
-else
-  fail "shell updater must verify stable release tags before the UI can apply them"
-fi
 
 section "optional tool detection"
 # The status of the final command in a shell `for` loop becomes the loop's

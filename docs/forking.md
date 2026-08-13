@@ -32,10 +32,8 @@ The name appears a few hundred times, nearly all of it cosmetic. Three matter:
 
 - the **layer-shell namespaces** (`silere-bar`, `silere-menu`, …) — compositor blur
   and animation rules match those strings
-- the **config directory** `"/silere-shell"` in `services/ConfigStore.qml` and
-  `services/ShellUpdate.qml` — changing it leaves the old `settings.json` behind
-- **`security/update-signers`** — swap in your own key, or your fork's updater will
-  reject your own releases
+- the **config directory** `"/silere-shell"` in `services/ConfigStore.qml` —
+  changing it leaves the old `settings.json` behind
 
 `grep -rIl silere .` finds the rest, and the AUR files and systemd units are in there.
 

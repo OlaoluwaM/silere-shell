@@ -27,13 +27,6 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Verify signed release tag
-        run: >-
-          git -c safe.directory="$PWD"
-          -c gpg.format=ssh
-          -c gpg.ssh.allowedSignersFile="$PWD/security/update-signers"
-          verify-tag "$GITHUB_REF_NAME"
-
       - name: Structural and portability validation
         run: SILERE_REQUIRE_GIT_TESTS=1 bash scripts/ci-lint.sh
 

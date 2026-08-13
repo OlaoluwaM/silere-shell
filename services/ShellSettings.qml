@@ -40,7 +40,6 @@ Singleton {
     property bool   barShowBattery:      true
     property bool   barShowNetwork:      true
     property bool   barShowClock:        true
-    property bool   barShowShellUpdate:  true
     property bool   barShowVolume:       true
     property bool   barShowBrightness:   true
     property bool   barShowMedia:        true
@@ -114,11 +113,11 @@ Singleton {
     property string barDisabledMonitors: ""
     property string overlayMonitor:      ""
 
-    readonly property var barWidgetKeys: ["workspaces", "shellUpdate", "tray", "updates", "network", "volume", "brightness", "battery", "media", "clock"]
+    readonly property var barWidgetKeys: ["workspaces", "tray", "updates", "network", "volume", "brightness", "battery", "media", "clock"]
 
     property string barWidgetOrderLeft:  "workspaces,media"
     property string barWidgetOrderCenter: ""
-    property string barWidgetOrderRight: "shellUpdate,tray,updates,network,volume,brightness,battery,clock"
+    property string barWidgetOrderRight: "tray,updates,network,volume,brightness,battery,clock"
 
     function _widgetKeyList(value): var {
         const raw = Array.isArray(value) ? value : String(value || "").split(",")
@@ -210,7 +209,6 @@ Singleton {
     readonly property var barWidgetMeta: ({
         // no setting: the diamond is the only way into the menu, so this one cannot be hidden
         workspaces:  { glyph: "󰊗", label: "Workspaces",      group: "workspaces", setting: "" },
-        shellUpdate: { glyph: "󰑐", label: "Shell update",    group: "updates", setting: "barShowShellUpdate" },
         tray:        { glyph: "󰇘", label: "System tray",     group: "tray",    setting: "trayWidget" },
         updates:     { glyph: "󰚰", label: "Package updates", group: "updates", setting: "updatesWidget" },
         network:     { glyph: "󰛳", label: "Network",         group: "network", setting: "barShowNetwork" },
@@ -294,7 +292,6 @@ Singleton {
         { k: "barShowBattery",      t: "bool", sec: "widgets" },
         { k: "barShowNetwork",      t: "bool", sec: "widgets" },
         { k: "barShowClock",        t: "bool", sec: "widgets" },
-        { k: "barShowShellUpdate",  t: "bool", sec: "widgets" },
         { k: "barShowVolume",       t: "bool", sec: "widgets" },
         { k: "barShowBrightness",   t: "bool", sec: "widgets" },
         { k: "barShowMedia",        t: "bool", sec: "widgets" },

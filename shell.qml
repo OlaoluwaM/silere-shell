@@ -34,8 +34,6 @@ ShellRoot {
         void PowerProfiles.available
         // documented as always callable (`ipc call screenshot flash`), so it can't wait on the underline
         void Screenshot.armed
-        // same trap: nothing else references ShellUpdate until the Updates page builds, after open
-        void ShellUpdate.pending
         void OverlayCoordinator.armed
         root.armSystemAlertsIfNeeded()
     }

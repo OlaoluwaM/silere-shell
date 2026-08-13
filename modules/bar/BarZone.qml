@@ -21,8 +21,6 @@ Row {
         if (key === "battery" && !Battery.available) return false
         if (key === "brightness" && !Brightness.controllable) return false
         if (key === "media" && !Media.shown) return false
-        if (key === "shellUpdate"
-                && !ShellUpdate.pending && !ShellUpdate.checking && !ShellUpdate.applying) return false
         return true
     }
 

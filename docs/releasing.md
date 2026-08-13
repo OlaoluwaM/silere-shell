@@ -11,18 +11,10 @@ outside, whatever the diff actually says.
 
 ## Tags
 
-Release tags must be annotated `vMAJOR.MINOR.PATCH` tags signed by a key in
-`security/update-signers`. Both the release workflow and the installed updater
-reject anything else.
+Release tags must be annotated `vMAJOR.MINOR.PATCH` tags.
 
 Repository rules should also restrict creation and deletion of matching `v*`
-tags — signature checks complement access control rather than replacing it.
-
-## Key rotation
-
-Ship the new public key in a release signed by the **existing** key first. Only
-remove an old key after supported installations have had time to receive that
-transition release.
+tags.
 
 ## Changelog
 

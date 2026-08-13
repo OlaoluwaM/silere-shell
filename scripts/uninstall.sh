@@ -254,25 +254,6 @@ done
 
 $found_any || _skip "no autostart entries found"
 
-# ── update-check timer ─────────────────────────────────────────────────────────────
-_section "update-check timer"
-SYSTEMD_USER="$CONFIG_HOME/systemd/user"
-
-if [ -f "$SYSTEMD_USER/silere-update.timer" ] || [ -f "$SYSTEMD_USER/silere-update.service" ]; then
-    if _ask "Remove update-check timer?"; then
-        if command -v systemctl >/dev/null 2>&1; then
-            systemctl --user disable --now silere-update.timer 2>/dev/null || true
-        fi
-        rm -f "$SYSTEMD_USER/silere-update.timer" "$SYSTEMD_USER/silere-update.service"
-        command -v systemctl >/dev/null 2>&1 && systemctl --user daemon-reload || true
-        _ok "removed"
-    else
-        _skip "kept"
-    fi
-else
-    _skip "not found"
-fi
-
 # ── done ─────────────────────────────────────────────────────────────────────────
 printf "\n${BOLD}==> done${R}\n"
 _warn "the Silere checkout, settings, and installed font were kept"

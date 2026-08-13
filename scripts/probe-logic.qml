@@ -465,25 +465,6 @@ ShellRoot {
         SystemTools.ready = readyWas
         ShellSettings.updatesIncludeAur = includeAurWas
 
-        const commitLines = []
-        for (let i = 0; i < ShellUpdate.maxCommitDetail + 20; i++)
-            commitLines.push("abcdef" + i + " " + "subject".repeat(100))
-        const parsedCommits = ShellUpdate._parseCommits(commitLines.join("\n"))
-        root._check(parsedCommits.length === ShellUpdate.maxCommitDetail,
-            "shell update caps commit detail models")
-        root._check(parsedCommits[0].subject.length === ShellUpdate.maxCommitSubjectChars,
-            "shell update bounds commit subjects")
-        const parsedKv = ShellUpdate._parseKv("__proto__=spoof\nsupported=1")
-        root._check(Object.getPrototypeOf(parsedKv) === null && parsedKv.supported === "1",
-            "shell update parses status into a prototype-safe map")
-        ShellUpdate._parse("1\ntarget abc1234 v1.2.3 verified\nabc1234 signed release")
-        root._check(ShellUpdate.targetVerified && ShellUpdate.targetTag === "v1.2.3",
-            "shell update recognizes an explicitly verified release target")
-        ShellUpdate._parse("1\ntarget abc1234 v1.2.3\nabc1234 legacy update")
-        root._check(!ShellUpdate.targetVerified,
-            "shell update rejects legacy status without a verification marker")
-        ShellUpdate._parse("")
-
         root._check(PowerProfiles._parseProfile("balanced\n") === "balanced",
             "power mode accepts a known daemon profile")
         root._check(PowerProfiles._parseProfile("balanced\nspoof") === "",
