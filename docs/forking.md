@@ -43,3 +43,13 @@ The name appears a few hundred times, nearly all of it cosmetic. Three matter:
 names anything it doesn't like. Two of those rules catch people out early: use
 `MotionBehavior` rather than a bare `Behavior` (it carries the reduce-motion gate),
 and size rows with `Metrics.rowHeightFor()` rather than a number.
+
+## Developing with Nix
+
+This fork ships a development-only `flake.nix`: `nix develop` gives you `qs`,
+`hyprctl`, `matugen` and the other tools the shell and its check scripts look
+for, on any host with Nix — handy when your daily driver isn't the machine the
+shell deploys to. It exposes no packages on purpose: the NixOS configuration
+that deploys this fork consumes the repo as a plain source input and does its
+own packaging (it substitutes `config/GeneratedDefaults.qml` at build time),
+so packaging logic lives there, not here.
