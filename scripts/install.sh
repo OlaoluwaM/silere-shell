@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+# ──────────────────────────────────────────────────────────────────────────────
+# DO NOT run this under the Nix deployment of this fork. Packaging there is a
+# Nix derivation: Nix owns the checkout, the font, the matugen template, the
+# systemd units, and the autostart line, and this script would fight all of
+# it — writing files Nix already manages and leaving them for a future
+# `nix-collect-garbage` to strand. This script exists for people running the
+# shell WITHOUT Nix, cloning and installing it by hand.
+# ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 export LC_ALL=C
 
