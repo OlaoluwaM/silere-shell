@@ -15,37 +15,37 @@ Singleton {
     property string mediaVisualizerStyle:  "wave"
     property string mediaVisualizerPosition: "media"
     property bool   workspaceShift:      true
-    property bool   neutralTheme:        true
+    property bool   neutralTheme:        GeneratedDefaults.neutralTheme
     property bool   neutralAccentAuto:   false
     property string neutralAccent:       "#b8bdd8"
-    property string matugenAccentRole:   "primary"
-    property string matugenDepth:        "deeper"
-    property string baseTone:            "black"
+    property string matugenAccentRole:   GeneratedDefaults.matugenAccentRole
+    property string matugenDepth:        GeneratedDefaults.matugenDepth
+    property string baseTone:            GeneratedDefaults.baseTone
     property bool   networkTrafficStats: false
     property bool   networkSpeedInline:  false
     property bool   netVpnShowLink:      false
     property string brightnessDevice:    ""
-    property bool   showSeconds:         false
+    property bool   showSeconds:         GeneratedDefaults.showSeconds
     property bool   compactDate:         false
-    property bool   clock12h:            false
+    property bool   clock12h:            GeneratedDefaults.clock12h
     property bool   showWindowTitle:     false
     property bool   showWindowTitleApp:  false
     property bool   windowTitleCenterGap: true
-    property bool   updatesWidget:       false
+    property bool   updatesWidget:       GeneratedDefaults.updatesWidget
     property bool   updatesIncludeAur:   true
-    property bool   trayWidget:          false
+    property bool   trayWidget:          GeneratedDefaults.trayWidget
     property bool   valuesOnHover:       true
     property bool   hoverLevelBar:       false
     property bool   batteryAutoHide:     true
-    property bool   barShowBattery:      true
-    property bool   barShowNetwork:      true
-    property bool   barShowClock:        true
-    property bool   barShowVolume:       true
-    property bool   barShowBrightness:   true
-    property bool   barShowMedia:        true
+    property bool   barShowBattery:      GeneratedDefaults.barShowBattery
+    property bool   barShowNetwork:      GeneratedDefaults.barShowNetwork
+    property bool   barShowClock:        GeneratedDefaults.barShowClock
+    property bool   barShowVolume:       GeneratedDefaults.barShowVolume
+    property bool   barShowBrightness:   GeneratedDefaults.barShowBrightness
+    property bool   barShowMedia:        GeneratedDefaults.barShowMedia
 
-    property bool   osdEnabled:     true
-    property int    osdTimeout:     2000
+    property bool   osdEnabled:     GeneratedDefaults.osdEnabled
+    property int    osdTimeout:     GeneratedDefaults.osdTimeout
     property string osdKindFilter:  "both"
     property bool   osdBatteryWarn: false
     property bool   osdTempWarn:    false
@@ -58,8 +58,8 @@ Singleton {
     property bool   reduceMotion:        false
     property bool   highContrast:        false
     property real   outlineStrength:     1.0
-    property real   uiScale:             1.0
-    property string fontFamily:          ""
+    property real   uiScale:             GeneratedDefaults.uiScale
+    property string fontFamily:          GeneratedDefaults.fontFamily
 
     property bool   notifPopupEnabled:   true
     property bool   notifFullscreenSilence: true
@@ -76,7 +76,7 @@ Singleton {
     property int    notifDefaultTimeout: 5000
     property int    sysAlertTimeout:     10000
     property bool   clockShowDate:       false
-    property bool   barBorderVisible:    false
+    property bool   barBorderVisible:    GeneratedDefaults.barBorderVisible
     property real   barLineStrength:     1.0
 
     property bool   underlineGlow:       false
@@ -101,14 +101,14 @@ Singleton {
     property bool   barAutoCompact:      true
     property bool   barCompact:          false
     property bool   barHoverHighlight:   false
-    property int    barHeight:           36
-    property bool   barFloating:         false
-    property int    barGap:              4
-    property real   barWidth:            0.90
-    property int    barRadius:           14
-    property bool   barShadow:           false
+    property int    barHeight:           GeneratedDefaults.barHeight
+    property bool   barFloating:         GeneratedDefaults.barFloating
+    property int    barGap:              GeneratedDefaults.barGap
+    property real   barWidth:            GeneratedDefaults.barWidth
+    property int    barRadius:           GeneratedDefaults.barRadius
+    property bool   barShadow:           GeneratedDefaults.barShadow
     property real   barShadowStrength:   1.0
-    property string barPosition:         "top"
+    property string barPosition:         GeneratedDefaults.barPosition
     property real   barOpacity:          0.88
     property string barDisabledMonitors: ""
     property string overlayMonitor:      ""
