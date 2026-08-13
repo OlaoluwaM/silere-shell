@@ -25,8 +25,6 @@ Singleton {
     readonly property bool hasSystemctl:     _tools.systemctl ?? false
     readonly property bool hasLoginctl:      _tools.loginctl ?? false
     readonly property bool hasHyprctl:       _tools.hyprctl ?? false
-    readonly property bool hasPgrep:         _tools.pgrep ?? false
-    readonly property bool hasPkill:         _tools.pkill ?? false
     readonly property bool hasNotifySend:    _tools["notify-send"] ?? false
     readonly property bool hasBusctl:        _tools.busctl ?? false
     readonly property bool hasCheckupdates:  _tools.checkupdates ?? false
@@ -86,7 +84,7 @@ Singleton {
             "    esac; [ -n \"$family\" ] && break; " +
             "  done; " +
             "fi; [ -n \"$family\" ] && echo \"@family=$family\"; " +
-            "for t in brightnessctl inotifywait nmcli cava matugen hyprsunset hyprlock systemctl loginctl hyprctl pgrep pkill notify-send " +
+            "for t in brightnessctl inotifywait nmcli cava matugen hyprsunset hyprlock systemctl loginctl hyprctl notify-send " +
             "busctl checkupdates paru yay timeout apt dnf zypper xbps-install powerprofilesctl fc-list; do " +
             "  command -v \"$t\" >/dev/null 2>&1 && echo \"$t\"; " +
             // The last lookup is optional; do not inherit its `command -v`

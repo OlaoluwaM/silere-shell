@@ -107,8 +107,6 @@ optional_tool matugen "wallpaper-matched colors"
 optional_any_tool "updates" "update count widget" checkupdates apt dnf zypper xbps-install
 optional_any_tool "AUR helper" "AUR update count" paru yay
 optional_tool hyprsunset "night light toggle"
-optional_tool pgrep "night light external state check"
-optional_tool pkill "night light external stop fallback"
 optional_tool powerprofilesctl "power profile selector"
 optional_tool hyprlock "lock screen"
 optional_any_tool "power actions" "power menu actions" systemctl loginctl

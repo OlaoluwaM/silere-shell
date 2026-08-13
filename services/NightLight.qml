@@ -1,5 +1,11 @@
 pragma Singleton
 
+// Ownership split: a Nix-managed `hyprsunset.service` systemd user unit owns
+// the daemon's lifecycle and runs its own scheduled day/night temperature
+// staircase. This singleton never spawns or kills hyprsunset itself — it is
+// only a control surface that starts/stops the unit and mirrors its state,
+// so the shell and systemd are never racing to own the same process.
+
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -7,10 +13,10 @@ import Quickshell.Io
 Singleton {
     id: root
 
+    readonly property string _unit: "hyprsunset.service"
+
     property bool enabled:        false
     property string lastError:    ""
-    property bool _stopping:      false
-    property bool _pendingEnable: false
     readonly property bool toolAvailable: SystemTools.hasHyprsunset
     readonly property int  temperature: ShellSettings.nightLightTemp
 
@@ -159,56 +165,45 @@ Singleton {
         }
     }
 
-    function _startSunset(): void {
-        root.lastError = ""
-        _sunsetProc.command = ["hyprsunset", "-t", String(temperature)]
-        _sunsetProc.running = true
-        enabled = true
-    }
-
+    // The unit's own staircase already tracks day/night; a live nudge here only
+    // covers the auto-mode recompute above and a manual slider edit, so this is
+    // a plain IPC call rather than anything that touches the unit's lifecycle.
     onTemperatureChanged: {
         if (!root.enabled || !root.toolAvailable) return
-        _pendingEnable = true
-        if (_sunsetProc.running || _stopping) {
-            _stopping = true
-            if (_sunsetProc.running) _sunsetProc.running = false
-        } else if (SystemTools.hasPkill && !_killProc.running) {
-            _killProc.exec(["pkill", "-x", "hyprsunset"])
-        } else if (!_killProc.running) {
-            _pendingEnable = false
-            root.lastError = "Install pkill to change an external night light"
-        }
+        Quickshell.execDetached(["hyprctl", "hyprsunset", "temperature", String(root.temperature)])
     }
 
     function toggle(): void {
-        if (!toolAvailable) return
-        if (enabled) {
-            _pendingEnable = false
-            if (_killProc.running) { enabled = false; return }
-            if (_sunsetProc.running || _stopping) {
-                _stopping = true
-                if (_sunsetProc.running) _sunsetProc.running = false
-            } else if (SystemTools.hasPkill) {
-                _killProc.exec(["pkill", "-x", "hyprsunset"])
-            } else {
-                root.lastError = "Install pkill to stop an external night light"
-                return
-            }
-            enabled = false
-        } else {
-            if (_sunsetProc.running || _stopping) { _pendingEnable = true; return }
-            // don't spawn while a fallback pkill is in flight — it matches hyprsunset by name and would kill the new instance; queue instead
-            if (_killProc.running) { _pendingEnable = true; return }
-            if (ShellSettings.nightLightAuto) {
-                root._solarTick++
-                ShellSettings.nightLightTemp = root.suggestedTemp
-            }
-            _startSunset()
+        if (!toolAvailable || _toggleProc.running) return
+        const goingOn = !root.enabled
+        root.lastError = ""
+        // set the target temperature before flipping `enabled`: onTemperatureChanged
+        // guards on `enabled`, so this update lands while it is still false and
+        // never races a hyprctl push ahead of the unit actually starting — the
+        // confirmed-active branch in _checkProc.onExited below sends it instead,
+        // once the daemon can actually answer IPC
+        if (goingOn && ShellSettings.nightLightAuto) {
+            root._solarTick++
+            ShellSettings.nightLightTemp = root.suggestedTemp
         }
+        // optimistic: the row flips the moment it's tapped, and _checkActive
+        // (run from onExited below) reconciles it with the unit if the call failed
+        root.enabled = goingOn
+        _toggleProc.exec(["systemctl", "--user", goingOn ? "start" : "stop", root._unit])
+    }
+
+    // a check already in flight when a reconciliation is requested would otherwise
+    // just drop it; queue it instead so a post-toggle recheck is never lost
+    property bool _recheckPending: false
+
+    function _checkActive(): void {
+        if (!root.toolAvailable) return
+        if (_checkProc.running) { root._recheckPending = true; return }
+        _checkProc.exec(["systemctl", "--user", "is-active", "--quiet", root._unit])
     }
 
     // the menu is what instantiates this singleton, so _startGeo's opening edge is already spent by first load
-    Component.onCompleted: { _init(); _startGeo() }
+    Component.onCompleted: { _checkActive(); _startGeo() }
 
     property bool _geoStarted: false
     readonly property bool _geoWanted: toolAvailable && (ShellSettings.nightLightAuto || MenuState.open)
@@ -218,17 +213,9 @@ Singleton {
         _geoProc.running = true
     }
 
-    function _init(): void {
-        if (!SystemTools.ready) return
-        if (!toolAvailable) { enabled = false; return }
-        if (!SystemTools.hasPgrep) { enabled = _sunsetProc.running; return }
-        if (!_sunsetProc.running) enabled = false
-        if (!_checkProc.running) _checkProc.exec(["pgrep", "-x", "hyprsunset"])
-    }
-
     Connections {
         target: SystemTools
-        function onReadyChanged() { root._init(); root._startGeo() }
+        function onReadyChanged() { root._checkActive(); root._startGeo() }
     }
     Connections {
         target: ShellSettings
@@ -242,52 +229,41 @@ Singleton {
     BoundedProcess {
         id: _checkProc
         timeoutMs: 5000
-        stdout: SplitParser { onRead: root.enabled = true }
-        // pgrep answers "no match" with 1, so only 2+ or a timeout means the probe never ran
         onExited: (code) => {
-            if (_checkProc.timedOut || code > 1) {
-                root.lastError = "could not check for a running hyprsunset"
-                return
+            const rerun = root._recheckPending
+            root._recheckPending = false
+            if (_checkProc.timedOut) {
+                root.lastError = "could not check hyprsunset.service"
+            } else {
+                const wasEnabled = root.enabled
+                root.enabled = (code === 0)
+                // freshly confirmed active (our own start, or one begun outside the
+                // shell): push the target temperature now that the daemon can
+                // actually answer IPC, rather than racing its startup
+                if (root.enabled && !wasEnabled)
+                    Quickshell.execDetached(["hyprctl", "hyprsunset", "temperature", String(root.temperature)])
             }
-            if (code === 0) root.enabled = true
+            if (rerun) root._checkActive()
         }
     }
 
-    Process {
-        id: _sunsetProc
-        running: false
-        stderr: StdioCollector { id: _sunsetErr }
+    BoundedProcess {
+        id: _toggleProc
+        timeoutMs: 5000
+        stderr: StdioCollector { id: _toggleErr }
         onExited: (code) => {
-            if (root._stopping) {
-                root._stopping = false
-                if (root._pendingEnable) {
-                    root._pendingEnable = false
-                    root._startSunset()
-                }
-                return
-            }
-            // not a deliberate stop: hyprsunset quit on its own, and enabled was set
-            // optimistically at launch, so without this the toggle just flips back unexplained
-            if (code !== 0)
-                root.lastError = _sunsetErr.text.trim().split("\n").pop() || "hyprsunset stopped unexpectedly"
-            if (root.enabled) root.enabled = false
+            if (_toggleProc.timedOut || code !== 0)
+                root.lastError = _toggleErr.text.trim().split("\n").pop() || "hyprsunset.service did not respond"
+            root._checkActive()
         }
     }
 
-    Process {
-        id: _killProc
-        onExited: (code) => {
-            if (code !== 0) {
-                root._pendingEnable = false
-                root.lastError = "Could not stop the external night light"
-                root._init()
-                return
-            }
-            root.lastError = ""
-            if (root._pendingEnable) {
-                root._pendingEnable = false
-                root._startSunset()
-            }
-        }
+    // catches drift from outside the shell (a manual systemctl call, the unit
+    // failing on its own) since only systemd — not this singleton — decides
+    // when the daemon actually starts or stops
+    Timer {
+        interval: 60000; repeat: true
+        running: root.toolAvailable
+        onTriggered: root._checkActive()
     }
 }

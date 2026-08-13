@@ -565,8 +565,6 @@ _optdep_any "AUR helper" "AUR update count" paru yay
 _optdep busctl        "notification daemon check"
 _optdep upower        "battery percentage + warnings"
 _optdep hyprsunset    "night light toggle"
-_optdep pgrep         "optional night light external state check"
-_optdep pkill         "optional night light external stop fallback"
 _optdep powerprofilesctl "power profile selector"
 _optdep hyprlock      "lock screen"
 _optdep_any "power actions" "suspend / reboot / shutdown" systemctl loginctl
