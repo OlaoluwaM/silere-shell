@@ -375,16 +375,18 @@ Singleton {
         }
     }
 
-    // modern hyprctl reports "custom": "top right bottom left" (space-separated px);
-    // pre-per-side builds report a single "int". Either way the bar only wants one
+    // hyprctl reports the per-side value as "css": "top right bottom left"
+    // (space-separated px) on current builds, as "custom" on older ones, and as a
+    // single "int" before per-side gaps existed. Either way the bar only wants one
     // horizontal number, so an asymmetric left/right pair collapses to its max.
     function _parseGapsOut(raw): int {
         try {
             const parsed = JSON.parse(raw)
             if (typeof parsed.int === "number" && isFinite(parsed.int))
                 return Math.max(0, Math.round(parsed.int))
-            if (typeof parsed.custom !== "string") return -1
-            const parts = parsed.custom.trim().split(/\s+/).map(Number)
+            const sides = typeof parsed.css === "string" ? parsed.css : parsed.custom
+            if (typeof sides !== "string") return -1
+            const parts = sides.trim().split(/\s+/).map(Number)
             if (parts.length === 1 && isFinite(parts[0]))
                 return Math.max(0, Math.round(parts[0]))
             if (parts.length >= 4 && parts.every(n => isFinite(n)))
