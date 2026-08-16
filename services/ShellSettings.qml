@@ -117,9 +117,9 @@ Singleton {
 
     readonly property var barWidgetKeys: ["workspaces", "tray", "updates", "network", "bluetooth", "volume", "brightness", "battery", "media", "clock"]
 
-    property string barWidgetOrderLeft:  "workspaces,media"
-    property string barWidgetOrderCenter: ""
-    property string barWidgetOrderRight: "tray,updates,network,bluetooth,volume,brightness,battery,clock"
+    property string barWidgetOrderLeft:  GeneratedDefaults.barWidgetOrderLeft
+    property string barWidgetOrderCenter: GeneratedDefaults.barWidgetOrderCenter
+    property string barWidgetOrderRight: GeneratedDefaults.barWidgetOrderRight
 
     function _widgetKeyList(value): var {
         const raw = Array.isArray(value) ? value : String(value || "").split(",")

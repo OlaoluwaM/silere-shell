@@ -28,6 +28,9 @@ Singleton {
     readonly property bool   barShowBattery:      true
     readonly property bool   barShowVolume:       true
     readonly property bool   barShowBrightness:   true
+    readonly property string barWidgetOrderLeft:  "workspaces,media"
+    readonly property string barWidgetOrderCenter: ""
+    readonly property string barWidgetOrderRight: "tray,updates,network,bluetooth,volume,brightness,battery,clock"
     readonly property bool   trayWidget:          false
     readonly property bool   updatesWidget:       false
     readonly property bool   neutralTheme:        true
