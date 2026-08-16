@@ -15,6 +15,9 @@ Item {
     implicitHeight: _col.implicitHeight
 
     property string _selected: ""
+    // only the connected entry ever renders the details disclosure, so one flag
+    // suffices instead of a per-row set
+    property bool _detailsOpen: false
 
     function _canScan(): bool {
         return root.open && Network.toolAvailable && Network.wifiEnabled && !Idle.isIdle
@@ -25,13 +28,14 @@ Item {
             Network.scanWifi(true)
         } else if (root.open) {
             _selected = ""
+            _detailsOpen = false
             Network.clearWifiScan()
         }
     }
 
     onOpenChanged: {
         if (open) _syncScanState()
-        else      { _selected = ""; Network.clearWifiScan() }
+        else      { _selected = ""; _detailsOpen = false; Network.clearWifiScan() }
     }
     Component.onCompleted: _syncScanState()
     Component.onDestruction: {
@@ -54,6 +58,11 @@ Item {
         }
         function onWifiEnabledChanged() { root._syncScanState() }
         function onToolAvailableChanged() { root._syncScanState() }
+        // a disconnect (name goes empty) or a switch to a different network both change
+        // this; either way any details panel left open belongs to a network that is no
+        // longer the connected one, and the row's own tap (disconnect) never routes
+        // through wifiConnecting so that reset above can't be relied on to catch it
+        function onConnectionNameChanged() { root._detailsOpen = false }
     }
     Connections {
         target: Idle
@@ -101,6 +110,8 @@ Item {
                 readonly property bool _sel:        root._selected === modelData.ssid
                 readonly property bool _connecting: Network.wifiConnecting === modelData.ssid
                 readonly property bool _failed:     Network.wifiError === modelData.ssid
+                // collapses on its own once this network stops being the active one
+                readonly property bool _detailsOpen: root._detailsOpen && modelData.active
 
                 function _submitPassword(): void {
                     const secret = _pw.text
@@ -124,6 +135,10 @@ Item {
                     selected: _entry.modelData.active
                     highlighted: _entry._sel
                     warning: _entry._failed
+                    // the body tap already means disconnect for the connected entry, so
+                    // its details live behind the chevron's separate hit zone instead
+                    expandable: _entry.modelData.active
+                    expanded: _entry._detailsOpen
 
                     function _activate(): void {
                         if (_entry.modelData.active) { Network.disconnectWifi(); return }
@@ -141,6 +156,7 @@ Item {
                         }
                     }
                     onTriggered: _activate()
+                    onExpandToggled: root._detailsOpen = !root._detailsOpen
                 }
 
                 Item {
@@ -233,6 +249,20 @@ Item {
                                 font.pixelSize: Settings.fontSize + 1
                             }
                         }
+                    }
+                }
+
+                Item {
+                    width: parent.width
+                    height: _entry._detailsOpen ? _details.implicitHeight : 0
+                    clip: true
+                    visible: height > 0.5
+                    Disclosure on height { expanded: _entry._detailsOpen }
+
+                    WifiDetails {
+                        id: _details
+                        width: parent.width
+                        open: _entry._detailsOpen
                     }
                 }
             }

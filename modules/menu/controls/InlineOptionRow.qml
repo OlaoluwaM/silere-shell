@@ -17,14 +17,25 @@ Item {
     property string labelFontFamily: Settings.font
     property Component preview: null
     property var previewValue
+    // opt-in secondary affordance, mirrors ControlRow's chevron: a row that also
+    // expands (e.g. the connected Wi-Fi entry's details) needs a hit zone the
+    // body tap doesn't own, so its primary action (connect/disconnect) survives
+    property bool expandable: false
+    property bool expanded: false
 
     signal triggered()
+    signal expandToggled()
 
     readonly property int rowHeight: Metrics.rowHeightFor(32)
     readonly property bool _hot: _hover.hovered || _tap.pressed
 
     function trigger(): void {
         if (root.enabled && root.interactive) root.triggered()
+    }
+
+    function _insideChevron(pos): bool {
+        if (!root.expandable || !_chevron.visible) return false
+        return pos.x >= _chevron.x - 4 && pos.x <= _chevron.x + _chevron.width + 4
     }
 
     width: parent ? parent.width : 0
@@ -41,8 +52,9 @@ Item {
     TapHandler {
         id: _tap
         enabled: root.enabled && root.interactive
-        onTapped: {
-            root.trigger()
+        onTapped: (eventPoint) => {
+            if (root._insideChevron(eventPoint.position)) root.expandToggled()
+            else root.trigger()
         }
     }
 
@@ -110,7 +122,7 @@ Item {
 
     ShellText {
         id: _status
-        anchors.right: _check.left
+        anchors.right: _chevron.left
         anchors.rightMargin: root.selected ? 6 : 0
         MotionBehavior on anchors.rightMargin { NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic } }
         anchors.verticalCenter: parent.verticalCenter
@@ -124,6 +136,29 @@ Item {
         font.pixelSize: Settings.fontCaption
         font.weight: root.warning || root.selected ? Font.Medium : Font.Normal
         ColorFade on color {}
+    }
+
+    Item {
+        id: _chevron
+        anchors.right: _check.left
+        anchors.rightMargin: root.expandable ? 4 : 0
+        anchors.verticalCenter: parent.verticalCenter
+        width: root.expandable ? 20 : 0
+        height: parent.height
+        visible: root.expandable
+
+        ShellText {
+            anchors.centerIn: parent
+            text: "󰅀"
+            color: root.warning ? Theme.warning
+                : root.selected || root.highlighted ? root.accentColor
+                : Theme.withAlpha(Theme.subtext, root._hot ? 0.78 : 0.55)
+            font.pixelSize: Settings.fontLabel
+            rotation: root.expanded ? 180 : 0
+            transformOrigin: Item.Center
+            MotionBehavior on rotation { NumberAnimation { duration: Motion.medium; easing.type: Easing.OutCubic } }
+            ColorFade on color {}
+        }
     }
 
     ShellText {

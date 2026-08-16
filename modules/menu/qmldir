@@ -15,4 +15,5 @@ internal SettingsNav SettingsNav.qml
 internal SunArc SunArc.qml
 internal VitalsStrip VitalsStrip.qml
 internal VolumeRow VolumeRow.qml
+internal WifiDetails WifiDetails.qml
 internal WifiList WifiList.qml
