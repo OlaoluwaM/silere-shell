@@ -21,8 +21,10 @@ PanelWindow {
     readonly property int _shadowPad: ShellSettings.barShadow ? 16 : 0
     readonly property int _cardW: Math.max(180, Math.min(320,
         targetScreen ? targetScreen.width - 24 - _shadowPad : 320))
+    // Compositor.barSideGap is the one place this math lives (fraction or fit-gaps),
+    // shared with Bar.qml's configuredSurfaceWidth so popups can't fall out of step with the bar edge
     readonly property real _barSideGap: ShellSettings.barFloating && targetScreen
-        ? 4 * Math.round(targetScreen.width * (1.0 - ShellSettings.barWidth) / 8)
+        ? Compositor.barSideGap(targetScreen.width)
         : 0
     readonly property real _edgeMargin: ShellSettings.barFloating ? Math.max(0, _barSideGap) : 10
     readonly property int _barClearance: Metrics.popupClearance(6)

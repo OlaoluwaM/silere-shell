@@ -105,6 +105,7 @@ Singleton {
     property bool   barFloating:         GeneratedDefaults.barFloating
     property int    barGap:              GeneratedDefaults.barGap
     property real   barWidth:            GeneratedDefaults.barWidth
+    property bool   barFitGaps:          GeneratedDefaults.barFitGaps
     property int    barRadius:           GeneratedDefaults.barRadius
     property bool   barShadow:           GeneratedDefaults.barShadow
     property real   barShadowStrength:   1.0
@@ -349,6 +350,7 @@ Singleton {
         { k: "barFloating",         t: "bool", sec: "surface" },
         { k: "barGap",              t: "int",  min: 0,    max: 24, sec: "surface" },
         { k: "barWidth",            t: "real", min: 0.5,  max: 1.0, sec: "surface" },
+        { k: "barFitGaps",          t: "bool", sec: "surface" },
         { k: "barRadius",           t: "int",  min: 0,    max: 28, sec: "surface" },
         { k: "barShadow",           t: "bool", sec: "theme" },
         { k: "barShadowStrength",   t: "real", min: 0.3,  max: 1.6, sec: "theme" },

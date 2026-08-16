@@ -44,11 +44,20 @@ Column {
         // one disclosure for one toggle: two gated on the same flag played two reveals
         CollapsibleSection {
             expanded: ShellSettings.barFloating
-            SliderRow {
-                glyph: "󰁌"; label: "Width"
-                key: "barWidth"
-                step: 0.02
-                displayValue: Math.round(ShellSettings.barWidth * 100) + "%"
+            ToggleRow {
+                glyph: "󰡌"; label: "Fit window gaps"
+                description: "Align to Hyprland's gaps_out instead of a width fraction"
+                key: "barFitGaps"
+            }
+            // width only means something once fit-gaps is off; it's the fraction that mode replaces
+            CollapsibleSection {
+                expanded: !ShellSettings.barFitGaps
+                SliderRow {
+                    glyph: "󰁌"; label: "Width"
+                    key: "barWidth"
+                    step: 0.02
+                    displayValue: Math.round(ShellSettings.barWidth * 100) + "%"
+                }
             }
             // stepped in 4s: the bar edge has to stay on the 4px grid or hairlines straddle a physical pixel
             SliderRow {

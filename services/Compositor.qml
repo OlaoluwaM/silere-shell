@@ -25,6 +25,25 @@ Singleton {
 
     readonly property bool hasSpecialWorkspaces: isHyprland
 
+    // effective horizontal gap in px, read from the compositor so a floating bar can
+    // align to real tiled edges instead of guessing from a width fraction; -1 until
+    // a hyprctl query resolves it, and permanently -1 on niri (callers fall back to
+    // the fraction there — see _queryWindowGap below)
+    property int _windowGapX: -1
+    readonly property int windowGapX: _windowGapX
+
+    // shared by Bar.qml and NotificationPopups.qml so the floating bar's side gap can
+    // never drift between the segment surface and the popup stack: same source, same
+    // 8px-total / 4px-grid snap either way. A hand-tuned gaps_out that isn't itself a
+    // multiple of 4 still gets rounded onto the grid — exact gap alignment loses to a
+    // clean pixel edge.
+    function barSideGap(screenWidth: real): real {
+        if (!ShellSettings.barFloating) return 0
+        if (ShellSettings.barFitGaps && root.windowGapX >= 0)
+            return 4 * Math.round(root.windowGapX / 4)
+        return 4 * Math.round(screenWidth * (1.0 - ShellSettings.barWidth) / 8)
+    }
+
     readonly property var workspaces:     isNiri ? _niriWorkspaces : _hyprWorkspaces
     readonly property var toplevels:      isNiri ? _niriToplevels : _hyprToplevels
     // off the live title path: an animated title would wake every bar per frame
@@ -348,9 +367,66 @@ Singleton {
             if (n === "workspace" || n === "workspacev2" || n === "focusedmon"
                 || n === "focusedmonv2" || n === "activemon")
                 root.workspaceActivated(root._hyprFocusedMon)
+            // a reload can change gaps_out; re-read it and fall through to the tick
+            // below, since a gap change moves every window same as a layout event
+            if (n === "configreloaded")
+                root._queryWindowGap()
             root._hyprLayoutTick++
         }
     }
+
+    // modern hyprctl reports "custom": "top right bottom left" (space-separated px);
+    // pre-per-side builds report a single "int". Either way the bar only wants one
+    // horizontal number, so an asymmetric left/right pair collapses to its max.
+    function _parseGapsOut(raw): int {
+        try {
+            const parsed = JSON.parse(raw)
+            if (typeof parsed.int === "number" && isFinite(parsed.int))
+                return Math.max(0, Math.round(parsed.int))
+            if (typeof parsed.custom !== "string") return -1
+            const parts = parsed.custom.trim().split(/\s+/).map(Number)
+            if (parts.length === 1 && isFinite(parts[0]))
+                return Math.max(0, Math.round(parts[0]))
+            if (parts.length >= 4 && parts.every(n => isFinite(n)))
+                return Math.max(0, Math.round(Math.max(parts[1], parts[3])))
+            return -1
+        } catch (e) {
+            return -1
+        }
+    }
+
+    // a query already in flight when a reload asks for another would otherwise just
+    // drop it; queue it instead so a rapid config-edit loop never leaves a stale gap
+    property bool _gapRecheckPending: false
+
+    function _queryWindowGap(): void {
+        if (!root.isHyprland || !SystemTools.hasHyprctl) return
+        if (_gapProc.running) { root._gapRecheckPending = true; return }
+        _gapProc.exec(["hyprctl", "getoption", "general:gaps_out", "-j"])
+    }
+
+    BoundedProcess {
+        id: _gapProc
+        timeoutMs: 5000
+        stdout: StdioCollector { id: _gapOut }
+        onExited: (code) => {
+            const rerun = root._gapRecheckPending
+            root._gapRecheckPending = false
+            if (code === 0 && !_gapProc.timedOut) {
+                const gap = root._parseGapsOut(_gapOut.text)
+                if (gap >= 0) root._windowGapX = gap
+            }
+            if (rerun) root._queryWindowGap()
+        }
+    }
+
+    // SystemTools probes for hyprctl asynchronously; this singleton loads before
+    // that scan lands, so retry once it does (mirrors NightLight's onReadyChanged use)
+    Connections {
+        target: SystemTools
+        function onReadyChanged() { root._queryWindowGap() }
+    }
+    Component.onCompleted: root._queryWindowGap()
 
     property var _niriWsRaw: []
     property var _niriWinRaw: []
