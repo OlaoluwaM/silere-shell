@@ -24,6 +24,7 @@ Singleton {
     readonly property bool   barShowMedia:        true
     readonly property bool   barShowClock:        true
     readonly property bool   barShowNetwork:      true
+    readonly property bool   barShowBluetooth:    true
     readonly property bool   barShowBattery:      true
     readonly property bool   barShowVolume:       true
     readonly property bool   barShowBrightness:   true

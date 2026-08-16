@@ -137,6 +137,7 @@ Item {
     Component { id: _cTray;        TrayWidget       { anchors.verticalCenter: parent.verticalCenter; height: root.height; screen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
     Component { id: _cUpdates;     UpdatesWidget    { anchors.verticalCenter: parent.verticalCenter; height: root.height; screen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
     Component { id: _cNetwork;     NetworkWidget    { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact; barActive: root.barActive } }
+    Component { id: _cBluetooth;   BluetoothWidget  { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact } }
     Component { id: _cVolume;      Volume           { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact } }
     Component { id: _cBrightness;  BrightnessWidget { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact } }
     Component { id: _cBattery;     BatteryWidget    { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact } }
@@ -145,7 +146,7 @@ Item {
 
     readonly property var _widgetComponents: ({
         workspaces: _cWorkspaces, tray: _cTray, updates: _cUpdates,
-        network: _cNetwork, volume: _cVolume, brightness: _cBrightness, battery: _cBattery,
+        network: _cNetwork, bluetooth: _cBluetooth, volume: _cVolume, brightness: _cBrightness, battery: _cBattery,
         media: _cMedia, clock: _cClock
     })
 
