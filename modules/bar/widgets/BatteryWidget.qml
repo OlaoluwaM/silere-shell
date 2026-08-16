@@ -35,7 +35,9 @@ Pill {
         if (!expanded)
             return Battery.label
 
-        const detail = Battery.timeLabel.length > 0 ? Battery.timeLabel : Battery.statusLabel
+        // no statusLabel fallback: with auto-hide on, the pill only exists while
+        // discharging, so naming the state next to the percentage says nothing
+        const detail = Battery.timeLabel
         if (Battery.label.length === 0)
             return detail
         if (detail.length > 0)
