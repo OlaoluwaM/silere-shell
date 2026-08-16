@@ -117,7 +117,7 @@ Singleton {
     property string barDisabledMonitors: ""
     property string overlayMonitor:      ""
 
-    readonly property var barWidgetKeys: ["workspaces", "tray", "updates", "network", "bluetooth", "volume", "brightness", "caffeine", "battery", "media", "clock"]
+    readonly property var barWidgetKeys: ["workspaces", "tray", "updates", "network", "bluetooth", "caffeine", "volume", "brightness", "battery", "media", "clock"]
 
     property string barWidgetOrderLeft:  GeneratedDefaults.barWidgetOrderLeft
     property string barWidgetOrderCenter: GeneratedDefaults.barWidgetOrderCenter
@@ -217,9 +217,12 @@ Singleton {
         updates:     { glyph: "󰚰", label: "Package updates", group: "updates", setting: "updatesWidget" },
         network:     { glyph: "󰛳", label: "Network",         group: "network", setting: "barShowNetwork" },
         bluetooth:   { glyph: "󰂯", label: "Bluetooth",       group: "network", setting: "barShowBluetooth" },
+        // group "network" is a visual statement, not a semantic one: adjacent
+        // widgets divide on group changes, and this pill lives in the
+        // connectivity cluster by design
+        caffeine:    { glyph: "󰅶", label: "Caffeine",        group: "network", setting: "barShowCaffeine" },
         volume:      { glyph: "󰕾", label: "Volume",          group: "levels", setting: "barShowVolume" },
         brightness:  { glyph: "󰃟", label: "Brightness",      group: "levels", setting: "barShowBrightness" },
-        caffeine:    { glyph: "󰅶", label: "Caffeine",        group: "power",  setting: "barShowCaffeine" },
         battery:     { glyph: "󰂄", label: "Battery",         group: "power",  setting: "barShowBattery" },
         media:       { glyph: "󰝚", label: "Media",           group: "media",  setting: "barShowMedia" },
         clock:       { glyph: "󰅐", label: "Clock",           group: "clock",  setting: "barShowClock" }
