@@ -186,6 +186,10 @@ Singleton {
             root._solarTick++
             ShellSettings.nightLightTemp = root.suggestedTemp
         }
+        // only a start initiated here should push the target temp once confirmed;
+        // _checkProc.onExited gates on this flag so it never clobbers the unit's
+        // own staircase when it merely observes an externally-started unit
+        root._pushTempOnConfirm = goingOn
         // optimistic: the row flips the moment it's tapped, and _checkActive
         // (run from onExited below) reconciles it with the unit if the call failed
         root.enabled = goingOn
@@ -195,6 +199,10 @@ Singleton {
     // a check already in flight when a reconciliation is requested would otherwise
     // just drop it; queue it instead so a post-toggle recheck is never lost
     property bool _recheckPending: false
+
+    // set only by toggle()'s own start, so the confirmed-active branch below
+    // pushes the target temp for shell-initiated starts only
+    property bool _pushTempOnConfirm: false
 
     function _checkActive(): void {
         if (!root.toolAvailable) return
@@ -237,11 +245,18 @@ Singleton {
             } else {
                 const wasEnabled = root.enabled
                 root.enabled = (code === 0)
-                // freshly confirmed active (our own start, or one begun outside the
-                // shell): push the target temperature now that the daemon can
-                // actually answer IPC, rather than racing its startup
-                if (root.enabled && !wasEnabled)
+                // the unit autostarts with the session and runs its own scheduled
+                // staircase, so merely observing it active (e.g. first menu open)
+                // must not clobber that — only push once confirmed active for a
+                // start this shell itself initiated via toggle()
+                if (root.enabled && !wasEnabled && root._pushTempOnConfirm) {
                     Quickshell.execDetached(["hyprctl", "hyprsunset", "temperature", String(root.temperature)])
+                    root._pushTempOnConfirm = false
+                }
+                // a failed start must not leave a stale flag that fires on some
+                // later external activation
+                if (!root.enabled)
+                    root._pushTempOnConfirm = false
             }
             if (rerun) root._checkActive()
         }
