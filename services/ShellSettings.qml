@@ -44,6 +44,8 @@ Singleton {
     property bool   barShowVolume:       GeneratedDefaults.barShowVolume
     property bool   barShowBrightness:   GeneratedDefaults.barShowBrightness
     property bool   barShowMedia:        GeneratedDefaults.barShowMedia
+    property string caffeineUnit:        GeneratedDefaults.caffeineUnit
+    property bool   barShowCaffeine:     GeneratedDefaults.barShowCaffeine
 
     property bool   osdEnabled:     GeneratedDefaults.osdEnabled
     property int    osdTimeout:     GeneratedDefaults.osdTimeout
@@ -115,7 +117,7 @@ Singleton {
     property string barDisabledMonitors: ""
     property string overlayMonitor:      ""
 
-    readonly property var barWidgetKeys: ["workspaces", "tray", "updates", "network", "bluetooth", "volume", "brightness", "battery", "media", "clock"]
+    readonly property var barWidgetKeys: ["workspaces", "tray", "updates", "network", "bluetooth", "volume", "brightness", "caffeine", "battery", "media", "clock"]
 
     property string barWidgetOrderLeft:  GeneratedDefaults.barWidgetOrderLeft
     property string barWidgetOrderCenter: GeneratedDefaults.barWidgetOrderCenter
@@ -217,6 +219,7 @@ Singleton {
         bluetooth:   { glyph: "󰂯", label: "Bluetooth",       group: "network", setting: "barShowBluetooth" },
         volume:      { glyph: "󰕾", label: "Volume",          group: "levels", setting: "barShowVolume" },
         brightness:  { glyph: "󰃟", label: "Brightness",      group: "levels", setting: "barShowBrightness" },
+        caffeine:    { glyph: "󰅶", label: "Caffeine",        group: "power",  setting: "barShowCaffeine" },
         battery:     { glyph: "󰂄", label: "Battery",         group: "power",  setting: "barShowBattery" },
         media:       { glyph: "󰝚", label: "Media",           group: "media",  setting: "barShowMedia" },
         clock:       { glyph: "󰅐", label: "Clock",           group: "clock",  setting: "barShowClock" }
@@ -299,6 +302,8 @@ Singleton {
         { k: "barShowVolume",       t: "bool", sec: "widgets" },
         { k: "barShowBrightness",   t: "bool", sec: "widgets" },
         { k: "barShowMedia",        t: "bool", sec: "widgets" },
+        { k: "caffeineUnit",        t: "re",   re: /^[A-Za-z0-9_.@:-]*$/, sec: "-" },
+        { k: "barShowCaffeine",     t: "bool", sec: "widgets" },
         { k: "osdEnabled",          t: "bool", sec: "osd" },
         { k: "osdTimeout",          t: "int",  min: 500,  max: 10000, sec: "osd" },
         { k: "osdKindFilter",       t: "enum", vals: ["both", "volume", "brightness"], sec: "osd" },

@@ -350,6 +350,21 @@ PageShell {
             }
 
             ControlRow {
+                id: _caffeineRow
+                visible: Caffeine.available
+                active: Caffeine.manualActive
+                glyph: Caffeine.manualActive ? "󰅶" : "󰛊"
+                title: "Caffeine"
+                status: Caffeine.lastError.length > 0 ? Caffeine.lastError
+                      : Caffeine.manualActive ? "On"
+                      : Caffeine.inhibited ? Caffeine.inhibitorLabel
+                      : "Off"
+                accentColor: Caffeine.lastError.length > 0 ? Theme.error : Theme.accent
+                showSwitch: true
+                onActivated: Caffeine.toggle()
+            }
+
+            ControlRow {
                 id: _dndRow
                 active: Notifications.dnd
                 glyph: Notifications.silencingActive ? "󰂛" : "󰂚"
