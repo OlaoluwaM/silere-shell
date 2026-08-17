@@ -88,6 +88,13 @@ PageShell {
             if (root._picker === "nightlight" && !NightLight.enabled) root._closePicker()
         }
     }
+    Connections {
+        target: Caffeine
+        enabled: root.active
+        function onAvailableChanged() {
+            if (root._picker === "caffeine" && !Caffeine.available) root._closePicker()
+        }
+    }
 
     Column {
         id: _col
@@ -356,12 +363,36 @@ PageShell {
                 glyph: Caffeine.manualActive ? "󰅶" : "󰛊"
                 title: "Caffeine"
                 status: Caffeine.lastError.length > 0 ? Caffeine.lastError
-                      : Caffeine.manualActive ? "On"
+                      : Caffeine.manualActive ? (Caffeine.remainingMinutes >= 0
+                            ? Caffeine.remainingMinutes + "m left" : "On")
                       : Caffeine.inhibited ? Caffeine.inhibitorLabel
                       : "Off"
                 accentColor: Caffeine.lastError.length > 0 ? Theme.error : Theme.accent
                 showSwitch: true
+                // reachable whether or not caffeine is currently on: the duration has
+                // to be pickable before the first tap, not only after
+                expandable: Caffeine.available
+                expanded: root._picker === "caffeine"
                 onActivated: Caffeine.toggle()
+                onExpandToggled: root._togglePicker("caffeine")
+            }
+
+            InlinePicker {
+                id: _caffeinePicker
+                open: root._picker === "caffeine"
+                content: Component {
+                    ChoiceChipRow {
+                        width: parent ? parent.width : 0
+                        glyph: "󰥔"
+                        label: "Duration"
+                        accentColor: Theme.accent
+                        currentValue: ShellSettings.caffeinePreset
+                        model: Caffeine.presets.map(function(p) {
+                            return { value: p, label: Caffeine.presetLabel(p) }
+                        })
+                        onChosen: (v) => Caffeine.selectPreset(v)
+                    }
+                }
             }
 
             ControlRow {

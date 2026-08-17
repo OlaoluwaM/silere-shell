@@ -45,6 +45,9 @@ Singleton {
     property bool   barShowBrightness:   GeneratedDefaults.barShowBrightness
     property bool   barShowMedia:        GeneratedDefaults.barShowMedia
     property string caffeineUnit:        GeneratedDefaults.caffeineUnit
+    property string caffeinePresets:     GeneratedDefaults.caffeinePresets
+    // runtime choice, not a packaging default: which preset a timed run starts with next
+    property int    caffeinePreset:      0
     property string wifiEditCommand:     GeneratedDefaults.wifiEditCommand
     property string btEditCommand:       GeneratedDefaults.btEditCommand
     property bool   barShowCaffeine:     GeneratedDefaults.barShowCaffeine
@@ -310,6 +313,8 @@ Singleton {
         { k: "barShowBrightness",   t: "bool", sec: "widgets" },
         { k: "barShowMedia",        t: "bool", sec: "widgets" },
         { k: "caffeineUnit",        t: "re",   re: /^[A-Za-z0-9_.@:-]*$/, sec: "-" },
+        { k: "caffeinePresets",     t: "re",   re: /^[0-9]*(,[0-9]+)*$/, sec: "-" },
+        { k: "caffeinePreset",      t: "int",  min: 0, max: 1440, sec: "-" },
         { k: "wifiEditCommand",     t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "btEditCommand",       t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "barShowCaffeine",     t: "bool", sec: "widgets" },
