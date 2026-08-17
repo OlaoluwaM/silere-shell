@@ -9,9 +9,15 @@ Column {
 
     SectionLabel { label: "LAYOUT"; first: true }
     SettingsCard {
+        ToggleRow {
+            glyph: "󰕭"; label: "Dynamic workspaces"
+            description: "Show only occupied workspaces plus one empty at the end"
+            key: "wsDynamic"
+        }
         SliderRow {
             glyph: "󰕰"; label: "Slots shown"
             key: "wsMinVisible"
+            enabled: !ShellSettings.wsDynamic
             displayValue: ShellSettings.wsMinVisible
         }
         ChoiceChipRow {

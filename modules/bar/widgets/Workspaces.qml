@@ -152,6 +152,10 @@ Item {
             root._paging = true
             _pagingReset.restart()
         }
+        function onWsDynamicChanged() {
+            root._paging = true
+            _pagingReset.restart()
+        }
         function onWorkspaceShiftChanged() {
             if (!ShellSettings.workspaceShift) {
                 _groupFadeAnim.stop()
@@ -252,8 +256,55 @@ Item {
         return last
     }
 
+    // highest id on this monitor the compositor reports as occupied -- the ground
+    // truth the GNOME-style trailing empty is measured from. Reads ws.occupied
+    // straight off the compositor snapshot (not the occupied() helper, which also
+    // falls back to the app-icon cache -- that cache is keyed off visibleIds
+    // itself, so leaning on it here would feed dynamic mode's own output back
+    // into its input). Only evaluated for dynamic mode on Hyprland: niri already
+    // renumbers per-output and keeps its own trailing empty for free.
+    readonly property int _monitorMaxOccupiedId: {
+        if (Compositor.isNiri || !ShellSettings.wsDynamic) return 0
+        let max = 0
+        const vals = Compositor.workspaces
+        for (let i = 0; i < vals.length; i++) {
+            const ws = vals[i]
+            if (ws && ws.output === root.monitorName && ws.occupied && ws.wsId > max)
+                max = ws.wsId
+        }
+        return max
+    }
+
+    // GNOME-style dynamic mode: every occupied id from the anchor plus exactly one
+    // trailing empty, extended through the active id if the user has swiped past
+    // that empty into fresher ones. No paging -- the whole run is always shown.
+    readonly property string _dynamicVisibleIdsKey: {
+        const ids = []
+        const anchor = Math.max(1, root._monitorAnchorId)
+        let trailing = Math.max(anchor, root._monitorMaxOccupiedId + 1)
+        while (root._knownOnOtherMonitor(trailing)) trailing++
+        const last = Math.max(trailing, root.activeId)
+        for (let id = anchor; id <= last; id++) {
+            if (root._knownOnOtherMonitor(id)) continue
+            ids.push(id)
+        }
+        return ids.join(",")
+    }
+
+    // Growing/shrinking the trailing empty resets every delegate (Repeater fully
+    // repopulates on a model-array change, see the Row comment below) without
+    // touching pageKey, so onPageKeyChanged never fires for it. Route it through
+    // the same _paging suppression as wsMinVisible/wsShowAppIcons changes so the
+    // whole row doesn't scale-pop every time a workspace occupies or empties out.
+    on_DynamicVisibleIdsKeyChanged: {
+        if (!ShellSettings.wsDynamic) return
+        root._paging = true
+        _pagingReset.restart()
+    }
+
     // hyprland ids are global: skip ids owned by another output or a wide page turns a monitor-local bar into a cross-monitor switcher
     readonly property string _visibleIdsKey: {
+        if (!Compositor.isNiri && ShellSettings.wsDynamic) return root._dynamicVisibleIdsKey
         const ids = []
         const anchor = Math.max(1, root._monitorAnchorId)
         const active = Math.max(anchor, root.activeId)
@@ -442,6 +493,17 @@ Item {
         id: wsRow
         spacing: root.gap
 
+        // Dynamic mode grows/shrinks this list at the tail (occupied ids plus the
+        // trailing empty). No bespoke Row `add` transition here: visibleIds is a
+        // freshly built array on every recompute, so Repeater fully repopulates
+        // rather than diffing -- a Row-level transition would replay across every
+        // delegate on every reset, not just the tail slot that actually changed.
+        // The on_DynamicVisibleIdsKeyChanged handler above routes tail growth
+        // through the same _paging suppression as wsMinVisible/wsShowAppIcons, so
+        // WorkspaceButton's per-delegate scale-in (Component.onCompleted, gated
+        // on `!paging`) sits out the reset and the row just reflows -- its width
+        // change is already smoothed by the MotionBehaviors on implicitWidth and
+        // per-button width above.
         Repeater {
             id: _wsRepeater
             model: root.visibleIds
