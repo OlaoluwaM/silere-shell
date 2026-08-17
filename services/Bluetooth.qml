@@ -112,6 +112,46 @@ Singleton {
         onTriggered: root._refreshDevices()
     }
 
+    // raised the instant a published row is purged for having gone away, so BluetoothList
+    // can drop _detailsAddr if the drawer open on that row — the drawer lives on the menu
+    // side, not here, so it can't purge itself
+    signal deviceRemoved(string address)
+
+    // adapter.devices is Quickshell's ObjectModel (see quickshell-bluetooth.qmltypes):
+    // objectRemovedPost fires synchronously the instant BlueZ reports a device gone, and the
+    // removed QObject is still live when it fires — Quickshell schedules the actual delete for
+    // the next event-loop turn, it doesn't destroy inline during the emit. That gap is exactly
+    // what let a stale pointer survive in `devices` long enough for BluetoothList's ListView to
+    // instantiate a delegate over freed memory: _refreshDevices only republishes on a 1s poll,
+    // and not at all while _devicesFrozen holds the details drawer open, so a removal during
+    // either window left the dangling entry in place. Wiring straight to this signal — bypassing
+    // both the poll and the freeze — closes that gap unconditionally: frozen exists to keep
+    // geometry stable while a row's drawer is open, it was never meant to keep a dead pointer
+    // alive, so removal purges through it regardless.
+    //
+    // This purge is also why no per-property null-guard was added to BluetoothList's delegate:
+    // the array reassignment below hands ListView a wholesale-different array, which tears down
+    // every delegate (see _refreshDevices' comment) before control returns to the event loop —
+    // before the deferred delete runs. A delegate over the removed device can't outlive this
+    // handler to read a since-freed property, and a `modelData && modelData.x` style guard
+    // wouldn't help anyway: dereferencing a truthiness check on a genuinely dangling (already
+    // freed) pointer is itself undefined behaviour, not a safe no-op the way it is for null.
+    function _purgeRemovedDevice(object): void {
+        const addr = object && object.address
+        if (!addr) return
+        const next = root.devices.filter(d => d && d.address !== addr)
+        if (next.length !== root.devices.length) {
+            root.devices = next
+            root._devicesKeySnapshot = root._devicesKey(next)
+        }
+        root.deviceRemoved(addr)
+    }
+
+    Connections {
+        target: root.adapter ? root.adapter.devices : null
+        function onObjectRemovedPost(object, index) { root._purgeRemovedDevice(object) }
+    }
+
     function toggle(): void {
         if (adapter) adapter.enabled = !adapter.enabled
     }

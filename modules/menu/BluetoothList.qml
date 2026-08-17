@@ -54,6 +54,12 @@ Item {
         target: Bluetooth
         function onAvailableChanged() { root._syncScanState() }
         function onEnabledChanged() { root._syncScanState() }
+        // the row whose drawer this pointed at no longer exists in Bluetooth.devices —
+        // Bluetooth._purgeRemovedDevice already dropped it from the published array in this
+        // same call, so clearing here can't race a stale republish putting it back
+        function onDeviceRemoved(address) {
+            if (root._detailsAddr === address) root._detailsAddr = ""
+        }
     }
     Connections {
         target: Idle
