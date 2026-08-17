@@ -54,8 +54,8 @@ Singleton {
         return -1
     }
 
-    readonly property var devices: {
-        const list = _devices.slice()
+    function _sortedDevices(): var {
+        const list = root._devices.slice()
         list.sort((a, b) => {
             if (!a || !b) return 0
             if (a.connected !== b.connected) return a.connected ? -1 : 1
@@ -65,6 +65,51 @@ Singleton {
             return an < bn ? -1 : (an > bn ? 1 : 0)
         })
         return list
+    }
+
+    // membership and the fields the sort above actually reads — not pairing/trusted/state/
+    // battery, which a row shows straight off the retained device object underneath and so
+    // already update live without the array itself being republished
+    function _devicesKey(list: var): string {
+        return list.map(d => [d.address, d.connected, d.paired, (d.deviceName || d.name || "")]
+            .join("")).join("")
+    }
+
+    property string _devicesKeySnapshot: ""
+    // set by BluetoothList while a device's details panel is open: a republish landing then
+    // would replace the array and tear down every delegate — including that open row — the
+    // same hazard Network.setWifiListFrozen guards against for the wifi list's details panel
+    property bool _devicesFrozen: false
+    function setDevicesFrozen(frozen: bool): void {
+        if (root._devicesFrozen === frozen) return
+        root._devicesFrozen = frozen
+        if (!frozen) root._refreshDevices()
+    }
+
+    // devices used to be `readonly property var: {...sort...}`, a binding that reruns —
+    // new array, new ListView model reference — the instant any tracked device's connected/
+    // paired/name changes, which tears down and rebuilds every delegate even though that's
+    // rarer here than wifi's continuous signal churn. Polling on a bounded timer and only
+    // publishing when the structural key changes keeps an unrelated device's state flip from
+    // rebuilding a row whose details panel is open, mirroring Network.wifiNetworks.
+    function _refreshDevices(): void {
+        if (root._devicesFrozen) return
+        const next = root._sortedDevices()
+        const key = root._devicesKey(next)
+        if (key === root._devicesKeySnapshot) return
+        root._devicesKeySnapshot = key
+        root.devices = next
+    }
+
+    property var devices: []
+
+    Timer {
+        id: _devicesPoll
+        interval: 1000
+        repeat: true
+        triggeredOnStart: true
+        running: root._scanRequested
+        onTriggered: root._refreshDevices()
     }
 
     function toggle(): void {
@@ -125,6 +170,9 @@ Singleton {
         template: ShellSettings.btEditCommand
     }
     readonly property bool managerAvailable: _managerLauncher.available
+    // surfaced so BluetoothDetails can report a failed launch (cooldown, tool vanished
+    // mid-session) instead of a click that silently does nothing, same as WifiProfile.lastError
+    readonly property string lastError: _managerLauncher.lastError
     function launchManager(): void {
         _managerLauncher.launch()
     }

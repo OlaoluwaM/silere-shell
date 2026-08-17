@@ -40,4 +40,9 @@ Column {
         label: "Open bluetooth manager…"
         onTriggered: Bluetooth.launchManager()
     }
+
+    HintText {
+        visible: Bluetooth.lastError.length > 0
+        text: Bluetooth.lastError
+    }
 }

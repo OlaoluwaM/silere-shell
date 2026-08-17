@@ -66,16 +66,28 @@ QtObject {
         onTriggered: root._cooling = false
     }
 
+    // bumped on every probe request so a result belonging to a superseded template
+    // (exec() restarts the process rather than queuing a second one, and the old
+    // invocation's own exit still fires first) never lands as _toolFound
+    property int _probeGen: 0
+
     function _probe(): void {
+        root._probeGen++
         if (root.argv0.length === 0) { root._toolFound = false; return }
         root._probeProc.exec(["bash", "-c", "command -v -- \"$1\" >/dev/null 2>&1", "bash", root.argv0])
     }
 
     readonly property BoundedProcess _probeProc: BoundedProcess {
         timeoutMs: 5000
-        onExited: (code) => root._toolFound = (code === 0)
+        property int _gen: 0
+        onRunningChanged: if (running) _gen = root._probeGen
+        onExited: (code) => {
+            if (_probeProc._gen === root._probeGen) root._toolFound = (code === 0)
+        }
     }
 
+    // the initial `template:` binding already fires this once at construction (its
+    // value differs from the "" default), so a separate Component.onCompleted probe
+    // would just be a second, redundant PATH check for the same command
     onTemplateChanged: root._probe()
-    Component.onCompleted: root._probe()
 }
