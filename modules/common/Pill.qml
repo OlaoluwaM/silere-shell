@@ -18,6 +18,20 @@ Item {
     property bool   animateGlyph: true
     property bool   animateText: false
     property int    glyphPixelSize: Settings.iconSize + 2
+    // Symbol glyphs sit visibly low in their line box (the symbols fallback
+    // font carries a deep descent), so centering the Text centers the box,
+    // not the ink. A widget can name its fullest-ink glyph here to shift the
+    // ink's measured center onto the box center. The reference stays fixed
+    // per widget on purpose: correcting against the CURRENT glyph would make
+    // families whose states shed ink (wifi tiers, battery levels) jump as
+    // they change, since their shared design baseline is what must hold.
+    property string glyphAlignReference: ""
+    // Screenshot-measured trim on top of the metric correction, in logical
+    // px. The symbols font's tightBoundingRect is only approximate for some
+    // glyphs (bluetooth and battery measured ~1px low even after the metric
+    // shift), so widgets may carry the residual here. Keep values from
+    // measurement, not eyeballing.
+    property int    glyphAlignNudge: 0
     property string reserveText: ""
     readonly property real _reserveW: reserveText.length > 0 ? Math.ceil(_reserveMetrics.advanceWidth) : 0
     property bool   contentScanEnabled: false
@@ -76,6 +90,25 @@ Item {
         font.pixelSize: Settings.fontSize
         text:           root.reserveText
     }
+
+    TextMetrics {
+        id: _glyphAlignMetrics
+        font.family:    Settings.font
+        font.pixelSize: root.glyphPixelSize
+        text:           root.glyphAlignReference
+    }
+    // tightBoundingRect is baseline-relative (y negative above the baseline),
+    // so baseline + y + height/2 is the ink's center measured from the top of
+    // the line box. The baseline and box height come from the laid-out Text
+    // itself, not a FontMetrics of the primary family: a symbol glyph's line
+    // is shaped by the fallback symbols font, whose vertical metrics differ
+    // from the text font's.
+    readonly property real _glyphInkShift: glyphAlignReference.length > 0
+        ? (_glyphText.implicitHeight / 2)
+          - (_glyphText.baselineOffset
+             + _glyphAlignMetrics.tightBoundingRect.y
+             + _glyphAlignMetrics.tightBoundingRect.height / 2)
+        : 0
 
     property bool _ready: false
     property string _shownGlyph: ""
@@ -222,6 +255,7 @@ Item {
             ShellText {
                 id: _glyphText
                 anchors.centerIn: parent
+                anchors.verticalCenterOffset: Math.round(root._glyphInkShift) + root.glyphAlignNudge
                 text:            root._shownGlyph
                 color:           root._hoverGlyphColor
                 transformOrigin: Item.Center

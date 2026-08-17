@@ -14,6 +14,9 @@ StatusActionPill {
     readonly property bool _connected: Bluetooth.connectedCount > 0
     // same three-state iconography HomePage's Bluetooth row already established: off, idle-on, actively connected
     glyph:      !Bluetooth.enabled ? "󰂲" : (_connected ? "󰂱" : "󰂯")
+    // the bare rune: the family's other states only add ink around it
+    glyphAlignReference: "󰂯"
+    glyphAlignNudge: -1
     glyphColor: Bluetooth.enabled && _connected ? Theme.text : Theme.subtext
     textColor:  Theme.subtext
     // StatusActionPill defaults this off; this glyph switches across three states at

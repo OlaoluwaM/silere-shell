@@ -13,6 +13,9 @@ Pill {
     collapsed: !show
 
     glyph:          Battery.icon
+    // full battery: every level and charging variant shares its outline
+    glyphAlignReference: "󰁹"
+    glyphAlignNudge: -1
     glyphPixelSize: Settings.iconSize + 3
     glyphColor:     Battery.iconColor
     textColor:      Battery.iconColor

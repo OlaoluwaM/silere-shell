@@ -11,6 +11,8 @@ StatusActionPill {
     show: ShellSettings.barShowCaffeine && Caffeine.available && Caffeine.inhibited
 
     glyph: "󰅶"
+    // single-state widget, so the reference is the glyph itself
+    glyphAlignReference: "󰅶"
 
     text: expanded ? (Caffeine.manualActive ? "Caffeine" : Caffeine.inhibitorLabel) : ""
 

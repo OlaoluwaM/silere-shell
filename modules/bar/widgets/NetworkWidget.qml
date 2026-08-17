@@ -58,6 +58,8 @@ StatusActionPill {
     scale:          1.0
     // the icon cell is a fixed width: one glyph fits, two overflow it
     glyph:          Network.icon
+    // full-strength wifi: the widest ink in this widget's glyph family
+    glyphAlignReference: "󰤨"
     glyphPixelSize: Settings.iconSize + 2
     maxTextWidth:   compact ? 150 : 260
     // above the 2s traffic-stats poll: shrinkDelay:0 re-animated the pill's width on every single tick

@@ -15,6 +15,8 @@ Pill {
     opacity: _baseOpacity
     visible: layoutVisible
     glyph:           Brightness.icon
+    // full sun: the dimmer states shrink their rays symmetrically
+    glyphAlignReference: "󰃠"
     glyphColor:      canControl ? Theme.text : Theme.subtext
     reserveText: "100%"
     text:        (ShellSettings.valuesOnHover && !expanded) ? ""
