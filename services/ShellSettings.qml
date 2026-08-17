@@ -124,7 +124,7 @@ Singleton {
     property string barDisabledMonitors: ""
     property string overlayMonitor:      ""
 
-    readonly property var barWidgetKeys: ["workspaces", "tray", "updates", "network", "bluetooth", "caffeine", "volume", "brightness", "battery", "media", "clock"]
+    readonly property var barWidgetKeys: ["workspaces", "tray", "traypopup", "updates", "network", "bluetooth", "caffeine", "volume", "brightness", "battery", "media", "clock"]
 
     property string barWidgetOrderLeft:  GeneratedDefaults.barWidgetOrderLeft
     property string barWidgetOrderCenter: GeneratedDefaults.barWidgetOrderCenter
@@ -221,6 +221,9 @@ Singleton {
         // no setting: the diamond is the only way into the menu, so this one cannot be hidden
         workspaces:  { glyph: "󰊗", label: "Workspaces",      group: "workspaces", setting: "" },
         tray:        { glyph: "󰇘", label: "System tray",     group: "tray",    setting: "trayWidget" },
+        // no setting: it shows itself whenever SystemTray.items is non-empty, same
+        // as workspaces above -- there is nothing to gate, only where it sits
+        traypopup:   { glyph: "󰀻", label: "Tray popup",      group: "tray",    setting: "" },
         updates:     { glyph: "󰚰", label: "Package updates", group: "updates", setting: "updatesWidget" },
         network:     { glyph: "󰛳", label: "Network",         group: "network", setting: "barShowNetwork" },
         bluetooth:   { glyph: "󰂯", label: "Bluetooth",       group: "network", setting: "barShowBluetooth" },

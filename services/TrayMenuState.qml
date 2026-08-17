@@ -14,6 +14,10 @@ Singleton {
     property ShellScreen triggerScreen: null
     // QtObject (not var) so the reference auto-nulls when the SNI item dies with the menu open
     property QtObject menuHandle: null
+    // true when this menu was opened from a row inside TrayPopupWindow rather than the
+    // inline bar row (TrayWidget.qml) -- OverlayCoordinator reads this to know the popup
+    // is this menu's parent, not a sibling overlay, so opening one must not kill the other
+    property bool popupSourced: false
     readonly property real effectiveAnchorX: {
         const live = Number(root.anchorSource?.menuAnchorX)
         return isFinite(live) ? live : root.anchorX
@@ -27,7 +31,7 @@ Singleton {
         function onTrayWidgetChanged() { if (!ShellSettings.trayWidget) root.close() }
     }
 
-    function toggleAt(x: real, screen, handle, bottom: bool, anchor, source): void {
+    function toggleAt(x: real, screen, handle, bottom: bool, anchor, source, fromPopup): void {
         if (root.open && root.sourceItem === source) {
             root.close()
             return
@@ -38,6 +42,7 @@ Singleton {
         barBottom = bottom
         triggerScreen = screen ?? null
         menuHandle = handle
+        popupSourced = fromPopup === true
         open = true
     }
     function close(): void {
@@ -46,5 +51,6 @@ Singleton {
         anchorSource = null
         sourceItem = null
         menuHandle = null
+        popupSourced = false
     }
 }

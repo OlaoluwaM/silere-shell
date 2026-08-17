@@ -11,5 +11,6 @@ MediaWidget   1.0 MediaWidget.qml
 MediaVisualizer 1.0 MediaVisualizer.qml
 UpdatesWidget 1.0 UpdatesWidget.qml
 TrayWidget    1.0 TrayWidget.qml
+TrayPopupWidget 1.0 TrayPopupWidget.qml
 OsdBarWidget  1.0 OsdBarWidget.qml
 StatusActionPill 1.0 StatusActionPill.qml
