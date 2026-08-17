@@ -8,7 +8,14 @@ import "../../../services"
 StatusActionPill {
     id: root
 
-    show: ShellSettings.barShowCaffeine && Caffeine.available && Caffeine.inhibited
+    // inhibited alone would wait out the 15s systemd-inhibit --list poll before a
+    // manual toggle (click or the Super+C IPC chord) lit the pill; manualActive
+    // flips the moment toggle() runs, so pairing it in here makes the pill track
+    // our own runs optimistically. The poll still matters on its own — it is the
+    // only way to see idle blocked by something other than this unit, and logind
+    // offers no change signal to push that instead.
+    show: ShellSettings.barShowCaffeine && Caffeine.available
+        && (Caffeine.inhibited || Caffeine.manualActive)
 
     glyph: "󰅶"
     // single-state widget, so the reference is the glyph itself
