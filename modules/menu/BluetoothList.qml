@@ -18,6 +18,11 @@ Item {
     property string _armedAddr: ""
     Timer { id: _disarmTimer; interval: 3000; onTriggered: root._armedAddr = "" }
 
+    // only one device's details panel is open at a time, matched by address rather than
+    // index/identity — Bluetooth.devices resorts (and rebuilds delegates) on any device's
+    // connected/paired change, but this lives on root, not the delegate, so it survives that
+    property string _detailsAddr: ""
+
     property bool _searchLapsed: false
     Timer {
         interval: 10000
@@ -37,7 +42,7 @@ Item {
 
     onOpenChanged: {
         _syncScanState()
-        if (!open) { _disarmTimer.stop(); root._armedAddr = "" }
+        if (!open) { _disarmTimer.stop(); root._armedAddr = ""; root._detailsAddr = "" }
     }
     Component.onCompleted: _syncScanState()
     Component.onDestruction: Bluetooth.setScan(false)
@@ -93,49 +98,77 @@ Item {
             spacing: 0
             model: root.open ? Bluetooth.devices : []
 
-            delegate: InlineOptionRow {
-                id: _row
+            delegate: Column {
+                id: _entry
                 required property var modelData
                 required property int index
                 width: _list.width
+                spacing: 0
 
-                readonly property bool   _armed: root._armedAddr === modelData.address && modelData.connected
-                readonly property int _batt: Bluetooth.batteryPercent(modelData)
-                readonly property string _state:
-                    _armed ? "Disconnect?"
-                    : modelData.pairing ? "Cancel?"
-                    : modelData.state === Bt.BluetoothDeviceState.Connecting    ? "Connecting…"
-                    : modelData.state === Bt.BluetoothDeviceState.Disconnecting ? "Disconnecting…"
-                    : modelData.connected ? (_batt >= 0 ? _batt + "%" : "Connected")
-                    : modelData.paired    ? "Paired"
-                    : "Pair"
+                readonly property bool _detailsOpen: root._detailsAddr === modelData.address && modelData.connected
 
-                glyph: root._devGlyph(modelData.icon)
-                label: Bluetooth.deviceLabel(modelData)
-                status: _state
-                selected: modelData.connected
-                warning: _armed || modelData.pairing
+                InlineOptionRow {
+                    id: _row
+                    width: parent.width
 
-                function _activate(): void {
-                    const addr = modelData.address
-                    if (modelData.pairing) {
-                        Bluetooth.cancelPair(addr)
-                    } else if (modelData.connected) {
-                        if (root._armedAddr === addr) {
-                            root._armedAddr = ""
-                            _disarmTimer.stop()
-                            Bluetooth.disconnectDevice(addr)
+                    readonly property bool   _armed: root._armedAddr === _entry.modelData.address && _entry.modelData.connected
+                    readonly property int _batt: Bluetooth.batteryPercent(_entry.modelData)
+                    readonly property string _state:
+                        _armed ? "Disconnect?"
+                        : _entry.modelData.pairing ? "Cancel?"
+                        : _entry.modelData.state === Bt.BluetoothDeviceState.Connecting    ? "Connecting…"
+                        : _entry.modelData.state === Bt.BluetoothDeviceState.Disconnecting ? "Disconnecting…"
+                        : _entry.modelData.connected ? (_batt >= 0 ? _batt + "%" : "Connected")
+                        : _entry.modelData.paired    ? "Paired"
+                        : "Pair"
+
+                    glyph: root._devGlyph(_entry.modelData.icon)
+                    label: Bluetooth.deviceLabel(_entry.modelData)
+                    status: _state
+                    selected: _entry.modelData.connected
+                    warning: _armed || _entry.modelData.pairing
+                    // the body tap already means connect/disconnect for this row, so
+                    // details live behind the chevron's separate hit zone instead
+                    expandable: _entry.modelData.connected
+                    expanded: _entry._detailsOpen
+
+                    function _activate(): void {
+                        const addr = _entry.modelData.address
+                        if (_entry.modelData.pairing) {
+                            Bluetooth.cancelPair(addr)
+                        } else if (_entry.modelData.connected) {
+                            if (root._armedAddr === addr) {
+                                root._armedAddr = ""
+                                _disarmTimer.stop()
+                                Bluetooth.disconnectDevice(addr)
+                            } else {
+                                root._armedAddr = addr
+                                _disarmTimer.restart()
+                            }
+                        } else if (_entry.modelData.paired) {
+                            Bluetooth.connectDevice(addr)
                         } else {
-                            root._armedAddr = addr
-                            _disarmTimer.restart()
+                            Bluetooth.pairDevice(addr)
                         }
-                    } else if (modelData.paired) {
-                        Bluetooth.connectDevice(addr)
-                    } else {
-                        Bluetooth.pairDevice(addr)
+                    }
+                    onTriggered: _activate()
+                    onExpandToggled: root._detailsAddr = (root._detailsAddr === _entry.modelData.address)
+                        ? "" : _entry.modelData.address
+                }
+
+                Item {
+                    width: parent.width
+                    height: _entry._detailsOpen ? _details.implicitHeight : 0
+                    clip: true
+                    visible: height > 0.5
+                    Disclosure on height { expanded: _entry._detailsOpen }
+
+                    BluetoothDetails {
+                        id: _details
+                        width: parent.width
+                        device: _entry.modelData
                     }
                 }
-                onTriggered: _activate()
             }
         }
     }

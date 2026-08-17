@@ -115,4 +115,17 @@ Singleton {
             if (d && d.address === address) { d.cancelPair(); return }
         }
     }
+
+    // "Open bluetooth manager…" launches a user-declared command template
+    // (ShellSettings.btEditCommand) through the same TemplateLauncher WifiProfile's
+    // editor escape hatch uses. The template carries no {placeholder} — nothing to
+    // look up first, so a click launches immediately with no query round-trip.
+    TemplateLauncher {
+        id: _managerLauncher
+        template: ShellSettings.btEditCommand
+    }
+    readonly property bool managerAvailable: _managerLauncher.available
+    function launchManager(): void {
+        _managerLauncher.launch()
+    }
 }

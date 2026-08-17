@@ -46,6 +46,7 @@ Singleton {
     property bool   barShowMedia:        GeneratedDefaults.barShowMedia
     property string caffeineUnit:        GeneratedDefaults.caffeineUnit
     property string wifiEditCommand:     GeneratedDefaults.wifiEditCommand
+    property string btEditCommand:       GeneratedDefaults.btEditCommand
     property bool   barShowCaffeine:     GeneratedDefaults.barShowCaffeine
 
     property bool   osdEnabled:     GeneratedDefaults.osdEnabled
@@ -308,6 +309,7 @@ Singleton {
         { k: "barShowMedia",        t: "bool", sec: "widgets" },
         { k: "caffeineUnit",        t: "re",   re: /^[A-Za-z0-9_.@:-]*$/, sec: "-" },
         { k: "wifiEditCommand",     t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
+        { k: "btEditCommand",       t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "barShowCaffeine",     t: "bool", sec: "widgets" },
         { k: "osdEnabled",          t: "bool", sec: "osd" },
         { k: "osdTimeout",          t: "int",  min: 500,  max: 10000, sec: "osd" },

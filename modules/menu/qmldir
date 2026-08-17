@@ -2,6 +2,7 @@
 MenuWindow 1.0 MenuWindow.qml
 
 # menu-only implementation types
+internal BluetoothDetails BluetoothDetails.qml
 internal BluetoothList BluetoothList.qml
 internal BrightnessRow BrightnessRow.qml
 internal HomePage HomePage.qml
