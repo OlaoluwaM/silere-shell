@@ -103,6 +103,11 @@ Singleton {
 
     property var devices: []
 
+    // raised the instant a published row is purged for having gone away, so BluetoothList
+    // can drop _detailsAddr if the drawer open on that row — the drawer lives on the menu
+    // side, not here, so it can't purge itself
+    signal deviceRemoved(string address)
+
     Timer {
         id: _devicesPoll
         interval: 1000
@@ -111,11 +116,6 @@ Singleton {
         running: root._scanRequested
         onTriggered: root._refreshDevices()
     }
-
-    // raised the instant a published row is purged for having gone away, so BluetoothList
-    // can drop _detailsAddr if the drawer open on that row — the drawer lives on the menu
-    // side, not here, so it can't purge itself
-    signal deviceRemoved(string address)
 
     // adapter.devices is Quickshell's ObjectModel (see quickshell-bluetooth.qmltypes):
     // objectRemovedPost fires synchronously the instant BlueZ reports a device gone, and the
