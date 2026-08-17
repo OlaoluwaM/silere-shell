@@ -1,19 +1,16 @@
 import QtQuick
 import "../../../config"
 import "../../../services"
-import "../../common"
 
-Pill {
+// StatusActionPill, not the plain Pill BatteryWidget/BluetoothWidget use — a click here
+// launches the same wifi-editor command WifiProfile already runs for the details view's
+// "Edit connection…" row, gated on WifiProfile's own PATH probe for that command
+StatusActionPill {
     id: root
-    property bool barActive: true
 
     readonly property bool canRead: Network.toolAvailable
-    readonly property bool show: ShellSettings.barShowNetwork
-        && (canRead ? Network.available : true)
     property real _pulseOpacity: 1.0
     readonly property real _baseOpacity: !show ? 0.0 : canRead ? 1.0 : 0.45
-    readonly property bool layoutVisible: show || opacity > 0.001
-    collapsed: !show
 
     readonly property bool _disconnected: ShellSettings.barShowNetwork && canRead && Network.available && !Network.connected && !ShellSettings.reduceMotion
     property bool _pulseSettled: false
@@ -54,18 +51,27 @@ Pill {
         return root._join(parts)
     }
 
+    show: ShellSettings.barShowNetwork
+        && (canRead ? Network.available : true)
     opacity:        _baseOpacity * _pulseOpacity
-    visible:        layoutVisible
+    // dims rather than vanishing like Caffeine/Updates do, so no pop-in/out here
+    scale:          1.0
     // the icon cell is a fixed width: one glyph fits, two overflow it
     glyph:          Network.icon
+    glyphPixelSize: Settings.iconSize + 2
     maxTextWidth:   compact ? 150 : 260
     // above the 2s traffic-stats poll: shrinkDelay:0 re-animated the pill's width on every single tick
     shrinkDelay:    2400
+    // a click only does something once the configured wifi-editor command is reachable
+    interactive:    show && WifiProfile.editorAvailable
 
+    // overrides StatusActionPill's own ungated Behavior on this same property; without a
+    // local override here, the inherited one would still smooth every raw pulse-loop tick
     MotionBehavior on opacity { gate: !root._isPulsing; NumberAnimation { duration: Motion.medium; easing.type: Easing.OutCubic } }
     glyphColor:  canRead && Network.connected ? Theme.text : Theme.subtext
     textColor:   Theme.subtext
 
+    animateGlyph: true
     animateText: false
 
     function _physicalLabel(): string {
@@ -82,6 +88,8 @@ Pill {
     }
 
     text: expanded ? _detailText : _inlineText
+
+    onActivated: WifiProfile.launchEditor()
 
     PulseLoop {
         active: root.barActive && root._isPulsing && !Idle.isIdle
