@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell
 import "../../config"
 import "../../services"
 import "../common"
@@ -108,7 +109,17 @@ Item {
             visible: root.open && Network.wifiNetworks.length > 0
             interactive: contentHeight > height
             spacing: 0
-            model: root.open ? Network.wifiNetworks : []
+            // ScriptModel, not the bare array: a plain-array model has no diffing, so
+            // every snapshot republish was a full model reset -- contentY yanked back
+            // to 0 and every delegate rebuilt. Keyed on ssid (unique -- _wifiList
+            // dedupes into bySsid), a republish becomes row-level ops: same-ssid rows
+            // update in place via dataChanged, so scroll position and live delegates
+            // survive. The freeze while a password row or the details drawer is open
+            // stays: the row's own removal or a resort mid-typing is still disruptive.
+            model: ScriptModel {
+                values: root.open ? Network.wifiNetworks : []
+                objectProp: "ssid"
+            }
 
             delegate: Column {
                 id: _entry

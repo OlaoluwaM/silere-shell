@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell
 import Quickshell.Bluetooth as Bt
 import "../../config"
 import "../../services"
@@ -105,7 +106,15 @@ Item {
             visible: root.open && Bluetooth.available && Bluetooth.enabled && Bluetooth.devices.length > 0
             interactive: contentHeight > height
             spacing: 0
-            model: root.open ? Bluetooth.devices : []
+            // Same ScriptModel treatment as WifiList, but with NO objectProp: these
+            // values are live BluetoothDevice objects, and ScriptModel's fallback
+            // variant equality on QObject* is pointer identity -- exactly the right
+            // key for stable device objects. A republish (resort, or the purge on
+            // device removal) becomes row moves/removals instead of a model reset,
+            // so scroll position and delegates survive it.
+            model: ScriptModel {
+                values: root.open ? Bluetooth.devices : []
+            }
 
             delegate: Column {
                 id: _entry
