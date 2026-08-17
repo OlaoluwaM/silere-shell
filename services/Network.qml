@@ -172,6 +172,10 @@ Singleton {
         _setScannerEnabled(false)
         wifiError = ""
         wifiErrorReason = ConnectionFailReason.Unknown
+        // wifiNetworks is now a polled snapshot, not a live binding, so closing
+        // the list has to blank it explicitly instead of that following for free
+        root.wifiNetworks = []
+        root._wifiListKeySnapshot = ""
     }
 
     function clearWifiError(): void {
@@ -231,7 +235,53 @@ Singleton {
         return order.map(ssid => bySsid[ssid])
     }
 
-    readonly property var wifiNetworks: _wifiList()
+    // the row only ever draws a tier's icon, never the raw percentage, so keying
+    // on tier instead of the exact number means a sample that wobbles a couple
+    // points without crossing a tier boundary produces an identical key
+    function _wifiListKey(list: var): string {
+        return list.map(e => [e.ssid, e.secured, e.active, e.known, e.label, signalTier(e.signal)]
+            .join("\u0001")).join("\u0002")
+    }
+
+    property string _wifiListKeySnapshot: ""
+    // set by the menu while a password row is open: a rebuild would tear down and
+    // recreate that row's TextInput out from under the user's cursor, the same
+    // hazard WifiList's own rescan timer already sidesteps for the same reason
+    property bool _wifiListFrozen: false
+    function setWifiListFrozen(frozen: bool): void {
+        if (root._wifiListFrozen === frozen) return
+        root._wifiListFrozen = frozen
+        if (!frozen) root._refreshWifiNetworks()
+    }
+
+    // wifiNetworks used to be `readonly property var: _wifiList()`, a binding that
+    // reruns — new array, new row objects, every entry — the instant any single
+    // AP's signalStrength notifies, which Quickshell's Networking does continuously
+    // while the scanner is enabled. ListView's plain-array model has no diffing: a
+    // new array reference means every delegate is destroyed and rebuilt, which is
+    // what actually produced the jumpiness (the ordering itself was already made
+    // stable by the tier sort above). Polling on a bounded timer and only
+    // publishing when the structural key changes keeps the list from rebuilding
+    // on every sample while leaving the underlying data collection untouched.
+    function _refreshWifiNetworks(): void {
+        if (root._wifiListFrozen) return
+        const next = root._wifiList()
+        const key = root._wifiListKey(next)
+        if (key === root._wifiListKeySnapshot) return
+        root._wifiListKeySnapshot = key
+        root.wifiNetworks = next
+    }
+
+    property var wifiNetworks: []
+
+    Timer {
+        id: _wifiListPoll
+        interval: 1000
+        repeat: true
+        triggeredOnStart: true
+        running: root._scannerWanted
+        onTriggered: root._refreshWifiNetworks()
+    }
 
     function _findWifiNetwork(ssid: string): var {
         const devices = root._devices

@@ -18,6 +18,15 @@ Item {
     // only the connected entry ever renders the details disclosure, so one flag
     // suffices instead of a per-row set
     property bool _detailsOpen: false
+    // a structural wifiNetworks rebuild while a password row is being typed into,
+    // or while the details disclosure is open, would destroy and recreate that
+    // row's delegate out from under the user — losing the password field's text/
+    // focus, or replaying WifiDetails' opening reveal from a cold Disclosure gate
+    function _syncWifiListFreeze(): void {
+        Network.setWifiListFrozen(root._selected !== "" || root._detailsOpen)
+    }
+    on_SelectedChanged: root._syncWifiListFreeze()
+    on_DetailsOpenChanged: root._syncWifiListFreeze()
 
     function _canScan(): bool {
         return root.open && Network.toolAvailable && Network.wifiEnabled && !Idle.isIdle
@@ -40,6 +49,7 @@ Item {
     Component.onCompleted: _syncScanState()
     Component.onDestruction: {
         if (open) Network.clearWifiScan()
+        Network.setWifiListFrozen(false)
     }
 
     Timer {
