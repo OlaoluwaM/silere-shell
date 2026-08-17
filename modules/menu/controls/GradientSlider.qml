@@ -50,7 +50,7 @@ Item {
         radius: Theme.radiusInline
         antialiasing: true
         color: _mouse.containsMouse
-            ? Theme.mix(Theme.menuControl, Theme.accent, 0.055)
+            ? Theme.controlFill(Theme.accent, 0.055)
             : Theme.menuControl
         ColorFade on color {}
 

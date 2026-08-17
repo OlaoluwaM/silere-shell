@@ -315,7 +315,7 @@ Item {
                                 : _grp.expanded
                                     ? Theme.withAlpha(Theme.accent,
                                         _headerHover.hovered ? 0.075 : 0.035)
-                                    : Theme.mix(Theme.menuControl, Theme.accent,
+                                    : Theme.controlFill(Theme.accent,
                                         ShellSettings.highContrast
                                             ? (_headerHover.hovered ? 0.24 : 0.16)
                                             : (_headerHover.hovered ? 0.17 : 0.10))

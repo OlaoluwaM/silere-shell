@@ -30,11 +30,11 @@ Item {
             : root.highlighted ? 1.01 : 1.0
         transformOrigin: Item.Center
         color: root.checked
-            ? Theme.mix(Theme.menuControl, root.accentColor,
+            ? Theme.controlFill(root.accentColor,
                 ShellSettings.neutralTheme
                     ? (root.pressed ? 0.78 : root.highlighted ? 0.73 : 0.68)
                     : (root.pressed ? 0.84 : root.highlighted ? 0.79 : 0.74))
-            : Theme.mix(Theme.menuControl, Theme.text,
+            : Theme.controlFill(Theme.text,
                 root.pressed ? 0.13 : root.highlighted ? 0.085 : 0.035)
         ColorFade on color {}
         MotionBehavior on scale {

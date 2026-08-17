@@ -59,7 +59,7 @@ Item {
         radius: root.radius
         antialiasing: true
         color: root.emphasis
-            ? Theme.mix(Theme.menuControl, root.accentColor,
+            ? Theme.controlFill(root.accentColor,
                 root.pressed ? 0.54 : _hover.hovered ? 0.48 : 0.42)
             : root.pressed
                 ? Theme.withAlpha(root.accentColor, 0.12)

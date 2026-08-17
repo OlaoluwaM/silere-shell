@@ -65,7 +65,7 @@ Item {
         width: 30; height: 30; radius: 9
         antialiasing: true
         color: _tap.pressed
-            ? Theme.mix(Theme.menuControl, root.accentColor, 0.10)
+            ? Theme.controlFill(root.accentColor, 0.10)
             : root.active ? Theme.menuControl
             : root._hot ? Theme.withAlpha(Theme.text, 0.050) : "transparent"
         scale: _tap.pressed ? 0.94 : (root.active || root._hot ? 1.0 : 0.90)

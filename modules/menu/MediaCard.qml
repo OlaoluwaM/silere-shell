@@ -377,8 +377,8 @@ ClippingRectangle {
                 anchors.fill: parent
                 radius: Theme.radiusControl
                 antialiasing: true
-                color: _playT.pressed ? Theme.mix(Theme.menuControl, Theme.accent, 0.18)
-                    : _playH.hovered ? Theme.mix(Theme.menuControl, Theme.accent, 0.10)
+                color: _playT.pressed ? Theme.controlFill(Theme.accent, 0.18)
+                    : _playH.hovered ? Theme.controlFill(Theme.accent, 0.10)
                     : Theme.menuControl
                 ColorFade on color {}
 

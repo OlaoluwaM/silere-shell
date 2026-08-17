@@ -108,6 +108,17 @@ Singleton {
     readonly property color menuControl:     _glass ? withAlpha(text, 0.09 * _elevK)
                                                 : _n ? mix(background, text, _elevK * (_hc ? 0.125 : 0.090))
                                                 : mix(background, text, _elevK * (_hc ? 0.130 : 0.100))
+    // menuControl is a wash: fine as a plain fill, but mix() always returns alpha 1.0, so any
+    // call site that mixes a tint INTO it keeps its (under glass, text-colored) rgb and drops
+    // the alpha that was carrying its darkness -- the wash reads as a bright opaque blob instead
+    // of the small step it's meant to be. Solid interactive states are intentional on glass: a
+    // button or a toggle track needs to stay legible on its own, only the big panes frost. So
+    // small controls get their own opaque base to mix from -- the color a viewer would see if
+    // the wash were painted solid over the glass pane -- and mix() sources must always be this,
+    // never the wash itself. Outside glass this already equals menuControl, so reuse it instead
+    // of repeating its formula.
+    readonly property color _controlSolid:   _glass ? mix(_glassTint, text, 0.09 * _elevK) : menuControl
+    function controlFill(tint: color, k: real): color { return mix(_controlSolid, tint, k) }
     readonly property color menuControlLine: _hc ? withAlpha(text, lineAlpha(0.24))
                                                 : _n ? withAlpha(_lineBase, lineAlpha(0.115))
                                                      : withAlpha(_lineBase, lineAlpha(0.135))

@@ -84,8 +84,8 @@ PanelWindow {
             radius: 12
             antialiasing: true
             // the popup window is transparent, so an alpha tint would let the desktop through - blend into the base
-            color: chip.pressed ? Theme.mix(Theme.menuControl, chip.tint, 0.26)
-                : _hover.hovered ? Theme.mix(Theme.menuControl, chip.tint, 0.15) : Theme.menuControl
+            color: chip.pressed ? Theme.controlFill(chip.tint, 0.26)
+                : _hover.hovered ? Theme.controlFill(chip.tint, 0.15) : Theme.menuControl
 
             ColorFade on color {}
 
