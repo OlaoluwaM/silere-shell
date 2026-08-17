@@ -122,7 +122,7 @@ Column {
         if (!SystemTools.hasBrightnessctl)     tool("󰃟", "Brightness control", "brightnessctl")
         if (!SystemTools.hasHyprsunset)        tool("󰖙", "Night light", "hyprsunset")
         if (!SystemTools.hasCava)              tool("󰝚", "Audio visualizer", "cava")
-        if (!SystemTools.hasPowerProfilesCtl)  tool("󰾅", "Power profiles", "power-profiles-daemon")
+        if (!PowerProfiles.available)          tool("󰾅", "Power profiles", "power-profiles-daemon")
         if (!SystemTools.hasHyprlock)          tool("󰌾", "Screen lock", "hyprlock")
         if (!SystemTools.hasCheckupdates && !SystemTools.hasParu && !SystemTools.hasYay
                 && SystemTools.packageFamily === "pacman")

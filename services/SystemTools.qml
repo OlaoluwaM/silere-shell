@@ -36,6 +36,7 @@ Singleton {
     readonly property bool hasZypper:        _tools.zypper ?? false
     readonly property bool hasXbps:          _tools["xbps-install"] ?? false
     readonly property bool hasPowerProfilesCtl: _tools.powerprofilesctl ?? false
+    readonly property bool hasAsusctl:       _tools.asusctl ?? false
     readonly property bool hasFcList:        _tools["fc-list"] ?? false
 
     function _shq(s: string): string {
@@ -85,7 +86,7 @@ Singleton {
             "  done; " +
             "fi; [ -n \"$family\" ] && echo \"@family=$family\"; " +
             "for t in brightnessctl inotifywait nmcli cava matugen hyprsunset hyprlock systemctl loginctl hyprctl notify-send " +
-            "busctl checkupdates paru yay timeout apt dnf zypper xbps-install powerprofilesctl fc-list; do " +
+            "busctl checkupdates paru yay timeout apt dnf zypper xbps-install powerprofilesctl asusctl fc-list; do " +
             "  command -v \"$t\" >/dev/null 2>&1 && echo \"$t\"; " +
             // The last lookup is optional; do not inherit its `command -v`
             // status and discard every tool found before it.

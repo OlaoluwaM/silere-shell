@@ -93,6 +93,8 @@ Singleton {
               description: "Battery and temperature limits" }
         ]},
         { glyph: "󰒓", label: "System", children: [
+            { glyph: "󰾅", label: "Power & info", section: "system",
+              description: "Power profile and machine details" },
             { glyph: "󰚰", label: "Updates", section: "updates",
               description: "Shell releases and system packages" },
             { glyph: "󰦛", label: "Maintenance", section: "maintenance",
