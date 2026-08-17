@@ -6,16 +6,24 @@ pragma Singleton
 // uses for hyprsunset.service. This singleton never spawns or holds an inhibitor itself.
 //
 // The pill and menu row also care about idle being blocked by anything, not just our
-// own unit, so this additionally polls `systemd-inhibit --list` on a timer. logind only
+// own unit, so this additionally tracks `systemd-inhibit --list` output. logind only
 // knows about inhibitors taken out through its own D-Bus/CLI surface: a Wayland client
 // blocking idle straight through the zwp_idle_inhibit_manager_v1 protocol never
-// registers with logind and stays invisible to this poll. `inhibited` therefore means
+// registers with logind and stays invisible to this check. `inhibited` therefore means
 // "logind reports a block-mode idle inhibitor", not "nothing is keeping the session
 // awake" — some protocol-only inhibitors will never light the pill.
+//
+// logind does emit a change signal for the inhibitor list after all: it re-publishes
+// its own BlockInhibited property (via org.freedesktop.DBus.Properties.PropertiesChanged
+// on /org/freedesktop/login1) whenever a block-mode inhibitor is taken or released. A
+// `dbus-monitor` watcher below listens for that and reconciles immediately when it
+// fires, so the 15s poll further down only exists as the fallback for a system without
+// dbus-monitor, or for the gap while the watcher itself is down/restarting.
 
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "../config"
 
 Singleton {
     id: root
@@ -283,11 +291,16 @@ Singleton {
         }
     }
 
-    // logind exposes no change signal for the inhibitor list, so this is poll-only;
-    // paused while idle since nothing is watching the pill then, and re-armed the
-    // instant the session goes active again below
+    // dbus-monitor below reconciles on every real change; while it's up this only needs
+    // to catch what it might miss (a signal dropped between a crash and its respawn), so
+    // it stretches out to 120s. Without it (tool absent, or the watcher unit down) this
+    // is the only thing driving `inhibited` at all, so it holds the original 15s. Paused
+    // while idle since nothing is watching the pill then, and re-armed the instant the
+    // session goes active again below.
+    readonly property bool _watcherHealthy: SystemTools.hasDbusMonitor && _inhibitWatcher.running
     Timer {
-        interval: 15000; repeat: true
+        interval: root._watcherHealthy ? 120000 : 15000
+        repeat: true
         running: root.available && !Idle.isIdle
         onTriggered: { root._checkInhibitors(); root._pollRemaining() }
     }
@@ -298,14 +311,45 @@ Singleton {
         }
     }
 
+    // event-driven half of the inhibitor check: logind republishes BlockInhibited on
+    // /org/freedesktop/login1 through the standard Properties.PropertiesChanged signal
+    // whenever a block-mode inhibitor is taken or released, so watching that line up
+    // reconciles immediately instead of waiting out the poll above. Not gated on Idle —
+    // an inhibitor change while idle still matters for state correctness once the
+    // session wakes, and events are rare enough that watching through idle costs nothing.
+    //
+    // command stays a plain constant, not a function of _watcherHealthy or anything else
+    // superviseWhen depends on, for the same reason Recording.qml's watcher does: gating
+    // command on the same condition that flips superviseWhen would race two independent
+    // bindings off the same signal. superviseWhen alone decides whether this ever runs.
+    //
+    // dbus-monitor prints a connection preamble (NameAcquired and friends) before any
+    // real signal; those lines never contain "BlockInhibited" so the substring check
+    // below just ignores them.
+    SupervisedProcess {
+        id: _inhibitWatcher
+        superviseWhen: root.available && SystemTools.hasDbusMonitor
+        restartDelay: 5000
+        command: ["dbus-monitor", "--system",
+            "type='signal',interface='org.freedesktop.DBus.Properties',member='PropertiesChanged',path='/org/freedesktop/login1'"]
+        stdout: SplitParser {
+            onRead: line => { if (line.indexOf("BlockInhibited") >= 0) root._checkInhibitors() }
+        }
+        // reconciles any gap opened by a crash/restart cycle the instant the watcher is
+        // back, same restat-on-restart idiom Recording.qml's inotifywait watcher uses
+        onRunningChanged: if (running) root._checkInhibitors()
+    }
+
     property int _remainingMinutes: -1
     // -1 covers both "not timed" and "unknown": the row falls back to a plain "On",
     // which is also the right thing to show for a run that has no stop scheduled
     readonly property int remainingMinutes: root._remainingMinutes
 
     // rides the inhibitor poll's cadence instead of a timer of its own — this only
-    // needs to be as fresh as the row that reads it, and that row is already stale
-    // for up to 15s on the inhibitor side
+    // needs to be as fresh as the row that reads it, and that row is already stale for
+    // up to 15s (or 120s while the dbus-monitor watcher is up) on the inhibitor side.
+    // The watcher's own event-driven reconciliation doesn't re-poll this: an inhibitor
+    // appearing/disappearing has no bearing on the stop timer's own schedule.
     //
     // `systemctl show <timer> --property=NextElapseUSecRealtime --value` reads empty
     // for this timer: --on-active= schedules on the *monotonic* clock, and systemd
