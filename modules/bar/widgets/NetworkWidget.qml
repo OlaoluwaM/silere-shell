@@ -2,9 +2,9 @@ import QtQuick
 import "../../../config"
 import "../../../services"
 
-// StatusActionPill, not the plain Pill BatteryWidget/BluetoothWidget use — a click here
-// launches the same wifi-editor command WifiProfile already runs for the details view's
-// "Edit connection…" row, gated on WifiProfile's own PATH probe for that command
+// StatusActionPill, not the plain Pill BatteryWidget uses — a click here launches the
+// same wifi-editor command WifiProfile already runs for the details view's "Edit
+// connection…" row, gated on WifiProfile's own PATH probe for that command
 StatusActionPill {
     id: root
 
