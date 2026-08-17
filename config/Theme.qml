@@ -79,6 +79,14 @@ Singleton {
     // glass mirrors the bar's own trick (background tinted, then cut with alpha) so popups
     // read as the same pane of glass, not a different material stacked on top of it
     readonly property color popup: _glass ? withAlpha(_glassTint, ShellSettings.glassOpacity) : background
+    // hover step for popup-based fills (notification cards, the settings-nav rail strip):
+    // mix() always returns alpha 1.0, so the inline `mix(popup, subtext, 0.06)` views used to
+    // reach for would flash a hovered card solid over the blur the instant _glass turns on.
+    // Same 0.06 step, aimed at text instead of subtext so it still reads once it's translucent,
+    // then cut back down to popup's own alpha rather than left opaque.
+    readonly property color popupHover: _glass
+        ? withAlpha(mix(_glassTint, text, 0.06), ShellSettings.glassOpacity)
+        : mix(popup, subtext, 0.06)
 
     readonly property color menuPane:        _glass ? withAlpha(_glassTint, ShellSettings.glassOpacity)
                                                 : _n ? mix(background, text, _elevK * (_hc ? 0.050 : 0.030))

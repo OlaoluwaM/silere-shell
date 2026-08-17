@@ -376,7 +376,11 @@ PanelWindow {
                     width: Math.max(0, parent.width - x)
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
-                    color: Theme.mix(Theme.menuPane, Theme.menuControl, 0.14)
+                    // mix() is opaque by construction, and this strip already sits over the rail's
+                    // own Theme.menuPane fill above -- under glass that's the same double-stack the
+                    // card's own color was cleared for, just one layer further in. Both menuPane and
+                    // popup collapse to the identical glass formula, so popupHover already matches.
+                    color: Theme._glass ? Theme.popupHover : Theme.mix(Theme.menuPane, Theme.menuControl, 0.14)
                     visible: parent.width > panel.railCollapsedW + 0.5
                 }
 
