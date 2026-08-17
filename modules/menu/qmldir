@@ -14,6 +14,7 @@ internal RailNavItem RailNavItem.qml
 internal RecentPage RecentPage.qml
 internal SettingsNav SettingsNav.qml
 internal SunArc SunArc.qml
+internal SystemPage SystemPage.qml
 internal VitalsStrip VitalsStrip.qml
 internal VolumeRow VolumeRow.qml
 internal WifiDetails WifiDetails.qml

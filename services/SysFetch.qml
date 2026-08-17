@@ -1,11 +1,11 @@
 pragma Singleton
 
-// Read-only system info for the Settings > System fetch card. Everything but
+// Read-only system info for the System page's fetch card. Everything but
 // uptime is static for the life of the session, so each is read once and cached;
-// uptime is the only field that ticks, and only while the section that shows it
-// is open. Settings > System is this singleton's only consumer, so unlike
+// uptime is the only field that ticks, and only while the page that shows it
+// is open. The System page is this singleton's only consumer, so unlike
 // SysInfo.qml (which keeps /proc polling in the background for the always-visible
-// vitals chips), nothing here runs until the section itself is.
+// vitals chips), nothing here runs until the page itself is.
 
 import QtQuick
 import Quickshell
@@ -14,9 +14,9 @@ import Quickshell.Io
 Singleton {
     id: root
 
-    // pushed by the settings section while it is the shown page; the same
-    // push-in split WifiProfile uses for its details panel, since nothing else
-    // in the shell ever needs this data
+    // pushed by the System page while it is loaded; the same push-in split
+    // WifiProfile uses for its details panel, since nothing else in the
+    // shell ever needs this data
     property bool active: false
     function setActive(next: bool): void { root.active = next }
 

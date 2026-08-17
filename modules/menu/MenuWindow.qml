@@ -159,6 +159,7 @@ PanelWindow {
         property bool _homeRetained:    false
         property bool _settingsRetained: false
         property bool _recentRetained:  false
+        property bool _systemRetained:  false
         property bool _settingsNavRetained: false
 
         Component.onCompleted: {
@@ -181,8 +182,10 @@ PanelWindow {
             if (!_loadedDeferred) {
                 _settingsUnload.stop()
                 _recentUnload.stop()
+                _systemUnload.stop()
                 _settingsRetained = false
                 _recentRetained = false
+                _systemRetained = false
                 return
             }
 
@@ -199,6 +202,13 @@ PanelWindow {
             } else if (_recentRetained) {
                 _recentUnload.restart()
             }
+
+            if (activeTab === 3) {
+                _systemUnload.stop()
+                _systemRetained = true
+            } else if (_systemRetained) {
+                _systemUnload.restart()
+            }
         }
 
         on_LoadedDeferredChanged: _syncPageRetention()
@@ -207,6 +217,7 @@ PanelWindow {
             if (homeLoader.item) homeLoader.item.settleVisual(activeTab === 0)
             if (settingsLoader.item) settingsLoader.item.settleVisual(activeTab === 1)
             if (recentLoader.item) recentLoader.item.settleVisual(activeTab === 2)
+            if (systemLoader.item) systemLoader.item.settleVisual(activeTab === 3)
         }
 
         onCloseFinished: {
@@ -216,7 +227,7 @@ PanelWindow {
         }
 
         function switchTab(idx: int): void {
-            const tab = Math.max(0, Math.min(2, idx))
+            const tab = Math.max(0, Math.min(3, idx))
             if (powerOpen) powerOpen = false
             if (tab !== activeTab) panel._armOuterHeightMotion()
             MenuState.selectTab(tab)
@@ -284,14 +295,22 @@ PanelWindow {
         }
 
         Timer {
+            id: _systemUnload
+            interval: Math.max(Motion.pageOut, Motion.ms(100)) + 30
+            onTriggered: if (panel.activeTab !== 3) panel._systemRetained = false
+        }
+
+        Timer {
             id: _closedUnload
             interval: Math.max(Motion.pageOut, Motion.ms(100)) + 120
             onTriggered: {
                 if (MenuState.open) return
                 _settingsUnload.stop()
                 _recentUnload.stop()
+                _systemUnload.stop()
                 panel._settingsRetained = false
                 panel._recentRetained = false
+                panel._systemRetained = false
                 panel._settingsNavRetained = false
             }
         }
@@ -543,6 +562,18 @@ PanelWindow {
                     active: panel.activeTab === 1
                     onTapped: panel.switchTab(1)
                 }
+
+                RailNavItem {
+                    id: _railSystem
+                    labels: _railLabels
+                    railW: panel.railCollapsedW
+                    glyph: "󰾅"
+                    label: "System"
+                    labelPillEnabled: !panel._railExpanded
+                        || panel.navW < panel._navMinW
+                    active: panel.activeTab === 3
+                    onTapped: panel.switchTab(3)
+                }
             }
 
             Item {
@@ -644,15 +675,19 @@ PanelWindow {
                     readonly property bool _pagePending:
                         panel.activeTab === 1 ? settingsLoader.status !== Loader.Ready
                       : panel.activeTab === 2 ? recentLoader.status !== Loader.Ready
+                      : panel.activeTab === 3 ? systemLoader.status !== Loader.Ready
                       : false
                     readonly property bool _pageError:
                         panel.activeTab === 1 ? settingsLoader.status === Loader.Error
                       : panel.activeTab === 2 ? recentLoader.status === Loader.Error
+                      : panel.activeTab === 3 ? systemLoader.status === Loader.Error
                       : false
                     height: panel.activeTab === 0 ? (homeLoader.item?.implicitHeight ?? 0)
                           : panel.activeTab === 1 ? (settingsLoader.item?.implicitHeight
                                 ?? _pagePlaceholder.implicitHeight)
-                          : (recentLoader.item?.implicitHeight ?? _pagePlaceholder.implicitHeight)
+                          : panel.activeTab === 2 ? (recentLoader.item?.implicitHeight
+                                ?? _pagePlaceholder.implicitHeight)
+                          : (systemLoader.item?.implicitHeight ?? _pagePlaceholder.implicitHeight)
                     clip: false
 
                     Item {
@@ -707,7 +742,9 @@ PanelWindow {
                                 horizontalAlignment: Text.AlignHCenter
                                 text: tabContent._pageError
                                     ? "Couldn’t load this page"
-                                    : panel.activeTab === 1 ? "Loading settings…" : "Loading notifications…"
+                                    : panel.activeTab === 1 ? "Loading settings…"
+                                    : panel.activeTab === 2 ? "Loading notifications…"
+                                    : "Loading system…"
                                 color: Theme.withAlpha(Theme.text, 0.76)
                                 font.pixelSize: Settings.fontSize
                                 font.weight: Font.Medium
@@ -769,6 +806,21 @@ PanelWindow {
                                 width: parent.width
                                 viewportHeight: panel.recentViewportH
                                 active: panel.activeTab === 2 && MenuState.open
+                                powerOpen: panel.powerOpen
+                                animateOnCreate: panel.fullyShown
+                            }
+                        }
+                    }
+
+                    Loader {
+                        id: systemLoader
+                        width: parent.width
+                        active: panel._loadedDeferred && panel._systemRetained
+                        asynchronous: true
+                        sourceComponent: Component {
+                            SystemPage {
+                                width: parent.width
+                                active: panel.activeTab === 3 && MenuState.open
                                 powerOpen: panel.powerOpen
                                 animateOnCreate: panel.fullyShown
                             }

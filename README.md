@@ -156,7 +156,7 @@ qs ipc -p "$SILERE_DIR/shell.qml" call calendar toggle
 qs ipc -p "$SILERE_DIR/shell.qml" call screenshot flash
 ```
 
-Menu tabs are `0` (Home), `1` (Settings), and `2` (Recent). `screenshot flash` lets a screenshot tool trigger the underline effect directly, without the optional filesystem watcher.
+Menu tabs are `0` (Home), `1` (Settings), `2` (Recent), and `3` (System). `screenshot flash` lets a screenshot tool trigger the underline effect directly, without the optional filesystem watcher.
 
 <details>
 <summary>Settings section names for <code>menu settings &lt;name&gt;</code></summary>

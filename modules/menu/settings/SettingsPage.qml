@@ -67,7 +67,7 @@ PageShell {
         widgets: _secWidgets,
         popups: _secPopups, osd: _secOsd, warnings: _secWarnings,
         interface: _secInterface, updates: _secUpdates,
-        maintenance: _secMaintenance, system: _secSystem
+        maintenance: _secMaintenance
     })
 
     readonly property var _sectionMeta: {
@@ -318,11 +318,6 @@ PageShell {
         Component {
             id: _secMaintenance
             SettingsMaintenanceSection {}
-        }
-
-        Component {
-            id: _secSystem
-            SettingsSystemSection {}
         }
     }
 }

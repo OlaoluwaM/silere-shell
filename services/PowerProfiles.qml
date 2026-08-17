@@ -316,7 +316,7 @@ Singleton {
 
     // catches drift the menu-open refresh above cannot: an asusd hotkey cycling the
     // profile, or a manual powerprofilesctl/asusctl call, while the menu stays open.
-    // Settings > System is the drift-sensitive consumer (a static picker is wrong the
+    // The System page is the drift-sensitive consumer (a static picker is wrong the
     // instant something else changes the profile underneath it); Home and the quick
     // actions pill already reconcile on their own open/close and just share this poll.
     // Paused the same way Caffeine/NightLight pause theirs: idle, and — since nothing

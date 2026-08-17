@@ -48,6 +48,7 @@ Singleton {
     readonly property int homeTab: 0
     readonly property int settingsTab: 1
     readonly property int recentTab: 2
+    readonly property int systemTab: 3
     property int _activeTab: homeTab
     readonly property int activeTab: _activeTab
     readonly property bool homeActive: open && activeTab === homeTab
@@ -93,8 +94,6 @@ Singleton {
               description: "Battery and temperature limits" }
         ]},
         { glyph: "󰒓", label: "System", children: [
-            { glyph: "󰾅", label: "Power & info", section: "system",
-              description: "Power profile and machine details" },
             { glyph: "󰚰", label: "Updates", section: "updates",
               description: "Shell releases and system packages" },
             { glyph: "󰦛", label: "Maintenance", section: "maintenance",
@@ -120,7 +119,7 @@ Singleton {
     signal tabRequested(int index)
 
     function _validTab(index: int): int {
-        return Math.max(homeTab, Math.min(recentTab, index))
+        return Math.max(homeTab, Math.min(systemTab, index))
     }
 
     function selectTab(index: int): int {
@@ -165,8 +164,8 @@ Singleton {
         }
         function close(): void { root.close() }
         function tab(index: int): string {
-            if (index < root.homeTab || index > root.recentTab)
-                return "unknown menu tab " + index + "; valid: 0 (home), 1 (settings), 2 (recent)"
+            if (index < root.homeTab || index > root.systemTab)
+                return "unknown menu tab " + index + "; valid: 0 (home), 1 (settings), 2 (recent), 3 (system)"
             root.triggerScreen = null
             root._setAnchor(null)
             root.showTab(index)
