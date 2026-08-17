@@ -117,7 +117,7 @@ Singleton {
     property bool   barShadow:           GeneratedDefaults.barShadow
     property real   barShadowStrength:   1.0
     property string barPosition:         GeneratedDefaults.barPosition
-    property real   barOpacity:          0.88
+    property real   barOpacity:          GeneratedDefaults.barOpacity
     property string barDisabledMonitors: ""
     property string overlayMonitor:      ""
 
