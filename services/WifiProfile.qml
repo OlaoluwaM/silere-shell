@@ -92,9 +92,15 @@ Singleton {
         if (!_freqProc.running)
             _freqProc.exec(["nmcli", "-t", "-f", "ACTIVE,FREQ,SECURITY", "dev", "wifi", "list"])
         if (!_deviceProc.running && Network.deviceName.length > 0)
-            _deviceProc.exec(["nmcli", "-t", "-f",
-                "GENERAL.CON-UUID,IP4.ADDRESS,IP4.GATEWAY,IP4.DNS",
-                "device", "show", Network.deviceName])
+            root._queryDevice()
+    }
+
+    // shared by the periodic refresh above and launchEditor()'s on-demand freshness
+    // check below, so the argv only lives in one place
+    function _queryDevice(): void {
+        _deviceProc.exec(["nmcli", "-t", "-f",
+            "GENERAL.CON-UUID,IP4.ADDRESS,IP4.GATEWAY,IP4.DNS",
+            "device", "show", Network.deviceName])
     }
 
     on_WantedChanged: if (root._wanted) root._refreshNow()
@@ -166,8 +172,16 @@ Singleton {
             }
         }
         onExited: (code) => {
-            if (code !== 0) return
-            root.profileUuid = /^[0-9a-fA-F-]+$/.test(_deviceProc._uuid) ? _deviceProc._uuid : ""
+            if (code !== 0) {
+                // launchEditor() forced this read outside the usual _wanted gate to get a
+                // fresh uuid; a failed lookup must surface rather than leave the click inert
+                if (root._launchPending) {
+                    root._launchPending = false
+                    root.lastError = "could not confirm the active connection"
+                }
+                return
+            }
+            root.profileUuid = root._uuidPattern.test(_deviceProc._uuid) ? _deviceProc._uuid : ""
             root.ipv4Address = SafeText.singleLineText(_deviceProc._addr, 64)
             root.gateway = SafeText.singleLineText(_deviceProc._gw, 64)
             root._dnsServers = _deviceProc._dns.map(d => SafeText.singleLineText(d, 64))
@@ -175,6 +189,17 @@ Singleton {
             if (root.profileUuid.length > 0 && !_bandProc.running)
                 _bandProc.exec(["nmcli", "-t", "-f", "802-11-wireless.band",
                     "connection", "show", root.profileUuid])
+
+            if (root._launchPending) {
+                root._launchPending = false
+                if (root.profileUuid.length > 0) {
+                    if (!_editorLauncher.launch("uuid", root.profileUuid, root._uuidPattern))
+                        root.lastError = _editorLauncher.lastError.length > 0
+                            ? _editorLauncher.lastError : "could not open the editor"
+                } else {
+                    root.lastError = "could not confirm the active connection"
+                }
+            }
         }
     }
 
@@ -232,45 +257,35 @@ Singleton {
         }
     }
 
-    // "Edit connection…" launches a user-declared command template (ShellSettings.wifiEditCommand);
-    // {uuid} is substituted with the active profile's uuid when present in the template
-    function _parseCommand(template: string): var {
-        return String(template || "").trim().split(/\s+/).filter(s => s.length > 0)
+    // "Edit connection…" launches a user-declared command template (ShellSettings.wifiEditCommand)
+    // through the shared launcher; {uuid} is substituted with the active profile's uuid when
+    // present in the template. Whitespace splitting, the PATH probe, the launch cooldown and the
+    // detached exec all live in TemplateLauncher — shared with the Bluetooth manager escape hatch.
+    TemplateLauncher {
+        id: _editorLauncher
+        template: ShellSettings.wifiEditCommand
     }
-    readonly property list<string> _editorArgv: root._parseCommand(ShellSettings.wifiEditCommand)
-    readonly property string _editorArgv0: root._editorArgv.length > 0 ? root._editorArgv[0] : ""
-    property bool _editorToolFound: false
-    readonly property bool editorAvailable: root._editorArgv0.length > 0 && root._editorToolFound
-
-    function _probeEditor(): void {
-        if (root._editorArgv0.length === 0) { root._editorToolFound = false; return }
-        _editorProbeProc.exec(["bash", "-c", "command -v -- \"$1\" >/dev/null 2>&1", "bash", root._editorArgv0])
-    }
-
-    BoundedProcess {
-        id: _editorProbeProc
-        timeoutMs: 5000
-        onExited: (code) => root._editorToolFound = (code === 0)
-    }
+    readonly property bool editorAvailable: _editorLauncher.available
+    readonly property var _uuidPattern: /^[0-9a-fA-F-]+$/
+    // a query kicked off by launchEditor() below is still "pending" until _deviceProc.onExited
+    // above resolves it (launch or surface an error) — a second click while it is in flight
+    // rides the same completion instead of starting a duplicate lookup
+    property bool _launchPending: false
 
     function launchEditor(): void {
-        if (!root.editorAvailable) return
-        const argv = root._editorArgv.slice()
-        if (argv.length === 0) return
-        const hasPlaceholder = argv.some(a => a.indexOf("{uuid}") >= 0)
-        if (hasPlaceholder) {
-            // the uuid always comes from nmcli output validated against this pattern in
-            // _deviceProc above, so substitution here never carries untrusted shell text
-            if (root.profileUuid.length === 0) return
-            for (let i = 0; i < argv.length; i++)
-                argv[i] = argv[i].split("{uuid}").join(root.profileUuid)
+        if (!root.editorAvailable || _editorLauncher.onCooldown) return
+        root.lastError = ""
+        // no {uuid} in the template: nothing to look up, launch immediately
+        if (!_editorLauncher.usesPlaceholder("uuid")) { _editorLauncher.launch(); return }
+        // profileUuid only refreshes on a timer while the details disclosure is open
+        // (root._wanted), so a bar-pill click can otherwise substitute a stale uuid or
+        // silently no-op on an empty one; force a fresh read here regardless of that
+        // gate and launch once it lands rather than trusting whatever profileUuid holds
+        if (!root.toolAvailable || Network.deviceName.length === 0) {
+            root.lastError = "no active connection to edit"
+            return
         }
-        Quickshell.execDetached(argv)
-    }
-
-    Component.onCompleted: root._probeEditor()
-    Connections {
-        target: ShellSettings
-        function onWifiEditCommandChanged() { root._probeEditor() }
+        root._launchPending = true
+        if (!_deviceProc.running) root._queryDevice()
     }
 }

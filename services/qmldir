@@ -20,6 +20,7 @@ singleton Screenshot    1.0 Screenshot.qml
 
 # shell
 BoundedProcess          1.0 BoundedProcess.qml
+TemplateLauncher        1.0 TemplateLauncher.qml
 singleton Caffeine      1.0 Caffeine.qml
 singleton CalendarState 1.0 CalendarState.qml
 singleton ConfigStore    1.0 ConfigStore.qml
