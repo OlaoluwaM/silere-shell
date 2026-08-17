@@ -7,6 +7,9 @@ import "../services"
 Singleton {
     readonly property bool _n: ShellSettings.neutralTheme
     readonly property bool _hc: ShellSettings.highContrast
+    // high contrast's guarantees are alpha-based (see focusRingAlpha, outline, etc. below);
+    // stacking glass's translucency on top would dilute every one of those ratios, so HC wins
+    readonly property bool _glass: ShellSettings.glassSurfaces && !_hc
 
     readonly property var _tones: ({
         black:    { background: "#030405", surface: "#121214", subtext: "#9296a1" },
@@ -25,6 +28,10 @@ Singleton {
     // surface sinks slower than background, or the elevation separation flattens out
     readonly property color _matuBg:      mix(MatugenTheme.background, "#000000", _depthK)
     readonly property color _matuSurface: mix(MatugenTheme.surface,    "#000000", _depthK * 0.6)
+    // the point of glass is the wallpaper hue showing through the blur: sink it half as hard
+    // as the opaque background does, or "deeper" depth leaves the frost reading nearly black
+    readonly property color _glassTint: _n ? _pal.background
+                                           : mix(MatugenTheme.background, "#000000", _depthK * 0.5)
 
     readonly property color _surfaceBase: _n ? _pal.surface   : _matuSurface
     readonly property color _textBase:    _n ? "#e9eaf0"      : MatugenTheme.text
@@ -69,11 +76,17 @@ Singleton {
 
     readonly property color panel: withAlpha(background,
         _hc ? Math.max(0.90, ShellSettings.barOpacity) : ShellSettings.barOpacity)
-    readonly property color popup: background
+    // glass mirrors the bar's own trick (background tinted, then cut with alpha) so popups
+    // read as the same pane of glass, not a different material stacked on top of it
+    readonly property color popup: _glass ? withAlpha(_glassTint, ShellSettings.glassOpacity) : background
 
-    readonly property color menuPane:        _n ? mix(background, text, _elevK * (_hc ? 0.050 : 0.030))
+    readonly property color menuPane:        _glass ? withAlpha(_glassTint, ShellSettings.glassOpacity)
+                                                : _n ? mix(background, text, _elevK * (_hc ? 0.050 : 0.030))
                                                 : mix(background, _hc ? text : surface, _elevK * (_hc ? 0.055 : 0.18))
-    readonly property color menuCard:        _n ? mix(background, text, _elevK * (_hc ? 0.090 : 0.060))
+    // opaque mixes toward background/text would paint over the frost; a light text-alpha
+    // wash keeps the blur visible while still stepping up from the pane beneath it
+    readonly property color menuCard:        _glass ? withAlpha(text, 0.05 * _elevK)
+                                                : _n ? mix(background, text, _elevK * (_hc ? 0.090 : 0.060))
                                                 : mix(background, text, _elevK * (_hc ? 0.100 : 0.07))
     readonly property color menuCardBorder:  _hc ? withAlpha(text, lineAlpha(0.22))
                                                 : _n ? withAlpha(_lineBase, lineAlpha(0.105))
@@ -84,7 +97,8 @@ Singleton {
     readonly property color menuHover:       accent
     // wallpaper's card sits a step higher than neutral's, so its control needs a wider mix to hold
     // the same ~3 L* separation above the card that neutral gets from 0.060 -> 0.090
-    readonly property color menuControl:     _n ? mix(background, text, _elevK * (_hc ? 0.125 : 0.090))
+    readonly property color menuControl:     _glass ? withAlpha(text, 0.09 * _elevK)
+                                                : _n ? mix(background, text, _elevK * (_hc ? 0.125 : 0.090))
                                                 : mix(background, text, _elevK * (_hc ? 0.130 : 0.100))
     readonly property color menuControlLine: _hc ? withAlpha(text, lineAlpha(0.24))
                                                 : _n ? withAlpha(_lineBase, lineAlpha(0.115))
@@ -202,6 +216,9 @@ Singleton {
     }
 
     function rowFill(hovered: bool): color {
+        // mix() always returns alpha 1.0 (see above), which would opaque out the frost the
+        // moment a row is hovered; a straight alpha bump keeps the same glass instead
+        if (_glass) return hovered ? withAlpha(text, 0.07 * _elevK) : menuCard
         return hovered ? mix(menuCard, text, 0.045 * _elevK) : menuCard
     }
 }

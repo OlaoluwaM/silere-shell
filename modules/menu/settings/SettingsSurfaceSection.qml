@@ -35,6 +35,22 @@ Column {
         }
     }
 
+    SectionLabel { label: "GLASS" }
+    SettingsCard {
+        ToggleRow {
+            glyph: "󰂵"; label: "Glass surfaces"
+            description: "Frost popups and let the wallpaper tint show through"
+            key: "glassSurfaces"
+        }
+        SliderRow {
+            glyph: "󰗌"; label: "Opacity"
+            key: "glassOpacity"
+            step: 0.02
+            enabled: ShellSettings.glassSurfaces
+            displayValue: Math.round(ShellSettings.glassOpacity * 100) + "%"
+        }
+    }
+
     SectionLabel { label: "FLOATING" }
     SettingsCard {
         ToggleRow {

@@ -51,6 +51,8 @@ Singleton {
 
     property bool   osdEnabled:     GeneratedDefaults.osdEnabled
     property int    osdTimeout:     GeneratedDefaults.osdTimeout
+    property bool   glassSurfaces:  GeneratedDefaults.glassSurfaces
+    property real   glassOpacity:   GeneratedDefaults.glassOpacity
     property string osdKindFilter:  "both"
     property bool   osdBatteryWarn: false
     property bool   osdTempWarn:    false
@@ -371,6 +373,8 @@ Singleton {
         { k: "barShadowStrength",   t: "real", min: 0.3,  max: 1.6, sec: "theme" },
         { k: "barPosition",         t: "enum", vals: ["top", "bottom"], sec: "surface" },
         { k: "barOpacity",          t: "real", min: 0.4,  max: 1.0, sec: "surface" },
+        { k: "glassSurfaces",       t: "bool", sec: "surface" },
+        { k: "glassOpacity",        t: "real", min: 0.5,  max: 0.95, sec: "surface" },
         { k: "barDisabledMonitors", t: "re",   re: /^[A-Za-z0-9._,-]*$/, sec: "interface" },
         { k: "overlayMonitor",      t: "re",   re: /^[A-Za-z0-9._-]*$/, sec: "interface" },
         { k: "barWidgetOrderLeft",  t: "re",   re: /^[a-zA-Z]*(,[a-zA-Z]+)*$/, sec: "widgets" },

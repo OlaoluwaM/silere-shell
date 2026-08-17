@@ -86,6 +86,10 @@ PanelWindow {
         animateScale: false
         animatePlacement: false
         clip: true
+        // the rail and content pane below already paint Theme.menuPane edge to edge, so this
+        // card's own fill would stack a second translucent layer under theirs; in glass mode
+        // that compounds toward opaque and kills the frost, so leave the card itself unpainted
+        color: Theme._glass ? "transparent" : Theme.popup
 
         readonly property int _compactW: 398
         readonly property int _powerW: 566
