@@ -32,11 +32,27 @@ Singleton {
     }
 
     property bool _active: false
-    readonly property bool _wanted: MenuState.homeActive && !Idle.isIdle
+    // The home menu wants a snappy 2s tick; the bar's vitals chips only need to notice
+    // a threshold crossing within a handful of seconds, so they get a slower cadence.
+    // Power tradeoff: leaving this gated on the menu alone would let the vitals widget
+    // sit dark whenever the menu is closed, defeating its purpose, so presence in the
+    // bar layout keeps /proc/meminfo and /proc/stat polling in the background at 6s —
+    // two cheap reads, no process spawn — for as long as the widget could be visible.
+    // Idle still pauses it entirely, and disk's df spawn stays behind the menu below.
+    readonly property bool _vitalsPlaced: ShellSettings.barWidgetPlaced("vitals")
+    readonly property bool _wanted: (MenuState.homeActive || root._vitalsPlaced) && !Idle.isIdle
+    readonly property int _pollInterval: MenuState.homeActive ? 2000 : 6000
 
     on_WantedChanged: {
         if (_wanted) _startDelay.restart()
         else root._deactivate()
+    }
+
+    // already polling for the vitals widget when the menu opens: catch disk up immediately
+    // instead of leaving it showing "—" for up to 10s until the gated slow timer first fires
+    Connections {
+        target: MenuState
+        function onHomeActiveChanged() { if (MenuState.homeActive && root._active) root._refreshSlow() }
     }
 
     function _activate(): void {
@@ -65,17 +81,19 @@ Singleton {
 
     Timer {
         id: _poll
-        interval: 2000
+        interval: root._pollInterval
         repeat: true
         running: root._active
         onTriggered: root._refreshFast()
     }
 
+    // disk isn't part of the vitals chips' contract, so its df spawn stays gated to the
+    // home menu instead of running for the vitals widget's whole time on the bar
     Timer {
         id: _slowPoll
         interval: 10000
         repeat: true
-        running: root._active
+        running: root._active && MenuState.homeActive
         onTriggered: root._refreshSlow()
     }
 

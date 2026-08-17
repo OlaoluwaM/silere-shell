@@ -81,7 +81,9 @@ Singleton {
     property int    dndFrom:             22
     property int    dndTo:               8
     property string mediaWidgetFormat:   "title"
-    property int    tempHotThreshold:    90
+    property int    tempHotThreshold:    GeneratedDefaults.tempHotThreshold
+    property int    cpuHotPercent:       GeneratedDefaults.cpuHotPercent
+    property int    memHotPercent:       GeneratedDefaults.memHotPercent
     property int    batteryLowThreshold: 20
     property int    notifDefaultTimeout: 5000
     property int    sysAlertTimeout:     10000
@@ -124,7 +126,7 @@ Singleton {
     property string barDisabledMonitors: ""
     property string overlayMonitor:      ""
 
-    readonly property var barWidgetKeys: ["workspaces", "tray", "traypopup", "updates", "network", "bluetooth", "caffeine", "volume", "brightness", "battery", "media", "clock"]
+    readonly property var barWidgetKeys: ["workspaces", "tray", "traypopup", "updates", "network", "bluetooth", "caffeine", "volume", "brightness", "battery", "vitals", "media", "clock"]
 
     property string barWidgetOrderLeft:  GeneratedDefaults.barWidgetOrderLeft
     property string barWidgetOrderCenter: GeneratedDefaults.barWidgetOrderCenter
@@ -175,6 +177,13 @@ Singleton {
 
     function barWidgetLocate(key: string): var {
         return root._barWidgetLocations[key] || root._missingBarWidgetLocation
+    }
+
+    // shared by every singleton that only needs to know "is this widget on the bar
+    // at all" (SysInfo/CpuTemp gating their vitals-widget polling) -- one predicate
+    // instead of each caller re-deriving it off barWidgetLocate's {zone,index} shape
+    function barWidgetPlaced(key: string): bool {
+        return root.barWidgetLocate(key).zone.length > 0
     }
 
     function setBarWidgetLayout(leftKeys, centerKeys, rightKeys): void {
@@ -234,6 +243,9 @@ Singleton {
         volume:      { glyph: "󰕾", label: "Volume",          group: "levels", setting: "barShowVolume" },
         brightness:  { glyph: "󰃟", label: "Brightness",      group: "levels", setting: "barShowBrightness" },
         battery:     { glyph: "󰂄", label: "Battery",         group: "power",  setting: "barShowBattery" },
+        // no setting: each chip's own threshold decides whether it exists, so there
+        // is nothing to gate beyond where the (possibly empty) cluster sits
+        vitals:      { glyph: "󰓅", label: "Vitals",          group: "power",  setting: "" },
         media:       { glyph: "󰝚", label: "Media",           group: "media",  setting: "barShowMedia" },
         clock:       { glyph: "󰅐", label: "Clock",           group: "clock",  setting: "barShowClock" }
     })
@@ -348,6 +360,8 @@ Singleton {
         { k: "dndTo",               t: "int",  min: 0, max: 23, sec: "popups" },
         { k: "mediaWidgetFormat",   t: "enum", vals: ["title", "artist-title"], sec: "media" },
         { k: "tempHotThreshold",    t: "int",  min: 50,   max: 105, sec: "warnings" },
+        { k: "cpuHotPercent",       t: "int",  min: 30,   max: 100, sec: "warnings" },
+        { k: "memHotPercent",       t: "int",  min: 30,   max: 100, sec: "warnings" },
         { k: "batteryLowThreshold", t: "int",  min: 5,    max: 50, sec: "warnings" },
         { k: "notifDefaultTimeout", t: "int",  min: 1000, max: 30000, sec: "popups" },
         { k: "sysAlertTimeout",     t: "int",  min: 0,    max: 30000, sec: "warnings" },

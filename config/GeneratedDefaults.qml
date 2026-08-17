@@ -51,4 +51,7 @@ Singleton {
     readonly property bool   glassSurfaces:       false
     readonly property real   glassOpacity:        0.85
     readonly property real   barOpacity:          0.88
+    readonly property int    tempHotThreshold:    90
+    readonly property int    cpuHotPercent:       70
+    readonly property int    memHotPercent:       70
 }

@@ -12,8 +12,13 @@ Singleton {
     readonly property bool available: temp > 0
     property bool _started: false
     readonly property bool needed: MenuState.homeActive
+    // the bar's vitals widget shows a TEMP chip off this same hot/critical hysteresis,
+    // so its presence in the bar layout keeps the 5s sensor poll alive alongside the
+    // OSD-warning and underline-glow consumers that already justify running unattended
+    readonly property bool _vitalsPlaced: ShellSettings.barWidgetPlaced("vitals")
     readonly property bool _persistentNeed: ShellSettings.osdTempWarn
         || (ShellSettings.underlineGlow && ShellSettings.underlineTempGlow)
+        || root._vitalsPlaced
     readonly property bool _wanted: _started && (_persistentNeed || needed) && !Idle.isIdle
     property string _sensorPath: ""
     property bool _reading: false

@@ -6,19 +6,25 @@ import "../../common"
 Pill {
     id: batteryPill
 
+    // an over-limit charge is worth surfacing even while auto-hide would otherwise
+    // fold the pill away on AC -- it's the one charging state that isn't "normal"
+    readonly property bool overChargeLimit: Battery.chargeLimit > 0 && Battery.pct > Battery.chargeLimit
     readonly property bool autoHidden: ShellSettings.batteryAutoHide && (Battery.charging || Battery.full)
+        && !overChargeLimit
     readonly property bool show: ShellSettings.barShowBattery && Battery.available && !autoHidden
     property real _baseOpacity: show ? 1.0 : 0.0
     readonly property bool layoutVisible: show || _baseOpacity > 0.001
     collapsed: !show
+
+    readonly property color _iconColor: overChargeLimit ? Theme.warning : Battery.iconColor
 
     glyph:          Battery.icon
     // full battery: every level and charging variant shares its outline
     glyphAlignReference: "󰁹"
     glyphAlignNudge: -1
     glyphPixelSize: Settings.iconSize + 3
-    glyphColor:     Battery.iconColor
-    textColor:      Battery.iconColor
+    glyphColor:     _iconColor
+    textColor:      _iconColor
     animateGlyph:   false
     shrinkDelay:    0
     reserveText:    "100%"

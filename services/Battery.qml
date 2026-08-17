@@ -102,6 +102,52 @@ Singleton {
         }
     }
 
+    // charge_control_end_threshold is a laptop-vendor sysfs knob (thinkpad_acpi, ideapad,
+    // etc), so it's a plain, possibly-missing file rather than anything UPower exposes.
+    // Detected once via a bounded glob, same idiom Brightness uses for backlight devices;
+    // absent/unreadable leaves chargeLimit at -1, which callers treat as "no such thing".
+    property string _chargeLimitPath: ""
+    property bool   _chargeLimitProbed: false
+    property int    _chargeLimitRaw: -1
+    readonly property int chargeLimit: root._chargeLimitRaw
+
+    function _probeChargeLimit(): void {
+        if (root._chargeLimitProbed) return
+        root._chargeLimitProbed = true
+        _chargeLimitProbe.running = true
+    }
+
+    Component.onCompleted: root._probeChargeLimit()
+
+    BoundedProcess {
+        id: _chargeLimitProbe
+        timeoutMs: 3000
+        command: ["bash", "-c",
+            "for f in /sys/class/power_supply/BAT*/charge_control_end_threshold; do " +
+            "  [ -r \"$f\" ] && printf '%s\\n' \"$f\" && exit 0; " +
+            "done; exit 1"]
+        stdout: StdioCollector { id: _chargeLimitProbeOut }
+        onExited: (code) => {
+            root._chargeLimitPath = (code === 0 && !_chargeLimitProbe.timedOut)
+                ? (_chargeLimitProbeOut.text || "").trim() : ""
+            if (root._chargeLimitPath.length === 0) root._chargeLimitRaw = -1
+        }
+    }
+
+    FileView {
+        id: _chargeLimitFile
+        path: root._chargeLimitPath
+        watchChanges: root._chargeLimitPath.length > 0
+        blockLoading: false
+        blockAllReads: false
+        printErrors: false
+        onLoaded: {
+            const v = parseInt((_chargeLimitFile.text() || "").trim())
+            root._chargeLimitRaw = (!isNaN(v) && v > 0 && v <= 100) ? v : -1
+        }
+        onLoadFailed: root._chargeLimitRaw = -1
+    }
+
     readonly property real   timeToEmpty: upowerReady ? UPower.displayDevice.timeToEmpty : 0
     readonly property real   timeToFull:  upowerReady ? UPower.displayDevice.timeToFull  : 0
     readonly property string timeLabel: {
