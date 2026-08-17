@@ -112,7 +112,8 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         width: _pillLabel.implicitWidth + 18
         height: 22; radius: Theme.radiusInline
-        color: Theme.menuCard
+        // menuHint, not menuCard: this floats over pane text, so under glass it must be opaque
+        color: Theme.menuHint
         antialiasing: true
         opacity: _show ? 1.0 : 0.0
         scale:   _show ? 1.0 : 0.96

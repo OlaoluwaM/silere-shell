@@ -119,6 +119,11 @@ Singleton {
     // of repeating its formula.
     readonly property color _controlSolid:   _glass ? mix(_glassTint, text, 0.09 * _elevK) : menuControl
     function controlFill(tint: color, k: real): color { return mix(_controlSolid, tint, k) }
+    // floating hint labels (the rail's hover tooltips) paint OVER pane text inside the same
+    // window, where no compositor blur exists to frost them -- a wash fill there just collides
+    // two layers of text. Same doctrine as _controlSolid: small transient surfaces go opaque,
+    // at the card's step so the hint still reads as card-family, not control-family.
+    readonly property color menuHint:        _glass ? mix(_glassTint, text, 0.07 * _elevK) : menuCard
     readonly property color menuControlLine: _hc ? withAlpha(text, lineAlpha(0.24))
                                                 : _n ? withAlpha(_lineBase, lineAlpha(0.115))
                                                      : withAlpha(_lineBase, lineAlpha(0.135))
