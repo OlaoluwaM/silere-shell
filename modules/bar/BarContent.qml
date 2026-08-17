@@ -144,13 +144,14 @@ Item {
     Component { id: _cCaffeine;    CaffeineWidget   { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact } }
     Component { id: _cBattery;     BatteryWidget    { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact } }
     Component { id: _cVitals;      VitalsWidget     { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact } }
+    Component { id: _cPrivacy;     PrivacyWidget    { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact } }
     Component { id: _cMedia;       MediaWidget      { anchors.verticalCenter: parent.verticalCenter; height: root.height; screen: root.screen; textBudget: root.mediaTextBudget; compact: root.effectiveCompact; barActive: root.barActive } }
     Component { id: _cClock;       Clock            { anchors.verticalCenter: parent.verticalCenter; screen: root.screen; compact: root.effectiveCompact } }
 
     readonly property var _widgetComponents: ({
         workspaces: _cWorkspaces, tray: _cTray, traypopup: _cTrayPopup, updates: _cUpdates,
         network: _cNetwork, bluetooth: _cBluetooth, volume: _cVolume, brightness: _cBrightness, caffeine: _cCaffeine, battery: _cBattery,
-        vitals: _cVitals, media: _cMedia, clock: _cClock
+        vitals: _cVitals, privacy: _cPrivacy, media: _cMedia, clock: _cClock
     })
 
     BarZone {

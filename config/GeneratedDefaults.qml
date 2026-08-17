@@ -54,4 +54,7 @@ Singleton {
     readonly property int    tempHotThreshold:    90
     readonly property int    cpuHotPercent:       70
     readonly property int    memHotPercent:       70
+    // "" = feature dormant: no packaging wires a screenrecord wrapper up to create/remove
+    // this path, so the recording watcher never spawns for it on a plain checkout
+    readonly property string recordingStateFile:  ""
 }

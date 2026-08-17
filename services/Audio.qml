@@ -53,6 +53,19 @@ Singleton {
 
     readonly property var sinkModel: sinks.map(n => ({ value: n, label: root.sinkLabel(n) }))
 
+    // "mic in use" means an app has an open capture stream, not that a source device
+    // merely exists -- PwNodeType.AudioInStream is Quickshell's own classification of a
+    // PipeWire node whose media.class is Stream/Input/Audio (a stream node capturing
+    // from a source), which only exists on the graph while something is recording it
+    readonly property bool micInUse: {
+        const all = Pipewire.nodes ? (Pipewire.nodes.values || []) : []
+        for (let i = 0; i < all.length; i++) {
+            const n = all[i]
+            if (n && (n.type & PwNodeType.AudioInStream) === PwNodeType.AudioInStream) return true
+        }
+        return false
+    }
+
     PwObjectTracker { objects: root.sink ? [root.sink] : [] }
 
     function setSink(node): void {

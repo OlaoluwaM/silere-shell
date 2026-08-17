@@ -50,6 +50,9 @@ Singleton {
     property int    caffeinePreset:      0
     property string wifiEditCommand:     GeneratedDefaults.wifiEditCommand
     property string btEditCommand:       GeneratedDefaults.btEditCommand
+    // packaging-only, like wifiEditCommand/btEditCommand above: no settings page exposes
+    // this, the Nix screenrecord wrapper is the only writer of "" vs a real path
+    property string recordingStateFile:  GeneratedDefaults.recordingStateFile
     property bool   barShowCaffeine:     GeneratedDefaults.barShowCaffeine
 
     property bool   osdEnabled:     GeneratedDefaults.osdEnabled
@@ -126,7 +129,7 @@ Singleton {
     property string barDisabledMonitors: ""
     property string overlayMonitor:      ""
 
-    readonly property var barWidgetKeys: ["workspaces", "tray", "traypopup", "updates", "network", "bluetooth", "caffeine", "volume", "brightness", "battery", "vitals", "media", "clock"]
+    readonly property var barWidgetKeys: ["workspaces", "tray", "traypopup", "updates", "network", "bluetooth", "caffeine", "volume", "brightness", "battery", "vitals", "privacy", "media", "clock"]
 
     property string barWidgetOrderLeft:  GeneratedDefaults.barWidgetOrderLeft
     property string barWidgetOrderCenter: GeneratedDefaults.barWidgetOrderCenter
@@ -246,6 +249,9 @@ Singleton {
         // no setting: each chip's own threshold decides whether it exists, so there
         // is nothing to gate beyond where the (possibly empty) cluster sits
         vitals:      { glyph: "󰓅", label: "Vitals",          group: "power",  setting: "" },
+        // no setting: each chip lights up off its own condition (a recording state
+        // file existing, a live capture stream), same rationale as vitals above
+        privacy:     { glyph: "󰍭", label: "Privacy",         group: "privacy", setting: "" },
         media:       { glyph: "󰝚", label: "Media",           group: "media",  setting: "barShowMedia" },
         clock:       { glyph: "󰅐", label: "Clock",           group: "clock",  setting: "barShowClock" }
     })
@@ -332,6 +338,7 @@ Singleton {
         { k: "caffeinePreset",      t: "int",  min: 0, max: 1440, sec: "-" },
         { k: "wifiEditCommand",     t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "btEditCommand",       t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
+        { k: "recordingStateFile",  t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "barShowCaffeine",     t: "bool", sec: "widgets" },
         { k: "osdEnabled",          t: "bool", sec: "osd" },
         { k: "osdTimeout",          t: "int",  min: 500,  max: 10000, sec: "osd" },
