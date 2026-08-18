@@ -281,6 +281,9 @@ Singleton {
         function onTargetVolumeChanged() { root._queueVolumeUpdate() }
         function onPendingApplyChanged() { if (Audio.pendingApply) root._queueVolumeUpdate() }
         function onMutedChanged() { root._queueVolumeUpdate() }
+        // a clamped keypress at 0%/100% moves nothing else, so this is the only
+        // signal that fires -- without it the OSD would stay silent at the rails
+        function onVolumeNudged() { root._queueVolumeUpdate() }
         function onSinkNameChanged() {
             const name = Audio.sinkName
             if (!name || name === root._lastSinkName) return
@@ -302,6 +305,14 @@ Singleton {
                 root._seenInitialBrightness = true
                 return
             }
+            root.show("brightness", Brightness.icon, Brightness.pct, Brightness.label, false)
+        }
+        // a clamped keypress at 0%/100% leaves pct untouched, so onPctChanged never
+        // fires -- this is a real keypress though, not the startup value settling,
+        // so it always shows, bypassing the first-value suppression above
+        function onNudged() {
+            if (!Brightness.ready) return
+            root._seenInitialBrightness = true
             root.show("brightness", Brightness.icon, Brightness.pct, Brightness.label, false)
         }
     }

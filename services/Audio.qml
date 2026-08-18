@@ -3,12 +3,17 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Services.Pipewire
 
 Singleton {
     id: root
 
     readonly property real stepPct: 0.05
+
+    // fires on every raise/lower, even when bumpBy() can't move the value (already
+    // at 0% or 100%) -- the OSD still needs to show *something* for the keypress
+    signal volumeNudged()
 
     readonly property PwNode     sink:  Pipewire.defaultAudioSink
     readonly property PwNodeAudio audio: sink ? sink.audio : null
@@ -269,5 +274,23 @@ Singleton {
         _muteRetries = 0
         a.muted = shouldMute
         muteSafety.restart()
+    }
+
+    // hardware volume keys land here (nixos keybindings.nix binds XF86Audio*): going
+    // through the shell instead of raw wpctl lets a keypress surface the OSD even at
+    // the rails, where wpctl's write is a PipeWire no-op -- no property changes fire,
+    // so OsdBarState never hears about it and the user presses a dead key with no
+    // feedback. raise()/lower() emit volumeNudged() unconditionally, independent of
+    // whether bumpBy() actually moved anything, so the OSD always has something to say.
+    //
+    // no bootstrap property needed: shell.qml eagerly references OsdBarState.activeCount
+    // (the OSD popup's PopupLoader.wantOpen binding), and OsdBarState already carries a
+    // top-level Connections{target: Audio} -- that binding alone drags this singleton
+    // (and this IpcHandler) into existence at shell start, the same way MediaPopupState
+    // bootstraps Media.
+    IpcHandler {
+        target: "audio"
+        function raise(): void { root.bumpBy(root.stepPct); root.volumeNudged() }
+        function lower(): void { root.bumpBy(-root.stepPct); root.volumeNudged() }
     }
 }

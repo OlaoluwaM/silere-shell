@@ -44,6 +44,11 @@ Singleton {
     readonly property int    percent: Math.round(pct * 100)
     readonly property int    stepPct: 5
     readonly property string label:   `${percent}%`
+
+    // fires on every raise/lower, even when bumpBy() can't move the value (already
+    // at 0% or 100%) -- the OSD still needs to show *something* for the keypress
+    signal nudged()
+
     readonly property string icon: {
         if (pct <= 0)        return "󰃝"
         if (pct < 0.33)      return "󰃞"
@@ -284,5 +289,23 @@ Singleton {
             root._applyQueued = false
             root.lastError = "Brightness write timed out"
         }
+    }
+
+    // hardware brightness keys land here (nixos keybindings.nix binds XF86MonBrightness*):
+    // going through the shell instead of raw brightnessctl lets a keypress surface the OSD
+    // even at the rails, where setPercent()'s clamp is a no-op -- pendingPercent doesn't
+    // move, nothing else fires, so OsdBarState never hears about it and the user presses a
+    // dead key with no feedback. raise()/lower() emit nudged() unconditionally, independent
+    // of whether bumpBy() actually moved anything, so the OSD always has something to say.
+    //
+    // no bootstrap property needed: OsdBarState already carries a top-level
+    // Connections{target: Brightness}, and shell.qml eagerly references
+    // OsdBarState.activeCount (the OSD popup's PopupLoader.wantOpen binding) -- that
+    // binding alone drags this singleton (and this IpcHandler) into existence at shell
+    // start, the same way it bootstraps Audio.
+    IpcHandler {
+        target: "brightness"
+        function raise(): void { root.bumpBy(root.stepPct); root.nudged() }
+        function lower(): void { root.bumpBy(-root.stepPct); root.nudged() }
     }
 }
