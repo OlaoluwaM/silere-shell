@@ -10,9 +10,19 @@ ClippingRectangle {
     id: root
     width: parent ? parent.width : 0
     readonly property int _seekBlock: Media.hasPosition ? 26 : 0
+    // A2 -- Dissolve: no separate footer surface anymore, so the old "16 top gap" constant
+    // is gone. What's left is eyebrow-topMargin + eyebrow + the art's breathing room +
+    // the text block + the seek gap + the transport row + its own bottom margin, each
+    // matching the anchor margins used below -- a floor still guards the rare frame where
+    // an implicit height is still settling (e.g. right at Component.onCompleted).
+    readonly property int _artBreath: 76
     // 4px multiple: an odd height lands the bottom border on a half physical pixel and doubles it
-    height: 4 * Math.ceil(Math.max(168,
-        16 + _controlsRow.height + _seekBlock + 12 + _mediaCol.implicitHeight + 26) / 4)
+    // _identityRow used to live inside _mediaCol's Column, which drops an invisible child's
+    // contribution to implicitHeight for free; now that it's a top-anchored sibling instead,
+    // this formula has to gate its own contribution the same way or a player with no MPRIS
+    // identity (the row goes invisible) leaves dead space where the eyebrow would have sat
+    height: 4 * Math.ceil(Math.max(220,
+        (_identityRow.visible ? 12 + _identityRow.height : 0) + _artBreath + _mediaCol.implicitHeight + 12 + _seekBlock + _controlsRow.height + 14) / 4)
     radius: Theme.radiusCard
     color: Theme.menuCard
     opacity: Media.shown ? 1.0 : 0.0
@@ -98,7 +108,7 @@ ClippingRectangle {
     }
 
     OutlineBorder {
-        // above the album art and its scrim: both fill the card and are declared later
+        // above the album art and its veil: both fill the card and are declared later
         z: 1
         radius: root.radius
         outlineWidth: 1
@@ -125,7 +135,8 @@ ClippingRectangle {
     Item {
         id: _art
         anchors.fill: parent
-        // the scrim over this is uniform by contract, so the art's own ceiling is what stops highlights punching through the title
+        // the veil below is transparent for its top third, so this ceiling is what stops
+        // highlights punching through the eyebrow row sitting directly on raw art up there
         readonly property real maxAlpha: 0.64
         property bool _useA: true
         property string _curUrl: ""
@@ -232,13 +243,33 @@ ClippingRectangle {
         }
     }
 
+    // A2 -- Dissolve: the old design darkened the WHOLE card with one flat scrim strong
+    // enough to keep text legible, which made the transport row and the seek bar sit on a
+    // half-dimmed cover instead of a real surface -- neither reads as fully "art" nor fully
+    // "chrome". This one gradient replaces it: transparent where the art should just be
+    // ambiance, dissolving into a solid floor where controls live, with no seam between an
+    // "art zone" and a "footer zone" because there isn't a second surface underneath it.
     Rectangle {
         anchors.fill: parent
         visible: _art.shownAlpha > 0.01
-        color: Theme.withAlpha(root.color, 0.72)
+        // the floor has to be the SAME opaque solid-on-glass tone RailNavItem's hover
+        // tooltip uses (Theme.menuHint), not a translucent wash: a wash floor would let
+        // the cover bleed through behind the seek bar and transport row exactly like the
+        // old scrim did, and menuHint is already opaque in glass, non-glass, and HC (HC
+        // forces _glass off in Theme, so it falls through to the same opaque menuCard mix)
+        gradient: Gradient {
+            GradientStop { position: 0.00; color: "transparent" }
+            GradientStop { position: 0.34; color: "transparent" }
+            GradientStop { position: 0.55; color: Theme.withAlpha(Theme.menuHint, 0.55) }
+            GradientStop { position: 0.76; color: Theme.menuHint }
+            GradientStop { position: 1.00; color: Theme.menuHint }
+        }
     }
 
-    // down to the seek row, so the title and artist are part of the jump target
+    // covers only the art above the text block -- the eyebrow and the title/artist column
+    // are declared after this MouseArea, so their own hit targets (the source-step buttons)
+    // still win the tap; everywhere else in this band, clicking raises the player. Seek and
+    // transport sit below _seek.top and were never part of this target.
     MouseArea {
         id: _playerTarget
         anchors.top: parent.top
@@ -247,6 +278,52 @@ ClippingRectangle {
         anchors.bottom: _seek.top
         cursorShape: Qt.PointingHandCursor
         onClicked: root._focusPlayer()
+    }
+
+    // pinned to the card's top edge, over raw art (the veil is transparent up here) --
+    // moved off its old mid-card spot so nothing textual competes with the title for the
+    // gradient's half-tone band, and so the source stepper reads as chrome pinned to the
+    // card frame rather than as part of the dissolving text block beneath it
+    Item {
+        id: _identityRow
+        anchors {
+            top: parent.top; topMargin: 12
+            left: parent.left; leftMargin: 16
+            right: parent.right; rightMargin: 16
+        }
+        // the taller of the label's own line height and the stepper pair, so the
+        // 20px buttons never get vertically clipped against the micro-sized label;
+        // a hidden Row still reports its children's height, so gate it on visible
+        // or a single-player card grows this row for buttons nobody can see
+        height: Math.max(_identityText.implicitHeight, _sourceNav.visible ? _sourceNav.height : 0)
+        visible: _mediaCol._shownIdentity.length > 0
+
+        ShellText {
+            id: _identityText
+            anchors.left: parent.left
+            anchors.right: _sourceNav.visible ? _sourceNav.left : parent.right
+            anchors.rightMargin: _sourceNav.visible ? 8 : 0
+            anchors.verticalCenter: parent.verticalCenter
+            text: _mediaCol._shownIdentity.toUpperCase()
+            color: Theme.withAlpha(Theme.subtext, 0.62)
+            font.pixelSize: Settings.fontMicro
+            font.weight: Font.Medium
+            font.letterSpacing: 1.2
+            elide: Text.ElideRight
+        }
+
+        // only with more than one live player; each arrow steps and wraps through
+        // Media.playerList and pins Media.preferredPlayer to the target's dbusName
+        Row {
+            id: _sourceNav
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            visible: Media.playerCount > 1
+            spacing: 4
+
+            SourceStepButton { glyph: "󰅁"; onTriggered: Media.cyclePlayer(-1) }
+            SourceStepButton { glyph: "󰅂"; onTriggered: Media.cyclePlayer(1) }
+        }
     }
 
     Column {
@@ -304,46 +381,6 @@ ClippingRectangle {
                 NumberAnimation { target: _mediaCol; property: "_slide";  to: 0;   duration: Motion.ms(260); easing.type: Easing.OutCubic }
             }
         }
-
-        Item {
-            id: _identityRow
-            width: parent.width
-            // the taller of the label's own line height and the stepper pair, so the
-            // 20px buttons never get vertically clipped against the micro-sized label;
-            // a hidden Row still reports its children's height, so gate it on visible
-            // or a single-player card grows this row for buttons nobody can see
-            height: Math.max(_identityText.implicitHeight, _sourceNav.visible ? _sourceNav.height : 0)
-            visible: _mediaCol._shownIdentity.length > 0
-
-            ShellText {
-                id: _identityText
-                anchors.left: parent.left
-                anchors.right: _sourceNav.visible ? _sourceNav.left : parent.right
-                anchors.rightMargin: _sourceNav.visible ? 8 : 0
-                anchors.verticalCenter: parent.verticalCenter
-                text: _mediaCol._shownIdentity.toUpperCase()
-                color: Theme.withAlpha(Theme.subtext, 0.62)
-                font.pixelSize: Settings.fontMicro
-                font.weight: Font.Medium
-                font.letterSpacing: 1.2
-                elide: Text.ElideRight
-            }
-
-            // only with more than one live player; each arrow steps and wraps through
-            // Media.playerList and pins Media.preferredPlayer to the target's dbusName
-            Row {
-                id: _sourceNav
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                visible: Media.playerCount > 1
-                spacing: 4
-
-                SourceStepButton { glyph: "󰅁"; onTriggered: Media.cyclePlayer(-1) }
-                SourceStepButton { glyph: "󰅂"; onTriggered: Media.cyclePlayer(1) }
-            }
-        }
-
-        Item { width: 1; height: 4; visible: _identityRow.visible }
 
         ShellText {
             id: _titleText
@@ -424,7 +461,7 @@ ClippingRectangle {
         id: _controlsRow
         anchors {
             horizontalCenter: parent.horizontalCenter
-            bottom: parent.bottom; bottomMargin: 16
+            bottom: parent.bottom; bottomMargin: 14
         }
         spacing: 24
 
