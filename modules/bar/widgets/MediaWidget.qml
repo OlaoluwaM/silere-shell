@@ -9,12 +9,7 @@ Item {
     id: root
 
     property bool compact: ShellSettings.barCompact
-    // the transport cluster sits right of the label at a widget-to-widget gap, not the
-    // tighter glyph-to-text one _content uses internally -- it reads as its own group
-    readonly property int _transportGap: Metrics.widgetGapFor(compact)
-    implicitWidth:  root.show
-        ? _content.implicitWidth + _transport.implicitWidth + _transportGap + root._pillPad * 2
-        : 0
+    implicitWidth: root.show ? _content.implicitWidth + root._pillPad * 2 : 0
     implicitHeight: parent ? parent.height : ShellSettings.barHeight
     clip: true
     enabled: root.show
@@ -242,80 +237,12 @@ Item {
         }
     }
 
-    // dedicated transport buttons, GNOME media-controller style: every media function
-    // must be reachable from a visible control, not a hidden gesture, so this replaces
-    // the old wheel-to-skip and middle-click-to-focus affordances entirely (removed below)
-    Row {
-        id: _transport
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.left: _content.right
-        anchors.leftMargin: root._transportGap
-        spacing: Metrics.pillGapFor(root.compact)
-
-        Pill {
-            id: _prevPill
-            compact: root.compact
-            // explicit, like every Pill-in-a-Row bar widget (VitalsWidget, PrivacyWidget):
-            // the Row sizes itself from its children, so a Pill left to read parent.height
-            // back would settle at its own minimum and shrink the tap target
-            height: root.height
-            glyph: "󰒮"
-            // single-state button, so the reference is the glyph itself
-            glyphAlignReference: "󰒮"
-            glyphColor: Media.canGoPrevious ? Theme.text : Theme.subtext
-            interactive: Media.canGoPrevious
-            shrinkDelay: 0
-        }
-
-        Pill {
-            id: _playPill
-            compact: root.compact
-            height: root.height
-            glyph: Media.playing ? "󰏤" : "󰐊"
-            // fixed to one state on purpose: correcting the ink shift against whichever
-            // glyph is current would jump the icon vertically every time playback toggles
-            glyphAlignReference: "󰏤"
-            glyphColor: Media.canTogglePlaying ? Theme.text : Theme.subtext
-            interactive: Media.canTogglePlaying
-            shrinkDelay: 0
-        }
-
-        Pill {
-            id: _nextPill
-            compact: root.compact
-            height: root.height
-            glyph: "󰒭"
-            glyphAlignReference: "󰒭"
-            glyphColor: Media.canGoNext ? Theme.text : Theme.subtext
-            interactive: Media.canGoNext
-            shrinkDelay: 0
-        }
-    }
-
     HoverHandler { id: _rootHover; cursorShape: Qt.PointingHandCursor }
-
-    // a transport pill sitting inside this same Item would otherwise fire both its own
-    // tap and this one for a single click; one handler with hit-testing (same doctrine
-    // ControlRow uses for its chevron/badge) avoids double-dispatch instead of trying to
-    // stop propagation between sibling PointerHandlers
-    function _insidePill(pill, pos): bool {
-        const p = pill.mapFromItem(root, pos.x, pos.y)
-        return p.x >= 0 && p.x <= pill.width && p.y >= 0 && p.y <= pill.height
-    }
 
     TapHandler {
         acceptedButtons: Qt.LeftButton
-        onTapped: (eventPoint) => {
-            const pos = eventPoint.position
-            if (root._insidePill(_prevPill, pos)) {
-                if (Media.canGoPrevious) Media.previous()
-            } else if (root._insidePill(_playPill, pos)) {
-                if (Media.canTogglePlaying) Media.togglePlay()
-            } else if (root._insidePill(_nextPill, pos)) {
-                if (Media.canGoNext) Media.next()
-            } else if (Media.available) {
-                MediaPopupState.toggleAt(root.menuAnchorX, root.screen, root)
-            }
+        onTapped: {
+            if (Media.available) MediaPopupState.toggleAt(root.menuAnchorX, root.screen, root)
         }
     }
 }
