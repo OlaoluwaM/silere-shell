@@ -237,7 +237,7 @@ PageShell {
 
                     ShellText {
                         anchors.centerIn: parent
-                        text: "󰂛"
+                        text: "󱇦"
                         color: Theme.withAlpha(Theme.subtext, 0.34)
                         font.pixelSize: 24
                     }
@@ -394,17 +394,6 @@ PageShell {
                                     p.y >= -4 && p.y <= _removeButton.height + 4) return
                                 _entry._toggleExpand()
                             }
-                        }
-
-                        Rectangle {
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: _entry._critical ? 3 : 0
-                            // tracks the card less its 20px padding; a fixed height left the mark
-                            // stubby once an expanded entry grew the card
-                            height: Math.max(0, parent.height - 20)
-                            radius: 1.5
-                            color: Theme.error
                         }
 
                         Column {

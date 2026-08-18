@@ -202,31 +202,22 @@ PanelWindow {
                 onTriggered: NightLight.toggle()
             }
             QuickActionRow {
-                visible: PowerProfiles.available && PowerProfiles.profile.length > 0
+                visible: PowerProfiles.available
                 checkable: false
                 glyph: PowerProfiles.glyph.length > 0 ? PowerProfiles.glyph : "󰾅"
                 label: "Power Mode"
                 active: PowerProfiles.profile === "performance"
-                stateText: PowerProfiles.label.length > 0 ? PowerProfiles.label : "…"
+                stateText: PowerProfiles.label.length > 0 ? PowerProfiles.label
+                         : PowerProfiles.syncing ? "Checking…" : "…"
                 onTriggered: PowerProfiles.cycle()
             }
             QuickActionRow {
-                // a hard-blocked radio refuses every write, so leaving it in would make
-                // the row re-issue two doomed requests on each tap and never change
-                readonly property bool _wifiCtl: Network.toolAvailable && Network.hasWifiDevice
-                    && !Network.wifiHardBlocked
-                readonly property bool _btCtl:   Bluetooth.available
-                readonly property bool _anyOn:   (_wifiCtl && Network.wifiEnabled) || (_btCtl && Bluetooth.enabled)
-                visible: _wifiCtl || _btCtl
+                visible: QuickActionsState.airplaneAvailable
                 glyph: "󰀝"
                 label: "Airplane Mode"
-                active: !_anyOn
-                stateText: _anyOn ? "Off" : "On"
-                onTriggered: {
-                    const wantOn = _anyOn ? false : true
-                    if (_wifiCtl && Network.wifiEnabled !== wantOn) Network.toggleWifi()
-                    if (_btCtl && Bluetooth.enabled !== wantOn) Bluetooth.toggle()
-                }
+                active: !QuickActionsState.radiosOn
+                stateText: QuickActionsState.radiosOn ? "Off" : "On"
+                onTriggered: QuickActionsState.toggleAirplane()
             }
         }
     }

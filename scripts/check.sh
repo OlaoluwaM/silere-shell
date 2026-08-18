@@ -18,8 +18,33 @@ section() {
   printf '== %s ==\n' "$1"
 }
 ok() { printf 'ok   %-15s %s\n' "$1" "$2"; }
+info() { printf '     %-15s %s\n' "$1" "$2"; }
 warn() { printf 'warn %-15s %s\n' "$1" "$2"; warnings=$((warnings + 1)); }
 fail() { printf 'fail %-15s %s\n' "$1" "$2" >&2; status=1; }
+
+section "versions"
+# reported, never judged: the dependency section below is what fails on a missing qs
+_first_line() { head -n 1 2>/dev/null || true; }
+
+if silere_ver="$(git describe --tags --always --dirty 2>/dev/null)" && [ -n "$silere_ver" ]; then
+  info "silere" "$silere_ver"
+else
+  info "silere" "unknown (not a git checkout)"
+fi
+
+if command -v qs >/dev/null 2>&1; then
+  info "quickshell" "$(qs --version 2>&1 | _first_line)"
+else
+  info "quickshell" "not in PATH"
+fi
+
+if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && command -v hyprctl >/dev/null 2>&1; then
+  info "compositor" "$(hyprctl version 2>/dev/null | _first_line)"
+elif [ -n "${NIRI_SOCKET:-}" ] && command -v niri >/dev/null 2>&1; then
+  info "compositor" "$(niri --version 2>&1 | _first_line)"
+else
+  info "compositor" "no live Hyprland or niri session (${XDG_CURRENT_DESKTOP:-${DESKTOP_SESSION:-unknown}})"
+fi
 
 section "git diff --check"
 if git diff --check; then
@@ -76,15 +101,6 @@ optional_any_tool() {
     ok "$label" "$desc ($found)"
   else
     warn "$label" "$desc unavailable (optional; need one of: $*)"
-  fi
-}
-
-check_file() {
-  local label="$1" path="$2" hint="$3"
-  if [ -r "$path" ]; then
-    ok "$label" "$path"
-  else
-    warn "$label" "$hint (optional)"
   fi
 }
 
@@ -326,15 +342,27 @@ fi
 
 section "headless QML probe"
 ok "qml" "checking files; this can take a few seconds"
-if ! bash scripts/test-qml-headless.sh; then
+# teed rather than captured: the probe streams progress over several seconds, and a
+# skip here still exits 0 while CI runs it under SILERE_REQUIRE_QML_TOOLS=1 and fails
+qml_log="$(mktemp "${TMPDIR:-/tmp}/silere-qml.XXXXXX.log")"
+bash scripts/test-qml-headless.sh 2>&1 | tee "$qml_log"
+qml_code=${PIPESTATUS[0]}
+if [ "$qml_code" -ne 0 ]; then
   status=1
+elif grep -q '^SKIP' "$qml_log"; then
+  warn "qml" "$(sed -n 's/^SKIP: //p' "$qml_log" | head -1)"
 fi
+rm -f "$qml_log"
 
 section "behavioral logic"
 if [ -f scripts/test-logic.sh ]; then
   logic_out=""
   if logic_out="$(bash scripts/test-logic.sh 2>&1)"; then
-    ok "logic" "$logic_out"
+    if printf '%s' "$logic_out" | grep -q '^SKIP'; then
+      warn "logic" "$(printf '%s' "$logic_out" | sed -n 's/^SKIP: //p' | head -1)"
+    else
+      ok "logic" "$logic_out"
+    fi
   else
     status=1
     fail "logic" "behavioral probe failed"

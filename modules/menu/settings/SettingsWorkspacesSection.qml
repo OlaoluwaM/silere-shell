@@ -55,7 +55,7 @@ Column {
         CollapsibleSection {
             expanded: ShellSettings.wsShowAppIcons
             ToggleRow {
-                glyph: "󰹑"; label: "Monochrome icons"
+                glyph: "󰋰"; label: "Monochrome icons"
                 key: "wsIconMono"
             }
             SliderRow {
@@ -85,6 +85,10 @@ Column {
             glyph: "󰕦"; label: "Urgent window pulse"
             description: "Animate a workspace demanding attention"
             key: "wsUrgentPulse"
+        }
+        HintText {
+            visible: ShellSettings.reduceMotion
+            text: "Reduce motion is on, so these animations stay off."
         }
     }
 }

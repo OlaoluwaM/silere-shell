@@ -41,7 +41,7 @@ Column {
                 step: 500
             }
             ChoiceChipRow {
-                glyph: "󰒓"; label: "Feedback for"
+                glyph: "󰈶"; label: "Feedback for"
                 currentValue: ShellSettings.osdKindFilter
                 model: [
                     { value: "both",       glyph: "󰓎", label: "Both" },
@@ -49,14 +49,6 @@ Column {
                     { value: "brightness", glyph: "󰃟", label: "Brt"  }
                 ]
                 onChosen: (v) => ShellSettings.osdKindFilter = v
-            }
-            CollapsibleSection {
-                expanded: ShellSettings.osdKindFilter !== "brightness"
-                ToggleRow {
-                    glyph: "󰓎"; label: "Volume emphasis"
-                    description: "Warm tint near maximum"
-                    key: "osdVolumeTint"
-                }
             }
         }
     }

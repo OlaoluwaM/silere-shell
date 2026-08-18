@@ -58,6 +58,10 @@ The installer checks every QML module Silere imports and names any that are miss
 
 To start it, restart your compositor, or try it right away with `qs -p /that/path/shell.qml`.
 
+Bootstrapping from a dotfiles script or a container? `SILERE_ASSUME_YES=1` answers the
+`[Y/n]` prompts and installs to the default path. It still backs up every file it edits,
+and still stops on a compositor it does not support.
+
 Once it's running, **click the active workspace diamond** to open the menu and settings. That is the way in, so it is worth binding a key to it early — see [Keybinds and scripts](#keybinds-and-scripts).
 
 To remove it, run `bash scripts/uninstall.sh` from the installed checkout. That clears autostart, theme, and update-timer integrations, but keeps the checkout, your settings, and the installed font.
@@ -95,8 +99,8 @@ The interactive installer configures Matugen when it is installed. It copies
 Silere's template into Matugen's template directory and makes Matugen write
 `$XDG_CONFIG_HOME/matugen/silere-shell.json`; the shell watches that user-writable
 palette and reloads colors live. This works for both a Git checkout and a
-read-only package under `/usr/share`. Packaged installs print the equivalent
-one-time setup after installation.
+read-only package under `/usr/share`. Packaged installs print the one-time
+command that does the same thing, `install.sh --repair-matugen`.
 
 Cava needs no configuration step. Silere writes a private temporary raw-output
 profile under `$XDG_RUNTIME_DIR`, starts Cava only while the visualizer is
@@ -153,17 +157,20 @@ qs ipc -p "$SILERE_DIR/shell.qml" call menu toggle
 qs ipc -p "$SILERE_DIR/shell.qml" call menu tab 2
 qs ipc -p "$SILERE_DIR/shell.qml" call menu settings updates
 qs ipc -p "$SILERE_DIR/shell.qml" call calendar toggle
+qs ipc -p "$SILERE_DIR/shell.qml" call quickActions toggle
 qs ipc -p "$SILERE_DIR/shell.qml" call screenshot flash
 ```
 
-Menu tabs are `0` (Home), `1` (Settings), `2` (Recent), and `3` (System). `screenshot flash` lets a screenshot tool trigger the underline effect directly, without the optional filesystem watcher.
+Menu tabs are `0` (Home), `1` (Settings), `2` (Recent), and `3` (System). `quickActions` holds Do Not Disturb, night light, power mode and airplane mode. `screenshot flash` lets a screenshot tool trigger the underline effect directly, without the optional filesystem watcher.
+
+`menu`, `calendar` and `quickActions` each take `close` as well as `toggle`, for a keybind that dismisses without opening anything. Run `qs ipc -p "$SILERE_DIR/shell.qml" show` for the current list.
 
 <details>
 <summary>Settings section names for <code>menu settings &lt;name&gt;</code></summary>
 
 <br>
 
-`theme`, `surface`, `separators`, `underline`, `widgets`, `clock`, `workspaces`, `media`, `indicators`, `popups`, `osd`, `warnings`, `interface`, `updates`, `maintenance`
+`theme`, `interface`, `surface`, `underline`, `separators`, `widgets`, `workspaces`, `clock`, `media`, `indicators`, `popups`, `osd`, `warnings`, `updates`, `maintenance`
 
 An unknown name falls back to `theme`, so an out-of-date keybind still opens Settings.
 

@@ -42,7 +42,7 @@ Column {
     SettingsCard {
         visible: Battery.available
         ChoiceChipRow {
-            glyph: "󱟢"; label: "Low battery warning"
+            glyph: "󱃍"; label: "Low battery warning"
             currentValue: root._battAlertMode
             model: root._alertChipModel
             onChosen: (v) => root._setAlertMode(v, "osdBatteryWarn", "underlineBattGlow")
@@ -50,7 +50,7 @@ Column {
         CollapsibleSection {
             expanded: root._battAlertMode !== "off"
             SliderRow {
-                glyph: "󱟢"; label: "Alert below"
+                glyph: "󱃍"; label: "Alert below"
                 key: "batteryLowThreshold"
                 step: 5
                 displayValue: ShellSettings.batteryLowThreshold + "%"
@@ -111,6 +111,10 @@ Column {
                                 { value: 0,     label: "Stay" }
                             ]
                             onChosen: (v) => ShellSettings.sysAlertTimeout = v
+                        }
+                        HintText {
+                            visible: SystemTools.ready && !SystemTools.hasNotifySend
+                            text: "Desktop notifications need libnotify."
                         }
                         HintText {
                             text: ShellSettings.osdEnabled

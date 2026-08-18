@@ -32,7 +32,7 @@ Singleton {
     property bool   showWindowTitleApp:  false
     property bool   windowTitleCenterGap: true
     property bool   updatesWidget:       GeneratedDefaults.updatesWidget
-    property bool   updatesIncludeAur:   true
+    property bool   updatesIncludeAur:   false
     property bool   trayWidget:          GeneratedDefaults.trayWidget
     property bool   valuesOnHover:       true
     property bool   hoverLevelBar:       false
@@ -65,7 +65,6 @@ Singleton {
     property string osdKindFilter:  "both"
     property bool   osdBatteryWarn: false
     property bool   osdTempWarn:    false
-    property bool   osdVolumeTint:  false
     property bool   osdChargedNotify: false
     property bool   osdBarIntegrated: false
     property bool   osdMatchBar:      true
@@ -100,6 +99,7 @@ Singleton {
     property bool   underlineGlow:       false
     property string underlineLastStyle:  "static"
     property bool   underlineIdleGlow:   false
+    property bool   underlineFullWidth:  false
     property bool   underlineNotifGlow:  false
     property bool   underlineBattGlow:   false
     property bool   underlineNetGlow:        false
@@ -129,6 +129,7 @@ Singleton {
     property real   barShadowStrength:   1.0
     property string barPosition:         GeneratedDefaults.barPosition
     property real   barOpacity:          GeneratedDefaults.barOpacity
+    property bool   popupMatchBarOpacity: GeneratedDefaults.popupMatchBarOpacity
     property string barDisabledMonitors: ""
     property string overlayMonitor:      ""
 
@@ -357,7 +358,6 @@ Singleton {
         { k: "osdKindFilter",       t: "enum", vals: ["both", "volume", "brightness"], sec: "osd" },
         { k: "osdBatteryWarn",      t: "bool", sec: "warnings" },
         { k: "osdTempWarn",         t: "bool", sec: "warnings" },
-        { k: "osdVolumeTint",       t: "bool", sec: "osd" },
         { k: "osdChargedNotify",    t: "bool", sec: "warnings" },
         { k: "osdBarIntegrated",    t: "bool", sec: "osd" },
         { k: "osdMatchBar",         t: "bool", sec: "osd" },
@@ -390,6 +390,7 @@ Singleton {
         { k: "underlineGlow",       t: "bool", sec: "underline" },
         { k: "underlineLastStyle",  t: "enum", vals: ["static", "glow"], sec: "underline" },
         { k: "underlineIdleGlow",   t: "bool", sec: "underline" },
+        { k: "underlineFullWidth",  t: "bool", sec: "underline" },
         { k: "underlineNotifGlow",  t: "bool", sec: "underline" },
         { k: "underlineBattGlow",   t: "bool", sec: "underline,warnings" },
         { k: "underlineNetGlow",    t: "bool", sec: "underline" },
@@ -416,6 +417,7 @@ Singleton {
         { k: "barOpacity",          t: "real", min: 0.4,  max: 1.0, sec: "surface" },
         { k: "glassSurfaces",       t: "bool", sec: "surface" },
         { k: "glassOpacity",        t: "real", min: 0.5,  max: 0.95, sec: "surface" },
+        { k: "popupMatchBarOpacity", t: "bool", sec: "surface" },
         { k: "barDisabledMonitors", t: "re",   re: /^[A-Za-z0-9._,-]*$/, sec: "interface" },
         { k: "overlayMonitor",      t: "re",   re: /^[A-Za-z0-9._-]*$/, sec: "interface" },
         { k: "barWidgetOrderLeft",  t: "re",   re: /^[a-zA-Z]*(,[a-zA-Z]+)*$/, sec: "widgets" },
