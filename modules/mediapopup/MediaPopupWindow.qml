@@ -68,14 +68,16 @@ PanelWindow {
         anchorX: MediaPopupState.effectiveAnchorX
         barBottom: Metrics.barAtBottom
 
-        readonly property int pad: 10
         // matches HomePage's home-tab content width (menu compactW 398 minus the
         // collapsed rail and its padding) so the card reads at the same scale it
         // does inside the menu, not stretched or cramped for this smaller surface
         readonly property int cardWidth: 330
 
-        width:  cardWidth + pad * 2
-        height: _mediaCard.height + pad * 2
+        // edge to edge: the media card IS this popup's surface. An inset frame around
+        // it just showed a ring of empty popup chrome behind the art, so the card
+        // fills the window card completely and adopts its corner radius below.
+        width:  cardWidth
+        height: _mediaCard.height
 
         Connections {
             target: MediaPopupState
@@ -85,9 +87,10 @@ PanelWindow {
 
         MediaCard {
             id: _mediaCard
-            x: card.pad
-            y: card.pad
             width: card.cardWidth
+            // the outer card clips at Theme.surfaceRadius; matching it keeps the art's
+            // corners exactly on the popup's own rounding instead of double-rounding
+            radius: card.radius
             // MediaCard's art-retry-on-reopen defaults to watching MenuState (its original,
             // only host); this popup is a second host, so it tells the card which singleton
             // actually governs its own visibility instead of leaving it watching MenuState,
