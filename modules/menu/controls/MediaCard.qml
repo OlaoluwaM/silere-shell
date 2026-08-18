@@ -526,8 +526,11 @@ ClippingRectangle {
                 anchors.fill: parent
                 radius: Theme.radiusControl
                 antialiasing: true
+                // press-only feedback by request: the hover tint read as a flash against
+                // the button's already-visible idle fill (the skip buttons hover fine --
+                // they start from nothing). The cursor and the glyph brightening still
+                // say "hoverable"; only a real press changes the surface now.
                 color: _playT.pressed ? Theme.controlFill(Theme.accent, 0.18)
-                    : _playH.hovered ? Theme.controlFill(Theme.accent, 0.10)
                     : Theme.menuControl
                 ColorFade on color {}
 
@@ -552,6 +555,10 @@ ClippingRectangle {
             // tightBoundingRect lie the bar's bluetooth/battery/volume pills needed a
             // nudge for. Skip glyphs measured dead even; only this pair lies.
             readonly property int _playAlignNudge: -1
+            // horizontal counterpart, per state: the play triangle's ink lies 1.5
+            // physical px left inside its advance (measured against the container),
+            // while the pause bars are symmetric -- so only the triangle gets the trim
+            readonly property int _playAlignNudgeX: _playGlyph.shown === "󰐊" ? 1 : 0
             ShellText {
                 id: _playGlyph
                 anchors.centerIn: parent
@@ -561,6 +568,7 @@ ClippingRectangle {
                        + _playAlignMetrics.tightBoundingRect.y
                        + _playAlignMetrics.tightBoundingRect.height / 2))
                     + _playBtn._playAlignNudge
+                anchors.horizontalCenterOffset: _playBtn._playAlignNudgeX
                 property string shown: ""
                 readonly property string target: Media.playing ? "󰏤" : "󰐊"
                 property bool _ready: false
