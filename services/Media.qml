@@ -446,4 +446,22 @@ Singleton {
         if (!canGoPrevious) return
         player.previous()
     }
+
+    // hardware media keys land here (nixos keybindings.nix binds XF86Audio*): going
+    // through the shell instead of playerctl keeps the chords on the same player the
+    // card and bar control -- including a source pinned with the < > steppers, which
+    // playerctld's own last-active pick knows nothing about.
+    //
+    // no bootstrap property needed: shell.qml eagerly references MediaPopupState.open
+    // (the media popup's PopupLoader.wantOpen binding), and MediaPopupState already
+    // carries a top-level Connections{target: Media} to close itself when the player
+    // drops -- that binding alone drags this singleton (and this IpcHandler) into
+    // existence at shell start, the same way KeybindsPopupState.available bootstraps
+    // Keybinds.
+    IpcHandler {
+        target: "media"
+        function playPause(): void { root.togglePlay() }
+        function next(): void { root.next() }
+        function previous(): void { root.previous() }
+    }
 }
