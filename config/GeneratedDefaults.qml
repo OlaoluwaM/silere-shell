@@ -31,6 +31,7 @@ Singleton {
     readonly property string barWidgetOrderLeft:  "workspaces,media"
     readonly property string barWidgetOrderCenter: ""
     readonly property string barWidgetOrderRight: "tray,updates,network,bluetooth,caffeine,volume,brightness,battery,clock"
+    readonly property bool   barWidgetOrderLocked: false
     readonly property string caffeineUnit:        ""
     readonly property string caffeinePresets:     "15,30,60,0"
     readonly property string wifiEditCommand:     "nm-connection-editor --edit {uuid}"

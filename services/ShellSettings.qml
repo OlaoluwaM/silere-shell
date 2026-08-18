@@ -134,6 +134,10 @@ Singleton {
 
     readonly property var barWidgetKeys: ["workspaces", "tray", "traypopup", "updates", "network", "bluetooth", "caffeine", "volume", "brightness", "battery", "vitals", "privacy", "media", "clock"]
 
+    // packaging-only, like recordingStateFile/keybindsFile above: no settings page
+    // writes this, the Nix side is the only thing that ever flips it to true
+    readonly property bool barWidgetOrderLocked: GeneratedDefaults.barWidgetOrderLocked
+
     property string barWidgetOrderLeft:  GeneratedDefaults.barWidgetOrderLeft
     property string barWidgetOrderCenter: GeneratedDefaults.barWidgetOrderCenter
     property string barWidgetOrderRight: GeneratedDefaults.barWidgetOrderRight
@@ -291,6 +295,9 @@ Singleton {
     property string _writeError: ""
     property string _diskText: ""
     property string _appliedText: ""
+    // set for one _applyText pass when a locked order finds a stale override still
+    // sitting in settings.json, so the tail of that pass can flush it back out
+    property bool _scrubLockedOrder: false
     readonly property bool ready: _loaded
     readonly property string settingsError: ConfigStore.error.length > 0
         ? ConfigStore.error : _writeError.length > 0 ? _writeError : _readError
@@ -684,6 +691,21 @@ Singleton {
                 const s = _schema[i]
                 if (parsed[s.k] !== undefined) _coerce(s, parsed[s.k])
             }
+            // A locked order always resolves from GeneratedDefaults, never from disk.
+            // Flag a stale override here (rather than just overwriting it in memory)
+            // so it gets scrubbed from settings.json too -- otherwise it would keep
+            // lurking on disk, ready to reappear if the lock is ever lifted later.
+            if (root.barWidgetOrderLocked) {
+                if (parsed.barWidgetOrderLeft !== undefined
+                        || parsed.barWidgetOrderCenter !== undefined
+                        || parsed.barWidgetOrderRight !== undefined)
+                    root._scrubLockedOrder = true
+                // _defaults captured these straight off GeneratedDefaults before any
+                // load ever ran, so reusing it here avoids a second binding source
+                root.barWidgetOrderLeft = root._defaults.barWidgetOrderLeft
+                root.barWidgetOrderCenter = root._defaults.barWidgetOrderCenter
+                root.barWidgetOrderRight = root._defaults.barWidgetOrderRight
+            }
             // The two legacy booleans represent one mode. Prefer reactive if
             // hand-edited JSON enables both, and seed the persisted restore mode
             // for settings files written before underlineLastStyle existed.
@@ -703,6 +725,10 @@ Singleton {
         }
         _loaded = true
         root._recountModified()
+        if (root._scrubLockedOrder) {
+            root._scrubLockedOrder = false
+            _store.queue()
+        }
     }
 
     function _serialize(): string {

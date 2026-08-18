@@ -19,6 +19,8 @@ Item {
     readonly property int _bottomPad: 8
     readonly property var _allKeys: ShellSettings.barWidgetKeys
     readonly property var _zones: ["left", "center", "right"]
+    // order-only: visibility toggles below stay editable either way
+    readonly property bool _orderLocked: ShellSettings.barWidgetOrderLocked
 
     property var _previewLayout: ({ left: [], center: [], right: [], loc: ({}) })
     property string _draggingKey: ""
@@ -227,7 +229,9 @@ Item {
             anchors.rightMargin: 8
             anchors.verticalCenter: parent.verticalCenter
             // the shell is pointer-only; this used to promise arrow keys that no longer move anything
-            text: "Drag to reorder · toggle to show or hide"
+            text: root._orderLocked
+                ? "Order is set in the system config · toggle to show or hide"
+                : "Drag to reorder · toggle to show or hide"
             elide: Text.ElideRight
             color: Theme.withAlpha(Theme.subtext, 0.58)
             font.pixelSize: Settings.fontCaption
@@ -365,12 +369,14 @@ Item {
 
             HoverHandler {
                 id: _rowHover
-                cursorShape: _drag.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                cursorShape: root._orderLocked ? Qt.ArrowCursor
+                    : (_drag.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor)
             }
 
             DragHandler {
                 id: _drag
                 target: null
+                enabled: !root._orderLocked
                 property real startY: 0
 
                 onActiveChanged: {
@@ -422,10 +428,11 @@ Item {
 
             ShellText {
                 id: _dragGrip
+                visible: !root._orderLocked
                 anchors.right: _row.hasToggle ? _toggleTarget.left : parent.right
                 anchors.rightMargin: _row.hasToggle ? 1 : 9
                 anchors.verticalCenter: parent.verticalCenter
-                width: 18
+                width: visible ? 18 : 0
                 horizontalAlignment: Text.AlignHCenter
                 text: "󰇙"
                 color: Theme.withAlpha(Theme.subtext,
