@@ -48,13 +48,17 @@ Singleton {
         root.preferredPlayer = ""
     }
 
-    function cyclePlayer(): void {
+    // step: +1/-1 (or any integer) steps forward/back through playerList and wraps;
+    // the view passes the direction rather than duplicating this index math itself
+    function cyclePlayer(step: int): void {
         const players = root.playerList
-        if (players.length < 2) return
+        const n = players.length
+        if (n < 2) return
         let idx = -1
-        for (let i = 0; i < players.length; i++)
+        for (let i = 0; i < n; i++)
             if (players[i] === root.player) { idx = i; break }
-        root.preferredPlayer = players[(idx + 1) % players.length].dbusName
+        const next = ((idx + step) % n + n) % n
+        root.preferredPlayer = players[next].dbusName
     }
 
     readonly property var player: {

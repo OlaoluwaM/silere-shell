@@ -31,6 +31,61 @@ ClippingRectangle {
         if (_artOut.running) _artOut.complete()
     }
 
+    // compact rounded-rect stepper for the identity row's source switcher: sized down from
+    // MediaButton's transport-row scale but sharing its hover/press language (fill + outline
+    // + scale), so it still reads as the same control family instead of a plain flat toggle
+    component SourceStepButton: Item {
+        id: _step
+        property string glyph: ""
+        signal triggered()
+
+        implicitWidth: 20
+        implicitHeight: 20
+        width: implicitWidth
+        height: implicitHeight
+
+        HoverHandler { id: _stepHover; cursorShape: Qt.PointingHandCursor }
+        TapHandler   { id: _stepTap; onTapped: _step.triggered() }
+
+        readonly property real _scale: _stepTap.pressed ? Motion.pressScale
+            : _stepHover.hovered ? Motion.hoverScale : 1.0
+
+        Rectangle {
+            id: _stepFill
+            anchors.fill: parent
+            radius: Theme.radiusInline
+            antialiasing: true
+            scale: _step._scale
+            transformOrigin: Item.Center
+            color: _stepTap.pressed ? Theme.controlFill(Theme.text, 0.14)
+                : _stepHover.hovered ? Theme.controlFill(Theme.text, 0.09)
+                : "transparent"
+            ColorFade on color {}
+            MotionBehavior on scale {
+                NumberAnimation {
+                    duration: _stepTap.pressed ? Motion.press
+                        : _stepHover.hovered ? Motion.hoverIn : Motion.hoverOut
+                    easing.type: Easing.OutCubic
+                }
+            }
+
+            OutlineBorder {
+                radius: _stepFill.radius
+                outlineWidth: 1
+                outlineColor: _stepHover.hovered ? Theme.menuControlLineHot : "transparent"
+                ColorFade on outlineColor {}
+            }
+        }
+
+        ShellText {
+            anchors.centerIn: parent
+            text: _step.glyph
+            color: _stepHover.hovered ? Theme.text : Theme.withAlpha(Theme.subtext, 0.68)
+            font.pixelSize: Settings.fontLabel
+            ColorFade on color {}
+        }
+    }
+
     OutlineBorder {
         // above the album art and its scrim: both fill the card and are declared later
         z: 1
@@ -239,36 +294,45 @@ ClippingRectangle {
             }
         }
 
-        ShellText {
-            id: _identityText
-            readonly property bool _switchable: Media.playerCount > 1
-            readonly property bool _switchHover: _switchable && _identitySwitch.containsMouse
-
+        Item {
+            id: _identityRow
             width: parent.width
+            // the taller of the label's own line height and the stepper pair, so the
+            // 20px buttons never get vertically clipped against the micro-sized label;
+            // a hidden Row still reports its children's height, so gate it on visible
+            // or a single-player card grows this row for buttons nobody can see
+            height: Math.max(_identityText.implicitHeight, _sourceNav.visible ? _sourceNav.height : 0)
             visible: _mediaCol._shownIdentity.length > 0
-            text: _mediaCol._shownIdentity.toUpperCase()
-                + (_switchable ? "  󰅂" : "")
-            color: _switchHover ? Theme.withAlpha(Theme.text, 0.78)
-                                : Theme.withAlpha(Theme.subtext, 0.62)
-            font.pixelSize: Settings.fontMicro
-            font.weight: Font.Medium
-            font.letterSpacing: 1.2
-            elide: Text.ElideRight
-            ColorFade on color {}
 
-            MouseArea {
-                id: _identitySwitch
-                enabled: _identityText._switchable
-                hoverEnabled: enabled
-                y: -6
-                width: Math.min(parent.paintedWidth, parent.width)
-                height: parent.height + 12
-                cursorShape: Qt.PointingHandCursor
-                onClicked: Media.cyclePlayer()
+            ShellText {
+                id: _identityText
+                anchors.left: parent.left
+                anchors.right: _sourceNav.visible ? _sourceNav.left : parent.right
+                anchors.rightMargin: _sourceNav.visible ? 8 : 0
+                anchors.verticalCenter: parent.verticalCenter
+                text: _mediaCol._shownIdentity.toUpperCase()
+                color: Theme.withAlpha(Theme.subtext, 0.62)
+                font.pixelSize: Settings.fontMicro
+                font.weight: Font.Medium
+                font.letterSpacing: 1.2
+                elide: Text.ElideRight
+            }
+
+            // only with more than one live player; each arrow steps and wraps through
+            // Media.playerList and pins Media.preferredPlayer to the target's dbusName
+            Row {
+                id: _sourceNav
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                visible: Media.playerCount > 1
+                spacing: 4
+
+                SourceStepButton { glyph: "󰅁"; onTriggered: Media.cyclePlayer(-1) }
+                SourceStepButton { glyph: "󰅂"; onTriggered: Media.cyclePlayer(1) }
             }
         }
 
-        Item { width: 1; height: 4; visible: _identityText.visible }
+        Item { width: 1; height: 4; visible: _identityRow.visible }
 
         ShellText {
             id: _titleText
