@@ -22,8 +22,11 @@ StatusActionPill {
     // StatusActionPill defaults this off; this glyph switches across three states at
     // runtime (same reason NetworkWidget re-enables it), so keep the stamp transition
     animateGlyph: true
-    // restores Pill's own default, which StatusActionPill trims by 1px
-    glyphPixelSize: Settings.iconSize + 2
+    // two above Pill's own default (which StatusActionPill trims by 1px): the rune's
+    // ink is barely half as wide as its neighbors' (measured 10px against wifi's 22
+    // and the mug's 18 at bar scale), so at equal font size it floats in visibly more
+    // whitespace than the rest of the cluster. Scale the icon, not the shell.
+    glyphPixelSize: Settings.iconSize + 4
     animateText: false
 
     // a click only does something once the configured bluetooth-manager command is reachable
