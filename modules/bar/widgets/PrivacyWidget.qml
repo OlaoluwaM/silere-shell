@@ -62,7 +62,11 @@ Item {
             height: root.height
             compact: root.compact
             interactive: false
-            animateGlyph: false
+            // Two states share this chip now: an open capture stream, muted or not --
+            // the open stream is the privacy fact so the chip stays up either way, but
+            // the glyph swaps to the slashed mic under mute (same re-enable BluetoothWidget
+            // does for its own multi-state glyph) so the swap gets the stamp transition.
+            animateGlyph: true
             shrinkDelay: 0
             collapsed: !root._micInUse
             visible: root._micInUse || opacity > 0.001
@@ -71,12 +75,14 @@ Item {
             transformOrigin: Item.Center
             MotionBehavior on opacity { NumberAnimation { duration: Motion.normal; easing.type: Easing.OutCubic } }
             MotionBehavior on scale   { NumberAnimation { duration: Motion.normal; easing.type: Easing.OutQuart } }
-            glyph: "󰍬"
+            glyph: Audio.sourceMuted ? "󰍭" : "󰍬"
+            // Fixed per the glyphAlignReference doctrine: the reference is a stamp anchor,
+            // not a mirror of current state, so it stays on the unmuted glyph the two share.
             glyphAlignReference: "󰍬"
             glyphPixelSize: Settings.iconSize + 1
             glyphColor: Theme.warning
             textColor: Theme.warning
-            text: expanded ? "Mic in use" : ""
+            text: expanded ? (Audio.sourceMuted ? "Mic muted" : "Mic in use") : ""
         }
     }
 }

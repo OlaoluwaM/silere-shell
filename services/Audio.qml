@@ -14,6 +14,13 @@ Singleton {
     readonly property PwNodeAudio audio: sink ? sink.audio : null
     readonly property bool ready: Pipewire.ready && sink !== null && sink.ready && audio !== null
 
+    // Default SOURCE (mic) mute, for the privacy chip -- read-only, so unlike the sink
+    // above it needs none of the pending/reconcile machinery: the shell never writes
+    // source volume/mute, it only reflects what the system already reports.
+    readonly property PwNode      source:      Pipewire.defaultAudioSource
+    readonly property PwNodeAudio sourceAudio: source ? source.audio : null
+    readonly property bool sourceMuted: sourceAudio ? sourceAudio.muted : false
+
     property real targetVolume: ready ? root._clampVolume(audio.volume) : 0
     property bool pendingApply: false
     property bool _componentReady: false
@@ -66,7 +73,12 @@ Singleton {
         return false
     }
 
-    PwObjectTracker { objects: root.sink ? [root.sink] : [] }
+    // Both nodes must be bound here -- Quickshell only keeps a PwNode's properties
+    // (audio.muted included) live once it's listed in a PwObjectTracker, otherwise the
+    // node sits unbound and sourceMuted/audio would silently stop tracking PipeWire.
+    PwObjectTracker {
+        objects: (root.sink ? [root.sink] : []).concat(root.source ? [root.source] : [])
+    }
 
     function setSink(node): void {
         if (node) Pipewire.preferredDefaultAudioSink = node
