@@ -58,4 +58,7 @@ Singleton {
     // "" = feature dormant: no packaging wires a screenrecord wrapper up to create/remove
     // this path, so the recording watcher never spawns for it on a plain checkout
     readonly property string recordingStateFile:  ""
+    // "" = feature dormant, same contract as recordingStateFile above: no packaging writes
+    // a keybindings JSON file here on a plain checkout, so the popup's IPC toggle stays a no-op
+    readonly property string keybindsFile:        ""
 }

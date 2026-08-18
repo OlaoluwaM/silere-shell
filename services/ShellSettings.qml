@@ -53,6 +53,9 @@ Singleton {
     // packaging-only, like wifiEditCommand/btEditCommand above: no settings page exposes
     // this, the Nix screenrecord wrapper is the only writer of "" vs a real path
     property string recordingStateFile:  GeneratedDefaults.recordingStateFile
+    // packaging-only, same contract as recordingStateFile above: no settings page exposes
+    // this, the Nix side is the only writer of "" vs a real path to a keybindings JSON file
+    property string keybindsFile:        GeneratedDefaults.keybindsFile
     property bool   barShowCaffeine:     GeneratedDefaults.barShowCaffeine
 
     property bool   osdEnabled:     GeneratedDefaults.osdEnabled
@@ -340,6 +343,7 @@ Singleton {
         { k: "wifiEditCommand",     t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "btEditCommand",       t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "recordingStateFile",  t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
+        { k: "keybindsFile",        t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "barShowCaffeine",     t: "bool", sec: "widgets" },
         { k: "osdEnabled",          t: "bool", sec: "osd" },
         { k: "osdTimeout",          t: "int",  min: 500,  max: 10000, sec: "osd" },

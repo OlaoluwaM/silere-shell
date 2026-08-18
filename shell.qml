@@ -10,6 +10,7 @@ import "modules/calendar"
 import "modules/traymenu"
 import "modules/traypopup"
 import "modules/quickactions"
+import "modules/keybinds"
 import "services"
 import "config"
 
@@ -175,5 +176,12 @@ ShellRoot {
         wantOpen: QuickActionsState.open
         requestedScreen: QuickActionsState.triggerScreen ?? root.activeOverlayScreen
         surface: Component { QuickActionsPopup { targetScreen: _quickActionsPopup.latchedScreen } }
+    }
+
+    PopupLoader {
+        id: _keybindsPopup
+        wantOpen: KeybindsPopupState.open
+        requestedScreen: KeybindsPopupState.triggerScreen ?? root.activeOverlayScreen
+        surface: Component { KeybindsPopup { targetScreen: _keybindsPopup.latchedScreen } }
     }
 }

@@ -21,6 +21,7 @@ Singleton {
         if (name !== "traypopup" && !(name === "tray" && trayMenuIsPopupChild))
             TrayPopupState.close()
         if (name !== "quickActions") QuickActionsState.close()
+        if (name !== "keybinds") KeybindsPopupState.close()
     }
 
     Connections {
@@ -42,5 +43,9 @@ Singleton {
     Connections {
         target: QuickActionsState
         function onOpenChanged() { if (QuickActionsState.open) root._claim("quickActions") }
+    }
+    Connections {
+        target: KeybindsPopupState
+        function onOpenChanged() { if (KeybindsPopupState.open) root._claim("keybinds") }
     }
 }
