@@ -289,6 +289,16 @@ PanelWindow {
                         if (_search.text.length > 0) { _search.text = ""; event.accepted = true }
                     }
 
+                    // the search field keeps focus for type-to-filter, so arrow keys land
+                    // here rather than on the list; forward them as quarter-viewport
+                    // scroll steps instead of making the user reach for the mouse
+                    function _scrollList(delta: real): void {
+                        const maxY = Math.max(0, _list.contentHeight - _list.height)
+                        _list.contentY = Math.max(0, Math.min(maxY, _list.contentY + delta))
+                    }
+                    Keys.onUpPressed: _search._scrollList(-Math.round(_list.height / 4))
+                    Keys.onDownPressed: _search._scrollList(Math.round(_list.height / 4))
+
                     ShellText {
                         anchors.fill: parent
                         verticalAlignment: Text.AlignVCenter
