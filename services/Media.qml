@@ -92,11 +92,12 @@ Singleton {
     readonly property bool canGoNext:        player ? player.canGoNext : false
     readonly property bool canGoPrevious:    player ? player.canGoPrevious : false
 
-    // upstream faded the bar/card 15s after pause (5s pause grace + 10s fade-out),
-    // which punished a paused player like a dismissal. Pausing is usually a state to
-    // come back to, so the window is now five minutes -- long enough to survive a
-    // phone call or a trip to the kitchen, but a source paused for good still lets
-    // go of the bar eventually instead of holding it forever.
+    // a freshly paused player still gets a grace period before it fades, since
+    // pausing is usually a state to come back to -- but the surface now lets go
+    // after ~30s (10s grace + 20s fade-out) rather than lingering, so the bar
+    // declutters itself sooner once a source is paused for good. A player that's
+    // already paused the first time we see it (shell just started, or one
+    // reconnects mid-pause) shows immediately, skipping the grace period.
     property bool shown: false
 
     function _syncShown(): void {
@@ -114,8 +115,8 @@ Singleton {
     onPlayingChanged:   { _syncShown(); _reanchor() }
     Component.onCompleted: { _syncShown(); _reanchor(); if (artUrl.length > 0) stableArtUrl = artUrl }
 
-    Timer { id: _pauseTimer; interval: 60000;  onTriggered: _hideTimer.start() }
-    Timer { id: _hideTimer;  interval: 240000; onTriggered: root.shown = false  }
+    Timer { id: _pauseTimer; interval: 10000; onTriggered: _hideTimer.start() }
+    Timer { id: _hideTimer;  interval: 20000; onTriggered: root.shown = false  }
 
     // MPRIS reports 2^63-1 microseconds for anything with no end, which every live
     // stream is; a real track is never a day long, so past the cap it means unknown
