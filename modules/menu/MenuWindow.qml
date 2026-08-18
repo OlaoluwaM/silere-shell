@@ -141,8 +141,14 @@ PanelWindow {
         readonly property int minRailFitH: 252
         readonly property int pageTopInset: 12
         readonly property int pageBottomInset: 12
+        // on tall pages (settings, system) the panel would otherwise stretch to nearly the
+        // full screen; capping it around three quarters keeps the rail/tray in view and lets
+        // the content flickable below take over the rest via scrolling
+        readonly property real _maxPanelHFrac: 0.72
         readonly property int _availablePanelH: win.height > 0
-            ? Math.max(1, Math.floor(win.height - _edgeY - _minX))
+            ? Math.max(1, Math.min(
+                Math.floor(win.height - _edgeY - _minX),
+                Math.floor(win.height * _maxPanelHFrac)))
             : contentPane.targetH
         readonly property int recentViewportH: Math.max(1,
             Math.min(idealMinH - pageTopInset - pageBottomInset,
