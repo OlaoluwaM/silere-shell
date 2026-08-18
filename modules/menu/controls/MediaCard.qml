@@ -265,7 +265,11 @@ ClippingRectangle {
         gradient: Gradient {
             GradientStop { position: 0.00; color: "transparent" }
             GradientStop { position: 0.34; color: "transparent" }
-            GradientStop { position: 0.55; color: Theme.withAlpha(Theme.menuHint, 0.55) }
+            // 0.72, up from 0.55: the artist line lives at this stop in dimmed
+            // subtext, and a bright cover shone through the lighter half-tone and
+            // washed it out. Firmer ground here keeps the dim-artist hierarchy
+            // voice without brightening the ink or moving the text block.
+            GradientStop { position: 0.55; color: Theme.withAlpha(Theme.menuHint, 0.72) }
             GradientStop { position: 0.76; color: Theme.menuHint }
             GradientStop { position: 1.00; color: Theme.menuHint }
         }
