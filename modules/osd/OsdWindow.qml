@@ -67,7 +67,13 @@ PanelWindow {
                 // block without going chunky
                 readonly property int cardH: ShellSettings.osdMatchBar ? Math.max(40, ShellSettings.barHeight) : 46
                 readonly property int chromeW: hasBar ? 200 : 94
-                readonly property int cardW: Math.max(224, Math.min(440, chromeW + Math.ceil(_labelMetrics.advanceWidth) + 2))
+                // the percent readout counts digits up and down -- size the card for the
+                // widest steady label ("100%"/"Muted") so it doesn't breathe at the rails;
+                // a transient device-name label may still widen it, that's deliberate
+                readonly property int cardW: Math.max(224, Math.min(440, chromeW + Math.max(
+                    Math.ceil(_labelMetrics.advanceWidth),
+                    Math.ceil(_maxPctMetrics.advanceWidth),
+                    Math.ceil(tm.advanceWidth)) + 2))
                 readonly property real cardRadius: ShellSettings.osdMatchBar
                     ? Math.min(ShellSettings.barRadius, cardH / 4)
                     : Math.min(Theme.radiusPanel, cardH / 4)
@@ -89,6 +95,13 @@ PanelWindow {
                     font.family:    Settings.font
                     font.pixelSize: Settings.fontSize
                     text: card.label
+                }
+
+                TextMetrics {
+                    id: _maxPctMetrics
+                    font.family:    Settings.font
+                    font.pixelSize: Settings.fontSize
+                    text: "100%"
                 }
 
                 states: [
