@@ -92,20 +92,15 @@ Singleton {
     readonly property bool canGoNext:        player ? player.canGoNext : false
     readonly property bool canGoPrevious:    player ? player.canGoPrevious : false
 
-    property bool shown: false
+    // upstream's declutter timers (pause 5s -> hide 10s -> shown=false) died on
+    // purpose: pausing is a state to come back to, not a dismissal. The bar/card
+    // surface now tracks only whether the player is still on the bus -- nothing
+    // else ever writes shown, so this is a plain alias rather than an imperative sync
+    readonly property bool shown: available
 
-    function _syncShown(): void {
-        if (!available)  { _pauseTimer.stop(); _hideTimer.stop(); if (shown) shown = false; return }
-        if (playing)     { _pauseTimer.stop(); _hideTimer.stop(); if (!shown) shown = true; return }
-        if (shown && !_pauseTimer.running && !_hideTimer.running) _pauseTimer.start()
-    }
-
-    onAvailableChanged: { _syncShown(); _syncStableArt() }
-    onPlayingChanged:   { _syncShown(); _reanchor() }
-    Component.onCompleted: { _syncShown(); _reanchor(); if (artUrl.length > 0) stableArtUrl = artUrl }
-
-    Timer { id: _pauseTimer; interval: 5000;  onTriggered: _hideTimer.start() }
-    Timer { id: _hideTimer;  interval: 10000; onTriggered: root.shown = false  }
+    onAvailableChanged: _syncStableArt()
+    onPlayingChanged:   _reanchor()
+    Component.onCompleted: { _reanchor(); if (artUrl.length > 0) stableArtUrl = artUrl }
 
     // MPRIS reports 2^63-1 microseconds for anything with no end, which every live
     // stream is; a real track is never a day long, so past the cap it means unknown
