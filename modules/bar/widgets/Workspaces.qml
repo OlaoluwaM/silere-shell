@@ -163,6 +163,16 @@ Item {
                 root._pageShift = 0
             }
         }
+        // same settle when reduce-motion flips mid-animation, mirroring the
+        // toggle above -- the page-change gate below skips new runs, this
+        // stops one already in flight
+        function onReduceMotionChanged() {
+            if (ShellSettings.reduceMotion) {
+                _groupFadeAnim.stop()
+                root.opacity = 1
+                root._pageShift = 0
+            }
+        }
     }
 
     // DesktopEntries loads async: a class resolved before it's ready caches an empty entry, so drop the cache once entries land
@@ -394,8 +404,11 @@ Item {
         _pageDir = dir
         _paging = true
         _pagingReset.restart()
-        if (ShellSettings.workspaceShift) _groupFadeAnim.restart()
-        else root.opacity = 1
+        // reduce-motion gates this like every other animation path in this file --
+        // workspaceShift only says the user WANTS the shift effect; it doesn't
+        // outrank the accessibility setting
+        if (ShellSettings.workspaceShift && !ShellSettings.reduceMotion) _groupFadeAnim.restart()
+        else { root.opacity = 1; root._pageShift = 0 }
     }
 
     // reflow only: the marker slide and the page shift are animations, and following
