@@ -63,7 +63,7 @@ PanelWindow {
                 required property int serial
                 required property var fillColor
 
-                readonly property int pillH: ShellSettings.osdMatchBar ? Math.max(28, ShellSettings.barHeight) : 34
+                readonly property int pillH: ShellSettings.osdMatchBar ? Math.max(32, ShellSettings.barHeight) : 38
                 readonly property int chromeW: hasBar ? 204 : 82
                 readonly property int pillW: Math.max(240, Math.min(472, chromeW + Math.ceil(_labelMetrics.advanceWidth) + 2))
                 readonly property real pillRadius: ShellSettings.osdMatchBar
