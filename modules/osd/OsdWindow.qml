@@ -63,9 +63,9 @@ PanelWindow {
                 required property int serial
                 required property var fillColor
 
-                readonly property int pillH: ShellSettings.osdMatchBar ? Math.max(32, ShellSettings.barHeight) : 38
-                readonly property int chromeW: hasBar ? 204 : 82
-                readonly property int pillW: Math.max(240, Math.min(472, chromeW + Math.ceil(_labelMetrics.advanceWidth) + 2))
+                readonly property int pillH: ShellSettings.osdMatchBar ? Math.max(36, ShellSettings.barHeight) : 42
+                readonly property int chromeW: hasBar ? 200 : 94
+                readonly property int pillW: Math.max(224, Math.min(440, chromeW + Math.ceil(_labelMetrics.advanceWidth) + 2))
                 readonly property real pillRadius: ShellSettings.osdMatchBar
                     ? Math.min(ShellSettings.barRadius, pillH / 2)
                     : Math.min(Theme.radiusPanel, pillH / 2)
@@ -176,7 +176,7 @@ PanelWindow {
                             Rectangle {
                                 anchors.verticalCenter: parent.verticalCenter
                                 visible: card.hasBar
-                                width:  112
+                                width:  96
                                 height: 6
                                 radius: 3
                                 color:  Theme.menuTrack
