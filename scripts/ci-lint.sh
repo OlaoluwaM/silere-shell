@@ -1018,10 +1018,15 @@ fi
 
 # Typed text is the one thing that legitimately needs keys, so a Keys handler is allowed
 # only in a file that actually hosts a text field. Everything else is navigation.
+# One carve-out: arrow keys that page a flickable's viewport are wheel-equivalent
+# scrolling, not the retired tab-stop/focus-ring navigation model this guard exists
+# to keep out -- those files are allowlisted by name so the guard stays meaningful.
+key_scroll_allowlist="modules/menu/MenuWindow.qml"
 key_handlers="$(grep -rln 'Keys\.on' --include='*.qml' modules config services || true)"
 key_offenders=""
 while IFS= read -r m; do
   [ -n "$m" ] || continue
+  case " $key_scroll_allowlist " in *" $m "*) continue ;; esac
   grep -q 'TextInput' "$m" || key_offenders="$key_offenders$m"$'\n'
 done <<< "$key_handlers"
 key_offenders="$(printf '%s' "$key_offenders" | grep -c . >/dev/null 2>&1 && printf '%s' "$key_offenders" || true)"

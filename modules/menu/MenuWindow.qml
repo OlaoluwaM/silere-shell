@@ -673,6 +673,18 @@ PanelWindow {
                 onContentHeightChanged: clampToContent()
                 onHeightChanged: clampToContent()
 
+                // default focus target while the menu is open: nothing else claims focus
+                // until a field is clicked, so the arrows page the content the same way
+                // the keybinds viewer scrolls (quarter-viewport jumps, no animation --
+                // a focused editor still consumes its own arrow presses first)
+                focus: true
+                function _scrollStep(delta: real): void {
+                    const maxY = Math.max(0, contentHeight - height)
+                    contentY = Math.max(0, Math.min(maxY, contentY + delta))
+                }
+                Keys.onUpPressed: contentFlick._scrollStep(-Math.round(height / 4))
+                Keys.onDownPressed: contentFlick._scrollStep(Math.round(height / 4))
+
                 Item {
                     id: tabContent
                     x: panel.contentPad
