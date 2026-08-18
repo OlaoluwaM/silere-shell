@@ -9,6 +9,7 @@ import "modules/menu"
 import "modules/calendar"
 import "modules/traymenu"
 import "modules/traypopup"
+import "modules/mediapopup"
 import "modules/quickactions"
 import "modules/keybinds"
 import "services"
@@ -169,6 +170,13 @@ ShellRoot {
         wantOpen: TrayPopupState.open
         requestedScreen: TrayPopupState.triggerScreen ?? root.activeOverlayScreen
         surface: Component { TrayPopupWindow { targetScreen: _trayListPopup.latchedScreen } }
+    }
+
+    PopupLoader {
+        id: _mediaPopup
+        wantOpen: MediaPopupState.open
+        requestedScreen: MediaPopupState.triggerScreen ?? root.activeOverlayScreen
+        surface: Component { MediaPopupWindow { targetScreen: _mediaPopup.latchedScreen } }
     }
 
     PopupLoader {

@@ -2,10 +2,9 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell.Widgets
-import "../../config"
-import "../../services"
-import "../common"
-import "controls"
+import "../../../config"
+import "../../../services"
+import "../../common"
 
 ClippingRectangle {
     id: root
@@ -19,8 +18,20 @@ ClippingRectangle {
     opacity: Media.shown ? 1.0 : 0.0
     visible: opacity > 0.01
 
+    // art-retry-on-reopen below needs to know when THIS card last became visible again --
+    // MenuState.open used to double as that signal because the menu was the only host, but
+    // modules/mediapopup/MediaPopupWindow.qml now hosts the same card off MediaPopupState
+    // instead, so the host tells us here rather than the card assuming which singleton it is
+    property bool hostOpen: MenuState.open
+
     function _focusPlayer(): void {
+        // close BOTH possible hosts, not just the menu: when the popup hosts this card
+        // and the player window is on the current workspace, no workspace switch fires
+        // the hosts' workspace-activated auto-close, and the popup would sit with
+        // exclusive keyboard focus over the window we just raised. Only one host is
+        // ever open, so closing the other is a no-op.
         MenuState.close()
+        MediaPopupState.close()
         HyprActions.focusMediaPlayer(Media.playerName, Media.title)
     }
 
@@ -152,13 +163,13 @@ ClippingRectangle {
         Timer {
             id: _artRetry
             interval: 2500
-            onTriggered: { if (!MenuState.open) return; _art._curUrl = ""; _art._apply() }
+            onTriggered: { if (!root.hostOpen) return; _art._curUrl = ""; _art._apply() }
         }
         function _failed(img) {
             if (img !== _pendingLayer) return
             _pendingLayer = null
             _curUrl = ""
-            if (MenuState.open && _retries < 3) { _retries++; _artRetry.restart() }
+            if (root.hostOpen && _retries < 3) { _retries++; _artRetry.restart() }
         }
 
         function _promote(img, isA) {
@@ -181,7 +192,7 @@ ClippingRectangle {
         }
 
         Connections { target: Media; function onStableArtUrlChanged() { _art._retries = 0; _art._apply() } }
-        Connections { target: MenuState; function onOpenChanged() { if (MenuState.open) { _art._retries = 0; _art._apply() } } }
+        Connections { target: root; function onHostOpenChanged() { if (root.hostOpen) { _art._retries = 0; _art._apply() } } }
         Component.onCompleted: _apply()
 
         Image {

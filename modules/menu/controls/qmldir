@@ -23,6 +23,11 @@ ToggleSwitch    1.0 ToggleSwitch.qml
 AccentSwatch    1.0 AccentSwatch.qml
 GradientSlider  1.0 GradientSlider.qml
 MediaButton     1.0 MediaButton.qml
+# also hosted standalone by modules/mediapopup/MediaPopupWindow.qml (the bar's
+# anchored media popup) -- this directory is a plain public module, unlike
+# modules/menu's own root qmldir, so it can leave the menu app tree without promoting
+# anything through that restricted boundary
+MediaCard       1.0 MediaCard.qml
 SwatchPickerRow 1.0 SwatchPickerRow.qml
 SwatchRow       1.0 SwatchRow.qml
 UpdateStatusCard 1.0 UpdateStatusCard.qml

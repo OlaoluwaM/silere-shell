@@ -32,6 +32,7 @@ singleton Idle          1.0 Idle.qml
 singleton Keybinds      1.0 Keybinds.qml
 singleton KeybindsPopupState 1.0 KeybindsPopupState.qml
 singleton Media         1.0 Media.qml
+singleton MediaPopupState 1.0 MediaPopupState.qml
 singleton MenuState     1.0 MenuState.qml
 singleton Monitors      1.0 Monitors.qml
 singleton NotifWatch    1.0 NotifWatch.qml
