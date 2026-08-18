@@ -150,7 +150,10 @@ PanelWindow {
                         anchors.fill: parent
                         radius: card.cardRadius
                         antialiasing: true
-                        color: card.hasBar ? Theme.panel : Theme.surface
+                        // level cards pick up the same frosted glass as the popups now that
+                        // this layer sits in the compositor's blur rule; alert cards stay on
+                        // opaque surface deliberately — a warning shouldn't dissolve into the wallpaper
+                        color: card.hasBar ? Theme.popup : Theme.surface
 
                         readonly property color _outlineColor: !card.hasBar
                             ? Theme.withAlpha(card.fillColor, 0.55)
