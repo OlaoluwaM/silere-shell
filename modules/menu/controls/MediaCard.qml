@@ -547,6 +547,11 @@ ClippingRectangle {
                 font: _playGlyph.font
                 text: "󰏤"
             }
+            // measured trim on top of the metric shift: the play/pause pair still sat
+            // ~1px low live after ink-centering (1.5 physical at 1.60 scale) -- the same
+            // tightBoundingRect lie the bar's bluetooth/battery/volume pills needed a
+            // nudge for. Skip glyphs measured dead even; only this pair lies.
+            readonly property int _playAlignNudge: -1
             ShellText {
                 id: _playGlyph
                 anchors.centerIn: parent
@@ -555,6 +560,7 @@ ClippingRectangle {
                     - (_playGlyph.baselineOffset
                        + _playAlignMetrics.tightBoundingRect.y
                        + _playAlignMetrics.tightBoundingRect.height / 2))
+                    + _playBtn._playAlignNudge
                 property string shown: ""
                 readonly property string target: Media.playing ? "󰏤" : "󰐊"
                 property bool _ready: false
