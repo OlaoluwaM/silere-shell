@@ -131,7 +131,11 @@ Singleton {
     property real  _anchorMs:   0
     property real  positionNow: 0
     readonly property real positionRatio: length > 0 ? Math.max(0, Math.min(1, positionNow / length)) : 0
+    // every surface with a live seek bar must appear here, or its elapsed label and
+    // thumb freeze: this gate is the only thing that runs the 500ms position timer.
+    // The bar-anchored popup hosts the same MediaCard the menu's home tab does.
     readonly property bool positionVisible: MenuState.homeActive
+        || MediaPopupState.open
         || (ShellSettings.barShowMedia && root.shown && ShellSettings.mediaWidgetHelper)
 
     function _reanchor(): void {
