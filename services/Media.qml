@@ -97,7 +97,7 @@ Singleton {
     // after ~30s (10s grace + 20s fade-out) rather than lingering, so the bar
     // declutters itself sooner once a source is paused for good. A player that's
     // already paused the first time we see it (shell just started, or one
-    // reconnects mid-pause) shows immediately, skipping the grace period.
+    // reconnects mid-pause) shows immediately and fades on that same clock.
     property bool shown: false
 
     function _syncShown(): void {
@@ -105,9 +105,9 @@ Singleton {
         if (playing)     { _pauseTimer.stop(); _hideTimer.stop(); if (!shown) shown = true; return }
         // paused, and this is the first we've seen of it (shell just started with a
         // player already paused, or one reconnects mid-pause) -- show it now rather than
-        // waiting on a play event that already happened; only an already-shown card that
-        // just paused gets the grace period below
-        if (!shown) { shown = true; return }
+        // waiting on a play event that already happened, and start the same grace
+        // timer so it fades on the same clock as an already-shown card that just paused
+        if (!shown) { shown = true; _pauseTimer.start(); return }
         if (!_pauseTimer.running && !_hideTimer.running) _pauseTimer.start()
     }
 
