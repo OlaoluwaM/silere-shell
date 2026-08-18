@@ -698,8 +698,17 @@ Singleton {
             if (root.barWidgetOrderLocked) {
                 if (parsed.barWidgetOrderLeft !== undefined
                         || parsed.barWidgetOrderCenter !== undefined
-                        || parsed.barWidgetOrderRight !== undefined)
+                        || parsed.barWidgetOrderRight !== undefined) {
                     root._scrubLockedOrder = true
+                    // _applyText runs with _loaded still false, so the usual
+                    // _onSettingChanged path never marks these keys touched; without
+                    // this, a settings.json written by a newer version would carry
+                    // its stale order back through _serialize's future-preserve path
+                    // even after the scrub write below
+                    root._futureTouched.barWidgetOrderLeft = true
+                    root._futureTouched.barWidgetOrderCenter = true
+                    root._futureTouched.barWidgetOrderRight = true
+                }
                 // _defaults captured these straight off GeneratedDefaults before any
                 // load ever ran, so reusing it here avoids a second binding source
                 root.barWidgetOrderLeft = root._defaults.barWidgetOrderLeft

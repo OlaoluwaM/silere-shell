@@ -163,12 +163,36 @@ Singleton {
             root.open = true
         }
         function close(): void { root.close() }
+        // kept for compatibility with keybinds already carrying the numeric index
         function tab(index: int): string {
             if (index < root.homeTab || index > root.systemTab)
                 return "unknown menu tab " + index + "; valid: 0 (home), 1 (settings), 2 (recent), 3 (system)"
             root.triggerScreen = null
             root._setAnchor(null)
             root.showTab(index)
+            return "ok"
+        }
+        // named alternative to tab(index) so a keybind reads "menu show settings"
+        // instead of a magic number; "recent" is accepted too since that's the
+        // internal name for the same tab
+        function show(name: string): string {
+            let tab
+            switch (name) {
+            case "home":          tab = root.homeTab; break
+            case "settings":      tab = root.settingsTab; break
+            case "notifications":
+            case "recent":        tab = root.recentTab; break
+            case "system":        tab = root.systemTab; break
+            default:              tab = -1
+            }
+            root.triggerScreen = null
+            root._setAnchor(null)
+            if (tab < 0) {
+                root.showTab(root.homeTab)
+                return "unknown menu tab '" + name + "'; opened home instead. valid: "
+                    + "home, settings, notifications, system"
+            }
+            root.showTab(tab)
             return "ok"
         }
         // keep `section: "` out of any literal below: ci-lint harvests nav entries by that pattern
