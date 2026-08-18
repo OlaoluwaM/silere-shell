@@ -63,19 +63,22 @@ PanelWindow {
                 required property int serial
                 required property var fillColor
 
-                readonly property int pillH: ShellSettings.osdMatchBar ? Math.max(36, ShellSettings.barHeight) : 42
+                // the floor deliberately outweighs a typical bar height so the card keeps
+                // its block proportions; match mode still governs the radius source and
+                // still tracks genuinely tall bars
+                readonly property int cardH: ShellSettings.osdMatchBar ? Math.max(48, ShellSettings.barHeight) : 54
                 readonly property int chromeW: hasBar ? 200 : 94
-                readonly property int pillW: Math.max(224, Math.min(440, chromeW + Math.ceil(_labelMetrics.advanceWidth) + 2))
-                readonly property real pillRadius: ShellSettings.osdMatchBar
-                    ? Math.min(ShellSettings.barRadius, pillH / 2)
-                    : Math.min(Theme.radiusPanel, pillH / 2)
+                readonly property int cardW: Math.max(224, Math.min(440, chromeW + Math.ceil(_labelMetrics.advanceWidth) + 2))
+                readonly property real cardRadius: ShellSettings.osdMatchBar
+                    ? Math.min(ShellSettings.barRadius, cardH / 4)
+                    : Math.min(Theme.radiusPanel, cardH / 4)
                 readonly property real _hiddenSlide: 7
 
                 property bool _ready: false
                 property real _op: 0
                 property real _slide: _hiddenSlide
 
-                width: pillW
+                width: cardW
                 height: 0
                 visible: osd._active && (_ready || _op > 0.001 || height > 0.5)
                 z: serial
@@ -98,7 +101,7 @@ PanelWindow {
                     State {
                         name: "visible"
                         when: card._ready && !card.closing
-                        PropertyChanges { card.height: card.pillH; card._op: 1.0; card._slide: 0 }
+                        PropertyChanges { card.height: card.cardH; card._op: 1.0; card._slide: 0 }
                     }
                 ]
 
@@ -126,9 +129,9 @@ PanelWindow {
                 }
 
                 Item {
-                    id: pillWrap
-                    width: card.pillW
-                    height: card.pillH
+                    id: cardWrap
+                    width: card.cardW
+                    height: card.cardH
                     anchors.horizontalCenter: parent.horizontalCenter
                     opacity: card._op
                     transform: Translate { y: card._slide }
@@ -137,15 +140,15 @@ PanelWindow {
                         active: ShellSettings.barShadow
                         anchors.fill: parent
                         sourceComponent: FloatingShadow {
-                            radius: card.pillRadius
+                            radius: card.cardRadius
                             atBottom: true
                         }
                     }
 
                     Rectangle {
-                        id: _osdPillFill
+                        id: _osdCardFill
                         anchors.fill: parent
-                        radius: card.pillRadius
+                        radius: card.cardRadius
                         antialiasing: true
                         color: card.hasBar ? Theme.panel : Theme.surface
 
@@ -154,8 +157,8 @@ PanelWindow {
                             : Theme.outline
 
                         OutlineBorder {
-                            radius: _osdPillFill.radius
-                            outlineColor: _osdPillFill._outlineColor
+                            radius: _osdCardFill.radius
+                            outlineColor: _osdCardFill._outlineColor
                             MotionBehavior on outlineColor {ColorAnimation { duration: Motion.medium } }
                         }
 
@@ -177,8 +180,8 @@ PanelWindow {
                                 anchors.verticalCenter: parent.verticalCenter
                                 visible: card.hasBar
                                 width:  96
-                                height: 6
-                                radius: 3
+                                height: 8
+                                radius: 4
                                 color:  Theme.menuTrack
 
                                 Rectangle {
@@ -211,7 +214,7 @@ PanelWindow {
                             ShellText {
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: Math.max(Math.ceil(tm.advanceWidth),
-                                    Math.min(Math.ceil(_labelMetrics.advanceWidth), card.pillW - card.chromeW)) + 2
+                                    Math.min(Math.ceil(_labelMetrics.advanceWidth), card.cardW - card.chromeW)) + 2
                                 horizontalAlignment: Text.AlignRight
                                 elide:          Text.ElideRight
                                 text:           card.label
