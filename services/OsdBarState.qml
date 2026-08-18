@@ -23,7 +23,6 @@ Singleton {
     MotionBehavior on fillColor {ColorAnimation { duration: Motion.medium } }
 
     signal bumped()
-    signal entryBumped(string kind)
 
     property real _lastUpdateAt: 0
     property bool rapid: false
@@ -177,7 +176,6 @@ Singleton {
         if (!_upsertEntry(kind, icon, value, label, muted, color)) return false
         if (live && !root.rapid && !ShellSettings.reduceMotion) {
             root.bumped()
-            root.entryBumped(kind)
         }
         return true
     }

@@ -20,19 +20,22 @@ PanelWindow {
 
     implicitHeight: Math.max(150, Math.ceil((stack.implicitHeight + 24) / 64) * 64)
 
-    readonly property bool _bottom: Metrics.barAtBottom
-    readonly property real _edgeY: Metrics.popupClearance(2)
     readonly property bool _active: !ShellSettings.osdBarIntegrated || OsdBarState.barConcealed
 
+    // bar at the bottom: clear its full footprint; otherwise just enough gap that an
+    // attached (inset-0) bar doesn't leave the OSD sitting flush against the screen edge
+    readonly property real _edgeY: Metrics.barAtBottom
+        ? Metrics.popupClearance(2)
+        : Math.max(8, Metrics.barEdgeInset)
+
     anchors {
-        top:    !osd._bottom
-        bottom: osd._bottom
+        top:    false
+        bottom: true
         left:   true
         right:  true
     }
 
-    margins.top:    osd._bottom ? 0 : osd._edgeY
-    margins.bottom: osd._bottom ? osd._edgeY : 0
+    margins.bottom: osd._edgeY
     mask: Region {}
 
     visible: osd._active && OsdBarState.activeCount > 0
@@ -40,22 +43,9 @@ PanelWindow {
     Column {
         id: stack
         anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 6
         spacing: 6
-
-        states: [
-            State {
-                name: "top"
-                when: !osd._bottom
-                AnchorChanges { target: stack; anchors.top: parent.top; anchors.bottom: undefined }
-                PropertyChanges { stack.anchors.topMargin: 6; stack.anchors.bottomMargin: 0 }
-            },
-            State {
-                name: "bottom"
-                when: osd._bottom
-                AnchorChanges { target: stack; anchors.top: undefined; anchors.bottom: parent.bottom }
-                PropertyChanges { stack.anchors.topMargin: 0; stack.anchors.bottomMargin: 6 }
-            }
-        ]
 
         Repeater {
             model: osd._active ? OsdBarState.entries : null
@@ -74,23 +64,16 @@ PanelWindow {
                 required property var fillColor
 
                 readonly property int pillH: ShellSettings.osdMatchBar ? Math.max(28, ShellSettings.barHeight) : 34
-                readonly property int chromeW: hasBar ? 216 : 70
-                readonly property int pillW: Math.max(268, Math.min(520, chromeW + Math.ceil(_labelMetrics.advanceWidth) + 2))
+                readonly property int chromeW: hasBar ? 204 : 82
+                readonly property int pillW: Math.max(240, Math.min(472, chromeW + Math.ceil(_labelMetrics.advanceWidth) + 2))
                 readonly property real pillRadius: ShellSettings.osdMatchBar
                     ? Math.min(ShellSettings.barRadius, pillH / 2)
                     : Math.min(Theme.radiusPanel, pillH / 2)
-                readonly property real _hiddenSlide: osd._bottom ? 7 : -7
+                readonly property real _hiddenSlide: 7
 
                 property bool _ready: false
                 property real _op: 0
                 property real _slide: _hiddenSlide
-                property real _bump: 1.0
-
-                onClosingChanged: {
-                    if (!closing) return
-                    _bumpAnim.stop()
-                    card._bump = 1.0
-                }
 
                 width: pillW
                 height: 0
@@ -104,13 +87,6 @@ PanelWindow {
                     font.family:    Settings.font
                     font.pixelSize: Settings.fontSize
                     text: card.label
-                }
-
-                Connections {
-                    target: OsdBarState
-                    function onEntryBumped(kind) {
-                        if (kind === card.kind && !_bumpAnim.running) _bumpAnim.restart()
-                    }
                 }
 
                 states: [
@@ -145,12 +121,6 @@ PanelWindow {
                     }
                 ]
 
-                SequentialAnimation {
-                    id: _bumpAnim
-                    NumberAnimation { target: card; property: "_bump"; to: 1.018; duration: Motion.ms(70);  easing.type: Easing.OutQuad }
-                    NumberAnimation { target: card; property: "_bump"; to: 1.0;   duration: Motion.ms(130); easing.type: Easing.OutCubic }
-                }
-
                 MotionBehavior on width {
                     NumberAnimation { duration: Motion.ms(80); easing.type: Easing.OutCubic }
                 }
@@ -161,22 +131,14 @@ PanelWindow {
                     height: card.pillH
                     anchors.horizontalCenter: parent.horizontalCenter
                     opacity: card._op
-                    transform: [
-                        Translate { y: card._slide },
-                        Scale {
-                            origin.x: pillWrap.width / 2
-                            origin.y: pillWrap.height / 2
-                            xScale: card._bump
-                            yScale: card._bump
-                        }
-                    ]
+                    transform: Translate { y: card._slide }
 
                     Loader {
                         active: ShellSettings.barShadow
                         anchors.fill: parent
                         sourceComponent: FloatingShadow {
                             radius: card.pillRadius
-                            atBottom: osd._bottom
+                            atBottom: true
                         }
                     }
 
@@ -214,7 +176,7 @@ PanelWindow {
                             Rectangle {
                                 anchors.verticalCenter: parent.verticalCenter
                                 visible: card.hasBar
-                                width:  136
+                                width:  112
                                 height: 6
                                 radius: 3
                                 color:  Theme.menuTrack
