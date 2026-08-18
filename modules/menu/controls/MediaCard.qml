@@ -266,6 +266,20 @@ ClippingRectangle {
         }
     }
 
+    // the veil above protects only the lower half; the eyebrow row sits on raw art, and
+    // a bright cover swallows its micro label (the 0.64 art ceiling alone did not save
+    // it). Short mirror of the dissolve: just enough of the same tone under the top edge
+    // for the eyebrow to read, gone before the art's midfield so the cover stays vivid.
+    Rectangle {
+        anchors { top: parent.top; left: parent.left; right: parent.right }
+        height: 56
+        visible: _art.shownAlpha > 0.01 && _identityRow.visible
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Theme.withAlpha(Theme.menuHint, 0.62) }
+            GradientStop { position: 1.0; color: "transparent" }
+        }
+    }
+
     // covers only the art above the text block -- the eyebrow and the title/artist column
     // are declared after this MouseArea, so their own hit targets (the source-step buttons)
     // still win the tap; everywhere else in this band, clicking raises the player. Seek and
@@ -467,6 +481,7 @@ ClippingRectangle {
 
         MediaButton {
             glyph: "󰒮"
+            glyphAlignReference: "󰒮"
             available: Media.canGoPrevious
             onTriggered: Media.previous()
         }
@@ -501,9 +516,23 @@ ClippingRectangle {
                     ColorFade on outlineColor {}
                 }
             }
+            // same ink-centering as MediaButton, with the reference FIXED to the pause
+            // glyph: the pair shares one design baseline, and re-measuring against
+            // whichever glyph is current would jump the icon on every playback toggle
+            // (measured 2px low against the skip buttons before this)
+            TextMetrics {
+                id: _playAlignMetrics
+                font: _playGlyph.font
+                text: "󰏤"
+            }
             ShellText {
                 id: _playGlyph
                 anchors.centerIn: parent
+                anchors.verticalCenterOffset: Math.round(
+                    (_playGlyph.implicitHeight / 2)
+                    - (_playGlyph.baselineOffset
+                       + _playAlignMetrics.tightBoundingRect.y
+                       + _playAlignMetrics.tightBoundingRect.height / 2))
                 property string shown: ""
                 readonly property string target: Media.playing ? "󰏤" : "󰐊"
                 property bool _ready: false
@@ -528,6 +557,7 @@ ClippingRectangle {
 
         MediaButton {
             glyph: "󰒭"
+            glyphAlignReference: "󰒭"
             available: Media.canGoNext
             onTriggered: Media.next()
         }

@@ -72,8 +72,28 @@ Item {
         }
         ColorFade on color {}
     }
+    // same ink-centering doctrine as Pill: symbol glyphs sit low in their line box
+    // (the symbols fallback lends the line its metrics), so center the measured INK
+    // of a fixed reference glyph, never the current one -- a state family shares one
+    // design baseline, and correcting against the live glyph would jump the icon
+    property string glyphAlignReference: ""
+
+    TextMetrics {
+        id: _alignMetrics
+        font: _glyphText.font
+        text: root.glyphAlignReference
+    }
+    readonly property real _glyphInkShift: glyphAlignReference.length > 0
+        ? (_glyphText.implicitHeight / 2)
+          - (_glyphText.baselineOffset
+             + _alignMetrics.tightBoundingRect.y
+             + _alignMetrics.tightBoundingRect.height / 2)
+        : 0
+
     ShellText {
+        id: _glyphText
         anchors.centerIn: parent
+        anchors.verticalCenterOffset: Math.round(root._glyphInkShift)
         text: root.glyph
         color: _hover.hovered ? Theme.withAlpha(Theme.text, 0.85) : Theme.withAlpha(Theme.text, 0.45)
         font.pixelSize: Settings.fontSize + 8
