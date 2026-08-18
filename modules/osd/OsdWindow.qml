@@ -63,10 +63,9 @@ PanelWindow {
                 required property int serial
                 required property var fillColor
 
-                // the floor deliberately outweighs a typical bar height so the card keeps
-                // its block proportions; match mode still governs the radius source and
-                // still tracks genuinely tall bars
-                readonly property int cardH: ShellSettings.osdMatchBar ? Math.max(48, ShellSettings.barHeight) : 54
+                // a small deliberate step above the 36px bar so the card reads as its own
+                // block without going chunky
+                readonly property int cardH: ShellSettings.osdMatchBar ? Math.max(40, ShellSettings.barHeight) : 46
                 readonly property int chromeW: hasBar ? 200 : 94
                 readonly property int cardW: Math.max(224, Math.min(440, chromeW + Math.ceil(_labelMetrics.advanceWidth) + 2))
                 readonly property real cardRadius: ShellSettings.osdMatchBar
@@ -183,8 +182,8 @@ PanelWindow {
                                 anchors.verticalCenter: parent.verticalCenter
                                 visible: card.hasBar
                                 width:  96
-                                height: 8
-                                radius: 4
+                                height: 6
+                                radius: 3
                                 color:  Theme.menuTrack
 
                                 Rectangle {
