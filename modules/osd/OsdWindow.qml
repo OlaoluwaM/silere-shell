@@ -25,8 +25,8 @@ PanelWindow {
     // bar at the bottom: clear its full footprint plus a bit of air; otherwise a
     // comfortable lift off the screen edge rather than sitting flush
     readonly property real _edgeY: Metrics.barAtBottom
-        ? Metrics.popupClearance(34)
-        : Math.max(40, Metrics.barEdgeInset + 32)
+        ? Metrics.popupClearance(18)
+        : Math.max(24, Metrics.barEdgeInset + 16)
 
     anchors {
         top:    false
