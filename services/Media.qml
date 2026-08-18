@@ -92,15 +92,30 @@ Singleton {
     readonly property bool canGoNext:        player ? player.canGoNext : false
     readonly property bool canGoPrevious:    player ? player.canGoPrevious : false
 
-    // upstream's declutter timers (pause 5s -> hide 10s -> shown=false) died on
-    // purpose: pausing is a state to come back to, not a dismissal. The bar/card
-    // surface now tracks only whether the player is still on the bus -- nothing
-    // else ever writes shown, so this is a plain alias rather than an imperative sync
-    readonly property bool shown: available
+    // upstream faded the bar/card 15s after pause (5s pause grace + 10s fade-out),
+    // which punished a paused player like a dismissal. Pausing is usually a state to
+    // come back to, so the window is now five minutes -- long enough to survive a
+    // phone call or a trip to the kitchen, but a source paused for good still lets
+    // go of the bar eventually instead of holding it forever.
+    property bool shown: false
 
-    onAvailableChanged: _syncStableArt()
-    onPlayingChanged:   _reanchor()
-    Component.onCompleted: { _reanchor(); if (artUrl.length > 0) stableArtUrl = artUrl }
+    function _syncShown(): void {
+        if (!available)  { _pauseTimer.stop(); _hideTimer.stop(); if (shown) shown = false; return }
+        if (playing)     { _pauseTimer.stop(); _hideTimer.stop(); if (!shown) shown = true; return }
+        // paused, and this is the first we've seen of it (shell just started with a
+        // player already paused, or one reconnects mid-pause) -- show it now rather than
+        // waiting on a play event that already happened; only an already-shown card that
+        // just paused gets the grace period below
+        if (!shown) { shown = true; return }
+        if (!_pauseTimer.running && !_hideTimer.running) _pauseTimer.start()
+    }
+
+    onAvailableChanged: { _syncShown(); _syncStableArt() }
+    onPlayingChanged:   { _syncShown(); _reanchor() }
+    Component.onCompleted: { _syncShown(); _reanchor(); if (artUrl.length > 0) stableArtUrl = artUrl }
+
+    Timer { id: _pauseTimer; interval: 60000;  onTriggered: _hideTimer.start() }
+    Timer { id: _hideTimer;  interval: 240000; onTriggered: root.shown = false  }
 
     // MPRIS reports 2^63-1 microseconds for anything with no end, which every live
     // stream is; a real track is never a day long, so past the cap it means unknown
