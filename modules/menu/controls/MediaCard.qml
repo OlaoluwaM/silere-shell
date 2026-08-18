@@ -54,7 +54,10 @@ ClippingRectangle {
 
     // compact rounded-rect stepper for the identity row's source switcher: sized down from
     // MediaButton's transport-row scale but sharing its hover/press language (fill + outline
-    // + scale), so it still reads as the same control family instead of a plain flat toggle
+    // + scale), so it still reads as the same control family instead of a plain flat toggle.
+    // Idle fill is opaque (Theme.menuHint, the same chip tone the eyebrow label sits on)
+    // rather than transparent -- it used to ride bare on the art like the scrim it sat
+    // beside, and washed out the same way; it now wins over any cover for the same reason.
     component SourceStepButton: Item {
         id: _step
         property string glyph: ""
@@ -80,7 +83,7 @@ ClippingRectangle {
             transformOrigin: Item.Center
             color: _stepTap.pressed ? Theme.controlFill(Theme.text, 0.14)
                 : _stepHover.hovered ? Theme.controlFill(Theme.text, 0.09)
-                : "transparent"
+                : Theme.menuHint
             ColorFade on color {}
             MotionBehavior on scale {
                 NumberAnimation {
@@ -90,10 +93,12 @@ ClippingRectangle {
                 }
             }
 
+            // idle edge matches the eyebrow chip and the rail's tooltip pill
+            // (Theme.menuCardBorder); hovering swaps to the hotter control-line tone
             OutlineBorder {
                 radius: _stepFill.radius
                 outlineWidth: 1
-                outlineColor: _stepHover.hovered ? Theme.menuControlLineHot : "transparent"
+                outlineColor: _stepHover.hovered ? Theme.menuControlLineHot : Theme.menuCardBorder
                 ColorFade on outlineColor {}
             }
         }
@@ -266,19 +271,11 @@ ClippingRectangle {
         }
     }
 
-    // the veil above protects only the lower half; the eyebrow row sits on raw art, and
-    // a bright cover swallows its micro label (the 0.64 art ceiling alone did not save
-    // it). Short mirror of the dissolve: just enough of the same tone under the top edge
-    // for the eyebrow to read, gone before the art's midfield so the cover stays vivid.
-    Rectangle {
-        anchors { top: parent.top; left: parent.left; right: parent.right }
-        height: 56
-        visible: _art.shownAlpha > 0.01 && _identityRow.visible
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: Theme.withAlpha(Theme.menuHint, 0.62) }
-            GradientStop { position: 1.0; color: "transparent" }
-        }
-    }
+    // the veil above protects only the lower half, and the eyebrow row sits on raw art
+    // above it -- this used to get its own scrim gradient to keep the micro label legible,
+    // but a gradient strong enough for a bright cover washed out a dark one and vice versa:
+    // it punished every cover to save the worst case. The eyebrow chip below wins over any
+    // cover by being opaque instead, so there is nothing left for a scrim here to do.
 
     // covers only the art above the text block -- the eyebrow and the title/artist column
     // are declared after this MouseArea, so their own hit targets (the source-step buttons)
@@ -305,25 +302,50 @@ ClippingRectangle {
             left: parent.left; leftMargin: 16
             right: parent.right; rightMargin: 16
         }
-        // the taller of the label's own line height and the stepper pair, so the
+        readonly property int _chipHPad: 8
+        readonly property int _chipVPad: 4
+        // the taller of the chip (label + its own padding) and the stepper pair, so the
         // 20px buttons never get vertically clipped against the micro-sized label;
         // a hidden Row still reports its children's height, so gate it on visible
         // or a single-player card grows this row for buttons nobody can see
-        height: Math.max(_identityText.implicitHeight, _sourceNav.visible ? _sourceNav.height : 0)
+        height: Math.max(_identityChip.height, _sourceNav.visible ? _sourceNav.height : 0)
         visible: _mediaCol._shownIdentity.length > 0
 
-        ShellText {
-            id: _identityText
+        // opaque chip, not a scrim: worst-case-proof by construction instead of hoping a
+        // gradient's alpha reads over whatever the current cover happens to be. Same
+        // solid-on-glass tone the tray/tooltip chips use (Theme.menuHint) -- never a wash,
+        // or the cover would bleed through exactly like the scrim it replaced.
+        Rectangle {
+            id: _identityChip
             anchors.left: parent.left
-            anchors.right: _sourceNav.visible ? _sourceNav.left : parent.right
-            anchors.rightMargin: _sourceNav.visible ? 8 : 0
             anchors.verticalCenter: parent.verticalCenter
-            text: _mediaCol._shownIdentity.toUpperCase()
-            color: Theme.withAlpha(Theme.subtext, 0.62)
-            font.pixelSize: Settings.fontMicro
-            font.weight: Font.Medium
-            font.letterSpacing: 1.2
-            elide: Text.ElideRight
+            readonly property real _maxWidth: _sourceNav.visible
+                ? parent.width - _sourceNav.width - 8 : parent.width
+            width: Math.min(_identityText.implicitWidth + _identityRow._chipHPad * 2,
+                Math.max(0, _identityChip._maxWidth))
+            height: _identityText.implicitHeight + _identityRow._chipVPad * 2
+            radius: Theme.radiusInline
+            color: Theme.menuHint
+            antialiasing: true
+
+            OutlineBorder {
+                radius: _identityChip.radius
+                outlineWidth: 1
+                outlineColor: Theme.menuCardBorder
+            }
+
+            ShellText {
+                id: _identityText
+                anchors.left: parent.left; anchors.leftMargin: _identityRow._chipHPad
+                anchors.right: parent.right; anchors.rightMargin: _identityRow._chipHPad
+                anchors.verticalCenter: parent.verticalCenter
+                text: _mediaCol._shownIdentity.toUpperCase()
+                color: Theme.withAlpha(Theme.text, 0.85)
+                font.pixelSize: Settings.fontMicro
+                font.weight: Font.Medium
+                font.letterSpacing: 1.2
+                elide: Text.ElideRight
+            }
         }
 
         // only with more than one live player; each arrow steps and wraps through
