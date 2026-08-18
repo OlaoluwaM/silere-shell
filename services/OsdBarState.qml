@@ -180,13 +180,21 @@ Singleton {
         return true
     }
 
-    function show(kind: string, icon: string, value: real, label: string, muted: bool): void {
+    function show(kind: string, icon: string, value: real, label: string, muted: bool, deliberate: bool): void {
         if (!_armed) return
         if (!ShellSettings.osdEnabled) return
         // only the home page carries the volume/brightness rows; elsewhere the menu replaces nothing
         if (MenuState.homeActive) return
         if (ShellSettings.osdKindFilter === "volume"     && kind !== "volume")     return
         if (ShellSettings.osdKindFilter === "brightness" && kind !== "brightness") return
+
+        if (deliberate) {
+            // a nudge is a real keypress, not an echo -- it must reopen a card
+            // that just closed on the same value, so drop the signature the
+            // close-window guards would otherwise match against
+            delete _closingSig[kind]; _closingSig = _closingSig
+            delete _commitClose[kind]
+        }
 
         const refreshFullscreen = ShellSettings.osdBarIntegrated && !root._hasActiveBarEntry()
         root.fillColor = Theme.accent
@@ -248,6 +256,9 @@ Singleton {
     property string _lastSinkName: ""
     property bool   _showDeviceName: false
     property bool   _volumeUpdateQueued: false
+    // set by onVolumeNudged and consumed by the next _updateVolume flush; a
+    // nudge coalesced with an observation still needs to reopen a closing card
+    property bool   _volumeNudgePending: false
 
     Timer {
         id: _deviceNameTimer
@@ -264,10 +275,12 @@ Singleton {
 
     function _updateVolume(): void {
         _volumeUpdateQueued = false
+        const deliberate = _volumeNudgePending
+        _volumeNudgePending = false
         const effectiveMuted = Audio.muted || Audio.uiVolume <= 0
         const lbl = effectiveMuted ? "Muted"
             : (root._showDeviceName && Audio.sinkName ? `${Audio.sinkName} · ${Audio.label}` : Audio.label)
-        root.show("volume", Audio.icon, Audio.uiVolume, lbl, effectiveMuted)
+        root.show("volume", Audio.icon, Audio.uiVolume, lbl, effectiveMuted, deliberate)
     }
     function _queueVolumeUpdate(): void {
         if (_volumeUpdateQueued) return
@@ -283,7 +296,7 @@ Singleton {
         function onMutedChanged() { root._queueVolumeUpdate() }
         // a clamped keypress at 0%/100% moves nothing else, so this is the only
         // signal that fires -- without it the OSD would stay silent at the rails
-        function onVolumeNudged() { root._queueVolumeUpdate() }
+        function onVolumeNudged() { root._volumeNudgePending = true; root._queueVolumeUpdate() }
         function onSinkNameChanged() {
             const name = Audio.sinkName
             if (!name || name === root._lastSinkName) return
@@ -293,7 +306,7 @@ Singleton {
             root._showDeviceName = true
             _deviceNameTimer.restart()
             const effectiveMuted = Audio.muted || Audio.uiVolume <= 0
-            root.show("volume", Audio.icon, Audio.uiVolume, `${name} · ${Audio.label}`, effectiveMuted)
+            root.show("volume", Audio.icon, Audio.uiVolume, `${name} · ${Audio.label}`, effectiveMuted, false)
         }
     }
 
@@ -305,7 +318,7 @@ Singleton {
                 root._seenInitialBrightness = true
                 return
             }
-            root.show("brightness", Brightness.icon, Brightness.pct, Brightness.label, false)
+            root.show("brightness", Brightness.icon, Brightness.pct, Brightness.label, false, false)
         }
         // a clamped keypress at 0%/100% leaves pct untouched, so onPctChanged never
         // fires -- this is a real keypress though, not the startup value settling,
@@ -313,7 +326,7 @@ Singleton {
         function onNudged() {
             if (!Brightness.ready) return
             root._seenInitialBrightness = true
-            root.show("brightness", Brightness.icon, Brightness.pct, Brightness.label, false)
+            root.show("brightness", Brightness.icon, Brightness.pct, Brightness.label, false, true)
         }
     }
 
