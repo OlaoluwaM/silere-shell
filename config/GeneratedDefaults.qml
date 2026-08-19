@@ -67,4 +67,10 @@ Singleton {
     // "" = feature dormant, same contract as recordingStateFile above: no packaging writes
     // a keybindings JSON file here on a plain checkout, so the popup's IPC toggle stays a no-op
     readonly property string keybindsFile:        ""
+    // "" = feature dormant, same contract as recordingStopCommand above: only the packaging
+    // knows how to apply a wallpaper, so with no command the picker's IPC toggle stays a no-op
+    readonly property string wallpaperCommand:    ""
+    // "" = unconfigured, same contract as wallpaperCommand above: no packaging points at a
+    // wallpaper directory here, so the picker has nothing to scan
+    readonly property string wallpapersDir:       ""
 }

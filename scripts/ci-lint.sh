@@ -998,12 +998,13 @@ else
 fi
 
 section "shared scroll feel"
-# ShellListView and ShellFlickable already set this. Ten consumers restated it, so the
-# primitives' own value was the one thing a scroll-feel change could not reach.
+# ShellListView, ShellFlickable and ShellGridView already set this. Ten consumers
+# restated it, so the primitives' own value was the one thing a scroll-feel change
+# could not reach.
 scroll_restated="$(grep -rln 'boundsMovement:' --include='*.qml' modules \
-  | grep -vE 'modules/common/Shell(ListView|Flickable)\.qml$' || true)"
+  | grep -vE 'modules/common/Shell(ListView|Flickable|GridView)\.qml$' || true)"
 if [ -n "$scroll_restated" ]; then
-  fail "scroll bounds belong to ShellListView/ShellFlickable, not their consumers:"
+  fail "scroll bounds belong to ShellListView/ShellFlickable/ShellGridView, not their consumers:"
   while IFS= read -r m; do printf '  %s\n' "$m"; done <<< "$scroll_restated"
 else
   ok "scroll" "every list and flickable inherits one scroll feel"

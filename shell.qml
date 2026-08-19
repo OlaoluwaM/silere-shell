@@ -12,6 +12,7 @@ import "modules/traypopup"
 import "modules/mediapopup"
 import "modules/quickactions"
 import "modules/keybinds"
+import "modules/wallpapers"
 import "services"
 import "config"
 
@@ -194,5 +195,12 @@ ShellRoot {
         wantOpen: KeybindsPopupState.open
         requestedScreen: KeybindsPopupState.triggerScreen ?? root.activeOverlayScreen
         surface: Component { KeybindsPopup { targetScreen: _keybindsPopup.latchedScreen } }
+    }
+
+    PopupLoader {
+        id: _wallpapersPopup
+        wantOpen: WallpapersPopupState.open
+        requestedScreen: WallpapersPopupState.triggerScreen ?? root.activeOverlayScreen
+        surface: Component { WallpapersPopup { targetScreen: _wallpapersPopup.latchedScreen } }
     }
 }

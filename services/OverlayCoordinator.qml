@@ -22,6 +22,7 @@ Singleton {
             TrayPopupState.close()
         if (name !== "quickActions") QuickActionsState.close()
         if (name !== "keybinds") KeybindsPopupState.close()
+        if (name !== "wallpapers") WallpapersPopupState.close()
     }
 
     Connections {
@@ -47,5 +48,9 @@ Singleton {
     Connections {
         target: KeybindsPopupState
         function onOpenChanged() { if (KeybindsPopupState.open) root._claim("keybinds") }
+    }
+    Connections {
+        target: WallpapersPopupState
+        function onOpenChanged() { if (WallpapersPopupState.open) root._claim("wallpapers") }
     }
 }

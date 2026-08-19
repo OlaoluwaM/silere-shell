@@ -59,6 +59,15 @@ Singleton {
     // packaging-only, same contract as recordingStateFile above: no settings page exposes
     // this, the Nix side is the only writer of "" vs a real path to a keybindings JSON file
     property string keybindsFile:        GeneratedDefaults.keybindsFile
+    // packaging-only, same contract as recordingStopCommand above: only the packaging knows
+    // how to apply a wallpaper, so it alone writes the command the picker shells out to
+    property string wallpaperCommand:    GeneratedDefaults.wallpaperCommand
+    // packaging-only, same contract as wallpaperCommand above: no settings page exposes
+    // this, the Nix side is the only writer of "" vs a real wallpaper directory path
+    property string wallpapersDir:       GeneratedDefaults.wallpapersDir
+    // runtime, not packaging: the wallpaper picker writes its own last-applied pick here,
+    // same as caffeinePreset above is a runtime choice rather than a packaged default
+    property string wallpaperLast:       ""
     property bool   barShowCaffeine:     GeneratedDefaults.barShowCaffeine
 
     property bool   osdEnabled:     GeneratedDefaults.osdEnabled
@@ -361,6 +370,9 @@ Singleton {
         { k: "recordingStateFile",  t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "recordingStopCommand", t: "re",  re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "keybindsFile",        t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
+        { k: "wallpaperCommand",    t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
+        { k: "wallpapersDir",       t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
+        { k: "wallpaperLast",       t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "barShowCaffeine",     t: "bool", sec: "widgets" },
         { k: "osdEnabled",          t: "bool", sec: "osd" },
         { k: "osdTimeout",          t: "int",  min: 500,  max: 10000, sec: "osd" },
