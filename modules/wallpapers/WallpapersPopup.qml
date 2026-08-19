@@ -189,9 +189,9 @@ PanelWindow {
         readonly property int _cellW: Math.floor((card.width - card.pad * 2) / card._cols)
         readonly property int _cellH: Math.round(card._cellW * 10 / 16)
         // as tall as its rows and no taller, so a three-file library (or a narrow filter
-        // hit) gets a one-row card instead of a dead second row; past two rows the grid
+        // hit) gets a one-row card instead of dead rows; past three rows the grid
         // scrolls. The Math.max keeps the empty states a full row of message room.
-        readonly property int _visRows: Math.max(1, Math.min(2,
+        readonly property int _visRows: Math.max(1, Math.min(3,
             Math.ceil(card.filtered.length / card._cols)))
 
         anchors.centerIn: parent
