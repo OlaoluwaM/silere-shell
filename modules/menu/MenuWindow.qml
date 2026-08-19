@@ -154,7 +154,7 @@ PanelWindow {
         // cramped over a long backlog on a tall output: let it take a chunk of the
         // available height instead, with the old fixed size kept as the floor so a
         // short output never gets less room than before
-        readonly property real _recentHFrac: 0.42
+        readonly property real _recentHFrac: 0.50
         readonly property int recentViewportH: Math.max(1, Math.min(
             _availablePanelH - pageTopInset - pageBottomInset,
             Math.max(idealMinH - pageTopInset - pageBottomInset,
