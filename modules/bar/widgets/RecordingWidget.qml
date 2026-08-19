@@ -39,8 +39,8 @@ StatusActionPill {
 
     glyph: "󰑊"
     glyphAlignReference: "󰑊"
-    glyphColor: Theme.error
-    textColor:  Theme.error
+    glyphColor: Theme.recording
+    textColor:  Theme.recording
 
     // recording alone is not enough to be clickable: on a packaging without a stop
     // command this pill is a plain indicator, same dormancy as Recording itself
