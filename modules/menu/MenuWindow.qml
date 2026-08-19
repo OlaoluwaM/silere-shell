@@ -150,9 +150,15 @@ PanelWindow {
                 Math.floor(win.height - _edgeY - _minX),
                 Math.floor(win.height * _maxPanelHFrac)))
             : contentPane.targetH
-        readonly property int recentViewportH: Math.max(1,
-            Math.min(idealMinH - pageTopInset - pageBottomInset,
-                _availablePanelH - pageTopInset - pageBottomInset))
+        // the notifications list held a fixed idealMinH-sized viewport, which reads
+        // cramped over a long backlog on a tall output: let it take a chunk of the
+        // available height instead, with the old fixed size kept as the floor so a
+        // short output never gets less room than before
+        readonly property real _recentHFrac: 0.42
+        readonly property int recentViewportH: Math.max(1, Math.min(
+            _availablePanelH - pageTopInset - pageBottomInset,
+            Math.max(idealMinH - pageTopInset - pageBottomInset,
+                Math.round(_availablePanelH * _recentHFrac))))
         readonly property int targetPanelH: Math.max(1,
             Math.min(contentPane.targetH, _availablePanelH))
 
