@@ -53,6 +53,9 @@ Singleton {
     // packaging-only, like wifiEditCommand/btEditCommand above: no settings page exposes
     // this, the Nix screenrecord wrapper is the only writer of "" vs a real path
     property string recordingStateFile:  GeneratedDefaults.recordingStateFile
+    // packaging-only, same contract as recordingStateFile above: only the packaging knows
+    // what started the recorder, so it alone writes the command that can stop it
+    property string recordingStopCommand: GeneratedDefaults.recordingStopCommand
     // packaging-only, same contract as recordingStateFile above: no settings page exposes
     // this, the Nix side is the only writer of "" vs a real path to a keybindings JSON file
     property string keybindsFile:        GeneratedDefaults.keybindsFile
@@ -133,7 +136,7 @@ Singleton {
     property string barDisabledMonitors: ""
     property string overlayMonitor:      ""
 
-    readonly property var barWidgetKeys: ["workspaces", "tray", "traypopup", "updates", "network", "bluetooth", "caffeine", "volume", "brightness", "battery", "vitals", "privacy", "media", "clock"]
+    readonly property var barWidgetKeys: ["workspaces", "tray", "traypopup", "updates", "network", "bluetooth", "caffeine", "volume", "brightness", "battery", "vitals", "recording", "privacy", "media", "clock"]
 
     // packaging-only, like recordingStateFile/keybindsFile above: no settings page
     // writes this, the Nix side is the only thing that ever flips it to true
@@ -257,9 +260,14 @@ Singleton {
         // no setting: each chip's own threshold decides whether it exists, so there
         // is nothing to gate beyond where the (possibly empty) cluster sits
         vitals:      { glyph: "󰓅", label: "Vitals",          group: "power",  setting: "" },
-        // no setting: each chip lights up off its own condition (a recording state
-        // file existing, a live capture stream), same rationale as vitals above
+        // no setting: the chip lights up off its own condition (a live capture
+        // stream existing), same rationale as vitals above
         privacy:     { glyph: "󰍭", label: "Privacy",         group: "privacy", setting: "" },
+        // no setting: it exists only while a recording runs, same rationale as privacy
+        // above. Group "privacy" is a visual statement like caffeine's "network" one:
+        // the blinking dot and the mic chip are both capture indicators, so they share
+        // one cluster instead of dividing against each other.
+        recording:   { glyph: "󰑊", label: "Recording",       group: "privacy", setting: "" },
         media:       { glyph: "󰝚", label: "Media",           group: "media",  setting: "barShowMedia" },
         clock:       { glyph: "󰅐", label: "Clock",           group: "clock",  setting: "barShowClock" }
     })
@@ -351,6 +359,7 @@ Singleton {
         { k: "wifiEditCommand",     t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "btEditCommand",       t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "recordingStateFile",  t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
+        { k: "recordingStopCommand", t: "re",  re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "keybindsFile",        t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "barShowCaffeine",     t: "bool", sec: "widgets" },
         { k: "osdEnabled",          t: "bool", sec: "osd" },

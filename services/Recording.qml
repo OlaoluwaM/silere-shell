@@ -16,7 +16,7 @@ Singleton {
     readonly property bool _enabled: root._path.length > 0
     // only spawn the watcher while something could actually show it, same conservation
     // as CpuTemp/SysInfo gating their own polling on ShellSettings.barWidgetPlaced
-    readonly property bool _wanted: root._enabled && ShellSettings.barWidgetPlaced("privacy")
+    readonly property bool _wanted: root._enabled && ShellSettings.barWidgetPlaced("recording")
         && SystemTools.ready && SystemTools.hasInotifywait
 
     readonly property string _dir: {
@@ -33,10 +33,26 @@ Singleton {
     property bool _exists: false
     readonly property bool recording: root._enabled && root._exists
 
+    // when the capture began, in ms since the epoch: the wrapper writes epoch seconds
+    // into the state file, so a recording that predates the shell still shows its true
+    // elapsed time. Unparsable content (an older wrapper only touch'd the file) falls
+    // back to first-sight time -- a late-starting timer, never a frozen one.
+    property double startedAtMs: 0
+
+    // stopping needs to know what started the recorder, and only the packaging does --
+    // with no configured command the bar's pill stays a plain indicator
+    readonly property bool canStop: root.recording
+        && ShellSettings.recordingStopCommand.length > 0
+
+    function stop(): void {
+        if (!root.canStop) return
+        Quickshell.execDetached(["sh", "-c", ShellSettings.recordingStopCommand])
+    }
+
     // one-shot existence check: driven at startup and every watcher (re)start, so a
     // recording already in progress before the shell/watcher came up is still seen
     function _restat(): void {
-        if (!root._enabled) { root._exists = false; return }
+        if (!root._enabled) { root._exists = false; root.startedAtMs = 0; return }
         _stateFile.reload()
     }
 
@@ -64,8 +80,18 @@ Singleton {
         blockLoading: false
         blockAllReads: false
         printErrors: false
-        onLoaded: root._exists = true
-        onLoadFailed: root._exists = false
+        onLoaded: {
+            // parse before _exists flips so consumers waking on recording never see a
+            // stale start moment from the previous run
+            const secs = parseInt(_stateFile.text().trim(), 10)
+            root.startedAtMs = isFinite(secs) && secs > 0 ? secs * 1000
+                : (root.startedAtMs > 0 ? root.startedAtMs : Date.now())
+            root._exists = true
+        }
+        onLoadFailed: {
+            root._exists = false
+            root.startedAtMs = 0
+        }
     }
 
     SupervisedProcess {

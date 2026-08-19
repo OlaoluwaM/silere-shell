@@ -14,5 +14,6 @@ TrayWidget    1.0 TrayWidget.qml
 TrayPopupWidget 1.0 TrayPopupWidget.qml
 VitalsWidget  1.0 VitalsWidget.qml
 PrivacyWidget 1.0 PrivacyWidget.qml
+RecordingWidget 1.0 RecordingWidget.qml
 OsdBarWidget  1.0 OsdBarWidget.qml
 StatusActionPill 1.0 StatusActionPill.qml

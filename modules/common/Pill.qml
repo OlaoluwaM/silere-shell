@@ -32,6 +32,10 @@ Item {
     // shift), so widgets may carry the residual here. Keep values from
     // measurement, not eyeballing.
     property int    glyphAlignNudge: 0
+    // glyph-only fade hook (the recording pill's blink): pulsing the whole pill would
+    // take the text with it, and routing a per-frame value through glyphColor would
+    // retarget the ColorFade behavior on every tick instead of animating cleanly
+    property real   glyphOpacity: 1.0
     property string reserveText: ""
     readonly property real _reserveW: reserveText.length > 0 ? Math.ceil(_reserveMetrics.advanceWidth) : 0
     property bool   contentScanEnabled: false
@@ -255,6 +259,7 @@ Item {
                 anchors.verticalCenterOffset: Math.round(root._glyphInkShift) + root.glyphAlignNudge
                 text:            root._shownGlyph
                 color:           root._hoverGlyphColor
+                opacity:         root.glyphOpacity
                 transformOrigin: Item.Center
                 font.pixelSize:  root.glyphPixelSize
                 ColorFade on color {}
