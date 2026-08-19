@@ -39,8 +39,10 @@ StatusActionPill {
 
     glyph: "󰑊"
     glyphAlignReference: "󰑊"
-    glyphColor: Theme.recording
-    textColor:  Theme.recording
+    // Theme.error, not a private red: it's the same tier the vitals' critical chips and
+    // Battery.critical ride, and a live recording is exactly that class of signal
+    glyphColor: Theme.error
+    textColor:  Theme.error
 
     // recording alone is not enough to be clickable: on a packaging without a stop
     // command this pill is a plain indicator, same dormancy as Recording itself
