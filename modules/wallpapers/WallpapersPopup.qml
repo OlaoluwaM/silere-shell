@@ -188,10 +188,22 @@ PanelWindow {
         readonly property int _gridY: card.pad + card._headerH + 10
         readonly property int _cellW: Math.floor((card.width - card.pad * 2) / card._cols)
         readonly property int _cellH: Math.round(card._cellW * 10 / 16)
+        // as tall as its rows and no taller, so a three-file library (or a narrow filter
+        // hit) gets a one-row card instead of a dead second row; past two rows the grid
+        // scrolls. The Math.max keeps the empty states a full row of message room.
+        readonly property int _visRows: Math.max(1, Math.min(2,
+            Math.ceil(card.filtered.length / card._cols)))
 
         anchors.centerIn: parent
-        width:  Math.round(Math.max(360, Math.min(620, win.width - 96)))
-        height: Math.round(Math.min(win.height - 64, card._gridY + 2 * card._cellH + card.pad))
+        // a fraction of the screen, not a flat cap: 620 read fine on the design stages
+        // but starves the previews on real glass. 62% of a 1610-or-wider output hits the
+        // 1000 ceiling (242px cells); the 360 floor still covers tiny outputs.
+        width:  Math.round(Math.max(360, Math.min(1000, win.width * 0.62)))
+        height: Math.round(Math.min(win.height - 64,
+            card._gridY + card._visRows * card._cellH + card.pad))
+        MotionBehavior on height {
+            NumberAnimation { duration: Motion.barMorph; easing.type: Easing.OutCubic }
+        }
         radius: Theme.radiusPanel
         antialiasing: true
         color: Theme.popup
