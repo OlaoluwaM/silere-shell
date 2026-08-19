@@ -51,10 +51,12 @@ Singleton {
     readonly property color error:      _n ? "#dd92a2" : MatugenTheme.error
     readonly property color warning:    _n ? _warnAnchor : tintKeepingChroma(_warnAnchor, MatugenTheme.warning, 0.30)
     readonly property color success:    _n ? _okAnchor   : tintKeepingChroma(_okAnchor,   MatugenTheme.success, 0.30)
-    // the recording dot must read unambiguously red at pill size: neutral's rose error is
-    // too soft there and a matugen error drifts warm with the wallpaper, so this anchors a
-    // true red and lets the palette tint it the same way warning/success hold their hues
-    readonly property color _recAnchor: "#e06060"
+    // the recording dot must read red at pill size: neutral's rose error is too soft there
+    // and a matugen error drifts warm with the wallpaper, so this anchors the hue and lets
+    // the palette tint it the same way warning/success hold theirs. Lab-picked to sit in
+    // the anchor family's envelope (L*64, C42, h25 vs the family's L*68-77, C30-34): one
+    // deliberate chroma step above the cap, since red collapses back into rose without it.
+    readonly property color _recAnchor: "#e27f7d"
     readonly property color recording:  _n ? _recAnchor : tintKeepingChroma(_recAnchor, MatugenTheme.error, 0.30)
 
     function _lin(c: real): real {
