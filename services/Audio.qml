@@ -19,12 +19,18 @@ Singleton {
     readonly property PwNodeAudio audio: sink ? sink.audio : null
     readonly property bool ready: Pipewire.ready && sink !== null && sink.ready && audio !== null
 
-    // Default SOURCE (mic) mute, for the privacy chip -- read-only, so unlike the sink
-    // above it needs none of the pending/reconcile machinery: the shell never writes
-    // source volume/mute, it only reflects what the system already reports.
+    // Default SOURCE (mic). sourceMuted stays a direct read for the privacy chip
+    // (see the mic write path below, which is a light one -- no pending/reconcile
+    // ladder like the sink's mute/volume machinery above).
     readonly property PwNode      source:      Pipewire.defaultAudioSource
     readonly property PwNodeAudio sourceAudio: source ? source.audio : null
     readonly property bool sourceMuted: sourceAudio ? sourceAudio.muted : false
+    // source.ready is part of the gate for the same reason it is in `ready` above: the
+    // audio interface object exists the instant the node does, before PipeWire finishes
+    // binding it, and the mic write paths below must not write through that window
+    readonly property bool sourceReady: Pipewire.ready && source !== null && source.ready
+        && sourceAudio !== null
+    readonly property real sourceVolume: root._clampVolume(sourceReady ? sourceAudio.volume : 0)
 
     property real targetVolume: ready ? root._clampVolume(audio.volume) : 0
     property bool pendingApply: false
@@ -65,6 +71,28 @@ Singleton {
 
     readonly property var sinkModel: sinks.map(n => ({ value: n, label: root.sinkLabel(n) }))
 
+    readonly property var sources: {
+        const out = []
+        // PipeWire briefly detaches its node model while reconnecting.
+        const all = Pipewire.nodes ? (Pipewire.nodes.values || []) : []
+        for (let i = 0; i < all.length; i++) {
+            const n = all[i]
+            // no isSource convenience flag exists (only isSink does) -- classify by
+            // the AudioSource type bit instead, then drop the monitor-of-a-sink
+            // nodes PipeWire auto-creates for every sink: those carry the same
+            // AudioSource bit but are always named "<sink-name>.monitor", and the
+            // sink side has no equivalent synthetic entry to filter
+            if (n && !n.isStream
+                    && (n.type & PwNodeType.AudioSource) === PwNodeType.AudioSource
+                    && !n.name.endsWith(".monitor"))
+                out.push(n)
+        }
+        return out
+    }
+    readonly property int sourceCount: sources.length
+
+    readonly property var sourceModel: sources.map(n => ({ value: n, label: root.sourceLabel(n) }))
+
     // "mic in use" means an app has an open capture stream, not that a source device
     // merely exists -- PwNodeType.AudioInStream is Quickshell's own classification of a
     // PipeWire node whose media.class is Stream/Input/Audio (a stream node capturing
@@ -89,10 +117,57 @@ Singleton {
         if (node) Pipewire.preferredDefaultAudioSink = node
     }
 
-    function sinkLabel(node): string {
+    function setSource(node): void {
+        if (node) Pipewire.preferredDefaultAudioSource = node
+    }
+
+    function nodeLabel(node, fallback: string): string {
         if (!node) return ""
         return SafeText.singleLineText(
-            node.description || node.nickname || node.name || "Output", 256)
+            node.description || node.nickname || node.name || fallback, 256)
+    }
+
+    function sinkLabel(node): string {
+        return root.nodeLabel(node, "Output")
+    }
+
+    function sourceLabel(node): string {
+        return root.nodeLabel(node, "Input")
+    }
+
+    // Mic control is deliberately lighter than the sink's: it keeps the frame
+    // throttle (the settings slider emits per mouse-move, exactly the drag spam
+    // the sink's writeThrottle exists for) but not the pending-confirm/retry
+    // ladder -- that half guards the sink's volume limit and hardware-key racing,
+    // neither of which the mic path has. Grow it the ladder only if real usage
+    // shows PipeWire fighting these writes too -- the symptom to watch for is the
+    // mic handle snapping through stale intermediate positions right after a fast
+    // drag releases, which is exactly what the sink's pendingApply masking hides.
+    property real _sourcePendingVolume: 0
+    Timer {
+        id: sourceWriteThrottle
+        interval: 16
+        repeat: false
+        onTriggered: {
+            const a = root.sourceAudio
+            if (!a) return
+            if (Math.abs(a.volume - root._sourcePendingVolume) >= root._volumeEpsilon)
+                a.volume = root._sourcePendingVolume
+        }
+    }
+
+    function setSourceVolume(v: real): void {
+        if (!root.sourceReady) return
+        root._sourcePendingVolume = root._clampVolume(v)
+        if (!sourceWriteThrottle.running) {
+            sourceAudio.volume = root._sourcePendingVolume
+            sourceWriteThrottle.restart()
+        }
+    }
+
+    function toggleSourceMute(): void {
+        if (!root.sourceReady) return
+        sourceAudio.muted = !sourceAudio.muted
     }
 
     function _clampVolume(v: real): real {

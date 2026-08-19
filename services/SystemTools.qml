@@ -39,6 +39,7 @@ Singleton {
     readonly property bool hasAsusctl:       _tools.asusctl ?? false
     readonly property bool hasFcList:        _tools["fc-list"] ?? false
     readonly property bool hasDbusMonitor:   _tools["dbus-monitor"] ?? false
+    readonly property bool hasPwvucontrol:   _tools.pwvucontrol ?? false
 
     function _shq(s: string): string {
         return "'" + String(s).replace(/'/g, "'\\''") + "'"
@@ -87,7 +88,7 @@ Singleton {
             "  done; " +
             "fi; [ -n \"$family\" ] && echo \"@family=$family\"; " +
             "for t in brightnessctl inotifywait nmcli cava matugen hyprsunset hyprlock systemctl loginctl hyprctl notify-send " +
-            "busctl checkupdates paru yay timeout apt dnf zypper xbps-install powerprofilesctl asusctl fc-list dbus-monitor; do " +
+            "busctl checkupdates paru yay timeout apt dnf zypper xbps-install powerprofilesctl asusctl fc-list dbus-monitor pwvucontrol; do " +
             "  command -v \"$t\" >/dev/null 2>&1 && echo \"$t\"; " +
             // The last lookup is optional; do not inherit its `command -v`
             // status and discard every tool found before it.

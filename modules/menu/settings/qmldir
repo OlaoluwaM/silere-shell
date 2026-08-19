@@ -11,6 +11,7 @@ internal SettingsMediaSection SettingsMediaSection.qml
 internal SettingsOsdSection SettingsOsdSection.qml
 internal SettingsPopupsSection SettingsPopupsSection.qml
 internal SettingsSeparatorsSection SettingsSeparatorsSection.qml
+internal SettingsSoundSection SettingsSoundSection.qml
 internal SettingsSurfaceSection SettingsSurfaceSection.qml
 internal SettingsThemeSection SettingsThemeSection.qml
 internal SettingsUnderlineSection SettingsUnderlineSection.qml

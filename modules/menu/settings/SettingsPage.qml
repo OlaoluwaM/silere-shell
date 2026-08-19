@@ -66,7 +66,7 @@ PageShell {
         workspaces: _secWorkspaces, media: _secMedia, indicators: _secIndicators,
         widgets: _secWidgets,
         popups: _secPopups, osd: _secOsd, warnings: _secWarnings,
-        interface: _secInterface, updates: _secUpdates,
+        interface: _secInterface, sound: _secSound, updates: _secUpdates,
         maintenance: _secMaintenance
     })
 
@@ -318,6 +318,11 @@ PageShell {
         Component {
             id: _secInterface
             SettingsInterfaceSection {}
+        }
+
+        Component {
+            id: _secSound
+            SettingsSoundSection {}
         }
 
         Component {

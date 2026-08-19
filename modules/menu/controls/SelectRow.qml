@@ -147,6 +147,31 @@ Item {
         font.pixelSize: Settings.iconSize + 2
     }
 
+    // optional status dot on the glyph cell's shoulder (mic in-use, and whatever
+    // future rows need a live color cue): anchored to the glyph so it tracks the
+    // header through every font/scale change, unlike an overlay positioned from
+    // outside the row. Transparent = absent. Always paired with words by the
+    // consumer -- color is never the only signal. Glyph-less rows collapse the
+    // glyph cell to zero width, which would park the dot over the label's first
+    // pixels, so the dot requires a lead to sit on.
+    property color statusDot: "transparent"
+    Rectangle {
+        visible: root.statusDot.a > 0 && root._hasLead
+        anchors.horizontalCenter: _glyph.right
+        anchors.verticalCenter:   _glyph.top
+        anchors.verticalCenterOffset: 2
+        width: 10; height: 10; radius: 5
+        antialiasing: true
+        color: Theme.withAlpha(root.statusDot, 0.30)
+
+        Rectangle {
+            anchors.centerIn: parent
+            width: 6; height: 6; radius: 3
+            antialiasing: true
+            color: root.statusDot
+        }
+    }
+
     Loader {
         anchors.left: _glyph.left
         anchors.verticalCenter: _glyph.verticalCenter
