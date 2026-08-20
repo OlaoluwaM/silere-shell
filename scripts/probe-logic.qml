@@ -668,7 +668,30 @@ ShellRoot {
         root._timeoutProbe.running = true
     }
 
+    // last, deliberately: a changed palette leaves a 400ms source animation in
+    // flight, so nothing may read theme colors after these run
+    function _runPaletteTransitionChecks(): void {
+        const palA = "{\"background\":\"#101116\",\"surface\":\"#1d1f26\","
+            + "\"text\":\"#e9eaf0\",\"subtext\":\"#a0a4b0\","
+            + "\"accent\":\"#123456\",\"error\":\"#dd92a2\","
+            + "\"warning\":\"#d4ad77\",\"success\":\"#94bd8b\"}"
+        root._check(!MatugenTheme._everLoaded && !MatugenTheme.transitioning,
+            "palette probe starts from the fallback state")
+        MatugenTheme._load(palA)
+        root._check(!MatugenTheme.transitioning
+                && MatugenTheme.accent.toString() === "#123456",
+            "the first palette load snaps without arming the leaf-fade gate")
+        MatugenTheme._load(palA)
+        root._check(!MatugenTheme.transitioning,
+            "a byte-identical palette rewrite leaves the leaf-fade gate idle")
+        MatugenTheme._load(palA.replace("#123456", "#654321"))
+        root._check(MatugenTheme.transitioning
+                && MatugenTheme.accent.toString() !== "#654321",
+            "a changed palette arms the gate and interpolates instead of snapping")
+    }
+
     function _finish(): void {
+        root._runPaletteTransitionChecks()
         if (root._failures === 0)
             console.warn("PROBE-LOGIC passed " + root._checks + " checks")
         else

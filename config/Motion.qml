@@ -16,6 +16,10 @@ Singleton {
     readonly property int slow:    _rm ? 0 : 240
     readonly property int width:   _rm ? 0 : 160
     readonly property int color:   _rm ? 0 : 150
+    // wallpaper-driven palette swaps (ADR 0001): deliberately ends inside awww's
+    // 2s grow — finished colors over a finishing wallpaper reads as intent, and
+    // matching the full 2s would drag text through muddy mid-contrast
+    readonly property int palette: _rm ? 0 : 400
 
     // Interaction motion is deliberately quicker on the way down than on the
     // way back up. Controls feel immediate under the pointer without snapping
