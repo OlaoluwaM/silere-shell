@@ -23,6 +23,7 @@ ShellRoot {
     Component { id: sliderTrackFactory; SliderTrack {} }
     Component { id: gradientSliderFactory; GradientSlider {} }
     Component { id: boundedProcessFactory; BoundedProcess {} }
+    Component { id: durationPickerFactory; DurationPickerColumn {} }
 
     property var _timeoutProbe: null
 
@@ -249,6 +250,24 @@ ShellRoot {
         root._check(Notifications.dnd === false && Notifications.dndUntilMs === 0,
             "a manual off clears the deadline with the switch")
         ShellSettings.dndPreset = savedDndPreset
+
+        // both rows' pickers instantiate this only on expansion, which no other
+        // probe reaches, so its construction and derived state are checked here
+        const picker = durationPickerFactory.createObject(root, {
+            width: 300, presetsValue: "15,30,60,0", currentMinutes: 100,
+            customKey: "dndCustomMinutes"
+        })
+        let pickedMinutes = -2
+        picker.select.connect(m => pickedMinutes = m)
+        root._check(picker._customActive === true,
+            "an armed value outside the preset list reads as custom")
+        picker.currentMinutes = 30
+        root._check(picker._customActive === false,
+            "an armed value on the preset list reads as that chip")
+        picker.select(15)
+        root._check(pickedMinutes === 15,
+            "the picker's select signal carries the chosen minutes")
+        picker.destroy()
 
         const savedSection = MenuState.settingsSection
         MenuState.setSettingsSection("popups")

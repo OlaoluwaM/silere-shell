@@ -48,6 +48,9 @@ Singleton {
     property string caffeinePresets:     GeneratedDefaults.caffeinePresets
     // runtime choice, not a packaging default: which preset a timed run starts with next
     property int    caffeinePreset:      0
+    // the custom slider's remembered position; caffeinePreset above stays the single
+    // source of what a run arms -- picking Custom copies this value into it
+    property int    caffeineCustomMinutes: 45
     property string dndPresets:          GeneratedDefaults.dndPresets
     // runtime choice, same contract as caffeinePreset above
     property int    dndPreset:           0
@@ -372,6 +375,7 @@ Singleton {
         { k: "caffeineUnit",        t: "re",   re: /^[A-Za-z0-9_.@:-]*$/, sec: "-" },
         { k: "caffeinePresets",     t: "re",   re: /^[0-9]*(,[0-9]+)*$/, sec: "-" },
         { k: "caffeinePreset",      t: "int",  min: 0, max: 1440, sec: "-" },
+        { k: "caffeineCustomMinutes", t: "int", min: 5, max: 480, sec: "-" },
         { k: "dndPresets",          t: "re",   re: /^[0-9]*(,[0-9]+)*$/, sec: "-" },
         { k: "dndPreset",           t: "int",  min: 0, max: 1440, sec: "-" },
         { k: "dndCustomMinutes",    t: "int",  min: 5, max: 480,  sec: "-" },

@@ -37,10 +37,9 @@ Singleton {
     property bool inhibited: false
     property string inhibitorLabel: ""
 
-    // presets drive the duration picker (labels come from the shared Durations
-    // singleton the DND picker also uses); a run started with 0 never expires on
-    // its own, matching toggle()'s pre-existing plain start/stop
-    readonly property var presets: Durations.sanitizePresets(ShellSettings.caffeinePresets)
+    // the duration picker itself lives in DurationPickerColumn, which sanitizes
+    // caffeinePresets on its own; a run started with 0 never expires on its own,
+    // matching toggle()'s pre-existing plain start/stop
 
     // the unit is packaged as "<name>.service"; the transient stop timer rides beside
     // it under "<name>-stop" so `systemctl --user list-timers` reads as one obvious pair
