@@ -401,8 +401,9 @@ PageShell {
                     : Notifications.fullscreenSilenced ? "Fullscreen"
                     : ""
                 showSwitch: true
-                // no missed-count badge here: the rail's recent tab and the workspace
-                // marker already carry it, and a third copy crowded the row
+                // no missed-count badge: the recent tab already lists whatever arrived
+                // while silenced, and the countdown status plus the picker chevron
+                // left the row no quiet corner for one
                 // reachable whether or not DND is currently on, same rationale as the
                 // caffeine row above: the duration has to be pickable before the first tap
                 expandable: true
