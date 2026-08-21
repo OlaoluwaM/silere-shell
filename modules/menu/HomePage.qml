@@ -401,14 +401,14 @@ PageShell {
                     : Notifications.fullscreenSilenced ? "Fullscreen"
                     : ""
                 showSwitch: true
-                badgeCount: Notifications.silencingActive ? Notifications.missedCount : 0
+                // no missed-count badge here: the rail's recent tab and the workspace
+                // marker already carry it, and a third copy crowded the row
                 // reachable whether or not DND is currently on, same rationale as the
                 // caffeine row above: the duration has to be pickable before the first tap
                 expandable: true
                 expanded: root._picker === "dnd"
                 onActivated: Notifications.toggleDnd()
                 onExpandToggled: root._togglePicker("dnd")
-                onBadgeActivated: MenuState.showTab(MenuState.recentTab)
             }
 
             InlinePicker {
