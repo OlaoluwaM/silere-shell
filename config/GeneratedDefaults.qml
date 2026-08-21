@@ -34,6 +34,7 @@ Singleton {
     readonly property bool   barWidgetOrderLocked: false
     readonly property string caffeineUnit:        ""
     readonly property string caffeinePresets:     "15,30,60,0"
+    readonly property string dndPresets:          "15,30,60,0"
     readonly property string wifiEditCommand:     "nm-connection-editor --edit {uuid}"
     readonly property string btEditCommand:       "blueman-manager"
     readonly property bool   barShowCaffeine:     true

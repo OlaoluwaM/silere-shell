@@ -217,6 +217,39 @@ ShellRoot {
         Notifications.clearHistory()
         ShellSettings.notifHistoryLimit = savedLimit
 
+        // the caffeine and DND pickers both ride these, so the shapes are contract
+        root._check(JSON.stringify(Durations.sanitizePresets("15,30,60,0")) === "[15,30,60,0]",
+            "a packaged preset list passes through in order")
+        root._check(JSON.stringify(Durations.sanitizePresets("30, junk, 30,")) === "[30,0]",
+            "preset junk and duplicates drop, and 0 is appended when omitted")
+        root._check(Durations.label(0) === "Until turned off"
+                && Durations.label(45) === "45m"
+                && Durations.label(120) === "2h"
+                && Durations.label(190) === "3h 10m",
+            "duration labels cover the off, minute, whole-hour and mixed shapes")
+
+        const savedDndPreset = ShellSettings.dndPreset
+        ShellSettings.dndPreset = 0
+        Notifications.dnd = false
+        Notifications.dndUntilMs = 0
+        Notifications.toggleDnd()
+        root._check(Notifications.dnd === true && Notifications.dndRemainingMinutes === -1,
+            "an until-turned-off DND run carries no countdown")
+        Notifications.selectDndPreset(30)
+        root._check(Notifications.dndRemainingMinutes === 30,
+            "picking a duration mid-run re-arms the deadline from now")
+        Notifications.dndUntilMs = Date.now() - 1000
+        Notifications._syncDndRemaining()
+        root._check(Notifications.dnd === false && Notifications.dndRemainingMinutes === -1,
+            "a passed deadline clears the switch and the countdown together")
+        Notifications.toggleDnd()
+        root._check(Notifications.dnd === true && Notifications.dndRemainingMinutes === 30,
+            "toggling on honors the picked preset")
+        Notifications.toggleDnd()
+        root._check(Notifications.dnd === false && Notifications.dndUntilMs === 0,
+            "a manual off clears the deadline with the switch")
+        ShellSettings.dndPreset = savedDndPreset
+
         const savedSection = MenuState.settingsSection
         MenuState.setSettingsSection("popups")
         root._check(MenuState.settingsSection === "popups",

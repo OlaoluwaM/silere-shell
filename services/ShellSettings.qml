@@ -48,6 +48,12 @@ Singleton {
     property string caffeinePresets:     GeneratedDefaults.caffeinePresets
     // runtime choice, not a packaging default: which preset a timed run starts with next
     property int    caffeinePreset:      0
+    property string dndPresets:          GeneratedDefaults.dndPresets
+    // runtime choice, same contract as caffeinePreset above
+    property int    dndPreset:           0
+    // the custom slider's remembered position; dndPreset above stays the single
+    // source of what is actually armed -- picking Custom copies this value into it
+    property int    dndCustomMinutes:    45
     property string wifiEditCommand:     GeneratedDefaults.wifiEditCommand
     property string btEditCommand:       GeneratedDefaults.btEditCommand
     // packaging-only, like wifiEditCommand/btEditCommand above: no settings page exposes
@@ -94,9 +100,6 @@ Singleton {
     property int    notifMaxVisible:     3
     property bool   notifHistoryPersistent: true
     property int    notifHistoryLimit:   20
-    property bool   dndSchedule:         false
-    property int    dndFrom:             22
-    property int    dndTo:               8
     property string mediaWidgetFormat:   "title"
     property int    tempHotThreshold:    GeneratedDefaults.tempHotThreshold
     property int    cpuHotPercent:       GeneratedDefaults.cpuHotPercent
@@ -369,6 +372,9 @@ Singleton {
         { k: "caffeineUnit",        t: "re",   re: /^[A-Za-z0-9_.@:-]*$/, sec: "-" },
         { k: "caffeinePresets",     t: "re",   re: /^[0-9]*(,[0-9]+)*$/, sec: "-" },
         { k: "caffeinePreset",      t: "int",  min: 0, max: 1440, sec: "-" },
+        { k: "dndPresets",          t: "re",   re: /^[0-9]*(,[0-9]+)*$/, sec: "-" },
+        { k: "dndPreset",           t: "int",  min: 0, max: 1440, sec: "-" },
+        { k: "dndCustomMinutes",    t: "int",  min: 5, max: 480,  sec: "-" },
         { k: "wifiEditCommand",     t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "btEditCommand",       t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "recordingStateFile",  t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
@@ -399,9 +405,6 @@ Singleton {
         { k: "notifMaxVisible",     t: "int",  min: 0, max: 20, sec: "popups" },
         { k: "notifHistoryPersistent", t: "bool", sec: "popups" },
         { k: "notifHistoryLimit",   t: "int",  min: 5, max: 100, sec: "popups" },
-        { k: "dndSchedule",         t: "bool", sec: "popups" },
-        { k: "dndFrom",             t: "int",  min: 0, max: 23, sec: "popups" },
-        { k: "dndTo",               t: "int",  min: 0, max: 23, sec: "popups" },
         { k: "mediaWidgetFormat",   t: "enum", vals: ["title", "artist-title"], sec: "media" },
         { k: "tempHotThreshold",    t: "int",  min: 50,   max: 105, sec: "warnings" },
         { k: "cpuHotPercent",       t: "int",  min: 30,   max: 100, sec: "warnings" },

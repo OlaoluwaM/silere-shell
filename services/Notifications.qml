@@ -10,6 +10,7 @@ Singleton {
 
     property var list: []
     property alias dnd:         _persist.dnd
+    property alias dndUntilMs:  _persist.dndUntilMs
     property alias missedCount: _persist.missedCount
     // These maps are restored from persisted JSON. Keep their prototype empty
     // so a malformed key cannot change object behaviour between reloads.
@@ -193,6 +194,11 @@ Singleton {
         id: _persist
         reloadableId: "silereNotifications"
         property bool dnd: false
+        // absolute wall-clock deadline (epoch ms) for a timed DND run; 0 = no expiry.
+        // Deliberately not a systemd timer like caffeine's stop: dnd itself already
+        // dies with the shell, so a deadline that outlived it could only clear a
+        // switch that no longer exists -- the two live and die together instead
+        property double dndUntilMs: 0
         property int  missedCount: 0
         // PersistentProperties survives an engine replacement; keep JS arrays serialized so values never cross engines
         property string historyJson: "[]"
@@ -211,17 +217,62 @@ Singleton {
     readonly property bool fullscreenSilenced: ShellSettings.notifFullscreenSilence && _fullscreenActive
 
     function refreshFullscreenState(): void { Compositor.refreshToplevels() }
-    function toggleDnd(): void { dnd = !dnd }
 
-    readonly property bool _quietActive: {
-        if (!ShellSettings.dndSchedule) return false
-        const from = ShellSettings.dndFrom, to = ShellSettings.dndTo
-        if (from === to) return false
-        const h = DateTime.hour24
-        return from < to ? (h >= from && h < to) : (h >= from || h < to)
+    // every way DND turns on funnels through here (menu row, quick actions, bar pill
+    // off-click), so the picked duration applies uniformly -- the same reason caffeine
+    // routes its chord through toggle() instead of a raw systemctl
+    function toggleDnd(): void {
+        const goingOn = !dnd
+        if (goingOn) root._armDeadline(ShellSettings.dndPreset)
+        else root.dndUntilMs = 0
+        dnd = goingOn
+        root._syncDndRemaining()
     }
-    readonly property bool effectiveDnd: dnd || _quietActive
-    readonly property bool silencingActive: effectiveDnd || fullscreenSilenced
+
+    // picking a duration while DND is already on re-arms from now, replacing the old
+    // deadline -- caffeine's selectPreset semantics, minus the systemd chain
+    function selectDndPreset(minutes: int): void {
+        ShellSettings.dndPreset = minutes
+        if (!dnd) return
+        root._armDeadline(minutes)
+        root._syncDndRemaining()
+    }
+
+    function _armDeadline(minutes: int): void {
+        root.dndUntilMs = minutes > 0 ? Date.now() + minutes * 60000 : 0
+    }
+
+    // -1 covers both "not timed" and "off": consumers fall back to their plain
+    // on/off copy, same contract as Caffeine.remainingMinutes
+    property int dndRemainingMinutes: -1
+
+    function _syncDndRemaining(): void {
+        if (!dnd || !(root.dndUntilMs > 0)) { root.dndRemainingMinutes = -1; return }
+        const diffMs = root.dndUntilMs - Date.now()
+        if (diffMs <= 0) {
+            root.dndUntilMs = 0
+            root.dnd = false
+            root.dndRemainingMinutes = -1
+            return
+        }
+        root.dndRemainingMinutes = Math.ceil(diffMs / 60000)
+    }
+
+    // not gated on idle like the widget label ticks: expiry is state correctness, not
+    // presentation, and the deadline is absolute wall-clock so a sleep that jumps past
+    // it is caught on the first tick after resume with no monotonic bookkeeping
+    Timer {
+        interval: 30000
+        repeat: true
+        running: root.dnd && root.dndUntilMs > 0
+        triggeredOnStart: true
+        onTriggered: root._syncDndRemaining()
+    }
+
+    // scheduled quiet hours used to sit between dnd and this: retired in favor of
+    // timed DND runs, which cover the "silence for a while" case without a second
+    // silencing mechanism to reason about
+    readonly property bool silencingActive: dnd || fullscreenSilenced
     onSilencingActiveChanged: { if (!silencingActive && missedCount !== 0) missedCount = 0 }
     function markSeen(id: int): void {
         root._ensurePersistentState()
@@ -439,7 +490,7 @@ Singleton {
 
         onNotification: (n) => {
             root._ensurePersistentState()
-            if (root.effectiveDnd && n.urgency !== NotificationUrgency.Critical) {
+            if (root.dnd && n.urgency !== NotificationUrgency.Critical) {
                 if (root._archiveNotification(n, n.id, Date.now()) || n.transient)
                     root.missedCount++
                 n.tracked = false

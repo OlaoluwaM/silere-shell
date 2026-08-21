@@ -7,7 +7,6 @@ Singleton {
     id: root
 
     readonly property bool _clockNeeded: ShellSettings.barShowClock
-        || ShellSettings.dndSchedule
         || MenuState.homeActive
         || CalendarState.open
 

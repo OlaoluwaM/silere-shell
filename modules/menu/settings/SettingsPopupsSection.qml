@@ -70,24 +70,4 @@ Column {
         }
     }
 
-    SectionLabel { label: "QUIET HOURS" }
-    SettingsCard {
-        ToggleRow {
-            glyph: "󰂛"; label: "Scheduled do not disturb"
-            key: "dndSchedule"
-        }
-        CollapsibleSection {
-            expanded: ShellSettings.dndSchedule
-            SliderRow {
-                glyph: "󰃰"; label: "From"
-                displayValue: (ShellSettings.dndFrom < 10 ? "0" : "") + ShellSettings.dndFrom + ":00"
-                key: "dndFrom"
-            }
-            SliderRow {
-                glyph: "󰃰"; label: "To"
-                displayValue: (ShellSettings.dndTo < 10 ? "0" : "") + ShellSettings.dndTo + ":00"
-                key: "dndTo"
-            }
-        }
-    }
 }

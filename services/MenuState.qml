@@ -87,7 +87,7 @@ Singleton {
         ]},
         { glyph: "󰂚", label: "Feedback", children: [
             { glyph: "󰂚", label: "Notifications", section: "popups",
-              description: "Position, timeout, and quiet hours" },
+              description: "Position, timeout, and history" },
             { glyph: "󱀅", label: "OSD",    section: "osd",
               description: "Volume and brightness feedback" },
             { glyph: "󰀦", label: "Alerts", section: "warnings",

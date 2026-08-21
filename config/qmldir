@@ -4,6 +4,7 @@ singleton Theme         1.0 Theme.qml
 
 # settings
 singleton GeneratedDefaults 1.0 GeneratedDefaults.qml
+singleton Durations     1.0 Durations.qml
 singleton Motion        1.0 Motion.qml
 singleton Metrics       1.0 Metrics.qml
 singleton Settings      1.0 Settings.qml

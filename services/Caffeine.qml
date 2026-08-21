@@ -37,32 +37,10 @@ Singleton {
     property bool inhibited: false
     property string inhibitorLabel: ""
 
-    // presetLabel/presets drive the duration picker; a run started with 0 never expires
-    // on its own, matching toggle()'s pre-existing plain start/stop
-    function _sanitizePresets(raw: string): var {
-        const parts = String(raw || "").split(",")
-        const seen = ({})
-        const out = []
-        for (let i = 0; i < parts.length; i++) {
-            const t = parts[i].trim()
-            if (!/^\d+$/.test(t)) continue
-            const n = parseInt(t, 10)
-            if (seen[n]) continue
-            seen[n] = true
-            out.push(n)
-        }
-        // "until turned off" must always be selectable even if the packaged list omits it
-        if (!seen[0]) out.push(0)
-        return out
-    }
-    readonly property var presets: root._sanitizePresets(ShellSettings.caffeinePresets)
-
-    function presetLabel(minutes: int): string {
-        if (minutes <= 0) return "Until turned off"
-        if (minutes < 60) return minutes + "m"
-        if (minutes % 60 === 0) return (minutes / 60) + "h"
-        return Math.floor(minutes / 60) + "h " + (minutes % 60) + "m"
-    }
+    // presets drive the duration picker (labels come from the shared Durations
+    // singleton the DND picker also uses); a run started with 0 never expires on
+    // its own, matching toggle()'s pre-existing plain start/stop
+    readonly property var presets: Durations.sanitizePresets(ShellSettings.caffeinePresets)
 
     // the unit is packaged as "<name>.service"; the transient stop timer rides beside
     // it under "<name>-stop" so `systemctl --user list-timers` reads as one obvious pair

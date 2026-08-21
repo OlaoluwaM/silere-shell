@@ -388,7 +388,7 @@ PageShell {
                         accentColor: Theme.accent
                         currentValue: ShellSettings.caffeinePreset
                         model: Caffeine.presets.map(function(p) {
-                            return { value: p, label: Caffeine.presetLabel(p) }
+                            return { value: p, label: Durations.label(p) }
                         })
                         onChosen: (v) => Caffeine.selectPreset(v)
                     }
@@ -400,13 +400,82 @@ PageShell {
                 active: Notifications.dnd
                 glyph: Notifications.silencingActive ? "󰂛" : "󰂚"
                 title: "Do Not Disturb"
-                status: Notifications.effectiveDnd && !Notifications.dnd ? "Quiet hours"
+                status: Notifications.dnd && Notifications.dndRemainingMinutes >= 0
+                        ? Durations.label(Notifications.dndRemainingMinutes) + " left"
                     : Notifications.fullscreenSilenced ? "Fullscreen"
                     : ""
                 showSwitch: true
                 badgeCount: Notifications.silencingActive ? Notifications.missedCount : 0
+                // reachable whether or not DND is currently on, same rationale as the
+                // caffeine row above: the duration has to be pickable before the first tap
+                expandable: true
+                expanded: root._picker === "dnd"
                 onActivated: Notifications.toggleDnd()
+                onExpandToggled: root._togglePicker("dnd")
                 onBadgeActivated: MenuState.showTab(MenuState.recentTab)
+            }
+
+            InlinePicker {
+                id: _dndPicker
+                open: root._picker === "dnd"
+                content: Component {
+                    Column {
+                        id: _dndPickerCol
+                        width: parent ? parent.width : 0
+                        readonly property var presets: Durations.sanitizePresets(ShellSettings.dndPresets)
+                        // "Custom" is derived, never stored: an armed value outside the
+                        // packaged list is what custom means, so the chip row can never
+                        // disagree with the setting about which mode it is in
+                        readonly property bool customActive: presets.indexOf(ShellSettings.dndPreset) < 0
+                        // ephemeral, not persisted: keeps the slider from collapsing out
+                        // from under a drag that happens to cross a listed preset value
+                        // (the matching chip still lights up as honest feedback)
+                        property bool customEngaged: false
+
+                        ChoiceChipRow {
+                            width: parent.width
+                            glyph: "󰥔"
+                            label: "Duration"
+                            accentColor: Theme.accent
+                            currentValue: _dndPickerCol.customActive ? -1 : ShellSettings.dndPreset
+                            model: {
+                                const out = []
+                                for (let i = 0; i < _dndPickerCol.presets.length; i++) {
+                                    const p = _dndPickerCol.presets[i]
+                                    if (p > 0) out.push({ value: p, label: Durations.label(p) })
+                                }
+                                // custom sits ahead of "until turned off" so the two
+                                // open-ended choices bracket the fixed presets
+                                out.push({ value: -1, label: "Custom" })
+                                out.push({ value: 0, label: Durations.label(0) })
+                                return out
+                            }
+                            onChosen: (v) => {
+                                if (v === -1) {
+                                    _dndPickerCol.customEngaged = true
+                                    Notifications.selectDndPreset(ShellSettings.dndCustomMinutes)
+                                } else {
+                                    _dndPickerCol.customEngaged = false
+                                    Notifications.selectDndPreset(v)
+                                }
+                            }
+                        }
+
+                        SliderRow {
+                            width: parent.width
+                            visible: _dndPickerCol.customEngaged || _dndPickerCol.customActive
+                            label: "Custom duration"
+                            // bounds come from the schema through the key, which also
+                            // remembers the slider's position across mode switches
+                            key: "dndCustomMinutes"
+                            step: 5
+                            displayValue: Durations.label(Math.round(value))
+                            // mid-run drags re-arm the deadline from now, the same
+                            // replace-the-stop semantics the chips have
+                            onChanged: (v) => Notifications.selectDndPreset(Math.round(v))
+                        }
+                    }
+                }
             }
 
             ControlRow {
