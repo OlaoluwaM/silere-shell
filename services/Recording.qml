@@ -103,8 +103,14 @@ Singleton {
         // alone decides whether this ever runs, same split Screenshot.qml's watcher uses.
         superviseWhen: root._wanted
         restartDelay: 5000
-        command: ["inotifywait", "-m", "-q", "-e", "create,delete,moved_to,moved_from",
-            "--format", "%f", root._dir]
+        // mkdir first: the state dir lives on tmpfs, born empty each boot, and only the
+        // wrapper's own mkdir creates it -- so on a fresh login inotifywait had nothing
+        // to watch and exited instantly, and the supervisor's growing backoff could hold
+        // the pill dark for up to a minute into the session's first recording. Creating
+        // the watch target up front makes the very first spawn stick instead.
+        command: ["sh", "-c",
+            "mkdir -p \"$1\" && exec inotifywait -m -q -e create,delete,moved_to,moved_from --format %f \"$1\"",
+            "recording-watch", root._dir]
         stdout: SplitParser {
             onRead: line => { if (line === root._base) root._restat() }
         }
