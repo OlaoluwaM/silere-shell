@@ -1,9 +1,10 @@
 # About this fork
 
-This file documents the fork itself — what it is for and the operating
-agreements it runs under. The shell's own documentation is in
-[README.md](README.md), which upstream owns; fork policy lives here so the
-two never fight in a merge.
+This file documents the fork itself — what it is for and the policy it
+runs under. The shell's own documentation is in
+[README.upstream.md](README.upstream.md), which upstream owns; the working
+rules for agents are in [AGENTS.md](AGENTS.md); fork policy lives here so
+the three never fight in a merge.
 
 ## What this is
 
@@ -48,20 +49,15 @@ merge-shaped and not rebase-shaped:
 - In conflicts, this fork's extensions win; upstream's fixes are adopted
   where they don't fight a fork redesign.
 
-After every merge, the same gates as any feature: `bash scripts/ci-lint.sh`,
-`nix develop . --command bash scripts/check.sh`, and the settings contract —
-`grep -c 'property' config/GeneratedDefaults.qml` must equal
-`grep -c 'GeneratedDefaults\.' services/ShellSettings.qml` (and match what
-`nixos-config`'s silere module renders). If upstream adds or removes a
-settings key, the merge and the `nixos-config` counterpart must land in the
-same rebuild.
+After every merge, the same gates as any feature apply — they live in
+[AGENTS.md](AGENTS.md).
 
 ## Pinning from nixos-config
 
 `nixos-config` pins this fork by revision in its `flake.lock`. The re-lock
 ritual, in order:
 
-1. Push `custom-branch` (pushes are always run by hand, never by tooling).
+1. Push `custom-branch`.
 2. In `nixos-config`: `nix flake update silere-shell` — confirm the new
    `rev` in `flake.lock` matches the fork tip just pushed.
 3. Sanity-eval without building:
@@ -69,9 +65,9 @@ ritual, in order:
 4. Commit the lock alone as `chore: Re-lock silere-shell for <what changed>`.
 5. `nixos-rebuild switch`, then live-test.
 
-One coupling rule makes step ordering matter: a fork commit that adds a
-packaging-only settings key (the `recordingStopCommand` /
-`wallpaperCommand` pattern) is only satisfied once `nixos-config`'s silere
-module renders that key into `GeneratedDefaults.qml` — so the fork push, the
-silere-module change, and the re-lock must reach the machine in the same
-rebuild, never piecemeal.
+One coupling rule makes step ordering matter: a fork commit that adds or
+removes a settings key — a packaging-only key (the `recordingStopCommand` /
+`wallpaperCommand` pattern) or an upstream merge that changes the set — is
+only satisfied once `nixos-config`'s silere module renders the same set
+into `GeneratedDefaults.qml`. The fork push, the silere-module change, and
+the re-lock must reach the machine in the same rebuild, never piecemeal.
