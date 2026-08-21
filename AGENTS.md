@@ -56,6 +56,9 @@ one of the three files, so follow the pointers instead of restating.
   come from `Metrics.rowHeightFor()`. The lint scripts enforce all three.
 - The look is rounded rectangles, not pills, and text-driven minimalism.
   Extend the design system that's there; don't invent one-off styles.
+- Minimalism is the design. Less is more unless specified otherwise
 - Every new QML file needs a line in its folder's `qmldir`.
 - Keep the `silere-*` layer-shell namespaces. The compositor's blur and
   animation rules match those exact strings.
+- Work to keep code consistent with existing architectures and patterns. If you must deviate
+  explicitly note why

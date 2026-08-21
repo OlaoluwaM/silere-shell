@@ -1,38 +1,31 @@
-# About this fork
-
-This file says what the fork is for and the rules it runs under. How the
-shell itself works (install, configuration, IPC, troubleshooting) is
-[upstream's README](https://github.com/s3rven/silere-shell#readme); we keep
-no copy here, because a copy only drifts. The working rules for agents are
-in [AGENTS.md](AGENTS.md). Each fact lives in exactly one of these files,
-so they never fight in a merge.
+# Silere-shell Fork
 
 ## What this is
 
-A personal fork of
-[s3rven/silere-shell](https://github.com/s3rven/silere-shell), a
-Quickshell/QML desktop shell. It serves as the only shell of a
-NixOS/Hyprland profile. A companion repository, `nixos-config`, consumes
-the fork as a flake input (a source dependency pinned by commit), packages
-it, and writes its declared defaults into `config/GeneratedDefaults.qml`
-at build time. On top of upstream, the fork carries its own features (a
-keybindings viewer, a redesigned media surface, a screen-recording
-indicator, a wallpaper picker, a sound settings section, and the packaging
-hooks that let Nix drive them) while keeping upstream's token architecture
-and restraint intact.
+A personal fork of [s3rven/silere-shell](https://github.com/s3rven/silere-shell), a Quickshell/QML desktop shell. It serves as the only shell of a NixOS/Hyprland profile.
 
-## The three branches
+It is the shell for the Hyprland profile in my [`nixos-config`](https://github.com/s3rven/silere-shell). `nixos-config` consumes
+the fork as a flake input (a source dependency pinned by commit), packages it, and writes its declared defaults into `config/GeneratedDefaults.qml` at build time.
 
-- **`custom-branch`** is the branch of record. It is what `nixos-config`
-  pins and where every feature lands, and its history is never rewritten.
-  No rebase, no force-push, ever.
-- **`upstream/main`** is upstream's development branch. We read it. We
-  never write to it.
-- **`main`** (this fork's, on origin) is a clean mirror of
-  `upstream/main`, fast-forwarded now and then (GitHub's "Sync fork"
-  button is enough). It exists so `git diff main...custom-branch` always
-  shows the fork's true divergence. It never merges with `custom-branch`;
-  the two branches do different jobs and stay apart on purpose.
+On top of upstream, the fork carries its own features:
+
+- a keybindings viewer
+- a redesigned media surface
+- a screen-recording indicator
+- a wallpaper picker
+- a sound settings section
+- packaging hooks that allow for some declarative configuration
+
+All this while keeping upstream's token architecture and restraint intact.
+
+## There are a couple important branches
+
+- **`custom-branch`** is where all our custom work lies. It is what `nixos-config`
+  pins and where every feature lands. It's history can only be rewritten manually. Syncs with upstream/main can only be reconciled through merges, never rebases
+- **`custom-branch-testing`** for experimental stuff
+- **`upstream/main`** is upstream's development branch. We read it. We sometimes sync with it. We never write to it.
+- **`main`** (this fork's, on origin) is a clean mirror of `upstream/main`. It exists so `git diff main...custom-branch` always
+  shows the fork's true divergence. It never merges with `custom-branch`; the two branches do different jobs and stay apart on purpose.
 
 ## Merges, not rebases
 
@@ -48,7 +41,7 @@ rebase:
   reset. Once commits have stacked on top of it, revert it instead with
   `git revert -m 1 <merge>`. If you later re-merge a release you reverted,
   you must revert the revert first, or git treats those changes as already
-  present.
+  present. Or we can drop the commit entirely
 - In conflicts, the fork's extensions win. Upstream's fixes come in where
   they don't fight a fork redesign.
 
