@@ -1,4 +1,5 @@
 import QtQuick
+import "../../../config"
 import "../../../services"
 
 // StatusActionPill, not the plain Pill BatteryWidget uses — that one is display-only,
@@ -21,7 +22,14 @@ StatusActionPill {
     // single-state widget, so the reference is the glyph itself
     glyphAlignReference: "󰅶"
 
-    text: expanded ? (Caffeine.manualActive ? "Caffeine" : Caffeine.inhibitorLabel) : ""
+    // a timed run's hover label is its countdown, same as the DND pill's; an
+    // untimed run keeps the plain name, and a foreign inhibitor keeps its own
+    text: !expanded ? ""
+        : Caffeine.manualActive
+            ? (Caffeine.remainingMinutes >= 0
+                ? Durations.label(Caffeine.remainingMinutes) + " left"
+                : "Caffeine")
+        : Caffeine.inhibitorLabel
 
     onActivated: Caffeine.toggle()
 }
