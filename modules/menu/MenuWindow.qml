@@ -647,7 +647,7 @@ PanelWindow {
             }
 
             readonly property int targetH: {
-                const contentH = tabContent.y + tabContent.height
+                const contentH = panel.pageTopInset + tabContent.height
                     + panel.pageBottomInset
                 const navH = panel.activeTab === 1
                     ? (_settingsNavLoader.item?.implicitHeight ?? 0) + 16 : 0
@@ -665,9 +665,13 @@ PanelWindow {
             ShellFlickable {
                 id: contentFlick
                 anchors.fill: parent
+                // the page insets sit on the viewport, not inside the content: as part
+                // of the scrollable content they vanished mid-scroll, leaving pages to
+                // clip flush against the pane's rounded corners on short screens
+                anchors.topMargin: panel.pageTopInset
+                anchors.bottomMargin: panel.pageBottomInset
                 contentWidth: width
                 contentHeight: tabContent.y + tabContent.height
-                    + panel.pageBottomInset
                 interactive: !panel.powerOpen && panel.activeTab !== 2
                     && _contentSettle.overflows
 
@@ -695,7 +699,7 @@ PanelWindow {
                 Item {
                     id: tabContent
                     x: panel.contentPad
-                    y: panel.pageTopInset
+                    y: 0
                     width: panel.innerW
                     readonly property bool _pagePending:
                         panel.activeTab === 1 ? settingsLoader.status !== Loader.Ready
