@@ -224,9 +224,13 @@ Singleton {
             root._checkInhibitors()
             // the shell armed this stop itself, so the deadline is knowledge rather
             // than something to ask systemd for: commit the local mirror and let its
-            // tick carry the countdown from here
+            // tick carry the countdown from here. Gated on the same invariant
+            // _syncRemaining enforces -- a drift check that reported inactive
+            // mid-chain must not park a deadline against a run the mirror thinks is
+            // off (the chain-tail _checkActive below rediscovers it, and discovery
+            // refills the mirror through the reconciler)
             if (root._armedMinutes >= 0) {
-                root._stopDeadlineMs = root._armedMinutes > 0
+                root._stopDeadlineMs = root.manualActive && root._armedMinutes > 0
                     ? Date.now() + root._armedMinutes * 60000 : 0
                 root._armedMinutes = -1
             }

@@ -671,7 +671,7 @@ PanelWindow {
                 anchors.topMargin: panel.pageTopInset
                 anchors.bottomMargin: panel.pageBottomInset
                 contentWidth: width
-                contentHeight: tabContent.y + tabContent.height
+                contentHeight: tabContent.height
                 interactive: !panel.powerOpen && panel.activeTab !== 2
                     && _contentSettle.overflows
 

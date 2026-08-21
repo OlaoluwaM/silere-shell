@@ -21,7 +21,7 @@ StatusActionPill {
             ? Durations.label(Notifications.dndRemainingMinutes) + " left"
         : "Do Not Disturb"
 
-    // a click always ends the run, timed or not — the fastest way out, same as caffeine
-    interactive: show
+    // a click always ends the run, timed or not — the fastest way out, same as
+    // caffeine; StatusActionPill's own show-gated interactive default applies
     onActivated: Notifications.toggleDnd()
 }

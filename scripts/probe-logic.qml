@@ -273,15 +273,15 @@ ShellRoot {
             customKey: "dndCustomMinutes"
         })
         let pickedMinutes = -2
-        picker.select.connect(m => pickedMinutes = m)
+        picker.chosen.connect(m => pickedMinutes = m)
         root._check(picker._customActive === true,
             "an armed value outside the preset list reads as custom")
         picker.currentMinutes = 30
         root._check(picker._customActive === false,
             "an armed value on the preset list reads as that chip")
-        picker.select(15)
+        picker.chosen(15)
         root._check(pickedMinutes === 15,
-            "the picker's select signal carries the chosen minutes")
+            "the picker's chosen signal carries the picked minutes")
         picker.destroy()
 
         const savedSection = MenuState.settingsSection

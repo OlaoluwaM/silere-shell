@@ -386,7 +386,7 @@ PageShell {
                         presetsValue: ShellSettings.caffeinePresets
                         currentMinutes: ShellSettings.caffeinePreset
                         customKey: "caffeineCustomMinutes"
-                        onSelect: (m) => Caffeine.selectPreset(m)
+                        onChosen: (m) => Caffeine.selectPreset(m)
                     }
                 }
             }
@@ -421,7 +421,7 @@ PageShell {
                         presetsValue: ShellSettings.dndPresets
                         currentMinutes: ShellSettings.dndPreset
                         customKey: "dndCustomMinutes"
-                        onSelect: (m) => Notifications.selectDndPreset(m)
+                        onChosen: (m) => Notifications.selectDndPreset(m)
                     }
                 }
             }

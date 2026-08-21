@@ -15,7 +15,7 @@ Column {
     property int currentMinutes: 0
     // settings key remembering the custom slider's position; the slider derives its
     // bounds from this key's schema, and picking Custom copies its value into the
-    // armed setting through select -- currentMinutes stays the single armed source
+    // armed setting through chosen -- currentMinutes stays the single armed source
     property string customKey: ""
     property color accentColor: Theme.accent
 
@@ -33,7 +33,7 @@ Column {
     // path made it visible
     property bool _customEngaged: false
 
-    signal select(int minutes)
+    signal chosen(int minutes)
 
     // two rows, split by meaning rather than line length: the finite packaged
     // presets ride the labelled row, and the two open-ended choices below never
@@ -52,7 +52,7 @@ Column {
         model: root._timedPresets.map(p => ({ value: p, label: Durations.label(p) }))
         onChosen: (v) => {
             root._customEngaged = false
-            root.select(v)
+            root.chosen(v)
         }
     }
 
@@ -68,10 +68,10 @@ Column {
         onChosen: (v) => {
             if (v === -1) {
                 root._customEngaged = true
-                root.select(ShellSettings[root.customKey])
+                root.chosen(ShellSettings[root.customKey])
             } else {
                 root._customEngaged = false
-                root.select(v)
+                root.chosen(v)
             }
         }
     }
@@ -92,7 +92,7 @@ Column {
         // the chips have
         onChanged: (v) => {
             root._customEngaged = true
-            root.select(Math.round(v))
+            root.chosen(Math.round(v))
         }
     }
 }
