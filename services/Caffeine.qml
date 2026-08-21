@@ -167,6 +167,12 @@ Singleton {
                 root.lastError = "could not check " + root.unit
             } else {
                 root.manualActive = (code === 0)
+                // the run was just discovered here rather than armed by us (a shell
+                // restarted mid-run, or an external re-arm the drift poll caught) --
+                // no chain tail ever ran to commit a deadline, so ask systemd for one
+                if (root.manualActive && root._stopDeadlineMs <= 0 && root._armedMinutes < 0 && !_toggleProc.running) {
+                    root._pollRemaining()
+                }
             }
             if (rerun) root._checkActive()
         }
@@ -362,11 +368,18 @@ Singleton {
         }
         const diffMs = root._stopDeadlineMs - Date.now()
         if (diffMs <= 0) {
-            // systemd owns the actual stop; a passed deadline only stops the
-            // display and asks is-active where things really stand
+            // a passed deadline only stops the display here, not proves the run
+            // over: --on-active schedules on the monotonic clock (paused across
+            // suspend) while this mirror is wall-clock, so a deadline that
+            // "passed" during sleep can really still be ahead. Ask both sides:
+            // is-active reaps a genuinely finished run (the deadline is already
+            // zeroed, so the poll's own no-match branch would skip that check),
+            // and list-timers refills one merely slept through with the true
+            // deadline systemd re-projects onto the realtime clock.
             root._stopDeadlineMs = 0
             root._remainingMinutes = -1
             root._checkActive()
+            root._pollRemaining()
             return
         }
         root._remainingMinutes = Math.ceil(diffMs / 60000)
@@ -389,8 +402,10 @@ Singleton {
     }
 
     // The reconciler: asks systemd for the stop timer's next elapse and refills the
-    // mirror from it. Runs where someone is actually about to read the number --
-    // startup, chain failures, the pill's expanding hover label, the menu's home
+    // mirror from it. Runs wherever a deadline is unknown and someone is actually
+    // about to read the number -- is-active discovering a run with no committed
+    // deadline (a shell restarted mid-run, or the drift poll catching an external
+    // re-arm), chain failures, the pill's expanding hover label, the menu's home
     // page opening -- instead of on a periodic cadence the mirror made redundant.
     //
     // `systemctl show <timer> --property=NextElapseUSecRealtime --value` reads empty
@@ -403,6 +418,10 @@ Singleton {
     function _pollRemaining(): void {
         if (!root.available || !root.manualActive) { root._syncRemaining(); return }
         if (_remainingProc.running) return
+        // a toggle or arm in flight will land its own authoritative deadline at the
+        // chain tail; a poll started now would just race it for a stale answer, and
+        // a dropped poll costs nothing since the chain tail always follows up
+        if (_toggleProc.running || root._armedMinutes >= 0) return
         _remainingProc.exec(["systemctl", "--user", "list-timers", root._stopTimer, "--no-legend"])
     }
 
@@ -426,6 +445,10 @@ Singleton {
         environment: ({ "LC_ALL": "C" })
         stdout: StdioCollector { id: _remainingOut }
         onExited: (code) => {
+            // a result that raced a toggle or an arm is stale by definition -- the
+            // chain tail is the authoritative source for this run now, so touch
+            // nothing and let it land instead
+            if (!root.manualActive || _toggleProc.running || root._armedMinutes >= 0) return
             const wasTimed = root._stopDeadlineMs > 0
             // C locale fixes the timestamp shape systemd prints (e.g. "Thu 2024-05-02
             // 14:00:00 UTC"); pulling the date+time out by pattern rather than trusting

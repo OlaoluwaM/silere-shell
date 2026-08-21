@@ -31,8 +31,9 @@ StatusActionPill {
                 : "Caffeine")
         : Caffeine.inhibitorLabel
 
-    // the countdown rides a 15s/120s poll, so ask for a fresh readout the moment
-    // the hover label expands into view instead of showing up to that much staleness
+    // the countdown rides the local deadline mirror now, not a poll -- this call is
+    // the reconciler's refill point for a run this shell didn't arm itself (a
+    // restart mid-run, an external re-arm), not a staleness patch on a poll cadence
     onExpandedChanged: if (expanded && Caffeine.manualActive) Caffeine.refreshRemaining()
 
     onActivated: Caffeine.toggle()
