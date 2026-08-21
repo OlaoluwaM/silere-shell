@@ -341,6 +341,12 @@ Singleton {
         _remainingProc.exec(["systemctl", "--user", "list-timers", root._stopTimer, "--no-legend"])
     }
 
+    // the pill's hover label rides the slow poll above; this lets the widget ask
+    // for a fresh readout the moment the label is about to show it (same name
+    // style as Notifications.refreshFullscreenState). The in-flight guard in
+    // _pollRemaining already rate-limits repeated hovers.
+    function refreshRemaining(): void { root._pollRemaining() }
+
     BoundedProcess {
         id: _remainingProc
         timeoutMs: 5000

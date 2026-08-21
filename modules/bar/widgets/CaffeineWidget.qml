@@ -31,5 +31,9 @@ StatusActionPill {
                 : "Caffeine")
         : Caffeine.inhibitorLabel
 
+    // the countdown rides a 15s/120s poll, so ask for a fresh readout the moment
+    // the hover label expands into view instead of showing up to that much staleness
+    onExpandedChanged: if (expanded && Caffeine.manualActive) Caffeine.refreshRemaining()
+
     onActivated: Caffeine.toggle()
 }
