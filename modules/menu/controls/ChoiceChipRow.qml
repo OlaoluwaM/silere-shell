@@ -157,15 +157,6 @@ MenuRow {
                         enabled: root.enabled
                         cursorShape: root.enabled
                             ? Qt.PointingHandCursor : Qt.ArrowCursor
-                        // truncated gates the request, not just the tooltip's
-                        // visibility: a chip whose label fits already says
-                        // everything the tooltip would
-                        onHoveredChanged: {
-                            if (hovered && _chipText.truncated)
-                                root._tipEnter(_option.index)
-                            else
-                                root._tipLeave(_option.index)
-                        }
                     }
                     TapHandler {
                         id: _tap
@@ -236,7 +227,6 @@ MenuRow {
                         }
 
                         ShellText {
-                            id: _chipText
                             anchors.verticalCenter: parent.verticalCenter
                             visible: _option.optionLabel.length > 0
                             width: Math.min(implicitWidth, Math.max(10,
@@ -262,83 +252,6 @@ MenuRow {
 
                 }
             }
-        }
-    }
-
-    // floating label for a chip whose text got elided -- RailNavItem's label-pill
-    // idiom, hover-delayed so a sweep across the row to click never flashes it
-    property int _tipIndex: -1
-    property bool _tipVisible: false
-    // count in the binding on purpose: a model change rebuilds the delegates, and
-    // rereading it here re-resolves the item instead of holding a destroyed one
-    readonly property var _tipItem: root._tipIndex >= 0
-            && root._tipIndex < _optionRepeater.count
-        ? _optionRepeater.itemAt(root._tipIndex) : null
-
-    Timer {
-        id: _tipDelay
-        interval: 700
-        onTriggered: root._tipVisible = true
-    }
-
-    function _tipEnter(index: int): void {
-        root._tipIndex = index
-        _tipDelay.restart()
-    }
-
-    function _tipLeave(index: int): void {
-        if (root._tipIndex !== index) return
-        _tipDelay.stop()
-        root._tipVisible = false
-        root._tipIndex = -1
-    }
-
-    Rectangle {
-        id: _tip
-        readonly property bool _show: root._tipVisible && root._tipItem !== null
-
-        // revealed in place over its chip, not floated above the row: every
-        // container this row lands in (SettingsCard, InlinePicker's collapsible)
-        // clips, so anything outside the row's bounds would be cut off. Centred
-        // on the chip and clamped so the pill never leaves the row (the last
-        // chip sits right against the pane edge).
-        x: root._tipItem
-            ? Math.round(Math.max(0, Math.min(root.width - width,
-                _choiceGroup.x + root._tipItem.x
-                    + (root._tipItem.width - width) / 2)))
-            : 0
-        y: Math.round(_choiceGroup.y + (_choiceGroup.height - height) / 2)
-        width: _tipLabel.implicitWidth + 18
-        height: 22
-        radius: Theme.radiusInline
-        // menuHint, not menuCard: this floats over neighboring chips, so under
-        // glass it must be opaque -- same reasoning as the rail's pill
-        color: Theme.menuHint
-        antialiasing: true
-        visible: opacity > 0.01
-        opacity: _show ? 1.0 : 0.0
-        scale:   _show ? 1.0 : 0.94
-        transformOrigin: Item.Center
-        z: 10
-
-        OutlineBorder {
-            radius: _tip.radius
-            outlineColor: Theme.menuCardBorder
-        }
-
-        MotionBehavior on opacity {
-            NumberAnimation { duration: _tip._show ? Motion.fast : Motion.instant; easing.type: Easing.OutCubic }
-        }
-        MotionBehavior on scale {
-            NumberAnimation { duration: _tip._show ? Motion.fast : Motion.instant; easing.type: Easing.OutCubic }
-        }
-
-        ShellText {
-            id: _tipLabel
-            anchors.centerIn: parent
-            text: root._tipItem ? root._tipItem.optionLabel : ""
-            color: Theme.withAlpha(Theme.text, 0.78)
-            font.pixelSize: Settings.fontLabel
         }
     }
 }
