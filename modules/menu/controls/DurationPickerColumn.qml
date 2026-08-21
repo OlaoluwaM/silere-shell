@@ -22,6 +22,7 @@ Column {
     signal select(int minutes)
 
     readonly property var _presets: Durations.sanitizePresets(root.presetsValue)
+    readonly property var _timedPresets: root._presets.filter(p => p > 0)
     // "Custom" is derived, never stored: an armed value outside the packaged list
     // is what custom means, so the chip row can never disagree with the setting
     // about which mode it is in
@@ -31,24 +32,36 @@ Column {
     // lights up as honest feedback)
     property bool _customEngaged: false
 
+    // two rows, split by meaning rather than line length: the finite packaged
+    // presets ride the labelled row, and the two open-ended choices below never
+    // move -- so a longer preset list grows the top row instead of reshuffling
+    // everything, and no cell ever gets squeezed into eliding its label
     ChoiceChipRow {
         width: parent.width
+        visible: root._timedPresets.length > 0
         glyph: "󰥔"
         label: "Duration"
         accentColor: root.accentColor
-        currentValue: root._customActive ? -1 : root.currentMinutes
-        model: {
-            const out = []
-            for (let i = 0; i < root._presets.length; i++) {
-                const p = root._presets[i]
-                if (p > 0) out.push({ value: p, label: Durations.label(p) })
-            }
-            // custom sits ahead of "until turned off" so the two open-ended
-            // choices bracket the fixed presets
-            out.push({ value: -1, label: "Custom" })
-            out.push({ value: 0, label: Durations.label(0) })
-            return out
+        // -2 is "no chip here": while Custom or Unlimited is armed, this row
+        // stays entirely unlit and the mode row below carries the selection
+        currentValue: root._customActive || root.currentMinutes === 0
+            ? -2 : root.currentMinutes
+        model: root._timedPresets.map(p => ({ value: p, label: Durations.label(p) }))
+        onChosen: (v) => {
+            root._customEngaged = false
+            root.select(v)
         }
+    }
+
+    ChoiceChipRow {
+        width: parent.width
+        accentColor: root.accentColor
+        currentValue: root._customActive ? -1
+            : root.currentMinutes === 0 ? 0 : -2
+        model: [
+            { value: -1, label: "Custom" },
+            { value: 0, label: Durations.label(0) }
+        ]
         onChosen: (v) => {
             if (v === -1) {
                 root._customEngaged = true
