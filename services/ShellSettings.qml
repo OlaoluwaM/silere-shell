@@ -145,7 +145,7 @@ Singleton {
     property string barDisabledMonitors: ""
     property string overlayMonitor:      ""
 
-    readonly property var barWidgetKeys: ["workspaces", "tray", "traypopup", "updates", "network", "bluetooth", "caffeine", "volume", "brightness", "battery", "vitals", "recording", "privacy", "media", "clock"]
+    readonly property var barWidgetKeys: ["workspaces", "tray", "traypopup", "updates", "network", "bluetooth", "caffeine", "dnd", "volume", "brightness", "battery", "vitals", "recording", "privacy", "media", "clock"]
 
     // packaging-only, like recordingStateFile/keybindsFile above: no settings page
     // writes this, the Nix side is the only thing that ever flips it to true
@@ -263,6 +263,10 @@ Singleton {
         // widgets divide on group changes, and this pill lives in the
         // connectivity cluster by design
         caffeine:    { glyph: "󰅶", label: "Caffeine",        group: "network", setting: "barShowCaffeine" },
+        // no setting: it exists only while DND silences notifications, same rationale
+        // as recording below. Group "network" extends caffeine's visual statement:
+        // both pills are self-set session modes, so they cluster as one "modes" run.
+        dnd:         { glyph: "󰂛", label: "Do Not Disturb",  group: "network", setting: "" },
         volume:      { glyph: "󰕾", label: "Volume",          group: "levels", setting: "barShowVolume" },
         brightness:  { glyph: "󰃟", label: "Brightness",      group: "levels", setting: "barShowBrightness" },
         battery:     { glyph: "󰂄", label: "Battery",         group: "power",  setting: "barShowBattery" },
