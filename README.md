@@ -1,10 +1,12 @@
 # About this fork
 
 This file documents the fork itself — what it is for and the policy it
-runs under. The shell's own documentation is in
-[README.upstream.md](README.upstream.md), which upstream owns; the working
-rules for agents are in [AGENTS.md](AGENTS.md); fork policy lives here so
-the three never fight in a merge.
+runs under. The shell's own documentation (install, configuration, IPC,
+troubleshooting) is
+[upstream's README](https://github.com/s3rven/silere-shell#readme); we
+keep no copy here, because a copy only drifts. The working rules for
+agents are in [AGENTS.md](AGENTS.md); fork policy lives here so the files
+never fight in a merge.
 
 ## What this is
 
