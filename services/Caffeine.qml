@@ -71,6 +71,9 @@ Singleton {
 
     // -1 is "nothing queued": a real preset is always >= 0
     property int _pendingPresetMinutes: -1
+    // the duration the in-flight chain is arming, committed into _stopDeadlineMs
+    // only when that chain lands; -1 when no arm is in flight
+    property int _armedMinutes: -1
 
     // a plain QML Timer would die with the shell (crash, logout, `systemctl restart`
     // on the shell unit) and leave caffeine pinned on forever; a transient systemd-run
@@ -82,6 +85,10 @@ Singleton {
     // systemd-run also GC the transient unit itself once it fires, instead of it
     // sitting around as a dead unit forever.
     function _startTimed(minutes: int): void {
+        // remembered, not yet believed: the deadline mirror commits only when the
+        // chain below lands, so a failed arm never shows a countdown for a stop
+        // that was never scheduled
+        root._armedMinutes = minutes
         const commands = [
             { args: ["systemctl", "--user", "stop", root._stopTimer], ignoreFailure: true }
         ]
@@ -97,6 +104,7 @@ Singleton {
     }
 
     function _stopTimed(): void {
+        root._armedMinutes = -1
         root._runChain([
             { args: ["systemctl", "--user", "stop", root.unit], ignoreFailure: false },
             { args: ["systemctl", "--user", "stop", root._stopTimer], ignoreFailure: true }
@@ -169,6 +177,9 @@ Singleton {
                 // a reschedule queued against the chain that just failed would otherwise
                 // fire against unknown state once the chain frees up
                 root._pendingPresetMinutes = -1
+                // ditto the uncommitted deadline: whatever this chain was arming is
+                // now unknown, so ask systemd instead of believing it
+                root._armedMinutes = -1
                 root._checkActive()
                 root._checkInhibitors()
                 root._pollRemaining()
@@ -195,9 +206,15 @@ Singleton {
             // reflects our own flip in the shared inhibitor list immediately, rather
             // than waiting out the rest of the poll interval below
             root._checkInhibitors()
-            // ditto for the readout: without this a fresh timed run (or a preset swap
-            // mid-run) shows the old/no countdown for up to 15s after the chain lands
-            root._pollRemaining()
+            // the shell armed this stop itself, so the deadline is knowledge rather
+            // than something to ask systemd for: commit the local mirror and let its
+            // tick carry the countdown from here
+            if (root._armedMinutes >= 0) {
+                root._stopDeadlineMs = root._armedMinutes > 0
+                    ? Date.now() + root._armedMinutes * 60000 : 0
+                root._armedMinutes = -1
+            }
+            root._syncRemaining()
         }
     }
 
@@ -279,12 +296,12 @@ Singleton {
         interval: root._watcherHealthy ? 120000 : 15000
         repeat: true
         running: root.available && !Idle.isIdle
-        onTriggered: { root._checkInhibitors(); root._pollRemaining() }
+        onTriggered: root._checkInhibitors()
     }
     Connections {
         target: Idle
         function onIsIdleChanged() {
-            if (!Idle.isIdle && root.available) { root._checkInhibitors(); root._pollRemaining() }
+            if (!Idle.isIdle && root.available) root._checkInhibitors()
         }
     }
 
@@ -317,16 +334,54 @@ Singleton {
         onRunningChanged: if (running) root._checkInhibitors()
     }
 
+    // the countdown's source of truth for display: an epoch-ms mirror of the stop
+    // timer's deadline, committed locally when this shell arms the timer itself and
+    // refilled from systemd by the reconciler below for runs it did not start (a
+    // shell restarted mid-run) or no longer owns (a manual systemctl re-arm). Not
+    // persisted on purpose -- after a restart the reconciler is the honest source.
+    property double _stopDeadlineMs: 0
     property int _remainingMinutes: -1
     // -1 covers both "not timed" and "unknown": the row falls back to a plain "On",
     // which is also the right thing to show for a run that has no stop scheduled
     readonly property int remainingMinutes: root._remainingMinutes
 
-    // rides the inhibitor poll's cadence instead of a timer of its own — this only
-    // needs to be as fresh as the row that reads it, and that row is already stale for
-    // up to 15s (or 120s while the dbus-monitor watcher is up) on the inhibitor side.
-    // The watcher's own event-driven reconciliation doesn't re-poll this: an inhibitor
-    // appearing/disappearing has no bearing on the stop timer's own schedule.
+    function _syncRemaining(): void {
+        if (!root.manualActive || !(root._stopDeadlineMs > 0)) {
+            root._remainingMinutes = -1
+            return
+        }
+        const diffMs = root._stopDeadlineMs - Date.now()
+        if (diffMs <= 0) {
+            // systemd owns the actual stop; a passed deadline only stops the
+            // display and asks is-active where things really stand
+            root._stopDeadlineMs = 0
+            root._remainingMinutes = -1
+            root._checkActive()
+            return
+        }
+        root._remainingMinutes = Math.ceil(diffMs / 60000)
+    }
+
+    onManualActiveChanged: {
+        if (!root.manualActive) root._stopDeadlineMs = 0
+        root._syncRemaining()
+    }
+
+    // display cadence, idle-gated unlike DND's tick: there the deadline enforces the
+    // state itself, here systemd fires the actual stop, so this is presentation only
+    // and can sleep with the session -- triggeredOnStart snaps it current on wake
+    Timer {
+        interval: 30000
+        repeat: true
+        running: root.manualActive && root._stopDeadlineMs > 0 && !Idle.isIdle
+        triggeredOnStart: true
+        onTriggered: root._syncRemaining()
+    }
+
+    // The reconciler: asks systemd for the stop timer's next elapse and refills the
+    // mirror from it. Runs where someone is actually about to read the number --
+    // startup, chain failures, the pill's expanding hover label, the menu's home
+    // page opening -- instead of on a periodic cadence the mirror made redundant.
     //
     // `systemctl show <timer> --property=NextElapseUSecRealtime --value` reads empty
     // for this timer: --on-active= schedules on the *monotonic* clock, and systemd
@@ -336,16 +391,24 @@ Singleton {
     // portable way to relate them to wall time from here). list-timers' NEXT column
     // is the same absolute timestamp shape, so it's what gets parsed below instead.
     function _pollRemaining(): void {
-        if (!root.available || !root.manualActive) { root._remainingMinutes = -1; return }
+        if (!root.available || !root.manualActive) { root._syncRemaining(); return }
         if (_remainingProc.running) return
         _remainingProc.exec(["systemctl", "--user", "list-timers", root._stopTimer, "--no-legend"])
     }
 
-    // the pill's hover label rides the slow poll above; this lets the widget ask
-    // for a fresh readout the moment the label is about to show it (same name
-    // style as Notifications.refreshFullscreenState). The in-flight guard in
-    // _pollRemaining already rate-limits repeated hovers.
+    // the widget-facing nudge (same name style as Notifications.refreshFullscreenState):
+    // the pill calls this as its hover label expands, the row's page-open hook below
+    // does the same. The in-flight guard in _pollRemaining rate-limits repeats.
     function refreshRemaining(): void { root._pollRemaining() }
+
+    // the menu row reads the countdown whenever the home page is up, so entering it
+    // is that row's "hover"
+    Connections {
+        target: MenuState
+        function onHomeActiveChanged() {
+            if (MenuState.homeActive && root.manualActive) root._pollRemaining()
+        }
+    }
 
     BoundedProcess {
         id: _remainingProc
@@ -353,7 +416,7 @@ Singleton {
         environment: ({ "LC_ALL": "C" })
         stdout: StdioCollector { id: _remainingOut }
         onExited: (code) => {
-            const wasTimed = root._remainingMinutes >= 0
+            const wasTimed = root._stopDeadlineMs > 0
             // C locale fixes the timestamp shape systemd prints (e.g. "Thu 2024-05-02
             // 14:00:00 UTC"); pulling the date+time out by pattern rather than trusting
             // token positions survives the weekday/timezone fields shifting around it.
@@ -365,7 +428,8 @@ Singleton {
             // no match covers both "n/a" (no timer scheduled: an untimed run) and a
             // process failure; either way there is nothing to count down
             if (!m) {
-                root._remainingMinutes = -1
+                root._stopDeadlineMs = 0
+                root._syncRemaining()
                 if (wasTimed) root._checkActive()
                 return
             }
@@ -374,11 +438,13 @@ Singleton {
             // <=0 means the timer already fired but the unit hasn't been reaped from
             // is-active yet — treat it as gone now instead of waiting for the next poll
             if (!isFinite(target.getTime()) || diffMs <= 0) {
-                root._remainingMinutes = -1
+                root._stopDeadlineMs = 0
+                root._syncRemaining()
                 if (wasTimed) root._checkActive()
                 return
             }
-            root._remainingMinutes = Math.ceil(diffMs / 60000)
+            root._stopDeadlineMs = target.getTime()
+            root._syncRemaining()
         }
     }
 

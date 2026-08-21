@@ -251,6 +251,21 @@ ShellRoot {
             "a manual off clears the deadline with the switch")
         ShellSettings.dndPreset = savedDndPreset
 
+        // caffeine's countdown mirror is display-only (systemd owns the actual stop),
+        // so it can be driven directly: derive, expire, clear
+        Caffeine.manualActive = true
+        Caffeine._stopDeadlineMs = Date.now() + 90 * 60000
+        Caffeine._syncRemaining()
+        root._check(Caffeine.remainingMinutes === 90,
+            "the caffeine deadline mirror derives the countdown locally")
+        Caffeine._stopDeadlineMs = Date.now() - 1000
+        Caffeine._syncRemaining()
+        root._check(Caffeine.remainingMinutes === -1 && Caffeine._stopDeadlineMs === 0,
+            "a passed caffeine deadline stops the display and clears the mirror")
+        Caffeine.manualActive = false
+        root._check(Caffeine.remainingMinutes === -1,
+            "caffeine going off clears the countdown with it")
+
         // both rows' pickers instantiate this only on expansion, which no other
         // probe reaches, so its construction and derived state are checked here
         const picker = durationPickerFactory.createObject(root, {
