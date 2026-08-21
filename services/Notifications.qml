@@ -11,7 +11,6 @@ Singleton {
     property var list: []
     property alias dnd:         _persist.dnd
     property alias dndUntilMs:  _persist.dndUntilMs
-    property alias missedCount: _persist.missedCount
     // These maps are restored from persisted JSON. Keep their prototype empty
     // so a malformed key cannot change object behaviour between reloads.
     property var _seen:  Object.create(null)
@@ -199,7 +198,6 @@ Singleton {
         // dies with the shell, so a deadline that outlived it could only clear a
         // switch that no longer exists -- the two live and die together instead
         property double dndUntilMs: 0
-        property int  missedCount: 0
         // PersistentProperties survives an engine replacement; keep JS arrays serialized so values never cross engines
         property string historyJson: "[]"
         property string seenJson:  "{}"
@@ -273,7 +271,6 @@ Singleton {
     // timed DND runs, which cover the "silence for a while" case without a second
     // silencing mechanism to reason about
     readonly property bool silencingActive: dnd || fullscreenSilenced
-    onSilencingActiveChanged: { if (!silencingActive && missedCount !== 0) missedCount = 0 }
     function markSeen(id: int): void {
         root._ensurePersistentState()
         const key = String(id)
@@ -491,14 +488,12 @@ Singleton {
         onNotification: (n) => {
             root._ensurePersistentState()
             if (root.dnd && n.urgency !== NotificationUrgency.Critical) {
-                if (root._archiveNotification(n, n.id, Date.now()) || n.transient)
-                    root.missedCount++
+                root._archiveNotification(n, n.id, Date.now())
                 n.tracked = false
                 return
             }
             if (root.fullscreenSilenced && n.urgency !== NotificationUrgency.Critical) {
-                if (root._archiveNotification(n, n.id, Date.now()) || n.transient)
-                    root.missedCount++
+                root._archiveNotification(n, n.id, Date.now())
                 n.tracked = false
                 return
             }
