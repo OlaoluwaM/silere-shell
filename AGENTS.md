@@ -1,62 +1,61 @@
 # Agent instructions
 
-Working rules for agents in this repository. What the fork *is* — its
-branch model, merge policy, and the nixos-config re-lock ritual — lives in
-[README.md](README.md). The mechanics of changing the shell — new settings,
-new bar widgets, renaming — are upstream's
-[docs/forking.md](docs/forking.md). Each fact lives in exactly one of the
-three files; follow the pointers rather than restating.
+Working rules for agents in this repository. What the fork *is* (branches,
+merge policy, the nixos-config re-lock ritual) is in [README.md](README.md).
+How to change the shell (new settings, new bar widgets, renames) is
+upstream's [docs/forking.md](docs/forking.md). Each fact lives in exactly
+one of the three files, so follow the pointers instead of restating.
 
 ## Boundaries
 
 - Agents never run `git push`, `git tag`, `nixos-rebuild`, or
   `home-manager switch`. The maintainer runs those, always.
-- Never restart the running shell instance. Verify changes in a throwaway
-  dev instance instead — `nix develop . --command qs -p shell.qml` —
-  Quickshell hot-reloads the checkout on file save.
-- An upstream merge starts only on the maintainer's explicit go, never on
-  inference from context.
+- Never restart the running shell. Test in a throwaway dev instance
+  instead: `nix develop . --command qs -p shell.qml`. Quickshell
+  hot-reloads the checkout when a file saves.
+- An upstream merge starts only when the maintainer explicitly says go.
+  Never start one because the context seems to point that way.
 
 ## Git discipline
 
-- `custom-branch` is never rewritten: no amend, no rebase, no force-push,
-  and nothing at or below origin is ever rewritten.
+- `custom-branch` history is never rewritten: no amend, no rebase, no
+  force-push. Nothing at or below origin gets rewritten either.
 - One commit per task item. Subjects are short, lowercase, and imperative,
-  matching `git log`. Never add Co-Authored-By or any AI-attribution
-  trailer.
-- Code comments are maintainer why-comments in the voice of the file they
-  sit in, never narration of the change.
+  like the ones already in `git log`. No Co-Authored-By and no
+  AI-attribution trailer of any kind.
+- Code comments explain why, in the voice of the file they sit in. They
+  never narrate what the change did.
 
 ## Gates before every commit
 
 - `bash scripts/ci-lint.sh` passes.
 - `nix develop . --command bash scripts/check.sh` reports zero failures. A
-  small, stable set of environmental warnings is the baseline — investigate
-  a change in the warning count, not its existence. One known member:
-  JetBrainsMono Nerd Font is absent on the deploy machine, and Qt's
-  per-glyph fallback to Symbols Nerd Font is identical for Text and
-  TextMetrics, so ink-centering math holds.
+  small, stable set of environmental warnings is normal; investigate when
+  the count changes, not because warnings exist. One known member: the
+  deploy machine has no JetBrainsMono Nerd Font, and Qt's per-glyph
+  fallback to Symbols Nerd Font is identical for Text and TextMetrics, so
+  the ink-centering math still holds.
 - The settings contract holds:
   `grep -c 'property' config/GeneratedDefaults.qml` equals
   `grep -c 'GeneratedDefaults\.' services/ShellSettings.qml`, and both
   match what nixos-config's silere module renders. Adding or removing a
-  settings key couples a commit to nixos-config; README.md describes the
+  settings key ties the commit to nixos-config; README.md explains the
   ordering.
-- `config/GeneratedDefaults.qml` stays upstream-identical in the checked-in
-  tree, so non-Nix users see stock defaults; the deploying configuration
-  substitutes its own render at build time. Never edit it to carry local
-  preferences.
+- The checked-in `config/GeneratedDefaults.qml` stays identical to
+  upstream's defaults, so someone running the fork without Nix sees a
+  stock shell. The deploying configuration swaps in its own render at
+  build time. Never edit it to carry local preferences.
 
 ## QML work
 
-- Load the `qt-development-skills:qt-qml` skill before editing QML; run
-  `qt-development-skills:qt-qml-review` to completion after substantial QML
-  changes.
-- Colors come from `Theme` tokens only — no hex in widgets. Motion goes
+- Load the `qt-development-skills:qt-qml` skill before editing QML. Run
+  `qt-development-skills:qt-qml-review` to completion after substantial
+  QML changes.
+- Colors come from `Theme` tokens only; no hex in widgets. Motion goes
   through `Motion`/`MotionBehavior`, never a bare `Behavior`. Row heights
   come from `Metrics.rowHeightFor()`. The lint scripts enforce all three.
-- The visual language is rounded rectangles, not pills, and text-driven
-  minimalism. Extend the existing design system; do not add one-off styles.
-- Every new QML file needs a `qmldir` entry in its folder.
-- Keep the `silere-*` layer-shell namespaces: compositor blur and animation
-  rules match those strings.
+- The look is rounded rectangles, not pills, and text-driven minimalism.
+  Extend the design system that's there; don't invent one-off styles.
+- Every new QML file needs a line in its folder's `qmldir`.
+- Keep the `silere-*` layer-shell namespaces. The compositor's blur and
+  animation rules match those exact strings.
