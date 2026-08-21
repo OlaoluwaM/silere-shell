@@ -432,6 +432,12 @@ Singleton {
     // the widget-facing nudge (same name style as Notifications.refreshFullscreenState):
     // the pill calls this as its hover label expands, the row's page-open hook below
     // does the same. The in-flight guard in _pollRemaining rate-limits repeats.
+    //
+    // Deliberately NOT skipped while the mirror already holds a deadline: the stop
+    // timer is an ordinary transient user unit anyone can replace or cancel with a
+    // raw systemctl/systemd-run behind the shell's back, and systemd pushes no
+    // signal when that happens -- asking on every look is what keeps the hover
+    // label truthful against it, at the cost of one local list-timers per glance.
     function refreshRemaining(): void { root._pollRemaining() }
 
     // the menu row reads the countdown whenever the home page is up, so entering it
