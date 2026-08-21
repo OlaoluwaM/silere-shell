@@ -223,7 +223,7 @@ ShellRoot {
             "a packaged preset list passes through in order")
         root._check(JSON.stringify(Durations.sanitizePresets("30, junk, 30,")) === "[30,0]",
             "preset junk and duplicates drop, and 0 is appended when omitted")
-        root._check(Durations.label(0) === "Until turned off"
+        root._check(Durations.label(0) === "Unlimited"
                 && Durations.label(45) === "45m"
                 && Durations.label(120) === "2h"
                 && Durations.label(190) === "3h 10m",

@@ -116,7 +116,16 @@ MenuRow {
         y: root._stacked
             ? root.height - 6 - height
             : Math.round((root.height - height) / 2)
-        width: Math.min(root._preferredControlW, Math.max(1, root.width - 28))
+        // stacked chips own their whole line, so the inline 236 cap (which exists
+        // to leave room for the label beside them) stops applying: crowded rows
+        // spread to their natural width before the cells start squeezing labels.
+        // _preferredControlW keeps the cap for the stacking decision itself, or
+        // this width would feed back into _stacked and loop.
+        width: root._stacked
+            ? Math.min(root._chipW * root._optionCount
+                + root._chipGap * (root._optionCount - 1),
+                Math.max(1, root.width - 28))
+            : Math.min(root._preferredControlW, Math.max(1, root.width - 28))
         height: root._controlH
 
         readonly property int _gapTotal: root._chipGap * (root._optionCount - 1)

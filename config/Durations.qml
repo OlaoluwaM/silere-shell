@@ -26,7 +26,9 @@ Singleton {
     }
 
     function label(minutes: int): string {
-        if (minutes <= 0) return "Until turned off"
+        // "Unlimited", not "Until turned off": the chips split a finite line into
+        // equal cells, and the long form elided into "Unt..." on a narrow pane
+        if (minutes <= 0) return "Unlimited"
         if (minutes < 60) return minutes + "m"
         if (minutes % 60 === 0) return (minutes / 60) + "h"
         return Math.floor(minutes / 60) + "h " + (minutes % 60) + "m"
