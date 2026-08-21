@@ -7,6 +7,8 @@ import Quickshell
 // sanitizer for the packaged preset lists and one label shape, so the two duration
 // UIs can never drift apart on formatting or on what counts as a valid preset.
 Singleton {
+    id: root
+
     // comma-separated minutes -> deduped int list; 0 ("until turned off") is always
     // appended so it stays selectable even if a packaged list omits it
     function sanitizePresets(raw: string): var {

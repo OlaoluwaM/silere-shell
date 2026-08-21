@@ -15,14 +15,12 @@ MenuRow {
     property bool   expandable:   false
     property bool   expanded:     false
     property bool   passive:      false
-    property int    badgeCount:   0
 
     rowHovered:     _hover.hovered
     rowInteractive: root._canTap
 
     signal activated()
     signal expandToggled()
-    signal badgeActivated()
 
     readonly property bool _canTap: !root.passive && root.enabled && root.available
     function _activate(): void {
@@ -30,10 +28,6 @@ MenuRow {
         // animate the knob only on a real user flip, not section-driven re-checks
         if (showSwitch) _switch.armFlipAnimation()
         root.activated()
-    }
-
-    function _activateBadge(): void {
-        if (root.badgeCount > 0) root.badgeActivated()
     }
 
     function _toggleExpanded(): void {
@@ -47,13 +41,6 @@ MenuRow {
         return pos.x >= x0 && pos.x <= x1
     }
 
-    function _insideBadge(pos): bool {
-        if (root.badgeCount <= 0 || !_badge.visible) return false
-        const mapped = _badge.mapFromItem(root, pos.x, pos.y)
-        return mapped.x >= -4 && mapped.x <= _badge.width + 4
-            && mapped.y >= -4 && mapped.y <= _badge.height + 4
-    }
-
     height:         Metrics.rowHeightFor(48)
 
     opacity: root.passive ? 1.0 : (_canTap ? 1.0 : 0.45)
@@ -64,7 +51,7 @@ MenuRow {
         id: _tap
         enabled: root._canTap
         onTapped: (eventPoint) => {
-            if (!root._insideChevron(eventPoint.position) && !root._insideBadge(eventPoint.position)) {
+            if (!root._insideChevron(eventPoint.position)) {
                 root._activate()
             }
         }
@@ -85,57 +72,6 @@ MenuRow {
                                         : Theme.withAlpha(Theme.subtext, 0.85)
             font.pixelSize: Settings.iconSize + 2
             ColorFade on color {}
-        }
-
-        Rectangle {
-            id: _badge
-            opacity: root.badgeCount > 0 ? 1.0 : 0.0
-            scale:   root.badgeCount > 0 ? 1.0 : 0.5
-            visible: opacity > 0.01
-            transformOrigin: Item.Center
-            MotionBehavior on opacity {NumberAnimation { duration: Motion.fast } }
-            MotionBehavior on scale   {NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic } }
-            anchors.horizontalCenter: parent.right
-            anchors.verticalCenter:   parent.top
-            anchors.horizontalCenterOffset: -2
-            anchors.verticalCenterOffset:    1
-            width:  Math.max(15, _badgeTxt.implicitWidth + 7)
-            height: 15
-            radius: 7.5
-            antialiasing: true
-            z: 2
-
-            color: (_badgeMouse.containsMouse)
-                ? Theme.mix(root.accentColor, Theme.text, 0.10)
-                : root.accentColor
-            ColorFade on color {}
-
-            OutlineBorder {
-                radius: _badge.radius
-                outlineWidth: 1
-                outlineColor: Theme.mix(Theme.menuCard, root.accentColor, _badgeMouse.containsMouse ? 0.42 : 0.55)
-                ColorFade on outlineColor {}
-            }
-
-            ShellText {
-                id: _badgeTxt
-                anchors.centerIn: parent
-                text:  root.badgeCount > 99 ? "99+" : root.badgeCount
-                color: Theme.background
-                font.pixelSize: Settings.fontTiny
-                font.weight: Font.Bold
-            }
-
-            MouseArea {
-                id: _badgeMouse
-                anchors.fill: parent
-                anchors.margins: -4
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: {
-                    root._activateBadge()
-                }
-            }
         }
     }
 

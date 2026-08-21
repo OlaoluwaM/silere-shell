@@ -242,18 +242,19 @@ Singleton {
 
     // -1 covers both "not timed" and "off": consumers fall back to their plain
     // on/off copy, same contract as Caffeine.remainingMinutes
-    property int dndRemainingMinutes: -1
+    property int _dndRemainingMinutes: -1
+    readonly property int dndRemainingMinutes: root._dndRemainingMinutes
 
     function _syncDndRemaining(): void {
-        if (!dnd || !(root.dndUntilMs > 0)) { root.dndRemainingMinutes = -1; return }
+        if (!dnd || !(root.dndUntilMs > 0)) { root._dndRemainingMinutes = -1; return }
         const diffMs = root.dndUntilMs - Date.now()
         if (diffMs <= 0) {
             root.dndUntilMs = 0
             root.dnd = false
-            root.dndRemainingMinutes = -1
+            root._dndRemainingMinutes = -1
             return
         }
-        root.dndRemainingMinutes = Math.ceil(diffMs / 60000)
+        root._dndRemainingMinutes = Math.ceil(diffMs / 60000)
     }
 
     // not gated on idle like the widget label ticks: expiry is state correctness, not

@@ -29,7 +29,6 @@ Singleton {
     property string cachedMinute:   ""
     property string cachedAmPm:     ""
     property string cachedSeconds:  ""
-    property int hour24: 0
 
     Component.onCompleted: _update()
 
@@ -79,7 +78,6 @@ Singleton {
                 cachedWeek      = String(isoWeek(current))
             }
             cachedMinute = Qt.formatDateTime(current, "mm")
-            hour24 = current.getHours()
             if (ShellSettings.clock12h) {
                 cachedHour = Qt.formatDateTime(current, "h")
                 cachedAmPm = Qt.formatDateTime(current, "AP")

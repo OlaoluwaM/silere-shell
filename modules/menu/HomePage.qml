@@ -364,7 +364,7 @@ PageShell {
                 title: "Caffeine"
                 status: Caffeine.lastError.length > 0 ? Caffeine.lastError
                       : Caffeine.manualActive ? (Caffeine.remainingMinutes >= 0
-                            ? Caffeine.remainingMinutes + "m left" : "On")
+                            ? Durations.label(Caffeine.remainingMinutes) + " left" : "On")
                       : Caffeine.inhibited ? Caffeine.inhibitorLabel
                       : "Off"
                 accentColor: Caffeine.lastError.length > 0 ? Theme.error : Theme.accent
