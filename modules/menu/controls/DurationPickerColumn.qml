@@ -19,8 +19,6 @@ Column {
     property string customKey: ""
     property color accentColor: Theme.accent
 
-    signal select(int minutes)
-
     readonly property var _presets: Durations.sanitizePresets(root.presetsValue)
     readonly property var _timedPresets: root._presets.filter(p => p > 0)
     // "Custom" is derived, never stored: an armed value outside the packaged list
@@ -29,8 +27,13 @@ Column {
     readonly property bool _customActive: root._presets.indexOf(root.currentMinutes) < 0
     // ephemeral, not persisted: keeps the slider from collapsing out from under a
     // drag that happens to cross a listed preset value (the matching chip still
-    // lights up as honest feedback)
+    // lights up as honest feedback). Also armed by the slider's own onChanged,
+    // since the InlinePicker Loader can recreate this column with a custom value
+    // already active -- interacting with the slider pins it open no matter which
+    // path made it visible
     property bool _customEngaged: false
+
+    signal select(int minutes)
 
     // two rows, split by meaning rather than line length: the finite packaged
     // presets ride the labelled row, and the two open-ended choices below never
@@ -79,9 +82,17 @@ Column {
         label: "Custom duration"
         key: root.customKey
         step: 5
-        displayValue: Durations.label(Math.round(value))
+        // commits once on release rather than per crossed step -- caffeine's
+        // commit runs a 3-process systemd chain, and a drag shouldn't spawn it
+        // a dozen times. displayValue tracks shownValue (the live, uncommitted
+        // position) instead of value so the label still follows the finger
+        commitOnRelease: true
+        displayValue: Durations.label(Math.round(shownValue))
         // mid-run drags re-arm from now, the same replace-the-stop semantics
         // the chips have
-        onChanged: (v) => root.select(Math.round(v))
+        onChanged: (v) => {
+            root._customEngaged = true
+            root.select(Math.round(v))
+        }
     }
 }

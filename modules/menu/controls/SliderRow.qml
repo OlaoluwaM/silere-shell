@@ -20,6 +20,14 @@ MenuRow {
     property real   max:          root._schema ? Number(root._schema.max) : 1.0
     property real   step:         root._schema && root._schema.t === "int" ? 1 : 0.05
     property color  glyphColor:   Theme.withAlpha(Theme.subtext, 0.85)
+    // batches drag commits into one on release, e.g. so a caller wired to a
+    // systemd chain isn't re-run on every crossed step -- the track's shownValue
+    // keeps tracking the finger live regardless
+    property bool   commitOnRelease: false
+    // the live, uncommitted position while dragging with commitOnRelease -- use
+    // this instead of value for anything that must track the finger, since value
+    // only moves once the drag commits
+    readonly property real shownValue: _track.shownValue
 
     rowHovered:     _rowHover.hovered
     rowInteractive: root.enabled
@@ -114,6 +122,7 @@ MenuRow {
         max:   root.max
         step:  root.step
         wheelKey: "slider:" + root.label
+        commitOnRelease: root.commitOnRelease
         onChanged: value => root.changed(value)
     }
 }
