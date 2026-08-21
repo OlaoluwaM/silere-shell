@@ -277,7 +277,7 @@ MenuRow {
 
     Timer {
         id: _tipDelay
-        interval: 350
+        interval: 700
         onTriggered: root._tipVisible = true
     }
 
