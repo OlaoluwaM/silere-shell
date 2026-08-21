@@ -53,8 +53,18 @@ Singleton {
         // optimistic: the row/pill flips the moment it's tapped, and _checkActive
         // (run from the chain's tail below) reconciles it with the unit if the call failed
         root.manualActive = goingOn
-        if (goingOn) root._startTimed(ShellSettings.caffeinePreset)
-        else root._stopTimed()
+        if (goingOn) {
+            root._startTimed(ShellSettings.caffeinePreset)
+        } else {
+            // the inhibitor ghost goes optimistically too: our own unit sits in the
+            // shared list until the stop chain lands and the recheck returns, and
+            // for those frames the row's status fell through to the "foreign
+            // inhibitor" branch and flashed our own WHO between the countdown and
+            // "Off". A real foreign inhibitor comes back with the chain-tail recheck.
+            root.inhibited = false
+            root.inhibitorLabel = ""
+            root._stopTimed()
+        }
     }
 
     // called when the picker changes the duration while caffeine is already on: the
