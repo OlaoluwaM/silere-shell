@@ -1,6 +1,7 @@
 # Silere-shell Fork
 
 [demo](./assets/demo.mp4)
+[demo2](./assets/demo2.mp4)
 
 ## What this is
 
