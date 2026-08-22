@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 
 // The mechanism for talking to Hyprland, with no opinion about compositor state.
 // Keeping it separate from HyprActions is what stops Compositor and HyprActions
@@ -68,26 +69,22 @@ Singleton {
             ? dispatcher + " " + String(args) : dispatcher
     }
 
+    // Hyprland.dispatch(request) writes straight to the compositor's IPC socket
+    // in-process, so there's no argv to assemble — _text() already builds the exact
+    // same "dispatcher [args]" (or quoted lua-framework call) string a forked
+    // `hyprctl dispatch <that text>` used to receive as its one request argument.
     function dispatch(dispatcher, args): void {
         if (!SystemTools.ready || !SystemTools.hasHyprctl) return
-        if (root.useLua && (dispatcher === "focusmonitor" || dispatcher === "workspace"
-            || dispatcher === "movetoworkspacesilent" || dispatcher === "focuswindow")) {
-            const call = root._luaCall(dispatcher, args)
-            if (call.length === 0) return
-            Quickshell.execDetached(["hyprctl", "dispatch", call])
-            return
-        }
-        const cmd = ["hyprctl", "dispatch", dispatcher]
-        if (args !== undefined && args !== null && String(args).length > 0)
-            cmd.push(String(args))
-        Quickshell.execDetached(cmd)
+        Hyprland.dispatch(root._text(dispatcher, args))
     }
 
-    // chain in one sh: detached hyprctl processes land out of order, and --batch mangles the quoted lua-framework calls
+    // two sequential in-process dispatches instead of a forked sh + two hyprctls:
+    // the socket serializes writes, so back-to-back calls land in the same order the
+    // sh chain existed to guarantee, without needing a shell to sequence detached
+    // processes or --batch, which mangled the quoted lua-framework calls
     function dispatchPair(d1, a1, d2, a2): void {
         if (!SystemTools.ready || !SystemTools.hasHyprctl) return
-        Quickshell.execDetached(["sh", "-c",
-            "hyprctl dispatch \"$1\" >/dev/null && hyprctl dispatch \"$2\"",
-            "sh", root._text(d1, a1), root._text(d2, a2)])
+        Hyprland.dispatch(root._text(d1, a1))
+        Hyprland.dispatch(root._text(d2, a2))
     }
 }

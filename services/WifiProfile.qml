@@ -89,8 +89,14 @@ Singleton {
     // these are cheap, frequent reads, not a one-shot action worth requeuing
     function _refreshNow(): void {
         if (!root._wanted) return
+        // --rescan no: this is read while the disclosure is open to show the AP the
+        // radio already landed on, not to go looking for new ones. Without it "dev
+        // wifi list" defaults to --rescan auto, which triggers a real radio rescan on
+        // this cadence and degrades the very connection being inspected. Network's
+        // own _linkSignature already flips on a reconnect, so frequency/security here
+        // can only go stale between reconnects — cached data is fine for that window.
         if (!_freqProc.running)
-            _freqProc.exec(["nmcli", "-t", "-f", "ACTIVE,FREQ,SECURITY", "dev", "wifi", "list"])
+            _freqProc.exec(["nmcli", "-t", "-f", "ACTIVE,FREQ,SECURITY", "dev", "wifi", "list", "--rescan", "no"])
         if (!_deviceProc.running && Network.deviceName.length > 0)
             root._queryDevice()
     }
@@ -105,8 +111,11 @@ Singleton {
 
     on_WantedChanged: if (root._wanted) root._refreshNow()
 
+    // stretched from 6s: with --rescan no above this is just re-reading nmcli's
+    // cached view, but there's no reason to hammer it faster than a human can
+    // actually watch the details panel
     Timer {
-        interval: 6000
+        interval: 10000
         repeat: true
         running: root._wanted
         onTriggered: root._refreshNow()

@@ -149,6 +149,9 @@ Singleton {
         target: Idle
         function onIsIdleChanged() {
             if (!Idle.isIdle && ShellSettings.nightLightAuto && root.enabled) root._solarTick++
+            // the drift poll below sleeps through idle too; catch up once on the way
+            // back out instead of leaving drift unnoticed for up to 60s
+            if (!Idle.isIdle) root._checkActive()
         }
     }
 
@@ -275,10 +278,12 @@ Singleton {
 
     // catches drift from outside the shell (a manual systemctl call, the unit
     // failing on its own) since only systemd — not this singleton — decides
-    // when the daemon actually starts or stops
+    // when the daemon actually starts or stops. Idle-gated same as the solar
+    // tick above: the Idle Connections reconciles once on the idle→active edge,
+    // so this only needs to run while someone could actually be looking.
     Timer {
         interval: 60000; repeat: true
-        running: root.toolAvailable
+        running: root.toolAvailable && !Idle.isIdle
         onTriggered: root._checkActive()
     }
 }
