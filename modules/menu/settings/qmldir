@@ -15,6 +15,5 @@ internal SettingsSoundSection SettingsSoundSection.qml
 internal SettingsSurfaceSection SettingsSurfaceSection.qml
 internal SettingsThemeSection SettingsThemeSection.qml
 internal SettingsUnderlineSection SettingsUnderlineSection.qml
-internal SettingsUpdatesSection SettingsUpdatesSection.qml
 internal SettingsWarningsSection SettingsWarningsSection.qml
 internal SettingsWorkspacesSection SettingsWorkspacesSection.qml

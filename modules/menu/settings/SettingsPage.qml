@@ -66,7 +66,7 @@ PageShell {
         workspaces: _secWorkspaces, media: _secMedia, indicators: _secIndicators,
         widgets: _secWidgets,
         popups: _secPopups, osd: _secOsd, warnings: _secWarnings,
-        interface: _secInterface, sound: _secSound, updates: _secUpdates,
+        interface: _secInterface, sound: _secSound,
         maintenance: _secMaintenance
     })
 
@@ -323,14 +323,6 @@ PageShell {
         Component {
             id: _secSound
             SettingsSoundSection {}
-        }
-
-        Component {
-            id: _secUpdates
-            SettingsUpdatesSection {
-                animationActive: root.active && root._shownSection === "updates"
-                    && !root.powerOpen && !Idle.isIdle
-            }
         }
 
         Component {

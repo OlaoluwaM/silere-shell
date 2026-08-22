@@ -96,8 +96,6 @@ Singleton {
         { glyph: "󰒓", label: "System", children: [
             { glyph: "󰕾", label: "Sound", section: "sound",
               description: "Devices, levels, and routing" },
-            { glyph: "󰚰", label: "Updates", section: "updates",
-              description: "Shell releases and system packages" },
             { glyph: "󰦛", label: "Maintenance", section: "maintenance",
               description: "Defaults and dependencies" }
         ]}

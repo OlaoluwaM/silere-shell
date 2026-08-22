@@ -30,7 +30,7 @@ Singleton {
     readonly property bool   barShowBrightness:   true
     readonly property string barWidgetOrderLeft:  "workspaces,media"
     readonly property string barWidgetOrderCenter: ""
-    readonly property string barWidgetOrderRight: "tray,updates,network,bluetooth,caffeine,volume,brightness,battery,clock"
+    readonly property string barWidgetOrderRight: "tray,network,bluetooth,caffeine,volume,brightness,battery,clock"
     readonly property bool   barWidgetOrderLocked: false
     readonly property string caffeineUnit:        ""
     readonly property string caffeinePresets:     "15,30,60,0"
@@ -39,7 +39,6 @@ Singleton {
     readonly property string btEditCommand:       "blueman-manager"
     readonly property bool   barShowCaffeine:     true
     readonly property bool   trayWidget:          false
-    readonly property bool   updatesWidget:       false
     readonly property bool   neutralTheme:        true
     readonly property string baseTone:            "black"
     readonly property string matugenAccentRole:   "primary"

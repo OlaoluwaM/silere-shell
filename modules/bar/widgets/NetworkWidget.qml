@@ -54,7 +54,7 @@ StatusActionPill {
     show: ShellSettings.barShowNetwork
         && (canRead ? Network.available : true)
     opacity:        _baseOpacity * _pulseOpacity
-    // dims rather than vanishing like Caffeine/Updates do, so no pop-in/out here
+    // dims rather than vanishing like Caffeine/Dnd do, so no pop-in/out here
     scale:          1.0
     // the icon cell is a fixed width: one glyph fits, two overflow it
     glyph:          Network.icon

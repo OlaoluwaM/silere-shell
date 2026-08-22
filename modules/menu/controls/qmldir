@@ -31,7 +31,6 @@ MediaButton     1.0 MediaButton.qml
 MediaCard       1.0 MediaCard.qml
 SwatchPickerRow 1.0 SwatchPickerRow.qml
 SwatchRow       1.0 SwatchRow.qml
-UpdateStatusCard 1.0 UpdateStatusCard.qml
 
 # presentation helpers
 HintText        1.0 HintText.qml

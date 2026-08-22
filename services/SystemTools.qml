@@ -11,7 +11,6 @@ Singleton {
     property bool checking: false
     property string lastError: ""
     property var _tools: ({})
-    property string packageFamily: ""
 
     readonly property bool probeFailed: ready && lastError.length > 0
 
@@ -27,14 +26,6 @@ Singleton {
     readonly property bool hasHyprctl:       _tools.hyprctl ?? false
     readonly property bool hasNotifySend:    _tools["notify-send"] ?? false
     readonly property bool hasBusctl:        _tools.busctl ?? false
-    readonly property bool hasCheckupdates:  _tools.checkupdates ?? false
-    readonly property bool hasParu:          _tools.paru ?? false
-    readonly property bool hasYay:           _tools.yay ?? false
-    readonly property bool hasTimeout:       _tools.timeout ?? false
-    readonly property bool hasApt:           _tools.apt ?? false
-    readonly property bool hasDnf:           _tools.dnf ?? false
-    readonly property bool hasZypper:        _tools.zypper ?? false
-    readonly property bool hasXbps:          _tools["xbps-install"] ?? false
     readonly property bool hasPowerProfilesCtl: _tools.powerprofilesctl ?? false
     readonly property bool hasAsusctl:       _tools.asusctl ?? false
     readonly property bool hasFcList:        _tools["fc-list"] ?? false
@@ -76,19 +67,8 @@ Singleton {
         checking = true
         lastError = ""
         _checkProc.exec(["bash", "-c",
-            "family=; if [ -r /etc/os-release ]; then " +
-            "  . /etc/os-release; for id in ${ID:-} ${ID_LIKE:-}; do " +
-            "    case $id in " +
-            "      arch|manjaro|endeavouros|garuda) family=pacman ;; " +
-            "      debian|ubuntu|linuxmint|pop) family=apt ;; " +
-            "      fedora|rhel|centos|rocky|almalinux) family=dnf ;; " +
-            "      opensuse*|suse|sles) family=zypper ;; " +
-            "      void) family=xbps ;; " +
-            "    esac; [ -n \"$family\" ] && break; " +
-            "  done; " +
-            "fi; [ -n \"$family\" ] && echo \"@family=$family\"; " +
             "for t in brightnessctl inotifywait nmcli cava matugen hyprsunset hyprlock systemctl loginctl hyprctl notify-send " +
-            "busctl checkupdates paru yay timeout apt dnf zypper xbps-install powerprofilesctl asusctl fc-list dbus-monitor pwvucontrol; do " +
+            "busctl powerprofilesctl asusctl fc-list dbus-monitor pwvucontrol; do " +
             "  command -v \"$t\" >/dev/null 2>&1 && echo \"$t\"; " +
             // The last lookup is optional; do not inherit its `command -v`
             // status and discard every tool found before it.
@@ -104,22 +84,18 @@ Singleton {
             if (code !== 0) {
                 // A refresh must not leave removed tools advertised forever.
                 root._tools = ({})
-                root.packageFamily = ""
                 root.lastError = "Optional tool scan failed (exit " + code + ")"
                 root.ready = true
                 root.checking = false
                 return
             }
             const found = {}
-            let family = ""
             const lines = (_checkOut.text || "").split(/\r?\n/)
             for (let i = 0; i < lines.length; i++) {
                 const name = lines[i].trim()
-                if (name.startsWith("@family=")) family = name.slice(8)
-                else if (name.length > 0) found[name] = true
+                if (name.length > 0) found[name] = true
             }
             root._tools = found
-            root.packageFamily = family
             root.lastError = ""
             root.ready = true
             root.checking = false

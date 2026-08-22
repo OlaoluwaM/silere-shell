@@ -31,8 +31,6 @@ Singleton {
     property bool   showWindowTitle:     false
     property bool   showWindowTitleApp:  false
     property bool   windowTitleCenterGap: true
-    property bool   updatesWidget:       GeneratedDefaults.updatesWidget
-    property bool   updatesIncludeAur:   false
     property bool   trayWidget:          GeneratedDefaults.trayWidget
     property bool   valuesOnHover:       true
     property bool   hoverLevelBar:       false
@@ -151,7 +149,7 @@ Singleton {
     property string barDisabledMonitors: ""
     property string overlayMonitor:      ""
 
-    readonly property var barWidgetKeys: ["workspaces", "tray", "traypopup", "updates", "network", "bluetooth", "caffeine", "dnd", "volume", "brightness", "battery", "vitals", "recording", "privacy", "media", "clock"]
+    readonly property var barWidgetKeys: ["workspaces", "tray", "traypopup", "network", "bluetooth", "caffeine", "dnd", "volume", "brightness", "battery", "vitals", "recording", "privacy", "media", "clock"]
 
     // packaging-only, like recordingStateFile/keybindsFile above: no settings page
     // writes this, the Nix side is the only thing that ever flips it to true
@@ -262,7 +260,6 @@ Singleton {
         // no setting: it shows itself whenever SystemTray.items is non-empty, same
         // as workspaces above -- there is nothing to gate, only where it sits
         traypopup:   { glyph: "󰀻", label: "Tray popup",      group: "tray",    setting: "" },
-        updates:     { glyph: "󰚰", label: "Package updates", group: "updates", setting: "updatesWidget" },
         network:     { glyph: "󰛳", label: "Network",         group: "network", setting: "barShowNetwork" },
         bluetooth:   { glyph: "󰂯", label: "Bluetooth",       group: "network", setting: "barShowBluetooth" },
         // group "network" is a visual statement, not a semantic one: adjacent
@@ -359,8 +356,6 @@ Singleton {
         { k: "showWindowTitle",     t: "bool", sec: "indicators" },
         { k: "showWindowTitleApp",  t: "bool", sec: "indicators" },
         { k: "windowTitleCenterGap", t: "bool", sec: "indicators" },
-        { k: "updatesWidget",       t: "bool", sec: "widgets" },
-        { k: "updatesIncludeAur",   t: "bool", sec: "updates" },
         { k: "trayWidget",          t: "bool", sec: "widgets" },
         { k: "valuesOnHover",       t: "bool", sec: "indicators" },
         { k: "hoverLevelBar",       t: "bool", sec: "indicators" },

@@ -209,7 +209,6 @@ check_qml_locale_count services/Battery.qml 1
 check_qml_locale_count services/CpuTemp.qml 1
 check_qml_locale_count services/Network.qml 1
 check_qml_locale_count services/PowerProfiles.qml 1
-check_qml_locale_count services/Updates.qml 1
 
 section "optional tool detection"
 # The status of the final command in a shell `for` loop becomes the loop's

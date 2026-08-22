@@ -124,9 +124,6 @@ Column {
         if (!SystemTools.hasCava)              tool("󰝚", "Audio visualizer", "cava")
         if (!PowerProfiles.available)          tool("󰾅", "Power profiles", "power-profiles-daemon")
         if (!SystemTools.hasHyprlock)          tool("󰌾", "Screen lock", "hyprlock")
-        if (!SystemTools.hasCheckupdates && !SystemTools.hasParu && !SystemTools.hasYay
-                && SystemTools.packageFamily === "pacman")
-            tool("󰚰", "Update checks", "pacman-contrib")
         // the warnings page stays visible and settable without notify-send, so this one is inert rather than hidden
         if (!SystemTools.hasNotifySend)
             out.push({ g: "󰂚", n: "System alerts", s: "Battery and temperature warnings cannot be sent", v: "libnotify" })
