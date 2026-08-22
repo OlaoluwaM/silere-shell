@@ -1,5 +1,7 @@
 # Silere-shell Fork
 
+[demo](./assets/demo.mp4)
+
 ## What this is
 
 A personal fork of [s3rven/silere-shell](https://github.com/s3rven/silere-shell), a Quickshell/QML desktop shell. It serves as the only shell of a NixOS/Hyprland profile.
