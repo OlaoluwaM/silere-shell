@@ -83,10 +83,16 @@ StatusActionPill {
         onTriggered: root._elapsedLabel = root._formatElapsed()
     }
 
-    PulseLoop {
-        active: root.show && root.barActive && !Idle.isIdle
-        target: root; targetProperty: "_blink"
-        peak: 0.25; floor: 1.0; restValue: 1.0
-        duration: Motion.ms(600)
+    // Discrete, not eased: an InOutSine pulse changes glyphOpacity on every vsync, so
+    // the bar is damaged ~60x/s for the whole recording -- and the screen recorder
+    // ends up encoding the very indicator that announces it is running. A two-state
+    // flip only damages the bar on each toggle (~1.7/s, GNOME's own blink cadence),
+    // and reduceMotion leaves it resting at 1.0 the same way the PulseLoop it replaces did.
+    Timer {
+        interval: 600
+        repeat: true
+        running: root.show && root.barActive && !Idle.isIdle && !ShellSettings.reduceMotion
+        onRunningChanged: if (!running) root._blink = 1.0
+        onTriggered: root._blink = (root._blink === 1.0) ? 0.25 : 1.0
     }
 }

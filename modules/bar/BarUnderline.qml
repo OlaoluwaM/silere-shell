@@ -33,7 +33,11 @@ Item {
         property bool _lastNetConnected: false
         readonly property real _tempGlowBase: (_tempGlowEnabled && CpuTemp.hot && !CpuTemp.critical) ? 0.32 : 0
         property real _tempPulseGlow: 0
-        readonly property real _tempGlow: (ShellSettings.reduceMotion && _tempGlowEnabled && CpuTemp.critical)
+        // settled critical rests at the same steady 0.5 the reduceMotion branch already
+        // uses, so the glow reads identically whether motion stopped animating or the
+        // settle window (below) did
+        readonly property bool _tempSteady: ShellSettings.reduceMotion || _tempSettled
+        readonly property real _tempGlow: (_tempGlowEnabled && CpuTemp.critical && _tempSteady)
             ? 0.5
             : _tempGlowBase + _tempPulseGlow
         readonly property real _screenshotStrength: ShellSettings.screenshotGlowSweep ? 1.1 : 1.0
@@ -377,6 +381,24 @@ Item {
         readonly property real _tempPeak:     0.66
         readonly property real _tempFloor:    0.24
 
+        // settle, same treatment as Battery.alertPulse: CpuTemp.critical can hold for as
+        // long as the machine stays thermally pegged, and animating _tempPulseGlow the
+        // whole time repaints every frame on a machine that is already maxed out. Pulse a
+        // bounded window on entry, then rest at the steady glow _tempGlow falls back to above.
+        property bool _tempSettled: true
+        Connections {
+            target: CpuTemp
+            function onCriticalChanged() {
+                if (CpuTemp.critical) _lineEffect._tempSettled = false
+            }
+        }
+        Timer {
+            interval: 15000
+            running: _lineEffect._tempGlowEnabled && CpuTemp.critical
+                && !_lineEffect._tempSettled && !Idle.isIdle
+            onTriggered: _lineEffect._tempSettled = true
+        }
+
         PulseLoop {
             id: _tempFlash
             target:         _lineEffect
@@ -385,6 +407,7 @@ Item {
             floor:          _lineEffect._tempFloor
             duration:       _lineEffect._tempPulseDur
             active:         _lineEffect._tempGlowEnabled && CpuTemp.critical && !Idle.isIdle
+                && !_lineEffect._tempSettled
         }
     }
 

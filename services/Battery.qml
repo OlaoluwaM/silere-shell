@@ -165,10 +165,31 @@ Singleton {
         return "discharging"
     }
 
+    // consumers: BatteryWidget's opacity dip, BarUnderline's glow (underlineBattGlow),
+    // and the home page's vitals tile -- with none of them present nothing ever reads
+    // alertPulse, so there is nothing to spend per-frame bar damage animating for
+    readonly property bool _alertConsumerVisible: ShellSettings.barWidgetPlaced("battery")
+        || ShellSettings.underlineBattGlow
+        || MenuState.homeActive
+
+    // settle, same idiom as WorkspaceUrgentTick's urgent tick: hours on battery under the
+    // low threshold would otherwise pulse the whole time. Re-arm on each threshold
+    // crossing (low turning true, and again when critical does) so the alert still
+    // announces a worsening state, then rest at the pulse's floor.
+    property bool _alertSettled: true
+    onLowChanged:      if (low)      root._alertSettled = false
+    onCriticalChanged: if (critical) root._alertSettled = false
+
+    Timer {
+        interval: 15000
+        running: root.low && !root._alertSettled && !Idle.isIdle && root._alertConsumerVisible
+        onTriggered: root._alertSettled = true
+    }
+
     PulseLoop {
         target:         root
         targetProperty: "alertPulse"
         duration:       root.pulseDuration
-        active:         root.low && !Idle.isIdle
+        active:         root.low && !Idle.isIdle && root._alertConsumerVisible && !root._alertSettled
     }
 }

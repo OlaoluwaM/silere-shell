@@ -166,13 +166,19 @@ Item {
             readonly property int  _returnMs:   Math.max(1100, Math.round(_slideMs * 0.65))
             width:  Math.min(trackText.implicitWidth, maxW)
             height: trackText.implicitHeight
-            clip:   true
+            // only while the text is actually too wide to sit flush inside the box (Pill.qml
+            // documents this gate too): a standing clip node breaks batching, and needsScroll
+            // is false the vast majority of the time a track title happens to fit
+            clip: textClip.needsScroll
 
             property string _shown: ""
+            // the animation drives this rather than trackText.x directly, so trackText.x can
+            // stay a rounded binding of it instead of fighting an imperative writer
+            property real _scrollX: 0
             // a running NumberAnimation ignores a changed to:, and the running binding below
             // can't see the distance move — restart by hand so a font or budget change re-aims it
             on_OverflowChanged: {
-                trackText.x = 0
+                _scrollX = 0
                 if (_scroll.running) _scroll.restart()
             }
 
@@ -181,6 +187,10 @@ Item {
             ShellText {
                 id: trackText
                 text:           textClip._shown
+                // whole px: a sub-pixel x during the linear slide damages the bar on
+                // effectively every frame even at this crawl -- rounding caps distinct
+                // frames to roughly _scrollSpeed px/s worth of damage
+                x: Math.round(textClip._scrollX)
                 readonly property color _base: Media.playing ? Theme.text
                                                               : Theme.mix(Theme.text, Theme.subtext, 0.55)
                 color:          ((_rootHover.hovered && ShellSettings.barHoverHighlight)) ? Theme.mix(_base, Theme.accent, 0.30) : _base
@@ -209,19 +219,19 @@ Item {
                     && textClip.needsScroll && !_trackTransition.running
                 // hover to read: the slide would otherwise walk out from under the pointer
                 paused: _scroll.running && _rootHover.hovered
-                onRunningChanged: if (!running) trackText.x = 0
+                onRunningChanged: if (!running) textClip._scrollX = 0
                 loops: Animation.Infinite
                 PauseAnimation  { duration: root._scrollHoldStart }
                 // linear, or _scrollSpeed is a lie: an eased slide covers half the distance
                 // in the first fifth of _slideMs and then crawls, which is unreadable
                 NumberAnimation {
-                    target: trackText; property: "x"
+                    target: textClip; property: "_scrollX"
                     from: 0; to: -textClip._overflow
                     duration: textClip._slideMs; easing.type: Easing.Linear
                 }
                 PauseAnimation  { duration: root._scrollHoldEnd }
                 NumberAnimation {
-                    target: trackText; property: "x"
+                    target: textClip; property: "_scrollX"
                     to: 0
                     duration: textClip._returnMs; easing.type: Easing.InOutSine
                 }
@@ -231,7 +241,7 @@ Item {
             SequentialAnimation {
                 id: _trackTransition
                 NumberAnimation { target: textClip; property: "opacity"; to: 0;   duration: Motion.ms(100); easing.type: Easing.InCubic  }
-                ScriptAction    { script: { textClip._shown = Media.label; trackText.x = 0 } }
+                ScriptAction    { script: { textClip._shown = Media.label; textClip._scrollX = 0 } }
                 NumberAnimation { target: textClip; property: "opacity"; to: 1.0; duration: Motion.ms(150); easing.type: Easing.OutCubic }
             }
         }
