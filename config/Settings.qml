@@ -10,6 +10,10 @@ Singleton {
     // exact family only: Qt 6 passes this verbatim, a comma list trips fontconfig 2.18's family guesser
     readonly property string defaultFont: "JetBrainsMono Nerd Font"
     readonly property string font: {
+        // families is every installed family, not a Nerd-only slice: a chosen
+        // font just has to exist. Icons are Nerd-Font codepoints drawn in this
+        // same face, but glyph fallback (Symbols Nerd Font on the NixOS
+        // profile) covers them regardless of which text family renders here.
         const installed = FontScan.families
         const chosen = ShellSettings.fontFamily
         // an empty scan means fc-list is absent or still running, not that the font is gone
@@ -17,7 +21,8 @@ Singleton {
             return chosen
         // the default is not installed everywhere; without a Nerd Font the bar is all tofu
         if (installed.length === 0 || installed.indexOf(root.defaultFont) >= 0) return root.defaultFont
-        return installed[0]
+        // last resort stays a Nerd face so icons survive even without glyph fallback
+        return FontScan.nerdFamilies.length > 0 ? FontScan.nerdFamilies[0] : installed[0]
     }
     // normalize on xHeight, not line height (the Meslo LG variants differ only in line gap); 0.55 = JetBrainsMono, so the default scales at 1.0
     readonly property real fontScale: Math.max(0.85, Math.min(1.2, 0.55 / Math.max(0.3, _fm.xHeight / 100)))

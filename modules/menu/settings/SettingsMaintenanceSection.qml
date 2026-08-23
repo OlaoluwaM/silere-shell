@@ -97,7 +97,9 @@ Column {
             out.push({ g: "󰈵", n: "Font check", s: "Cannot verify the interface font", v: "fontconfig" })
         else if (FontScan.lastError.length > 0)
             out.push({ g: "󰈵", n: "Font check", s: FontScan.lastError, v: "fc-list" })
-        else if (FontScan.scanned && FontScan.families.length === 0)
+        // hasIconFont, not the family lists: Symbols Nerd Font alone keeps
+        // icons rendering (glyph fallback) yet appears in neither list
+        else if (FontScan.scanned && !FontScan.hasIconFont)
             out.push({ g: "󰈵", n: "Icon font", s: "No Nerd Font installed — bar icons cannot render", v: "nerd-fonts" })
         else if (FontScan.scanned && ShellSettings.fontFamily.length > 0
                  && FontScan.families.indexOf(ShellSettings.fontFamily) < 0)

@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import "../../../config"
 import "../../../services"
 import "../controls"
 
@@ -15,15 +16,25 @@ Column {
             glyph: "󰛖"; label: "Font"
             currentValue: ShellSettings.fontFamily
             model: {
+                // the default entry mirrors whatever GeneratedDefaults renders
+                // (the NixOS module can name any installed family there), so
+                // choosing it writes the default value back -- a no-op override
+                // -- instead of upstream's hardcoded "" that only means
+                // JetBrainsMono on an installer-provisioned setup
+                const def = GeneratedDefaults.fontFamily
                 const m = [{
-                    value: "",
-                    label: "JetBrainsMono (default)",
-                    fontFamily: "JetBrainsMono Nerd Font"
+                    value: def,
+                    label: (def.length > 0
+                        ? def.replace(/ Nerd Font( Mono)?$/, "")
+                        : "JetBrainsMono") + " (default)",
+                    fontFamily: def.length > 0 ? def : "JetBrainsMono Nerd Font"
                 }]
-                const fams = FontScan.families
+                // the shortlist stays Nerd-only because each option previews in
+                // its own face; all of fc-list would instantiate 1000+ fonts
+                const fams = FontScan.nerdFamilies
                 for (let i = 0; i < fams.length; i++) {
                     const f = fams[i]
-                    if (f === "JetBrainsMono Nerd Font") continue
+                    if (f === "JetBrainsMono Nerd Font" || f === def) continue
                     m.push({
                         value: f,
                         label: f.replace(/ Nerd Font( Mono)?$/, ""),
@@ -32,9 +43,17 @@ Column {
                 }
                 const cur = ShellSettings.fontFamily
                 if (cur.length > 0 && m.findIndex(e => e.value === cur) < 0) {
-                    m.push({
+                    // outside the shortlist is not the same as gone: a family
+                    // hand-set in settings.json still renders if installed
+                    const missing = FontScan.scanned && FontScan.families.indexOf(cur) < 0
+                    if (missing) m.push({
                         value: cur,
                         label: cur.replace(/ Nerd Font( Mono)?$/, "") + " (not installed)"
+                    })
+                    else m.push({
+                        value: cur,
+                        label: cur.replace(/ Nerd Font( Mono)?$/, ""),
+                        fontFamily: cur
                     })
                 }
                 return m
@@ -44,11 +63,11 @@ Column {
         // the list is a small slice of what fc-list reports, and an installed font missing
         // from it reads as a broken scan rather than a deliberate filter
         HintText {
-            visible: FontScan.scanned && FontScan.families.length > 0
-            text: "Nerd Fonts only — the shell draws its icons as glyphs, so other fonts show boxes."
+            visible: FontScan.scanned && FontScan.nerdFamilies.length > 0
+            text: "The list offers Nerd Fonts; a family set in the shell config is used as-is."
         }
         HintText {
-            visible: FontScan.scanned && FontScan.families.length === 0
+            visible: FontScan.scanned && !FontScan.hasIconFont
             text: "No Nerd Font found; shell icons render as boxes until one is installed."
         }
         SelectRow {

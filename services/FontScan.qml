@@ -7,7 +7,15 @@ import Quickshell.Io
 Singleton {
     id: root
 
+    // every installed family: the validation set for a configured font. The
+    // Nerd-only shortlist below exists separately because the picker previews
+    // each option in its own face -- offering all of fc-list (a thousand-plus
+    // families on a Noto-carrying system) would instantiate that many fonts.
     property list<string> families: []
+    property list<string> nerdFamilies: []
+    // icon coverage, not text coverage: Symbols Nerd Font counts here (glyph
+    // fallback draws the icons) even though the picker never offers it
+    property bool hasIconFont: false
     // true only after fc-list has exited cleanly, so "no families" can be told apart from "not asked yet"
     property bool scanned: false
     property bool scanning: false
@@ -40,6 +48,8 @@ Singleton {
                 root.scanned = false
                 root.scanning = false
                 root.families = []
+                root.nerdFamilies = []
+                root.hasIconFont = false
             }
         }
     }
@@ -56,16 +66,22 @@ Singleton {
                 root.lastError = "Font scan failed (exit " + code + ")"
                 return
             }
-            // Font family aliases are external input; a null-prototype table
-            // keeps names such as "constructor" from colliding with JS built-ins.
+            // Font family aliases are external input; null-prototype tables
+            // keep names such as "constructor" from colliding with JS built-ins.
             const variants = Object.create(null)
+            const all = Object.create(null)
+            let icons = false
             const lines = (_out.text || "").split("\n")
             for (let i = 0; i < lines.length; i++) {
                 const aliases = lines[i].split(",")
                 for (let j = 0; j < aliases.length; j++) {
                     const f = aliases[j].trim()
+                    if (f.length === 0) continue
+                    all[f] = true
                     const match = /^(.*) Nerd Font(?: (Mono))?$/.exec(f)
-                    if (!match || match[1] === "Symbols") continue
+                    if (!match) continue
+                    icons = true
+                    if (match[1] === "Symbols") continue
                     const base = match[1]
                     const variant = match[2] || "Regular"
                     if (!variants[base]) variants[base] = Object.create(null)
@@ -78,8 +94,13 @@ Singleton {
                 if (family.Regular) out.push(family.Regular)
                 else if (family.Mono) out.push(family.Mono)
             }
-            out.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
-            root.families = out
+            const byName = (a, b) => a.localeCompare(b, undefined, { sensitivity: "base" })
+            out.sort(byName)
+            const everything = Object.keys(all)
+            everything.sort(byName)
+            root.families = everything
+            root.nerdFamilies = out
+            root.hasIconFont = icons
             root.scanned = true
             root.lastError = ""
         }
