@@ -291,12 +291,12 @@ if command -v matugen >/dev/null 2>&1; then
         || _missing="$_missing $_role"
     done
     if [ -n "$_missing" ]; then
-      warn "matugen roles" "template lacks:$_missing — reinstall or: cp assets/matugen-theme.json $_tmpl"
+      warn "matugen roles" "template lacks:$_missing — reinstall or: cp matugen/matugen-theme.json $_tmpl"
     else
       ok "matugen roles" "template provides every palette role the shell reads"
     fi
   else
-    warn "matugen tmpl" "template missing — run installer or: cp assets/matugen-theme.json $_tmpl"
+    warn "matugen tmpl" "template missing — run installer or: cp matugen/matugen-theme.json $_tmpl"
   fi
   _matugen_cfg="$_cfg_home/matugen/config.toml"
   if [ -f "$_matugen_cfg" ] && grep -q '# silere-shell begin' "$_matugen_cfg"; then

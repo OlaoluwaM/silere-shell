@@ -437,7 +437,7 @@ if [ "$_repair_matugen" = "1" ]; then
     MATUGEN_CFG="$CONFIG_HOME/matugen/config.toml"
     MATUGEN_OUTPUT_TOML="$(_toml_basic_string "$CONFIG_HOME/matugen/silere-shell.json")"
     MATUGEN_INPUT_TOML="$(_toml_basic_string "$CONFIG_HOME/matugen/templates/silere-shell/Theme.json")"
-    TMPL_SRC="$ROOT/assets/matugen-theme.json"
+    TMPL_SRC="$ROOT/matugen/matugen-theme.json"
     TMPL_DST="$CONFIG_HOME/matugen/templates/silere-shell/Theme.json"
 
     [ -r "$TMPL_SRC" ] || _die "template missing at $TMPL_SRC"
@@ -774,7 +774,7 @@ MATUGEN_INPUT_TOML="$(_toml_basic_string "$CONFIG_HOME/matugen/templates/silere-
 
 # ── matugen template ─────────────────────────────────────────────────────────────
 _section "matugen template"
-TMPL_SRC="$ROOT/assets/matugen-theme.json"
+TMPL_SRC="$ROOT/matugen/matugen-theme.json"
 TMPL_DST="$CONFIG_HOME/matugen/templates/silere-shell/Theme.json"
 if ! $has_matugen; then
     _skip "matugen not installed"

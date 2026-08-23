@@ -514,11 +514,11 @@ else
   printf '%s\n' "$pkg_body" | grep -qE '(^|[^A-Za-z0-9._/-])scripts([^A-Za-z0-9._/-]|$)' \
     && payload_extra="$payload_extra scripts/(whole directory)"
 
-  # the packaged installer still reads this one out of the pruned assets/ tree
+  # the packaged installer still reads this one out of the matugen/ dir
   payload_asset=""
-  if grep -qF 'assets/matugen-theme.json' scripts/install.sh \
-    && ! printf '%s\n' "$pkg_body" | grep -qF 'assets/matugen-theme.json'; then
-    payload_asset="assets/matugen-theme.json"
+  if grep -qF 'matugen/matugen-theme.json' scripts/install.sh \
+    && ! printf '%s\n' "$pkg_body" | grep -qF 'matugen/matugen-theme.json'; then
+    payload_asset="matugen/matugen-theme.json"
   fi
 
   if [ -n "$payload_missing" ]; then
@@ -847,7 +847,7 @@ else
 fi
 
 section "theme palette coverage"
-theme_tmpl="assets/matugen-theme.json"
+theme_tmpl="matugen/matugen-theme.json"
 theme_loader="config/MatugenPalette.qml"
 if [ -f "$theme_tmpl" ] && [ -f "$theme_loader" ]; then
     # Palette roles the shell actually reads. usingFallback, paletteStale and

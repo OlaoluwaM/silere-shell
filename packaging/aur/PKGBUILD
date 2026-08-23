@@ -61,7 +61,7 @@ package() {
 
     # the shell loads no asset at runtime; only the matugen template is used, and
     # post_install tells the user to copy it from here
-    install -Dm644 assets/matugen-theme.json "$dest/assets/matugen-theme.json"
+    install -Dm644 matugen/matugen-theme.json "$dest/matugen/matugen-theme.json"
 
     # the checkout ships a .git-less copy: the in-shell updater detects that and
     # steps aside so packaged installs update through pacman instead
