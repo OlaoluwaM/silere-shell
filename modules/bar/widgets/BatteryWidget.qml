@@ -22,7 +22,10 @@ Pill {
     // full battery: every level and charging variant shares its outline
     glyphAlignReference: "󰁹"
     glyphAlignNudge: -1
-    glyphPixelSize: Settings.iconSize + 3
+    // no size override: the whole status cluster renders at StatusActionPill's
+    // baseline. The old +3 bump made this the largest ink in the row (battery
+    // glyphs are tall, 0.84x vs the tray grid's 0.68x); the cluster was
+    // normalized down to its smallest member rather than bumping the rest up.
     glyphColor:     _iconColor
     textColor:      _iconColor
     animateGlyph:   false

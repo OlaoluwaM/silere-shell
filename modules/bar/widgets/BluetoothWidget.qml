@@ -22,11 +22,11 @@ StatusActionPill {
     // StatusActionPill defaults this off; this glyph switches across three states at
     // runtime (same reason NetworkWidget re-enables it), so keep the stamp transition
     animateGlyph: true
-    // restores Pill's own default, which StatusActionPill trims by 1px. An optical
-    // +2 bump was tried (the rune's ink is barely half as wide as its neighbors',
-    // so it floats in more whitespace) and rolled back: uniform glyph size across
-    // the cluster won over per-glyph optical compensation.
-    glyphPixelSize: Settings.iconSize + 2
+    // no size override: uniform glyph size across the cluster won over
+    // per-glyph optical compensation (an optical +2 bump for the rune's
+    // narrow ink was tried and rolled back), and the uniform value is now
+    // StatusActionPill's baseline -- network and battery walked their +2/+3
+    // bumps back to it rather than the tray grid bumping up.
     animateText: false
 
     // a click only does something once the configured bluetooth-manager command is reachable
