@@ -182,6 +182,48 @@ Singleton {
     readonly property string desktopEntry: SafeText.singleLineText(
         player ? player.desktopEntry : "", root.maxIdentityChars)
 
+    function privacyPlaceholderSource(value): string {
+        const clean = SafeText.singleLineText(value, root.maxMetadataChars)
+        const match = clean.match(/^(.+?)\s+is playing media$/i)
+        return match ? match[1].trim() : ""
+    }
+
+    function metadataIsPrivacyProtected(titleValue, artistValue, urlValue,
+            identityValue, desktopEntryValue, dbusNameValue): bool {
+        const placeholderSource = root.privacyPlaceholderSource(titleValue)
+        if (placeholderSource.length === 0
+                || String(artistValue || "").trim().length > 0
+                || String(urlValue || "").trim().length > 0)
+            return false
+
+        const source = [placeholderSource, identityValue, desktopEntryValue, dbusNameValue]
+            .join(" ").toLowerCase()
+        return /(firefox|zen|librewolf|floorp|waterfox|chrome|chromium|brave|edge|opera|vivaldi|thorium)/.test(source)
+    }
+
+    readonly property string trackUrl: {
+        const metadata = player ? player.metadata : null
+        return SafeText.singleLineText(metadata ? metadata["xesam:url"] : "",
+            root.maxArtSourceChars)
+    }
+    readonly property bool metadataPrivacyProtected: root.metadataIsPrivacyProtected(
+        title, artist, trackUrl, identity, desktopEntry, player ? player.dbusName : "")
+    readonly property string sourceLabel: {
+        const placeholder = root.metadataPrivacyProtected
+            ? root.privacyPlaceholderSource(title) : ""
+        if (placeholder.length > 0) return placeholder
+        if (identity.length > 0) return identity
+        if (desktopEntry.length > 0) return desktopEntry
+        return ""
+    }
+    readonly property string displayTitle: root.metadataPrivacyProtected
+        ? "Media details hidden" : title
+    readonly property string displayArtist: root.metadataPrivacyProtected
+        ? (sourceLabel.length > 0
+            ? "Private tab details stay in " + sourceLabel
+            : "Private tab details stay in the browser")
+        : artist
+
     readonly property string artUrl: {
         if (!player) return ""
         // remote art is allowed on purpose where notification icons are denied: mpris art genuinely is a url
@@ -220,6 +262,8 @@ Singleton {
         SafeText.singleLineText(player.dbusName, root.maxIdentityChars)
 
     readonly property string label: {
+        if (root.metadataPrivacyProtected)
+            return sourceLabel.length > 0 ? sourceLabel + " · private media" : "Private media"
         if (ShellSettings.mediaWidgetFormat === "artist-title" && artist.length > 0 && title.length > 0)
             return SafeText.singleLineText(artist + " - " + title, root.maxMetadataChars)
         if (title.length > 0) return title
