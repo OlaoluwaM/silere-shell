@@ -11,9 +11,15 @@
   <img src="https://img.shields.io/badge/runs%20on-Hyprland%20%C2%B7%20niri-747a98?style=flat-square&labelColor=17181d" alt="runs on Hyprland and niri"/>
 </p>
 
-A Quickshell desktop shell for Hyprland and niri — bar, menu, notifications, OSD,
-calendar and tray. Background work only runs when it has something to do: an idle
-session sits near zero CPU, and every animation stops on its own when you walk away.
+A Quickshell desktop shell for Hyprland and niri. One process draws the bar, menu,
+notifications, OSD, calendar and tray, so there is no separate bar, notification daemon
+or OSD helper to install and keep in step.
+
+Everything is set from a settings panel inside the shell — there is no config file to
+write, and changes apply as you make them.
+
+Background work only runs when it has something to do: an idle session sits near zero
+CPU, and every animation stops on its own when you walk away.
 
 <p align="center">
   <img src="assets/shot-desktop.webp" alt="The Silere bar with the menu panel open" width="900"/>
@@ -40,7 +46,7 @@ so bind a key to it early:
 qs ipc -p ~/.config/silere-shell/shell.qml call menu toggle
 ```
 
-Optional tools, unattended installs, Matugen wiring and removal:
+Fonts, optional tools, unattended installs, Matugen wiring and removal:
 [`docs/install.md`](docs/install.md).
 
 ## What you get
@@ -127,7 +133,7 @@ own checkout with `bash scripts/bench.sh 30`. Full numbers and the animation-dri
 bash scripts/check.sh
 ```
 
-That runs the dependency and configuration checks. For startup errors, run
+That runs the dependency, autostart and configuration checks. For startup errors, run
 `qs -p shell.qml` directly. Common problems: [`docs/troubleshooting.md`](docs/troubleshooting.md).
 
 ## Contributing

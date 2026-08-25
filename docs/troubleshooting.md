@@ -6,6 +6,10 @@ From the Silere checkout, run the dependency and configuration checks first:
 bash scripts/check.sh
 ```
 
+It reports the runtime, the optional tools, the font, and whether Silere is set to start on
+login, either from the compositor config or from a systemd user unit. A package install
+does not carry it — clone the repository to run it.
+
 To inspect startup errors directly, run `qs -p shell.qml`.
 
 **It installed but nothing appears.** Silere runs on Hyprland and niri only. On either of
