@@ -45,6 +45,7 @@ ShellRoot {
     }
 
     property var _timeoutProbe: null
+    property var _killProbe: null
 
     function _check(condition: bool, label: string): void {
         root._checks++
@@ -470,6 +471,18 @@ ShellRoot {
         Notifications.clearHistory()
         ShellSettings.notifHistoryLimit = savedLimit
 
+        const savedDnd = ShellSettings.dndSchedule
+        const savedFrom = ShellSettings.dndFrom
+        const savedTo = ShellSettings.dndTo
+        ShellSettings.dndSchedule = true
+        ShellSettings.dndFrom = 9
+        ShellSettings.dndTo = 9
+        root._check(!Notifications._quietActive,
+            "a quiet-hours range starting and ending on one hour silences nothing")
+        ShellSettings.dndFrom = savedFrom
+        ShellSettings.dndTo = savedTo
+        ShellSettings.dndSchedule = savedDnd
+
         const savedSection = MenuState.settingsSection
         MenuState.setSettingsSection("popups")
         root._check(MenuState.settingsSection === "popups",
@@ -477,6 +490,14 @@ ShellRoot {
         MenuState.setSettingsSection("notifications")
         root._check(MenuState.settingsSection === "theme",
             "a settings page renamed since a keybind was written falls back to theme")
+        root._check(MenuState._ipcSection("Surface") === "surface"
+                && MenuState._ipcSection("INDICATORS") === "indicators",
+            "a settings page typed over ipc matches without case")
+        root._check(MenuState._ipcSection("nosuchpage") === "nosuchpage",
+            "an unknown ipc page name is left alone for the caller's message")
+        MenuState.setSettingsSection("Surface")
+        root._check(MenuState.settingsSection === "theme",
+            "setSettingsSection itself stays case-exact")
         MenuState.setSettingsSection(savedSection)
 
         root._check(CalendarState._validMarkKey("2024-2-29"),
@@ -584,6 +605,19 @@ ShellRoot {
             "media service rejects remote file artwork")
         root._check(Media.artSource("https://example.invalid/bad\ncover.jpg") === "",
             "media service rejects control characters in artwork URLs")
+        root._check(Media.privacyPlaceholderSource("Zen is playing media") === "Zen"
+                && Media.privacyPlaceholderSource("Song is playing") === "",
+            "media recognises a browser's generic playback placeholder")
+        root._check(Media.metadataIsPrivacyProtected(
+                "Zen is playing media", "", "", "Zen", "firefox",
+                "org.mpris.MediaPlayer2.firefox")
+                && !Media.metadataIsPrivacyProtected(
+                    "Zen is playing media", "", "https://youtube.com/watch?v=test",
+                    "Zen", "firefox", "org.mpris.MediaPlayer2.firefox")
+                && !Media.metadataIsPrivacyProtected(
+                    "A real video", "Creator", "", "Zen", "firefox",
+                    "org.mpris.MediaPlayer2.firefox"),
+            "media distinguishes privacy-redacted browser playback from real metadata")
         root._check(Media._cavaNoiseReduction >= 0
                 && Media._cavaNoiseReduction <= 1
                 && Media._cavaConfigText.includes("method = pipewire")
@@ -824,6 +858,8 @@ ShellRoot {
             "settings expose a row's schema by key")
         root._check(ShellSettings.schemaFor("noSuchSetting") === null,
             "settings reject an unknown schema key")
+        root._check(ShellSettings.schemaFor("barRadius").sec === "surface",
+            "roundness is attributed to the one page that carries its row")
         const spacingWas = ShellSettings.barSpacing
         ShellSettings.setValue("barSpacing", 999)
         root._check(ShellSettings.barSpacing === 24,
@@ -884,6 +920,31 @@ ShellRoot {
             "a write to an unknown key reports that it did not apply")
         ShellSettings.baseTone = toneWas
         ShellSettings.osdTimeout = timeoutWas
+
+        root._check(ShellSettings._ipcKey("BARSPACING") === "barSpacing"
+                && ShellSettings._ipcKey("noSuchSetting") === "noSuchSetting",
+            "settings IPC folds known key capitalization without weakening schema lookup")
+        const ipcSpacingWas = ShellSettings.barSpacing
+        root._check(ShellSettings._ipcSet("BARSPACING", "999") === "24"
+                && ShellSettings.barSpacing === 24,
+            "a mixed-case IPC write resolves and reports its clamped value")
+        ShellSettings.barSpacing = ipcSpacingWas
+
+        const ipcLeftWas = ShellSettings.barWidgetOrderLeft
+        const ipcCenterWas = ShellSettings.barWidgetOrderCenter
+        const ipcRightWas = ShellSettings.barWidgetOrderRight
+        const ipcOrderResult = ShellSettings._ipcSet(
+            "BARWIDGETORDERCENTER", "clock,clock")
+        const ipcOrder = ShellSettings.barWidgetOrderLeftKeys.concat(
+            ShellSettings.barWidgetOrderCenterKeys,
+            ShellSettings.barWidgetOrderRightKeys)
+        root._check(ipcOrderResult === "clock"
+                && ShellSettings.barWidgetLocate("clock").zone === "center",
+            "a widget-order IPC write moves a key into the requested zone")
+        root._check(ipcOrder.length === ShellSettings.barWidgetKeys.length
+                && new Set(ipcOrder).size === ipcOrder.length,
+            "a widget-order IPC write restores missing keys and removes duplicates")
+        ShellSettings.setBarWidgetLayout(ipcLeftWas, ipcCenterWas, ipcRightWas)
 
         root._check(ShellSettings.constraintOf("barShowClock") === "true|false",
             "a bool key states its constraint")
@@ -1036,6 +1097,18 @@ ShellRoot {
             "a notification retired with the popup window remains in history")
         Notifications.clearHistory()
 
+        Hooks._queued = ({})
+        Hooks._queueOrder = []
+        Hooks._queue("workspace-changed", ["/hooks/workspace-changed", "1"])
+        Hooks._queue("notification", ["/hooks/notification", "Probe"])
+        Hooks._queue("workspace-changed", ["/hooks/workspace-changed", "5"])
+        root._check(Hooks._queueOrder.length === 2
+                && Hooks._queueOrder[0] === "workspace-changed"
+                && Hooks._queued["workspace-changed"][1] === "5",
+            "a hook waiting on a busy runner keeps its place and takes the newest arguments")
+        Hooks._queued = ({})
+        Hooks._queueOrder = []
+
         root._startAnchorTeardown()
     }
 
@@ -1121,9 +1194,33 @@ ShellRoot {
                 "bounded process stops a wedged helper")
             root._timeoutProbe.destroy()
             root._timeoutProbe = null
-            Qt.callLater(root._finish)
+            Qt.callLater(root._runKillEscalationCheck)
         })
         root._timeoutProbe.running = true
+    }
+
+    // Process has no signal() and running = false is only a SIGTERM, so a child that traps it
+    // outlives its own timeout and holds a runner slot for good unless the pid is killed
+    function _runKillEscalationCheck(): void {
+        root._killProbe = boundedProcessFactory.createObject(root, {
+            command: ["bash", "-c", "trap '' TERM; sleep 30"],
+            timeoutMs: 80
+        })
+        const startedAt = Date.now()
+        let refused = false
+        root._killProbe.timeoutReached.connect(function() {
+            refused = root._killProbe.running
+        })
+        root._killProbe.exited.connect(function() {
+            root._check(refused,
+                "a helper that traps SIGTERM survives the timeout's polite stop")
+            root._check(Date.now() - startedAt < 10000,
+                "a helper that traps SIGTERM is still killed outright")
+            root._killProbe.destroy()
+            root._killProbe = null
+            Qt.callLater(root._finish)
+        })
+        root._killProbe.running = true
     }
 
     function _finish(): void {

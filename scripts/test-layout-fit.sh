@@ -51,6 +51,15 @@ fi
 list="$(find modules/menu/settings -name 'Settings*Section.qml' | sort)"
 [ -n "$list" ] || { echo "FAIL: no settings sections found" >&2; exit 1; }
 
+# The other tabs are narrower: 400 panel less the 44 rail and 12 of pad a side. The nav
+# column ships at its 160 cap. HomePage stays out on purpose — its status lines carry
+# network and device names from outside the shell, which are meant to elide.
+list="$list
+modules/menu/RecentPage.qml|332
+modules/menu/PowerRailContent.qml|332
+modules/menu/VitalsStrip.qml|332
+modules/menu/SettingsNav.qml|160"
+
 scratch="$(mktemp -d)"
 cleanup() { rm -rf "$scratch"; }
 trap 'cleanup; exit 130' INT TERM
@@ -77,14 +86,19 @@ for scale in 1.0 1.15; do
         printf '%s\n' "$out" | grep -E "FIT-TRUNC|FIT-FAIL" | sed 's/^/  /' >&2
         status=1
     fi
-    if ! printf '%s\n' "$out" | grep -q "FIT-DONE"; then
+    done_line="$(printf '%s\n' "$out" | grep -o 'FIT-DONE.*' | tail -1)"
+    if [ -z "$done_line" ]; then
         echo "FAIL: layout fit probe did not finish at scale $scale" >&2
         printf '%s\n' "$out" | tail -5 >&2
+        status=1
+    # a scan that reaches no text reports zero findings for the wrong reason
+    elif [ "$(printf '%s' "$done_line" | sed -n 's/.*texts \([0-9]*\).*/\1/p')" -lt 200 ]; then
+        echo "FAIL: layout fit probe scanned too little text at scale $scale: $done_line" >&2
         status=1
     fi
 done
 
 if [ "$status" -eq 0 ]; then
-    echo "settings labels fit at width $CONTENT_WIDTH across the type range"
+    echo "menu labels fit at the widths they ship at across the type range"
 fi
 exit "$status"

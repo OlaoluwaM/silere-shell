@@ -1,11 +1,12 @@
 import QtQuick
 import Quickshell
 
-// Builds each settings section at the shipped detail-pane width and reports any
-// text Qt itself marks as truncated. The surface probe proves a section builds;
-// this proves its labels still fit, which a type-check and a build cannot see.
+// Builds each surface at the width it actually ships at and reports any text Qt
+// itself marks as truncated. The surface probe proves a surface builds; this proves
+// its labels still fit, which a type-check and a build cannot see.
 // Text.truncated is the authority here rather than a width comparison: it is set
 // for a vertical clip as well as an elide, and only once layout has settled.
+// A list entry is "path" or "path|width"; the pane widths differ per tab.
 ShellRoot {
     id: root
 
@@ -15,14 +16,16 @@ ShellRoot {
         .split("\n").filter(p => p.length > 0)
 
     property int index: 0
+    property int paneWidth: 0
     property int findings: 0
     property int built: 0
+    property int texts: 0
     property var object: null
     property var component: null
 
     Item {
         id: host
-        width: root.contentWidth
+        width: root.paneWidth > 0 ? root.paneWidth : root.contentWidth
         // tall enough that nothing clips for lack of room rather than lack of fit
         height: 6000
     }
@@ -34,8 +37,10 @@ ShellRoot {
         for (let i = 0; i < kids.length; i++) {
             const child = kids[i]
             if (!child || child.visible === false) continue
-            if (child.truncated === true && String(child.text || "").length > 0) {
-                console.warn("FIT-TRUNC " + path + " :: \"" + String(child.text).slice(0, 48)
+            const label = String(child.text || "")
+            if (label.length > 0) root.texts++
+            if (child.truncated === true && label.length > 0) {
+                console.warn("FIT-TRUNC " + path + " :: \"" + label.slice(0, 48)
                     + "\" fits " + Math.round(child.width)
                     + " needs " + Math.round(child.implicitWidth))
                 root.findings++
@@ -44,16 +49,35 @@ ShellRoot {
         }
     }
 
+    // PageShell subclasses declare required properties; widen the set until one takes
+    function _build(): var {
+        const w = root.paneWidth
+        const ladder = [
+            { width: w },
+            { width: w, active: true, powerOpen: false },
+            { width: w, active: true, powerOpen: false, viewportHeight: 520, height: 520 }
+        ]
+        for (let i = 0; i < ladder.length; i++) {
+            let built = null
+            try { built = root.component.createObject(host, ladder[i]) } catch (e) { built = null }
+            if (built) return built
+        }
+        return null
+    }
+
     function _next(): void {
         if (root.object) { root.object.destroy(); root.object = null }
         if (root.component) { root.component.destroy(); root.component = null }
         if (root.index >= root.paths.length) {
             console.warn("FIT-DONE built " + root.built + " of " + root.paths.length
-                + " at width " + root.contentWidth + ", findings " + root.findings)
+                + " texts " + root.texts + ", findings " + root.findings)
             Qt.exit(root.findings > 0 ? 1 : 0)
             return
         }
-        const path = root.paths[root.index++]
+        const entry = root.paths[root.index++]
+        const split = entry.indexOf("|")
+        const path = split < 0 ? entry : entry.slice(0, split)
+        root.paneWidth = split < 0 ? root.contentWidth : Number(entry.slice(split + 1))
         root.component = Qt.createComponent("file://" + root.base + "/" + path)
         if (root.component.status === Component.Error) {
             console.warn("FIT-FAIL " + path + " :: " + root.component.errorString())
@@ -61,7 +85,7 @@ ShellRoot {
             _step.restart()
             return
         }
-        root.object = root.component.createObject(host, { width: root.contentWidth })
+        root.object = root._build()
         if (root.object === null) {
             console.warn("FIT-FAIL " + path + " :: could not build")
             root.findings++

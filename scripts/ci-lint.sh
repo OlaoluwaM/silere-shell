@@ -494,7 +494,7 @@ if command -v python3 >/dev/null 2>&1 && [ -f scripts/check-connections.py ]; th
     printf '%s\n' "$orphan_handlers"
   fi
 else
-  warn "handlers" "python3 or scripts/check-connections.py missing; Connections check skipped"
+  skip "handlers" "python3 or scripts/check-connections.py missing; Connections check skipped"
 fi
 
 section "installer environment defaults"
@@ -1191,7 +1191,7 @@ if command -v python3 >/dev/null 2>&1 && [ -f scripts/check-text-scale.py ]; the
     printf '%s\n' "$text_scaled"
   fi
 else
-  warn "static text" "python3 or scripts/check-text-scale.py missing; text scale check skipped"
+  skip "static text" "python3 or scripts/check-text-scale.py missing; text scale check skipped"
 fi
 
 section "inert compositor events"
