@@ -82,8 +82,8 @@ for scale in 1.0 1.15; do
         status=1
         continue
     fi
-    if printf '%s\n' "$out" | grep -qE "FIT-TRUNC|FIT-CLIP|FIT-FAIL"; then
-        printf '%s\n' "$out" | grep -E "FIT-TRUNC|FIT-CLIP|FIT-FAIL" | sed 's/^/  /' >&2
+    if printf '%s\n' "$out" | grep -qE "FIT-TRUNC|FIT-CLIP|FIT-WIDE|FIT-FAIL"; then
+        printf '%s\n' "$out" | grep -E "FIT-TRUNC|FIT-CLIP|FIT-WIDE|FIT-FAIL" | sed 's/^/  /' >&2
         status=1
     fi
     done_line="$(printf '%s\n' "$out" | grep -o 'FIT-DONE.*' | tail -1)"

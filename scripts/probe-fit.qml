@@ -47,8 +47,21 @@ ShellRoot {
                 root.findings++
             }
             root._overflow(child, path, clipItem)
+            root._paintsWide(child, path, label)
             root._scan(child, path, depth + 1, child.clip === true ? child : clipItem)
         }
+    }
+
+    // Wrapped text whose longest line has no break opportunity overflows its own box
+    // instead of eliding, and Qt reports truncated:false for it — so neither the elide
+    // check nor the clip check sees glyphs painting outside the width they were given.
+    function _paintsWide(child, path: string, label: string): void {
+        if (label.length === 0 || child.contentWidth === undefined) return
+        if (!(child.width > 0) || child.contentWidth <= child.width + 0.5) return
+        console.warn("FIT-WIDE " + path + " :: \"" + label.slice(0, 40)
+            + "\" paints " + Math.round(child.contentWidth)
+            + " into " + Math.round(child.width))
+        root.findings++
     }
 
     // Text.truncated cannot see this: an item pushed past a clipping ancestor is cut
