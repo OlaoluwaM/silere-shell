@@ -28,8 +28,35 @@ ShellRoot {
     Component { id: boundedProcessFactory; BoundedProcess {} }
     Component { id: supervisedProcessFactory; SupervisedProcess {} }
     Component { id: barUnderlineFactory; BarUnderline {} }
+    Component {
+        id: selectRowFactory
+        SelectRow {
+            width: 320
+            label: "Probe select"
+            currentValue: "a"
+            model: [{ value: "a", label: "A" },
+                    { value: "b", label: "B" }]
+        }
+    }
     Component { id: workspaceButtonFactory; WorkspaceButton {} }
     Component { id: workspaceStripFactory; Workspaces { screen: null } }
+    Component {
+        id: workspaceMarkerFactory
+        WorkspaceMarker {
+            style: "gem"
+            rowHeight: 24
+            cellWidth: 26
+            targetX: 0
+            shown: true
+            inSpecial: false
+            urgent: false
+            menuTargets: false
+            barActive: true
+            paging: false
+            monitorReady: true
+            shiftEnabled: true
+        }
+    }
     Component {
         id: notificationCardFactory
         NotificationCard {
@@ -178,12 +205,46 @@ ShellRoot {
             "a reversed jump staggers by distance travelled, not by index")
         root._check(workspaceStrip._handoffDelayAt(50, 50, 50) === 0,
             "a hand-off with no distance to cover waits for nothing")
+        workspaceStrip.opacity = 0.4
+        workspaceStrip._pageShift = 8
+        workspaceStrip._settleGroupMotion()
+        root._check(workspaceStrip.opacity === 1 && workspaceStrip._pageShift === 0,
+            "retiring workspace page motion restores the settled layout")
+        MenuState.requestWarm(workspaceStrip, null)
+        root._check(MenuState.warmRequested
+                && MenuState.warmSource === workspaceStrip,
+            "an active workspace can request asynchronous menu preparation")
+        MenuState.requestWarm(probeAnchor, null)
+        MenuState.cancelWarm(workspaceStrip)
+        root._check(MenuState.warmSource === probeAnchor,
+            "an older bar cannot cancel a newer menu warm request")
+        MenuState.cancelWarm(probeAnchor)
+        root._check(!MenuState.warmRequested && MenuState.warmScreen === null,
+            "releasing the warm owner returns the menu loader to idle")
         workspaceStrip.destroy()
 
         root._check(Motion.allowsMotion(false, false)
                 && !Motion.allowsMotion(true, false)
                 && !Motion.allowsMotion(false, true),
             "visible motion is disabled by idle and reduce-motion states")
+
+        const workspaceMarker = workspaceMarkerFactory.createObject(root)
+        root._check(workspaceMarker !== null && workspaceMarker._motionAllowed(),
+            "the active workspace marker permits effects while visible and awake")
+        workspaceMarker.barActive = false
+        root._check(!workspaceMarker._motionAllowed(),
+            "a sleeping bar suppresses workspace marker effects")
+        workspaceMarker._tapScale = 1.12
+        workspaceMarker._moveScale = 1.08
+        workspaceMarker._specialScale = 1.05
+        workspaceMarker._glint = 0.4
+        workspaceMarker._settleMotion()
+        root._check(workspaceMarker._tapScale === 1
+                && workspaceMarker._moveScale === 1
+                && workspaceMarker._specialScale === 1
+                && workspaceMarker._glint === -1.15,
+            "retiring workspace effects restores every animated marker value")
+        workspaceMarker.destroy()
 
         const underline = barUnderlineFactory.createObject(root)
         root._check(underline !== null, "the reactive underline builds")
@@ -220,9 +281,40 @@ ShellRoot {
             root._check(settingsNav._expandedGroup
                     === settingsNav._groupIndexForSection("updates"),
                 "leaving multi-group navigation keeps the selected settings group open")
+            settingsNav._queueReveal(3)
+            settingsNav._queueReveal(-1)
+            root._check(settingsNav._pendingRevealGroup === 3,
+                "viewport resize frames preserve an explicit settings group reveal")
             settingsNav.destroy()
         }
         settingsNavComponent.destroy()
+
+        const firstSelect = selectRowFactory.createObject(root)
+        const secondSelect = selectRowFactory.createObject(root)
+        root._check(firstSelect !== null && secondSelect !== null,
+            "shared settings selects build for coordination checks")
+        if (firstSelect && secondSelect) {
+            firstSelect._setOpen(true)
+            secondSelect._setOpen(true)
+            root._check(!firstSelect._open && secondSelect._open
+                    && MenuState._settingsSelectOwner === secondSelect,
+                "opening a settings select folds the previous dropdown")
+            secondSelect.model = []
+            root._check(!secondSelect._open
+                    && MenuState._settingsSelectOwner === null,
+                "an open settings select folds when its choices disappear")
+            const sectionBeforeSelectProbe = MenuState.settingsSection
+            const sectionAfterSelectProbe = sectionBeforeSelectProbe === "theme"
+                ? "interface" : "theme"
+            firstSelect._setOpen(true)
+            MenuState.setSettingsSection(sectionAfterSelectProbe)
+            root._check(!firstSelect._open
+                    && MenuState._settingsSelectOwner === null,
+                "leaving a settings page folds its open dropdown")
+            MenuState.setSettingsSection(sectionBeforeSelectProbe)
+        }
+        if (firstSelect) firstSelect.destroy()
+        if (secondSelect) secondSelect.destroy()
 
         // available is temp>0, which drops to 0 every time the service is
         // released; a control gated on it flickers on every menu open

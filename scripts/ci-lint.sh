@@ -847,6 +847,23 @@ else
   ok "glow travel" "glowStrength max $glow_max stops at the last layer clamp $glow_sat"
 fi
 
+section "bar radius travel"
+# Same class as the glow check above: every surface that takes barRadius clamps it to half
+# its own height, so the setting stops doing anything at half the tallest bar the Height
+# chips offer. A schema max above that is slider travel that renders identically.
+radius_cap="$(awk '/label: "Height"/{take=1} take{print; if ($0 ~ /\]/) exit}' \
+  modules/menu/settings/SettingsSurfaceSection.qml \
+  | grep -oE 'value: [0-9]+' | awk '{ if ($2 > m) m = $2 } END { if (m) print m / 2 }')"
+radius_max="$(grep -oE '\{ k: "barRadius".*max: [0-9]+' services/ShellSettings.qml \
+  | grep -oE 'max: [0-9]+' | awk '{print $2}')"
+if [ -z "$radius_cap" ] || [ -z "$radius_max" ]; then
+  fail "cannot read the bar height chips or the barRadius schema max"
+elif awk -v a="$radius_max" -v b="$radius_cap" 'BEGIN { exit !(a > b) }'; then
+  fail "barRadius max $radius_max exceeds half the tallest bar $radius_cap; the travel above it renders identically"
+else
+  ok "radius travel" "barRadius max $radius_max stops at half the tallest bar $radius_cap"
+fi
+
 section "bar widget layout API"
 # The settings key list, settings metadata, and runtime component registry are
 # three views of one widget catalog. A widget is incomplete if any view drifts.
@@ -1293,6 +1310,42 @@ if [ -n "$(printf '%s' "$key_offenders" | grep . || true)" ]; then
   while IFS= read -r m; do [ -n "$m" ] && printf '  %s\n' "$m"; done <<< "$key_offenders"
 else
   ok "key handlers" "only text entry handles keys"
+fi
+
+section "spoken value names"
+# A bar pill hides its reading until hover (valuesOnHover, or an expanded-only text).
+# Deriving accessibleName from that same text takes the value away from everyone who
+# cannot hover for it: the default bar announced a bare "Volume" with no level at all.
+mapfile -t a11y_files < <(find modules -name '*.qml' | sort)
+a11y_names="$(awk '
+function flush() {
+  if (buf ~ /\.text([^A-Za-z_0-9]|$)/ || buf ~ /(^|[^A-Za-z_0-9])expanded([^A-Za-z_0-9]|$)/)
+    printf "%s:%d: %s\n", FILENAME, start, buf
+  buf = ""
+}
+FNR == 1 && inblk { flush(); inblk = 0 }
+{
+  if (inblk) {
+    if ($0 ~ /^[[:space:]]*[A-Za-z_][A-Za-z_0-9.]*:/ || $0 ~ /^[[:space:]]*\}/) {
+      flush(); inblk = 0
+    } else { buf = buf " " $0; next }
+  }
+  if ($0 ~ /^[[:space:]]*accessibleName:/) { inblk = 1; start = FNR; buf = $0 }
+}
+END { if (inblk) flush() }
+' "${a11y_files[@]}" </dev/null || true)"
+a11y_unnamed=""
+for f in $(grep -ln 'valuesOnHover' modules/bar/widgets/*.qml 2>/dev/null || true); do
+  grep -q 'accessibleName' "$f" || a11y_unnamed="$a11y_unnamed$f"$'\n'
+done
+if [ -n "$(printf '%s' "$a11y_names" | grep . || true)" ]; then
+  fail "an accessible name must read the value, not the text a hover reveals:"
+  while IFS= read -r m; do [ -n "$m" ] && printf '  %s\n' "$m"; done <<< "$a11y_names"
+elif [ -n "$(printf '%s' "$a11y_unnamed" | grep . || true)" ]; then
+  fail "these widgets hide their reading until hover and never name it:"
+  while IFS= read -r m; do [ -n "$m" ] && printf '  %s\n' "$m"; done <<< "$a11y_unnamed"
+else
+  ok "spoken names" "every hover-gated reading is named independently of its text"
 fi
 
 section "row height derivation"
