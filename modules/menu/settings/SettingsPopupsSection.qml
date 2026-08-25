@@ -88,6 +88,10 @@ Column {
                 displayValue: (ShellSettings.dndTo < 10 ? "0" : "") + ShellSettings.dndTo + ":00"
                 key: "dndTo"
             }
+            HintText {
+                visible: ShellSettings.dndFrom === ShellSettings.dndTo
+                text: "Start and end match, so nothing is silenced."
+            }
         }
     }
 }
