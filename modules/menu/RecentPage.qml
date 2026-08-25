@@ -460,7 +460,7 @@ PageShell {
                                 text: _entry.modelData.body || ""
                                 color: Theme.withAlpha(Theme.text, 0.58)
                                 font.pixelSize: Settings.fontLabel
-                                wrapMode: Text.WordWrap
+                                wrapMode: Text.Wrap
                                 maximumLineCount: _entry._expanded ? 12 : 2
                                 elide: Text.ElideRight
                             }

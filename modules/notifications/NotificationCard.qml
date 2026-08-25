@@ -421,7 +421,7 @@ Item {
                 text:             card.bodyText
                 color:            Theme.withAlpha(Theme.menuTextMuted, 0.82)
                 font.pixelSize:   Settings.fontLabel
-                wrapMode:         Text.WordWrap
+                wrapMode:         Text.Wrap
                 maximumLineCount: card._expanded ? 12 : 3
                 elide:            Text.ElideRight
             }
