@@ -452,12 +452,26 @@ Singleton {
         return IconResolver.iconSource(raw)
     }
 
-    function appIconSource(appIcon, desktopEntry, appName): string {
-        const direct = root.resolveIconSource(appIcon)
-        if (direct.length > 0) return direct
+    // DesktopEntries scans on first access and answers null until it lands, so the first
+    // notification of a session resolves an empty icon and a plain lookup never re-runs
+    property int entriesTick: 0
+    Connections {
+        target: DesktopEntries
+        function onApplicationsChanged() { root.entriesTick++ }
+    }
+
+    // a sender often points at a temp file it deletes as soon as the call returns, and history
+    // keeps that path for good; the desktop entry's icon outlives both
+    function entryIconSource(desktopEntry, appName): string {
         const identity = root.identityText(desktopEntry || appName)
         const entry = DesktopEntries.heuristicLookup(identity)
         return entry && entry.icon ? root.resolveIconSource(entry.icon) : ""
+    }
+
+    function appIconSource(appIcon, desktopEntry, appName): string {
+        const direct = root.resolveIconSource(appIcon)
+        if (direct.length > 0) return direct
+        return root.entryIconSource(desktopEntry, appName)
     }
 
     function removeFromHistory(entry): void {

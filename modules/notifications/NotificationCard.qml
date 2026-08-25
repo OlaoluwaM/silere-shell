@@ -50,8 +50,15 @@ Item {
         return out
     }
 
-    readonly property string appIconSource: Notifications.appIconSource(
-        notification.appIcon, notification.desktopEntry, card.appNameText)
+    readonly property string appIconSource: {
+        Notifications.entriesTick
+        return Notifications.appIconSource(
+            notification.appIcon, notification.desktopEntry, card.appNameText)
+    }
+    readonly property string entryIconSource: {
+        Notifications.entriesTick
+        return Notifications.entryIconSource(notification.desktopEntry, card.appNameText)
+    }
     readonly property string notificationImageSource: Notifications.fileUrl(notification.image)
     readonly property bool hasNotificationImage: notificationImageSource.length > 0
 
@@ -336,9 +343,17 @@ Item {
                 anchors.fill: parent
                 // without this the themed icon decodes at its native size (often 256px+) to paint 24px
                 implicitSize: 24
-                source: card.hasNotificationImage && !card.showContentImage
-                    && _previewImg.status === Image.Ready
+                // a deleted temp icon is still a valid path, so only the load failing reveals it
+                property bool _fellBack: false
+                readonly property string _primary: card.hasNotificationImage
+                    && !card.showContentImage && _previewImg.status === Image.Ready
                     ? card.notificationImageSource : card.appIconSource
+                on_PrimaryChanged: _fellBack = false
+                source: _fellBack ? card.entryIconSource : _primary
+                onStatusChanged: if (status === Image.Error
+                        && card.entryIconSource.length > 0
+                        && card.entryIconSource !== _primary)
+                    _fellBack = true
                 asynchronous: true
             }
         }

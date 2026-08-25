@@ -299,8 +299,16 @@ PageShell {
                     required property int index
 
                     readonly property bool _critical: Number(modelData.urgency) === 2
-                    readonly property string _appIconSource: Notifications.appIconSource(
-                        modelData.appIcon, modelData.desktopEntry, modelData.appName)
+                    readonly property string _appIconSource: {
+                        Notifications.entriesTick
+                        return Notifications.appIconSource(
+                            modelData.appIcon, modelData.desktopEntry, modelData.appName)
+                    }
+                    readonly property string _appIconFallback: {
+                        Notifications.entriesTick
+                        return Notifications.entryIconSource(
+                            modelData.desktopEntry, modelData.appName)
+                    }
                     readonly property bool _showSection: index === 0
                         || root.dayKey(modelData.time) !== root.dayKey(Notifications.historyModel.get(index - 1)?.time)
                     readonly property int _sectionHeight: _showSection ? 26 : 0
@@ -437,7 +445,15 @@ PageShell {
                                         visible: status === Image.Ready
                                         // without this the themed icon decodes at its native size (often 256px+) to paint 16px
                                         implicitSize: 16
-                                        source: _entry._appIconSource
+                                        // a deleted temp icon is still a valid path, so only the load failing reveals it
+                                        property bool _fellBack: false
+                                        readonly property string _primary: _entry._appIconSource
+                                        on_PrimaryChanged: _fellBack = false
+                                        source: _fellBack ? _entry._appIconFallback : _primary
+                                        onStatusChanged: if (status === Image.Error
+                                                && _entry._appIconFallback.length > 0
+                                                && _entry._appIconFallback !== _primary)
+                                            _fellBack = true
                                         asynchronous: true
                                     }
                                 }
