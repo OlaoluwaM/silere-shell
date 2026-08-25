@@ -38,6 +38,7 @@ Only work since the latest release is listed here. Completed notes move to
 ### Fixed
 
 - A notification stays expanded while the pointer rests on it.
+- A notification body with no spaces, such as a long path or URL, wraps and expands.
 - A fresh install finishes on the latest signed release.
 - Notification icons fall back to the app's own icon, including on the first notification of a session.
 - Bar › Layout keeps the roundness slider reachable while the bar is docked.
