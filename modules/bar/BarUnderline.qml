@@ -421,7 +421,7 @@ Item {
             peak:           _lineEffect._tempPeak
             floor:          _lineEffect._tempFloor
             duration:       _lineEffect._tempPulseDur
-            active:         _lineEffect._tempGlowEnabled && CpuTemp.critical && !Idle.isIdle
+            active:         _lineEffect._tempGlowEnabled && CpuTemp.critical && !Idle.isQuiet
         }
     }
 

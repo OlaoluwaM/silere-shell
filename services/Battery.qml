@@ -123,6 +123,6 @@ Singleton {
         target:         root
         targetProperty: "alertPulse"
         duration:       root.pulseDuration
-        active:         root.low && !Idle.isIdle
+        active:         root.low && !Idle.isQuiet
     }
 }

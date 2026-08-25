@@ -167,7 +167,7 @@ Singleton {
     onPositionVisibleChanged: if (positionVisible) root._reanchor()
     Timer {
         interval: 500; repeat: true
-        running: root.playing && root.hasPosition && !Idle.isIdle
+        running: root.playing && root.hasPosition && !Idle.isQuiet
             && root.positionVisible
         onTriggered: root._recompute()
     }
@@ -413,7 +413,7 @@ Singleton {
         command: ["cava", "-p", root._cavaConfigPath]
         superviseWhen: root._cavaConfigReady && root.cavaReady
             && (root._visualizerClients > 0 || _visualizerStopGrace.running)
-            && root.available && root.playing && !Idle.isIdle && !root._fsBlocked
+            && root.available && root.playing && !Idle.isQuiet && !root._fsBlocked
         restartDelay: 1000
         maxRestartDelay: 30000
         stableAfter: 20000
