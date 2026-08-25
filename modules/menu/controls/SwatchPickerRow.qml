@@ -87,6 +87,7 @@ Item {
 
     SwatchRow {
         id: _sr
+        accessiblePrefix: root.label
         anchors.right: parent.right
         anchors.rightMargin: 12
         y: root._stacked

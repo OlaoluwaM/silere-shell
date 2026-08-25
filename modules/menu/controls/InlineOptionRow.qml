@@ -8,6 +8,7 @@ Item {
 
     property string glyph: ""
     property string label: ""
+    property string accessiblePrefix: ""
     property string status: ""
     property color accentColor: Theme.accent
     property bool selected: false
@@ -38,10 +39,14 @@ Item {
     opacity: root.enabled && root.interactive ? 1.0 : Theme.disabledOpacity
     MotionBehavior on opacity {NumberAnimation { duration: Motion.medium } }
 
-    Accessible.role: Accessible.Button
-    Accessible.name: root.label
+    Accessible.role: root.accessiblePrefix.length > 0
+        ? Accessible.RadioButton : Accessible.Button
+    Accessible.name: root.accessiblePrefix.length > 0
+        ? root.accessiblePrefix + ": " + root.label : root.label
     Accessible.description: root.status
     Accessible.focusable: root.enabled && root.interactive
+    Accessible.checkable: root.accessiblePrefix.length > 0
+    Accessible.checked: root.accessiblePrefix.length > 0 && root.selected
     Accessible.selected: root.selected
     Accessible.onPressAction: root.trigger()
 

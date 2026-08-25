@@ -153,7 +153,9 @@ MenuRow {
                     height: _choiceGroup.height
 
                     Accessible.role: Accessible.RadioButton
-                    Accessible.name: _option.optionLabel
+                    Accessible.name: root.label.length > 0
+                        ? root.label + ": " + _option.optionLabel
+                        : _option.optionLabel
                     Accessible.focusable: root.enabled
                     Accessible.checkable: true
                     Accessible.checked: _option.active
