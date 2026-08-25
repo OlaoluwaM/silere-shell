@@ -84,6 +84,7 @@ ShellRoot {
         id: _pl
         required property bool wantOpen
         required property Component surface
+        property bool warm: false
         property ShellScreen requestedScreen: null
         readonly property ShellScreen latchedScreen: _latchedScreen
         property ShellScreen _latchedScreen: null
@@ -95,9 +96,10 @@ ShellRoot {
             // A live layer-shell surface must stay on the screen it was
             // created for. A fast reopen on another output recreates it rather
             // than remapping the still-exiting surface in place.
-            if (_plLoader.active && _pl._latchedScreen
+            if ((_plLoader.loading || _plLoader.active) && _pl._latchedScreen
                     && _pl.requestedScreen
                     && _pl._latchedScreen !== _pl.requestedScreen) {
+                _plLoader.loading = false
                 _plLoader.active = false
                 _pl._latchedScreen = _pl.requestedScreen
                 Qt.callLater(function() {
@@ -113,21 +115,53 @@ ShellRoot {
             _plLoader.active = true
         }
 
+        function _ensureWarm(): void {
+            if (!_pl.warm || _pl.wantOpen) return
+            _plUnload.stop()
+            // An asynchronously prepared layer surface is still tied to its
+            // output. A hover that moves between bars must restart for the new
+            // screen instead of finishing a surface that cannot be remapped.
+            if ((_plLoader.loading || _plLoader.active)
+                    && _pl._latchedScreen
+                    && _pl.requestedScreen
+                    && _pl._latchedScreen !== _pl.requestedScreen) {
+                _plLoader.loading = false
+                _plLoader.active = false
+            }
+            if (!_plLoader.loading && !_plLoader.active) {
+                _pl._latchedScreen = _pl.requestedScreen
+                _plLoader.loading = true
+            }
+        }
+
         onWantOpenChanged: {
             if (wantOpen) _pl._ensureLoaded()
+            else if (warm) _pl._ensureWarm()
             else _plUnload.restart()
         }
+        onWarmChanged: {
+            if (warm) _pl._ensureWarm()
+            else {
+                _plLoader.loading = false
+                if (!wantOpen) _plUnload.restart()
+            }
+        }
+        onRequestedScreenChanged: if (warm && !wantOpen) _pl._ensureWarm()
         LazyLoader {
             id: _plLoader
             active: false
-            Component.onCompleted: if (_pl.wantOpen) _pl._ensureLoaded()
+            Component.onCompleted: {
+                if (_pl.wantOpen) _pl._ensureLoaded()
+                else if (_pl.warm) _pl._ensureWarm()
+            }
             component: _pl.surface
         }
         Timer {
             id: _plUnload
             interval: _pl.unloadDelay
             onTriggered: {
-                if (_pl.wantOpen) return
+                if (_pl.wantOpen || _pl.warm) return
+                _plLoader.loading = false
                 _plLoader.active = false
             }
         }
@@ -155,8 +189,11 @@ ShellRoot {
 
     PopupLoader {
         id: _menuPopup
+        warm: MenuState.warmRequested
         wantOpen: MenuState.open
-        requestedScreen: MenuState.triggerScreen ?? root.anchoredPopupScreen
+        requestedScreen: MenuState.triggerScreen
+            ?? MenuState.warmScreen
+            ?? root.anchoredPopupScreen
         surface: Component { MenuWindow { targetScreen: _menuPopup.latchedScreen } }
     }
 
