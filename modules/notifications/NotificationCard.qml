@@ -248,6 +248,20 @@ Item {
 
     HoverHandler { id: _cardHover }
 
+    // Expanding grows the card, and the popup's implicitHeight is quantized, so each step
+    // reconfigures the layer surface and can drop the pointer for a frame. Collapsing on
+    // that reading shrinks straight back under the cursor and the card oscillates. Plain
+    // ms, not a Motion token: those return 0 under reduce motion and re-open the trap.
+    property bool _expanded: false
+    Timer { id: _collapseHold; interval: 260; onTriggered: card._expanded = false }
+    Connections {
+        target: _cardHover
+        function onHoveredChanged() {
+            if (_cardHover.hovered) { _collapseHold.stop(); card._expanded = true }
+            else _collapseHold.restart()
+        }
+    }
+
     onTimeoutStartedAtChanged: {
         card._hoverPausedMs = 0
         card._hoverStartMs = card._paused ? Date.now() : 0
@@ -313,7 +327,7 @@ Item {
 
         // urgency rides the outline, glyph and ring only: tinting the whole fill red drowns the text it is warning about
         // mix() returns alpha 1, so a translucent popup would snap opaque under the cursor
-        color: _cardHover.hovered
+        color: card._expanded
             ? Theme.withAlpha(Theme.mix(Theme.popup, Theme.subtext, 0.06), Theme.popup.a)
             : Theme.popup
 
@@ -408,7 +422,7 @@ Item {
                 color:            Theme.withAlpha(Theme.menuTextMuted, 0.82)
                 font.pixelSize:   Settings.fontLabel
                 wrapMode:         Text.WordWrap
-                maximumLineCount: _cardHover.hovered ? 12 : 3
+                maximumLineCount: card._expanded ? 12 : 3
                 elide:            Text.ElideRight
             }
 
@@ -585,7 +599,7 @@ Item {
             width: 24; height: 24; radius: 12
             antialiasing: true
             color:        _closeHover.hovered ? Theme.withAlpha(Theme.error, 0.18) : Theme.menuControl
-            opacity: _cardHover.hovered ? 1.0 : 0.48
+            opacity: card._expanded ? 1.0 : 0.48
 
             OutlineBorder {
                 radius: 12
