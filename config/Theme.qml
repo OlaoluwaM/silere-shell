@@ -79,6 +79,9 @@ Singleton {
     readonly property color barSeparator: withAlpha(_n ? _lineBase : mix(_lineBase, accent, 0.10),
                                                     ShellSettings.dotOpacity)
 
+    // signature, not structure: keeps its accent in neutral where the panel lines drop theirs
+    readonly property color barLine: mix(_lineBase, accent, 0.30)
+
     // high contrast floors this, so the readout has to report the effective value, not the setting
     readonly property real panelOpacity: _hc ? Math.max(0.90, ShellSettings.barOpacity)
                                              : ShellSettings.barOpacity

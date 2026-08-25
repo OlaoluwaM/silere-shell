@@ -160,7 +160,7 @@ PanelWindow {
                     anchors.left:  parent.left
                     anchors.right: parent.right
                     y: bar.atBottom ? 0 : parent.height - height
-                    color: Theme.withAlpha(Theme.subtext, bar.lineAlpha)
+                    color: Theme.withAlpha(Theme.barLine, bar.lineAlpha)
                 }
             }
         }
@@ -274,7 +274,7 @@ PanelWindow {
             visible: active && opacity > 0.001
             sourceComponent: OutlineBorder {
                 radius: surface.radius
-                outlineColor: Theme.withAlpha(Theme.mix(Theme.subtext, Theme.accent, 0.30),
+                outlineColor: Theme.withAlpha(Theme.barLine,
                     Math.min(0.62, 0.20 * ShellSettings.barLineStrength))
             }
         }
