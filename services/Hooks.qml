@@ -25,6 +25,7 @@ Singleton {
     readonly property int maxArgs: 4
 
     readonly property int maxRunsPerSecond: 20
+    readonly property int maxRuntimeMs: 30000
 
     property var _present: ({})
     property var _found: ({})
@@ -68,7 +69,48 @@ Singleton {
         const n = Math.min(list.length, root.maxArgs)
         for (let i = 0; i < n; i++)
             argv.push(SafeText.singleLineText(String(list[i]), root.maxArgChars))
-        Quickshell.execDetached(argv)
+        if (!root._claimRunner(argv)) root._queue(event, argv)
+    }
+
+    // execDetached reports no exit, so a rate cap alone cannot bound how many are alive at once
+    component HookRunner: BoundedProcess {
+        timeoutMs: root.maxRuntimeMs
+        onRunningChanged: if (!running) Qt.callLater(root._drain)
+        onTimeoutReached: console.warn("silere-shell: hook ran past "
+            + root.maxRuntimeMs + "ms and was terminated: " + command[0])
+    }
+
+    property HookRunner _runner0: HookRunner {}
+    property HookRunner _runner1: HookRunner {}
+    property HookRunner _runner2: HookRunner {}
+    property HookRunner _runner3: HookRunner {}
+    readonly property var _runners: [_runner0, _runner1, _runner2, _runner3]
+
+    property var _queued: ({})
+    property var _queueOrder: []
+
+    function _claimRunner(argv): bool {
+        for (let i = 0; i < root._runners.length; i++) {
+            const runner = root._runners[i]
+            if (runner.running) continue
+            runner.command = argv
+            runner.running = true
+            return true
+        }
+        return false
+    }
+
+    // a repeat of a waiting event is the same event: only the newest arguments are still true
+    function _queue(event: string, argv): void {
+        if (root._queued[event] === undefined) root._queueOrder.push(event)
+        root._queued[event] = argv
+    }
+
+    function _drain(): void {
+        while (root._queueOrder.length > 0) {
+            if (!root._claimRunner(root._queued[root._queueOrder[0]])) return
+            delete root._queued[root._queueOrder.shift()]
+        }
     }
 
     function rescan(): void {
