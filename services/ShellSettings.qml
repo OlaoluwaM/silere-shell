@@ -356,7 +356,7 @@ Singleton {
         { k: "barFloating",         t: "bool", sec: "surface" },
         { k: "barGap",              t: "int",  min: 0,    max: 24, sec: "surface" },
         { k: "barWidth",            t: "real", min: 0.5,  max: 1.0, sec: "surface" },
-        { k: "barRadius",           t: "int",  min: 0,    max: 28, sec: "surface" },
+        { k: "barRadius",           t: "int",  min: 0,    max: 22, sec: "surface" },
         { k: "barShadow",           t: "bool", sec: "theme" },
         { k: "barShadowStrength",   t: "real", min: 0.3,  max: 1.6, sec: "theme" },
         { k: "barPosition",         t: "enum", vals: ["top", "bottom"], sec: "surface" },
