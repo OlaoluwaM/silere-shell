@@ -976,6 +976,41 @@ if [ -f "$shell_settings" ] && [ -f "$settings_nav" ]; then
             ok "attribution" "$schema_keys schema keys map to known settings pages"
         fi
     fi
+
+    # a key can name a real page and still miss the page it is edited on, which drops
+    # the changed dot from the one nav entry the user just used
+    own_bad=""
+    own_seen=0
+    for sec_file in modules/menu/settings/Settings*Section.qml; do
+        [ -f "$sec_file" ] || continue
+        own_page=$(basename "$sec_file" .qml)
+        own_page=${own_page#Settings}
+        own_page=${own_page%Section}
+        own_page=$(printf '%s' "$own_page" | tr 'A-Z' 'a-z')
+        own_keys=$( { grep -oE 'key: "[a-zA-Z0-9_]+"' "$sec_file" \
+                        | sed -E 's/.*"([^"]+)"/\1/'
+                      grep -oE 'ShellSettings\.[a-zA-Z0-9_]+[[:space:]]*=[^=]' "$sec_file" \
+                        | sed -E 's/ShellSettings\.([a-zA-Z0-9_]+).*/\1/'; } | sort -u)
+        for own_key in $own_keys; do
+            own_sec=$(printf '%s\n' "$schema_block" | grep -E "\{ k: \"$own_key\"," \
+                      | grep -oE 'sec: "[^"]*"' | sed -E 's/.*"([^"]*)"/\1/')
+            [ -z "$own_sec" ] && continue
+            [ "$own_sec" = "-" ] && continue
+            own_seen=$((own_seen + 1))
+            case ",$own_sec," in
+                *",$own_page,"*) ;;
+                *) own_bad="$own_bad  $own_key edited on $own_page but attributed to $own_sec"$'\n' ;;
+            esac
+        done
+    done
+    if [ -n "$own_bad" ]; then
+        fail "settings rows not attributed to the page they are edited on:"
+        printf '%s' "$own_bad"
+    elif [ "$own_seen" -lt 60 ]; then
+        fail "settings attribution scan matched only $own_seen rows; the harvest is broken"
+    else
+        ok "attribution" "$own_seen rows are attributed to the page that edits them"
+    fi
 else
     skip "attribution" "settings schema files not found"
 fi

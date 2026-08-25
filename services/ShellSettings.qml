@@ -287,7 +287,7 @@ Singleton {
         { k: "showWindowTitle",     t: "bool", sec: "indicators" },
         { k: "showWindowTitleApp",  t: "bool", sec: "indicators" },
         { k: "windowTitleCenterGap", t: "bool", sec: "indicators" },
-        { k: "updatesWidget",       t: "bool", sec: "widgets" },
+        { k: "updatesWidget",       t: "bool", sec: "widgets,updates" },
         { k: "updatesIncludeAur",   t: "bool", sec: "updates" },
         { k: "trayWidget",          t: "bool", sec: "widgets" },
         { k: "valuesOnHover",       t: "bool", sec: "indicators" },
