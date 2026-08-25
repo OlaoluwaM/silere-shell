@@ -71,6 +71,8 @@ Item {
             return
         }
         _revealDefer.stop()
+        if (next) MenuState.claimSettingsSelect(root)
+        else MenuState.releaseSettingsSelect(root)
         _open = next
         if (_open) _revealDefer.restart()
     }
@@ -80,6 +82,9 @@ Item {
     }
 
     onEnabledChanged: if (!enabled) root._setOpen(false)
+    on_OptionCountChanged: if (root._optionCount <= 0) root._setOpen(false)
+    on_ActiveIndexChanged: if (root._open) _revealDefer.restart()
+    Component.onDestruction: MenuState.releaseSettingsSelect(root)
 
     Timer {
         id: _revealDefer
@@ -310,6 +315,7 @@ Item {
 
                     width: _optCol.width
                     label: String(modelData.label ?? "")
+                    accessiblePrefix: root.label
                     labelFontFamily: optionFont
                     preview: root.optionPreview
                     previewValue: modelData.value
