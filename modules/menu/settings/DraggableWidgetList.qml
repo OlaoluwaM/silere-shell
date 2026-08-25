@@ -420,8 +420,9 @@ Item {
 
             ShellText {
                 id: _dragGrip
-                anchors.right: _row.hasToggle ? _toggleTarget.left : parent.right
-                anchors.rightMargin: _row.hasToggle ? 1 : 9
+                // _toggleTarget keeps its geometry while hidden, so the grip holds one column on every row
+                anchors.right: _toggleTarget.left
+                anchors.rightMargin: 1
                 anchors.verticalCenter: parent.verticalCenter
                 width: 18
                 horizontalAlignment: Text.AlignHCenter
