@@ -22,6 +22,16 @@ Bootstrapping from a dotfiles script or a container? `SILERE_ASSUME_YES=1` answe
 `[Y/n]` prompts and installs to the default path. It still backs up every file it edits,
 and still stops on a compositor it does not support.
 
+## Fonts
+
+Silere draws its glyphs from JetBrainsMono Nerd Font. When no Nerd Font is installed, the
+installer offers to download one and skips the step if you decline. The release is pinned
+to a version and checked against a known SHA-256, and a mismatch refuses the install. Fonts
+go to `~/.local/share/fonts/JetBrainsMono`.
+
+Any other Nerd Font you have installed appears in the picker under
+Settings › Appearance › Interface.
+
 ## Optional tools
 
 None of these are required. Installing one turns on the matching feature; skipping it
@@ -69,3 +79,6 @@ leaves `~/.config/cava` untouched.
 Run `bash scripts/uninstall.sh` from the installed checkout. That clears autostart, theme
 and update-timer integrations, but keeps the checkout, your settings, and the installed
 font.
+
+A package install has no `uninstall.sh`. Remove the package instead; it prints what is
+left in your home directory to clean up by hand.
