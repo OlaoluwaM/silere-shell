@@ -136,7 +136,11 @@ PanelWindow {
             ? Math.max(12, Math.min(20,
                 Math.round(12 + (width - 398) * 8 / 232)))
             : _railExpanded && width >= 460 ? 18 : 12
-        readonly property int innerW: Math.max(1, contentW - contentPad * 2)
+        // the left inset sits against the rail's hairline, which already reads as
+        // separation; the right inset meets the panel outline directly, so it gets
+        // a touch more room for the two edges to feel equally spaced
+        readonly property int contentPadRight: contentPad + 4
+        readonly property int innerW: Math.max(1, contentW - contentPad - contentPadRight)
         readonly property int idealMinH: 360
         readonly property int minRailFitH: 252
         readonly property int pageTopInset: 12
