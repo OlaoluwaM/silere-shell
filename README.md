@@ -21,6 +21,10 @@ write, and changes apply as you make them.
 Background work only runs when it has something to do: an idle session sits near zero
 CPU, and every animation stops on its own when you walk away.
 
+There is no plugin system, so no third-party code runs inside the shell process. Hooks
+run your own commands as separate, time-bounded processes. Updates install only from
+release tags signed with the key bundled in the checkout.
+
 <p align="center">
   <img src="assets/shot-desktop.webp" alt="The Silere bar with the menu panel open" width="900"/>
 </p>
