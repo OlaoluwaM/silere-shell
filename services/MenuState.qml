@@ -83,6 +83,14 @@ AnchoredPopupState {
         if (next !== settingsSection) settingsSection = next
     }
 
+    // folds only hand-typed ipc names; setSettingsSection stays exact so no caller lands on a page by accident
+    function _ipcSection(name: string): string {
+        const fold = String(name || "").toLowerCase()
+        for (let i = 0; i < root._flatSections.length; i++)
+            if (root._flatSections[i].toLowerCase() === fold) return root._flatSections[i]
+        return name
+    }
+
     signal tabRequested(int index)
 
     function _validTab(index: int): int {
@@ -138,9 +146,10 @@ AnchoredPopupState {
         }
         // keep `section: "` out of any literal below: ci-lint harvests nav entries by that pattern
         function settings(name: string): string {
-            const known = root._flatSections.indexOf(name) >= 0
+            const resolved = root._ipcSection(name)
+            const known = root._flatSections.indexOf(resolved) >= 0
             root._unanchor()
-            root.setSettingsSection(name)
+            root.setSettingsSection(resolved)
             root.showTab(root.settingsTab)
             if (known) return "ok"
             // pages get renamed; a keybind carrying an old name still opens Settings rather than doing nothing, and says why it landed somewhere else

@@ -380,16 +380,29 @@ Singleton {
         { k: "wsIconMono",          t: "bool", sec: "workspaces" },
         { k: "wsActiveMarker",      t: "enum", vals: ["gem", "dot", "bar"], sec: "workspaces" }
     ]
+    readonly property var _schemaByKey: {
+        const m = Object.create(null)
+        for (let i = 0; i < _schema.length; i++) m[_schema[i].k] = _schema[i]
+        return m
+    }
+
     // a settings row binds by key: the schema already states type and range, so a row that restates them is duplication the two can drift apart on
     function schemaFor(key: string): var {
-        for (let i = 0; i < root._schema.length; i++)
-            if (root._schema[i].k === key) return root._schema[i]
-        return null
+        return root._schemaByKey[key] ?? null
     }
 
     function setValue(key: string, value): bool {
         const entry = root.schemaFor(key)
         return entry ? root._coerce(entry, value) : false
+    }
+
+    // folds only hand-typed ipc keys; schemaFor stays exact so a row's key: cannot match the wrong setting
+    function _ipcKey(key: string): string {
+        if (root.schemaFor(key)) return key
+        const fold = String(key || "").toLowerCase()
+        for (let i = 0; i < root._schema.length; i++)
+            if (root._schema[i].k.toLowerCase() === fold) return root._schema[i].k
+        return key
     }
 
     function _coerce(s, v): bool {
@@ -430,29 +443,36 @@ Singleton {
         return ""
     }
 
+    function _ipcSet(key: string, value): string {
+        const k = root._ipcKey(key)
+        if (!root.schemaFor(k)) return "unknown setting '" + key + "'; try `list`"
+        if (!root.setValue(k, value))
+            return "'" + value + "' is not valid for " + k
+                + "; expected " + root.constraintOf(k)
+        return String(root[k])
+    }
+
     IpcHandler {
         target: "settings"
 
         function get(key: string): string {
-            if (!root.schemaFor(key)) return "unknown setting '" + key + "'; try `list`"
-            return String(root[key])
+            const k = root._ipcKey(key)
+            if (!root.schemaFor(k)) return "unknown setting '" + key + "'; try `list`"
+            return String(root[k])
         }
 
         function set(key: string, value: string): string {
-            if (!root.schemaFor(key)) return "unknown setting '" + key + "'; try `list`"
-            if (!root.setValue(key, value))
-                return "'" + value + "' is not valid for " + key
-                    + "; expected " + root.constraintOf(key)
-            return String(root[key])
+            return root._ipcSet(key, value)
         }
 
         function toggle(key: string): string {
-            const s = root.schemaFor(key)
+            const k = root._ipcKey(key)
+            const s = root.schemaFor(k)
             if (!s) return "unknown setting '" + key + "'; try `list`"
             if (s.t !== "bool")
-                return key + " is not a toggle; expected " + root.constraintOf(key)
-            root[key] = !root[key]
-            return String(root[key])
+                return k + " is not a toggle; expected " + root.constraintOf(k)
+            root[k] = !root[k]
+            return String(root[k])
         }
 
         function list(filter: string): string {
