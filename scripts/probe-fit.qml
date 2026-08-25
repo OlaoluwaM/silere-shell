@@ -20,6 +20,7 @@ ShellRoot {
     property int findings: 0
     property int built: 0
     property int texts: 0
+    property int clipped: 0
     property var object: null
     property var component: null
 
@@ -30,7 +31,7 @@ ShellRoot {
         height: 6000
     }
 
-    function _scan(item, path: string, depth: int): void {
+    function _scan(item, path: string, depth: int, clipItem): void {
         if (!item || depth > 40) return
         const kids = item.children
         if (!kids) return
@@ -45,8 +46,24 @@ ShellRoot {
                     + " needs " + Math.round(child.implicitWidth))
                 root.findings++
             }
-            root._scan(child, path, depth + 1)
+            root._overflow(child, path, clipItem)
+            root._scan(child, path, depth + 1, child.clip === true ? child : clipItem)
         }
+    }
+
+    // Text.truncated cannot see this: an item pushed past a clipping ancestor is cut
+    // with no elide, so it just goes missing. Horizontal only — the host is 6000 tall
+    // on purpose, so a vertical comparison would measure the probe, not the layout.
+    function _overflow(child, path: string, clipItem): void {
+        if (!clipItem || !(child.width > 0)) return
+        root.clipped++
+        const left = child.mapToItem(clipItem, 0, 0).x
+        const right = left + child.width
+        if (left >= -0.5 && right <= clipItem.width + 0.5) return
+        console.warn("FIT-CLIP " + path + " :: " + String(child).split("(")[0]
+            + " spans " + Math.round(left) + ".." + Math.round(right)
+            + " inside " + Math.round(clipItem.width))
+        root.findings++
     }
 
     // PageShell subclasses declare required properties; widen the set until one takes
@@ -70,7 +87,8 @@ ShellRoot {
         if (root.component) { root.component.destroy(); root.component = null }
         if (root.index >= root.paths.length) {
             console.warn("FIT-DONE built " + root.built + " of " + root.paths.length
-                + " texts " + root.texts + ", findings " + root.findings)
+                + " texts " + root.texts + " clipped " + root.clipped
+                + ", findings " + root.findings)
             Qt.exit(root.findings > 0 ? 1 : 0)
             return
         }
@@ -103,7 +121,7 @@ ShellRoot {
         // and a collapsing group, both of which settle after the first paint
         interval: 260
         onTriggered: {
-            root._scan(root.object, root.paths[root.index - 1], 0)
+            root._scan(root.object, root.paths[root.index - 1], 0, null)
             _step.restart()
         }
     }

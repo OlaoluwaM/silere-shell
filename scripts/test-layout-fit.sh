@@ -82,8 +82,8 @@ for scale in 1.0 1.15; do
         status=1
         continue
     fi
-    if printf '%s\n' "$out" | grep -qE "FIT-TRUNC|FIT-FAIL"; then
-        printf '%s\n' "$out" | grep -E "FIT-TRUNC|FIT-FAIL" | sed 's/^/  /' >&2
+    if printf '%s\n' "$out" | grep -qE "FIT-TRUNC|FIT-CLIP|FIT-FAIL"; then
+        printf '%s\n' "$out" | grep -E "FIT-TRUNC|FIT-CLIP|FIT-FAIL" | sed 's/^/  /' >&2
         status=1
     fi
     done_line="$(printf '%s\n' "$out" | grep -o 'FIT-DONE.*' | tail -1)"
@@ -94,6 +94,11 @@ for scale in 1.0 1.15; do
     # a scan that reaches no text reports zero findings for the wrong reason
     elif [ "$(printf '%s' "$done_line" | sed -n 's/.*texts \([0-9]*\).*/\1/p')" -lt 200 ]; then
         echo "FAIL: layout fit probe scanned too little text at scale $scale: $done_line" >&2
+        status=1
+    # likewise for the clip check: no item measured against a clipping ancestor
+    # means the overflow scan reported clean because it never ran
+    elif [ "$(printf '%s' "$done_line" | sed -n 's/.*clipped \([0-9]*\).*/\1/p')" -lt 500 ]; then
+        echo "FAIL: layout fit probe measured too few clipped items at scale $scale: $done_line" >&2
         status=1
     fi
 done
