@@ -1,0 +1,57 @@
+# Upstream divergences
+
+The standing differences between this fork and upstream, each with the
+action a merge takes when they collide. Read this before starting an
+upstream merge; walk it after resolving and retire anything the merge made
+moot, inside the merge commit. The merge ritual itself (tags only, one
+aggregate pass, the revert recipe) is README.md's; this file only holds the
+resolutions.
+
+## Default: the fork supersedes upstream
+
+In any conflict, the fork's version wins; upstream's fixes come in where
+they don't fight a fork redesign. One exception: when upstream ships its
+own take on something the fork already built, stop and review it case by
+case — that decision pauses the merge and gets made cold, never mid-
+conflict.
+
+## Removed outright — keep deleted
+
+The fork is distributed by nixos-config and never publishes releases, so
+the release and distribution machinery is gone whole (the package-updates
+widget went the same way earlier; upstream had dropped it by v1.1.1, so
+only these paths still differ). Resolve delete/modify conflicts under
+these paths as ours, and re-delete anything a merge brings back under
+them:
+
+<!-- keep-deleted:begin -->
+packaging/aur
+scripts/release-notes.sh
+docs/releasing.md
+docs/releases
+.github/workflows
+<!-- keep-deleted:end -->
+
+ci-lint enforces the list: a path here that exists again fails the gate,
+so resurrecting one on purpose means removing its line in the same commit.
+`.github/workflows` covers all Actions — the gates run locally only.
+
+## Shared files — union, with contracts
+
+- `config/GeneratedDefaults.qml`: take upstream's defaults wholesale, then
+  re-append the fork's added keys. The settings contract (AGENTS.md) must
+  hold after the merge, and key-set changes tie the merge to nixos-config
+  per README.md's coupling rule.
+- `services/ShellSettings.qml`: fork-added properties and `_schema` rows
+  merge as a union with upstream's.
+- `qmldir` files, `BarContent`'s widget registry, `barWidgetMeta`, and the
+  zone-order defaults: unions — keep both sides' entries.
+
+## What belongs here
+
+An entry exists only where a merge could go wrong non-obviously: a
+removal, a shared-file policy, or the feature-collision default above.
+Fork-only features never get entries — new files don't conflict, and their
+hooks into shared files are already covered by the union entries. A commit
+that creates, changes, or moots a divergence updates this file in the same
+commit; there are no batch cleanups.

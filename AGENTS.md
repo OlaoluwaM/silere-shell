@@ -23,6 +23,10 @@ one of the three files, so follow the pointers instead of restating.
 - One commit per task item. Subjects are short, lowercase, and imperative,
   like the ones already in `git log`. No Co-Authored-By and no
   AI-attribution trailer of any kind.
+- A commit that creates, changes, or resolves a divergence from upstream
+  updates [docs/upstream-divergences.md](docs/upstream-divergences.md) in
+  the same commit. What counts as a divergence and when entries retire is
+  defined in that file, not here.
 - Code comments explain why, in the voice of the file they sit in. They
   never narrate what the change did.
 

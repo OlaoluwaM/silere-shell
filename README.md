@@ -46,7 +46,17 @@ rebase:
   you must revert the revert first, or git treats those changes as already
   present. Or we can drop the commit entirely
 - In conflicts, the fork's extensions win. Upstream's fixes come in where
-  they don't fight a fork redesign.
+  they don't fight a fork redesign. The standing resolutions — what stays
+  deleted, which files merge as unions, what happens when upstream ships a
+  feature the fork already has — live in the
+  [divergence ledger](docs/upstream-divergences.md). Resolve by the ledger,
+  then walk it and retire what the merge made moot, inside the merge
+  commit. A conflict no entry anticipates and that needs a real decision
+  pauses the merge until it's settled cold.
+
+Before the first conflict pass, enable rerere once per clone
+(`git config rerere.enabled true`): an aborted or repeated attempt then
+replays the hunks already resolved instead of presenting them again.
 
 After every merge, the same gates as any feature apply. They live in
 [AGENTS.md](AGENTS.md).

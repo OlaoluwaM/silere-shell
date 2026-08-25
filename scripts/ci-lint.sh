@@ -467,6 +467,27 @@ else
   ok "qmldir" "every tracked component is packaged"
 fi
 
+section "upstream divergence ledger"
+# The ledger's keep-deleted block names paths the fork removed on purpose. An
+# upstream merge can bring one back without any conflict firing; failing here
+# is what makes a deliberate resurrection remove its ledger line in the same
+# commit, so the ledger and the tree cannot drift apart in this direction.
+ledger="docs/upstream-divergences.md"
+if [ ! -f "$ledger" ]; then
+  fail "AGENTS.md points at $ledger but it is missing"
+else
+  resurrected=""
+  while IFS= read -r kept; do
+    case "$kept" in ''|'<!--'*) continue ;; esac
+    [ -e "$kept" ] && resurrected="$resurrected $kept"
+  done < <(sed -n '/keep-deleted:begin/,/keep-deleted:end/p' "$ledger")
+  if [ -n "$resurrected" ]; then
+    fail "the divergence ledger keeps these deleted, but they exist:$resurrected"
+  else
+    ok "ledger" "keep-deleted paths stay absent"
+  fi
+fi
+
 section "menu module boundaries"
 menu_root_public="$(awk 'NF && $1 !~ /^#/ && $1 != "internal" {print $1}' modules/menu/qmldir)"
 settings_public="$(awk 'NF && $1 !~ /^#/ && $1 != "internal" {print $1}' modules/menu/settings/qmldir)"
