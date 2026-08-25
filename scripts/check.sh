@@ -120,8 +120,6 @@ optional_tool inotifywait "screenshot feedback"
 optional_tool nmcli "VPN name fallback"
 optional_tool cava "audio visualizer"
 optional_tool matugen "wallpaper-matched colors"
-optional_any_tool "updates" "update count widget" checkupdates apt dnf zypper xbps-install
-optional_any_tool "AUR helper" "AUR update count" paru yay
 optional_tool hyprsunset "night light toggle"
 optional_tool powerprofilesctl "power profile selector"
 optional_tool hyprlock "lock screen"

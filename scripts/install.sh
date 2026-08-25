@@ -589,8 +589,6 @@ _optdep brightnessctl "brightness control + popup"
 _optdep inotifywait   "screenshot flash"
 _optdep nmcli         "VPN name fallback"
 _optdep cava          "audio visualizer (auto-configured at runtime)"
-_optdep_any updates   "update count" checkupdates apt dnf zypper xbps-install
-_optdep_any "AUR helper" "AUR update count" paru yay
 _optdep busctl        "notification daemon check"
 _optdep upower        "battery percentage + warnings"
 _optdep hyprsunset    "night light toggle"
