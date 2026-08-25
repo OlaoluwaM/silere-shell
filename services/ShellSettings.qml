@@ -58,6 +58,9 @@ Singleton {
     property string wifiEditCommand:     GeneratedDefaults.wifiEditCommand
     property string btEditCommand:       GeneratedDefaults.btEditCommand
     // packaging-only, like wifiEditCommand/btEditCommand above: no settings page exposes
+    // this; the vitals tiles substitute {widget} with the clicked tile's monitor view
+    property string systemMonitorCommand: GeneratedDefaults.systemMonitorCommand
+    // packaging-only, like wifiEditCommand/btEditCommand above: no settings page exposes
     // this, the Nix screenrecord wrapper is the only writer of "" vs a real path
     property string recordingStateFile:  GeneratedDefaults.recordingStateFile
     // packaging-only, same contract as recordingStateFile above: only the packaging knows
@@ -376,6 +379,7 @@ Singleton {
         { k: "dndCustomMinutes",    t: "int",  min: 5, max: 480,  sec: "-" },
         { k: "wifiEditCommand",     t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "btEditCommand",       t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
+        { k: "systemMonitorCommand", t: "re",  re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "recordingStateFile",  t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "recordingStopCommand", t: "re",  re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "keybindsFile",        t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },

@@ -44,6 +44,7 @@ singleton QuickActionsState 1.0 QuickActionsState.qml
 singleton Scroll        1.0 Scroll.qml
 singleton ShellSettings 1.0 ShellSettings.qml
 singleton SystemAlerts  1.0 SystemAlerts.qml
+singleton SystemMonitor 1.0 SystemMonitor.qml
 singleton SystemTools   1.0 SystemTools.qml
 singleton TrayMenuState 1.0 TrayMenuState.qml
 singleton TrayPopupState 1.0 TrayPopupState.qml

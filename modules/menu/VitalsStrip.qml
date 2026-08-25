@@ -34,6 +34,11 @@ Rectangle {
         property real   pulse: 0
         property bool   live: true
         property bool   divider: true
+        // the tile's monitor view, in SystemMonitor's {widget} vocabulary; clicking is
+        // the same escape-hatch contract as the wifi/bluetooth rows, so the tile goes
+        // inert (no cursor, no fill) whenever the template's PATH probe fails
+        property string widget: ""
+        readonly property bool clickable: widget.length > 0 && SystemMonitor.available
         readonly property int padL: divider ? 18 : 14
         property int          padR: 18
 
@@ -48,6 +53,29 @@ Rectangle {
         MotionBehavior on _disp {
             gate: tile.live
             NumberAnimation { duration: Motion.ms(450); easing.type: Easing.OutCubic }
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 3
+            radius: Math.max(4, Theme.radiusCard - 3)
+            antialiasing: true
+            color: _tap.pressed ? Theme.withAlpha(Theme.text, 0.055)
+                 : _hover.hovered ? Theme.withAlpha(Theme.text, 0.030)
+                 : "transparent"
+            ColorFade on color {}
+        }
+
+        HoverHandler {
+            id: _hover
+            enabled: tile.clickable
+            cursorShape: Qt.PointingHandCursor
+        }
+        TapHandler {
+            id: _tap
+            enabled: tile.clickable
+            acceptedButtons: Qt.LeftButton
+            onTapped: SystemMonitor.launch(tile.widget)
         }
 
         Rectangle {
@@ -150,6 +178,7 @@ Rectangle {
             width: _grid.cellW
             live: root.active
             divider: false
+            widget: "cpu"
             glyph: "󰔏"
             label: "CPU"
             value: Math.round(SysInfo.cpuPct * 100) + "%"
@@ -162,6 +191,7 @@ Rectangle {
         Vital {
             width: _grid.cellW
             live: root.active
+            widget: "mem"
             glyph: "󰘚"
             label: "Mem"
             value: SysInfo.memTotalKb > 0 ? Math.round(SysInfo.memPct * 100) + "%" : "—"
@@ -173,6 +203,7 @@ Rectangle {
             width: _grid.cellW
             live: root.active
             padR: Battery.available ? 18 : 14
+            widget: "disk"
             glyph: "󰋊"
             label: "Disk"
             value: SysInfo.diskPct > 0 ? Math.round(SysInfo.diskPct * 100) + "%" : "—"
@@ -185,6 +216,7 @@ Rectangle {
             live: root.active
             visible: Battery.available
             padR: 14
+            widget: "battery"
             glyph: Battery.icon
             label: "Batt"
             value: Battery.available ? Battery.label : "—"

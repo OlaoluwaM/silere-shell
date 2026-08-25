@@ -37,6 +37,9 @@ Singleton {
     readonly property string dndPresets:          "15,30,60,0"
     readonly property string wifiEditCommand:     "nm-connection-editor --edit {uuid}"
     readonly property string btEditCommand:       "blueman-manager"
+    // "" = feature dormant, same contract as the recording keys below: no packaging
+    // declares a monitor launch template here, so the vitals tiles render but stay inert
+    readonly property string systemMonitorCommand: ""
     readonly property bool   barShowCaffeine:     true
     readonly property bool   trayWidget:          false
     readonly property bool   neutralTheme:        true

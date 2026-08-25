@@ -3,9 +3,11 @@ import "../../../config"
 import "../../../services"
 import "../../common"
 
-// Three independent threshold chips, not one StatusActionPill: CPU/MEM/TEMP each has
+// Three independent threshold chips, not one shared glyph slot: CPU/MEM/TEMP each has
 // its own value and its own hysteresis, so each needs to appear and disappear on its
-// own instead of sharing one glyph slot. TEMP rides CpuTemp's existing hot/critical
+// own. Each chip is its own StatusActionPill, so a click lands on that chip's view in
+// the system monitor (SystemMonitor's escape-hatch template, same PATH-probe gating
+// as the wifi/bluetooth pills). TEMP rides CpuTemp's existing hot/critical
 // state (same tempHotThreshold, already debounced and clearing at threshold-5) rather
 // than re-deriving it; CPU/MEM have no such state anywhere else, so it's tracked here
 // against ShellSettings.cpuHotPercent/memHotPercent with the same threshold-5 clear.
@@ -48,73 +50,49 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         spacing: Metrics.pillGapFor(root.compact)
 
-        Pill {
+        StatusActionPill {
             id: _cpuChip
             anchors.verticalCenter: parent.verticalCenter
             height: root.height
             compact: root.compact
-            interactive: false
-            animateGlyph: false
-            shrinkDelay: 0
-            collapsed: !root._cpuHot
-            visible: root._cpuHot || opacity > 0.001
-            opacity: root._cpuHot ? 1.0 : 0.0
-            scale: root._cpuHot ? 1.0 : 0.7
-            transformOrigin: Item.Center
-            MotionBehavior on opacity { NumberAnimation { duration: Motion.normal; easing.type: Easing.OutCubic } }
-            MotionBehavior on scale   { NumberAnimation { duration: Motion.normal; easing.type: Easing.OutQuart } }
+            show: root._cpuHot
+            interactive: show && SystemMonitor.available
             glyph: "󰻠"
             glyphAlignReference: "󰻠"
-            glyphPixelSize: Settings.iconSize + 1
             glyphColor: Theme.warning
             textColor: Theme.warning
             text: Math.round(root._cpuValue) + "%"
+            onActivated: SystemMonitor.launch("cpu")
         }
 
-        Pill {
+        StatusActionPill {
             id: _memChip
             anchors.verticalCenter: parent.verticalCenter
             height: root.height
             compact: root.compact
-            interactive: false
-            animateGlyph: false
-            shrinkDelay: 0
-            collapsed: !root._memHot
-            visible: root._memHot || opacity > 0.001
-            opacity: root._memHot ? 1.0 : 0.0
-            scale: root._memHot ? 1.0 : 0.7
-            transformOrigin: Item.Center
-            MotionBehavior on opacity { NumberAnimation { duration: Motion.normal; easing.type: Easing.OutCubic } }
-            MotionBehavior on scale   { NumberAnimation { duration: Motion.normal; easing.type: Easing.OutQuart } }
+            show: root._memHot
+            interactive: show && SystemMonitor.available
             glyph: "󰘚"
             glyphAlignReference: "󰘚"
-            glyphPixelSize: Settings.iconSize + 1
             glyphColor: Theme.warning
             textColor: Theme.warning
             text: Math.round(root._memValue) + "%"
+            onActivated: SystemMonitor.launch("mem")
         }
 
-        Pill {
+        StatusActionPill {
             id: _tempChip
             anchors.verticalCenter: parent.verticalCenter
             height: root.height
             compact: root.compact
-            interactive: false
-            animateGlyph: false
-            shrinkDelay: 0
-            collapsed: !root._tempHot
-            visible: root._tempHot || opacity > 0.001
-            opacity: root._tempHot ? 1.0 : 0.0
-            scale: root._tempHot ? 1.0 : 0.7
-            transformOrigin: Item.Center
-            MotionBehavior on opacity { NumberAnimation { duration: Motion.normal; easing.type: Easing.OutCubic } }
-            MotionBehavior on scale   { NumberAnimation { duration: Motion.normal; easing.type: Easing.OutQuart } }
+            show: root._tempHot
+            interactive: show && SystemMonitor.available
             glyph: "󰔏"
             glyphAlignReference: "󰔏"
-            glyphPixelSize: Settings.iconSize + 1
             glyphColor: CpuTemp.critical ? Theme.error : Theme.warning
             textColor: CpuTemp.critical ? Theme.error : Theme.warning
             text: Math.round(CpuTemp.temp) + "°"
+            onActivated: SystemMonitor.launch("temp")
         }
     }
 
