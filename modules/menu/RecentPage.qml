@@ -13,18 +13,30 @@ PageShell {
     required property int viewportHeight
 
     implicitHeight: viewportHeight
-    onPageShown: _timeTick++
+    onPageShown: root._touchNow()
 
     property bool _clearing: false
     property bool _clearArmed: false
     property real _clearArmedAtMs: 0
     property int _timeTick: 0
+    property real _nowMs: 0
+    property real _todayStartMs: 0
+
+    function _touchNow(): void {
+        const nowMs = Date.now()
+        const now = new Date(nowMs)
+        root._nowMs = nowMs
+        root._todayStartMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+        root._timeTick++
+    }
+
+    Component.onCompleted: root._touchNow()
 
     Timer {
         interval: 60000
         repeat: true
         running: root.active && MenuState.open && !Idle.isIdle
-        onTriggered: root._timeTick++
+        onTriggered: root._touchNow()
     }
 
     Timer { id: _clearArmTimer; interval: 3000; onTriggered: root._clearArmed = false }
@@ -34,14 +46,14 @@ PageShell {
     }
 
     function formatTime(ms): string {
-        const value = Number(ms || Date.now())
-        const diff = Math.max(0, Date.now() - value)
+        const nowMs = root._nowMs > 0 ? root._nowMs : Date.now()
+        const value = Number(ms || nowMs)
+        const diff = Math.max(0, nowMs - value)
         if (diff < 60000)   return "just now"
         if (diff < 3600000) return Math.floor(diff / 60000) + "m"
 
         const d = new Date(value)
-        const now = new Date()
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+        const today = root._todayStartMs > 0 ? root._todayStartMs : nowMs
         const day = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
         // whole days, not milliseconds: a DST day is 23 or 25 hours long, and the raw
         // gap then lands one bucket early — two sections both headed Yesterday
@@ -53,15 +65,15 @@ PageShell {
     }
 
     function dayKey(ms): string {
-        const d = new Date(Number(ms || Date.now()))
+        const d = new Date(Number(ms || root._nowMs || Date.now()))
         return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate()
     }
 
     function sectionLabel(ms): string {
-        const value = Number(ms || Date.now())
+        const nowMs = root._nowMs > 0 ? root._nowMs : Date.now()
+        const value = Number(ms || nowMs)
         const d = new Date(value)
-        const now = new Date()
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+        const today = root._todayStartMs > 0 ? root._todayStartMs : nowMs
         const day = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
         const days = Math.round((today - day) / 86400000)
         if (days <= 0) return "Today"
@@ -278,6 +290,7 @@ PageShell {
             spacing: 8
             visible: Notifications.hasHistory
             cacheBuffer: 120
+            reuseItems: true
             model: Notifications.historyModel
 
             // clearAll runs its own fade over the whole list, so per-row motion there
@@ -331,6 +344,18 @@ PageShell {
                     Timer { id: _heightArm; interval: 0; onTriggered: _entry._heightReady = true }
                     Component.onCompleted: _heightArm.start()
                     Component.onDestruction: _heightArm.stop()
+                    ListView.onPooled: {
+                        _heightArm.stop()
+                        _entry._heightReady = false
+                        _entry._expanded = false
+                        _entry._removing = false
+                    }
+                    ListView.onReused: {
+                        _entry._expanded = false
+                        _entry._removing = false
+                        _entry._heightReady = false
+                        _heightArm.restart()
+                    }
                     MotionBehavior on height {
                         gate: _entry._heightReady
                         NumberAnimation { duration: Motion.normal; easing.type: Easing.OutCubic }
