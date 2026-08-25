@@ -5,7 +5,8 @@ action a merge takes when they collide. Read this before starting an
 upstream merge; walk it after resolving and retire anything the merge made
 moot, inside the merge commit. The merge ritual itself (tags only, one
 aggregate pass, the revert recipe) is README.md's; this file only holds the
-resolutions.
+resolutions. The rationale and trade-offs behind the doctrine are recorded
+in ADR 0002.
 
 ## Default: the fork supersedes upstream
 
