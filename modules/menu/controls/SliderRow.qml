@@ -102,7 +102,7 @@ MenuRow {
         id: _track
         anchors.left:         parent.left
         anchors.right:        parent.right
-        anchors.leftMargin:   14
+        anchors.leftMargin:   _head.x + _label.x
         anchors.rightMargin:  12
         anchors.bottom:       parent.bottom
         anchors.bottomMargin: 4
