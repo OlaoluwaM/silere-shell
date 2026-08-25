@@ -449,6 +449,11 @@ Singleton {
         if (!root.setValue(k, value))
             return "'" + value + "' is not valid for " + k
                 + "; expected " + root.constraintOf(k)
+        // normalize widget-order writes after all three zones are readable
+        if (k === "barWidgetOrderLeft" || k === "barWidgetOrderCenter"
+                || k === "barWidgetOrderRight")
+            root.setBarWidgetLayout(root.barWidgetOrderLeftKeys,
+                root.barWidgetOrderCenterKeys, root.barWidgetOrderRightKeys)
         return String(root[k])
     }
 
