@@ -36,3 +36,22 @@ post_upgrade() {
 
 EOF
 }
+
+post_remove() {
+    cat <<'EOF'
+
+  silere is removed. two things it was wired into are left in your home
+  directory, because pacman does not own them:
+
+    the autostart line you added to your compositor config
+      (`exec-once = silere-shell`, or niri's `spawn-at-startup`)
+
+    matugen, if you ran --repair-matugen: the block marked
+      `# silere-shell begin` in ~/.config/matugen/config.toml, plus
+      ~/.config/matugen/templates/silere-shell/ and
+      ~/.config/matugen/silere-shell.json
+
+  settings stay in ~/.config/silere-shell in case you come back.
+
+EOF
+}
