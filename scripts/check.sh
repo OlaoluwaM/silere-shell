@@ -229,6 +229,19 @@ fi
 # only exist in one place.
 source "$ROOT/scripts/lib/qml-modules.sh"
 
+# the README and the AUR package both promise a floor; nothing checked it against the
+# Quickshell actually installed, so an older one failed later as a missing property
+if [ "$qs_usable" -eq 1 ]; then
+  qs_version="$(_silere_quickshell_version || true)"
+  if [ -z "$qs_version" ]; then
+    warn "qs version" "cannot read a version from qs --version; Silere needs $SILERE_MIN_QUICKSHELL or newer"
+  elif _silere_version_at_least "$qs_version" "$SILERE_MIN_QUICKSHELL"; then
+    ok "qs version" "$qs_version (floor $SILERE_MIN_QUICKSHELL)"
+  else
+    fail "qs version" "$qs_version is older than the required $SILERE_MIN_QUICKSHELL"
+  fi
+fi
+
 require_qml_module() {
   local module="$1" rel found=""
   rel="${module//./\/}/qmldir"

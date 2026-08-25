@@ -520,7 +520,12 @@ _ok "git"
 
 has_qs=true
 if command -v qs >/dev/null 2>&1; then
-    _ok "quickshell"
+    qs_version="$(_silere_quickshell_version || true)"
+    if [ -n "$qs_version" ] && ! _silere_version_at_least "$qs_version" "$SILERE_MIN_QUICKSHELL"; then
+        _warn "quickshell $qs_version is older than the required $SILERE_MIN_QUICKSHELL"
+    else
+        _ok "quickshell${qs_version:+ $qs_version}"
+    fi
 else
     _warn "quickshell not found — install it before launching silere"
     has_qs=false

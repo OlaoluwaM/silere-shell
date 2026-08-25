@@ -530,13 +530,28 @@ else
   skip "shellcheck" "not installed"
 fi
 
+section "quickshell version floor"
+# The floor is a promise made in three places at once. scripts/lib/qml-modules.sh owns the
+# number and check.sh compares it against the installed runtime; this keeps the prose honest.
+floor_prose_missing=""
+for doc in README.md docs/install.md; do
+  [ -f "$doc" ] || continue
+  grep -qF "Quickshell $SILERE_MIN_QUICKSHELL or newer" "$doc" \
+    || floor_prose_missing="$floor_prose_missing $doc"
+done
+if [ -n "$floor_prose_missing" ]; then
+  fail "these must state \"Quickshell $SILERE_MIN_QUICKSHELL or newer\":$floor_prose_missing"
+else
+  ok "qs floor" "docs state the $SILERE_MIN_QUICKSHELL minimum from qml-modules.sh"
+fi
+
 section "aur metadata"
 aur_dir="packaging/aur"
 if [ ! -f "$aur_dir/PKGBUILD" ] || [ ! -f "$aur_dir/.SRCINFO" ]; then
   fail "AUR packaging must include PKGBUILD and .SRCINFO"
-elif ! grep -qF "depends=('quickshell>=0.3')" "$aur_dir/PKGBUILD" \
-    || ! grep -qF $'\tdepends = quickshell>=0.3' "$aur_dir/.SRCINFO"; then
-  fail "AUR package must enforce the documented Quickshell 0.3 minimum"
+elif ! grep -qF "depends=('quickshell>=$SILERE_MIN_QUICKSHELL')" "$aur_dir/PKGBUILD" \
+    || ! grep -qF "$(printf '\tdepends = quickshell>=%s' "$SILERE_MIN_QUICKSHELL")" "$aur_dir/.SRCINFO"; then
+  fail "AUR package must enforce the documented Quickshell $SILERE_MIN_QUICKSHELL minimum"
 elif ! awk '/^#!\/bin\/sh$/ { wrapper=1; next } wrapper && /^umask 077$/ { private=1 } END { exit !private }' \
     "$aur_dir/PKGBUILD"; then
   fail "AUR launcher must use a private umask for Quickshell state"
