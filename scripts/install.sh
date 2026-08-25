@@ -779,6 +779,16 @@ fi
 
 if $fresh_clone; then
     _secure_fresh_default_install "$INSTALL_DIR"
+    if _ask "Install the latest signed release?"; then
+        spin_start "checking release..."
+        if ! GIT_TERMINAL_PROMPT=0 bash "$INSTALL_DIR/scripts/update.sh" --pin-release >/dev/null; then
+            spin_stop
+            _die "signed release checkout failed — check the connection or update manually"
+        fi
+        spin_stop; _ok "on the latest signed release"
+    else
+        _skip "tracking main"
+    fi
 fi
 
 ROOT="$INSTALL_DIR"

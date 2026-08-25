@@ -882,6 +882,58 @@ test_update_rolls_back_broken_merge() (
     assert_eq "upstream v3" "$(cat "$client/tracked.qml")" "applied a tree that loads"
 )
 
+test_fresh_install_pins_release() (
+    export GIT_CONFIG_GLOBAL=/dev/null
+    export GIT_CONFIG_NOSYSTEM=1
+    local remote="$TMP/pin-remote.git"
+    local seed="$TMP/pin-seed"
+    local client="$TMP/pin-client"
+    local test_home="$TMP/pin-home"
+    local release_rev
+
+    git init --bare -q "$remote"
+    git --git-dir="$remote" symbolic-ref HEAD refs/heads/main
+    git init -q "$seed"
+    git -C "$seed" config user.name "Silere test"
+    git -C "$seed" config user.email "test@example.invalid"
+    _prepare_release_signer "$seed"
+    mkdir -p "$seed/scripts/lib"
+    cp "$ROOT/scripts/update.sh" "$seed/scripts/update.sh"
+    cp "$ROOT/scripts/lib/xdg.sh" "$seed/scripts/lib/xdg.sh"
+    printf 'release\n' > "$seed/tracked.qml"
+    git -C "$seed" add scripts security tracked.qml
+    git -C "$seed" commit -qm "initial"
+    git -C "$seed" branch -M main
+    _sign_release "$seed" v1.0.0
+    release_rev="$(git -C "$seed" rev-parse "v1.0.0^{}")"
+    printf 'unreleased\n' > "$seed/tracked.qml"
+    git -C "$seed" commit -qam "unreleased work"
+    git -C "$seed" remote add origin "$remote"
+    git -C "$seed" push -q -u origin main --tags
+
+    git clone -q "$remote" "$client"
+    git -C "$client" config user.name "Silere test"
+    git -C "$client" config user.email "test@example.invalid"
+    [ "$(git -C "$client" rev-parse HEAD)" != "$release_rev" ] \
+        || fail "fresh clone fixture is not ahead of the signed release"
+
+    mkdir -p "$test_home"
+    HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" \
+        bash "$client/scripts/update.sh" --pin-release >/dev/null
+
+    assert_eq "$release_rev" "$(git -C "$client" rev-parse HEAD)" \
+        "fresh install pinned revision"
+    assert_eq "v1.0.0" "$(git -C "$client" describe --tags)" \
+        "fresh install release tag"
+    assert_eq "release" "$(cat "$client/tracked.qml")" "fresh install worktree contents"
+
+    printf 'local edit\n' >> "$client/tracked.qml"
+    if HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" \
+            bash "$client/scripts/update.sh" --pin-release >/dev/null 2>&1; then
+        fail "dirty pin-release unexpectedly succeeded"
+    fi
+)
+
 test_xdg_paths_and_timer_default
 test_fresh_install_permissions
 test_marker_removal
@@ -899,6 +951,7 @@ test_atomic_update_cache
 # CI opts into making an accidental missing dependency a hard failure.
 if command -v git >/dev/null 2>&1 && command -v ssh-keygen >/dev/null 2>&1; then
     test_update_refuses_dirty_apply
+    test_fresh_install_pins_release
     test_update_rolls_back_broken_merge
     test_update_reporting
     test_repair_workflow

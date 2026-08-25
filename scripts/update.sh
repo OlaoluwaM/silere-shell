@@ -353,6 +353,27 @@ esac
 
 _acquire_update_lock
 
+# --pin-release: land a fresh clone exactly on the newest signed release. --apply
+# cannot do this: main carries commits past the tag, so the fast-forward path sees
+# the clone as already ahead and returns without moving it.
+if [ "${1:-}" = "--pin-release" ]; then
+    pin_branch="$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+    [ "$pin_branch" = main ] \
+        || _fail "checkout is on ${pin_branch:-a detached HEAD} — switch to main before pinning a release"
+    if _has_local_changes; then
+        _fail "local changes block pinning a release — run: bash $ROOT/scripts/repair.sh --apply"
+    fi
+    _fetch_main || _fail "git fetch failed (check network / connectivity)"
+    _resolve_trusted_release apply
+    if [ "$(git rev-parse HEAD)" != "$release_rev" ]; then
+        git -C "$ROOT" reset --hard --quiet "$release_rev" \
+            || _fail "could not move the checkout to $release_tag"
+    fi
+    _clear_flag
+    printf 'silere-update: pinned to %s\n' "$release_tag"
+    exit 0
+fi
+
 # --apply: fast-forward to the already-fetched, signed release and restart the
 # shell. The trust check runs again so the cache flag is never authoritative.
 if [ "${1:-}" = "--apply" ]; then

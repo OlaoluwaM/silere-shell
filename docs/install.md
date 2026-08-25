@@ -11,7 +11,8 @@ bash scripts/install.sh
 The installer checks every QML module Silere imports and names any that are missing. It
 puts a checkout in your XDG config directory, or another path you choose, backs up files
 before editing them, and asks before touching compositor autostart. It prints the final
-install path when it's done.
+install path when it's done, and offers to leave the checkout on the latest signed
+release.
 
 To start it, restart your compositor, or try it right away with
 `qs -p /that/path/shell.qml`.
