@@ -34,7 +34,7 @@ AnchoredPopupState {
         ]},
         { glyph: "󰕮", label: "Bar", children: [
             { glyph: "󰍹", label: "Layout",    section: "surface",
-              description: "Bar position, size, and shape" },
+              description: "Bar position, size, shape, and opacity" },
             { glyph: "󰍴", label: "Underline", section: "underline",
               description: "Line and event glow" },
             { glyph: "󰻂", label: "Spacing",   section: "separators",

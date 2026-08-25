@@ -28,16 +28,15 @@ Column {
             ]
             onChosen: (v) => ShellSettings.barHeight = v
         }
-        // docked pins the bar's own corners to zero, but widget hover capsules and the
-        // OSD pill still take this radius, so the row stays reachable under a truthful name
+        // docked pins the bar's own corners to zero; the hover capsule and OSD pill still take
+        // this radius, and they round at half a row rather than half the bar
         SliderRow {
             glyph: "󱓻"
             label: ShellSettings.barFloating ? "Roundness" : "Highlight roundness"
             key: "barRadius"
-            // the bar caps its corners at half its height; the raw number overstates past that
             displayValue: ShellSettings.barRadius === 0 ? "Flat"
-                : ShellSettings.barFloating
-                    && ShellSettings.barRadius >= ShellSettings.barHeight / 2 ? "Round"
+                : ShellSettings.barRadius >= (ShellSettings.barFloating
+                    ? ShellSettings.barHeight / 2 : Metrics.barRowHeight / 2) ? "Round"
                 : ShellSettings.barRadius + "px"
         }
         SliderRow {
