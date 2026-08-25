@@ -242,6 +242,13 @@ QtObject {
             ? String(parts[parts.length - 1]) : ""
     }
 
+    readonly property var _inertEvents: ({
+        "openlayer": true, "closelayer": true, "submap": true, "activelayout": true,
+        "screencast": true, "changefloatingmode": true, "bell": true, "pin": true,
+        "minimize": true, "togglegroup": true, "moveintogroup": true,
+        "moveoutofgroup": true, "ignoregrouplock": true, "lockgroups": true
+    })
+
     property Connections _eventConn: Connections {
         target: Hyprland
         function onRawEvent(event) {
@@ -251,14 +258,8 @@ QtObject {
                     _titleSync.start()
                 return
             }
-            // the shell's own popups, OSD and notifications each fire openlayer/closelayer, and
-            // none of these touch the workspace, monitor or toplevel lists the models read.
-            // changefloatingmode is inert for the same reason: the toplevel model carries no
-            // floating state, and it fired 420 times in two hours of ordinary use
-            if (n === "openlayer" || n === "closelayer" || n === "submap"
-                    || n === "activelayout" || n === "screencast"
-                    || n === "changefloatingmode")
-                return
+            // none of these touch the workspace, monitor or toplevel lists: no floating, group, pin or minimize state is modelled (changefloatingmode alone fired 420 times in two hours)
+            if (root._inertEvents[n] === true) return
             // activewindow refires per title frame; only v2's address distinguishes a real focus change
             if (n === "activewindowv2") {
                 const addr = String(event.data ?? "")
