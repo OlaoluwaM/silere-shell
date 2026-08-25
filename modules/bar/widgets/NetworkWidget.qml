@@ -37,6 +37,20 @@ Pill {
             parts.push(Network.trafficLabel)
         return root._join(parts)
     }
+    // _detailText is empty until hover and carries link glyphs and a 2s traffic rate
+    readonly property string _accessibleDetail: {
+        if (!root.canRead) return "backend unavailable"
+        if (!Network.connected) return "disconnected"
+
+        const parts = []
+        if (Network.hasVpn) parts.push(Network.vpnName.length > 0 ? Network.vpnName : "VPN")
+        if (root._showPhysicalLink || !Network.hasVpn) {
+            parts.push(root._signal.length > 0
+                ? root._physical + " " + root._signal
+                : root._physical)
+        }
+        return root._join(parts)
+    }
     readonly property string _detailText: {
         if (!root.canRead) return "Network backend unavailable"
         if (!Network.connected) return "Disconnected"
@@ -58,7 +72,7 @@ Pill {
     visible:        layoutVisible
     // the icon cell is a fixed width: one glyph fits, two overflow it
     glyph:          Network.icon
-    accessibleName: root.text.length > 0 ? "Network, " + root.text : "Network"
+    accessibleName: "Network, " + root._accessibleDetail
     maxTextWidth:   compact ? 150 : 260
     // above the 2s traffic-stats poll: shrinkDelay:0 re-animated the pill's width on every single tick
     shrinkDelay:    2400

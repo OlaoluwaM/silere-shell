@@ -13,7 +13,13 @@ Pill {
     collapsed: !show
 
     glyph:          Battery.icon
-    accessibleName: batteryPill.text.length > 0 ? "Battery " + batteryPill.text : "Battery"
+    accessibleName: {
+        if (!Battery.available) return "Battery"
+        const parts = []
+        if (Battery.label.length > 0)       parts.push(Battery.label)
+        if (Battery.statusLabel.length > 0) parts.push(Battery.statusLabel)
+        return parts.length > 0 ? "Battery " + parts.join(", ") : "Battery"
+    }
     glyphPixelSize: Settings.iconSize + 3
     glyphColor:     Battery.iconColor
     textColor:      Battery.iconColor

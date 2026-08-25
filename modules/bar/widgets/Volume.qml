@@ -16,7 +16,9 @@ Pill {
     MotionBehavior on _baseOpacity {NumberAnimation { duration: Motion.medium; easing.type: Easing.OutCubic } }
 
     glyph:      Audio.icon
-    accessibleName: root.text.length > 0 ? "Volume " + root.text : "Volume"
+    accessibleName: !Audio.ready ? "Volume"
+        : (Audio.muted ? "Volume muted, " : "Volume ")
+          + Math.round(Audio.effectiveVolume * 100) + "%"
     glyphColor: Audio.muted ? Theme.subtext : Theme.text
     textColor:  Theme.subtext
     interactive: Audio.ready

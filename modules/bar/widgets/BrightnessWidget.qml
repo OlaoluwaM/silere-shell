@@ -15,7 +15,8 @@ Pill {
     opacity: _baseOpacity
     visible: layoutVisible
     glyph:           Brightness.icon
-    accessibleName: root.text.length > 0 ? "Brightness " + root.text : "Brightness"
+    accessibleName: root.canControl
+        ? "Brightness " + Brightness.label : "Brightness unavailable"
     glyphColor:      canControl ? Theme.text : Theme.subtext
     reserveText: "100%"
     text:        (ShellSettings.valuesOnHover && !expanded) ? ""
