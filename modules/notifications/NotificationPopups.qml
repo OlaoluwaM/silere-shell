@@ -284,15 +284,25 @@ PanelWindow {
         }
         spacing: 6
 
-        NotifChip {
+        Item {
             id: _clearChip
-            shown:          Notifications.activeCount > 1 || win._dismissing
-            alignLeft:      win._left
-            alignCenter:    win._center
-            glyph:          "󰆴"
-            label:          "Clear all"
-            tint:           Theme.error
-            onTriggered:    win.dismissAll()
+            readonly property bool shown: Notifications.activeCount > 1 || win._dismissing
+
+            width:   parent.width
+            height:  shown ? Metrics.rowHeightFor(30) : 0
+            clip:    true
+            enabled: shown
+            visible: height > 0.5
+
+            Disclosure on height { expanded: _clearChip.shown }
+
+            ConfirmButton {
+                anchors.verticalCenter: parent.verticalCenter
+                x: win._alignedX(parent.width, width)
+                glyph: "󰆴"
+                label: "Clear all"
+                onConfirmed: win.dismissAll()
+            }
         }
 
         Item {

@@ -16,8 +16,6 @@ PageShell {
     onPageShown: root._touchNow()
 
     property bool _clearing: false
-    property bool _clearArmed: false
-    property real _clearArmedAtMs: 0
     property int _timeTick: 0
     property real _nowMs: 0
     property real _todayStartMs: 0
@@ -39,10 +37,8 @@ PageShell {
         onTriggered: root._touchNow()
     }
 
-    Timer { id: _clearArmTimer; interval: 3000; onTriggered: root._clearArmed = false }
     onPageHidden: {
-        _clearArmTimer.stop()
-        root._clearArmed = false
+        _clearButton.disarm()
     }
 
     function formatTime(ms): string {
@@ -82,15 +78,6 @@ PageShell {
         return Qt.formatDateTime(d, "MMM d, yyyy")
     }
 
-    function requestClearAll(): void {
-        if (_clearing || Notifications.historyCount === 0) return
-        if (_clearArmed) {
-            // TapHandler fires once per tap, so a double-click would arm and confirm in one gesture
-            if (Date.now() - root._clearArmedAtMs < Metrics.confirmGuardMs) return
-            _clearArmed = false; _clearArmTimer.stop(); clearAll()
-        }
-        else { _clearArmed = true; root._clearArmedAtMs = Date.now(); _clearArmTimer.restart() }
-    }
 
     function clearAll(): void {
         if (_clearing || Notifications.historyCount === 0) return
@@ -166,64 +153,15 @@ PageShell {
                 }
             }
 
-            Rectangle {
+            ConfirmButton {
                 id: _clearButton
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 visible: Notifications.hasHistory
-                width: visible ? (root._clearArmed ? 92 : 68) : 0
-                height: Metrics.rowHeightFor(30)
-                radius: Theme.radiusControl
-                antialiasing: true
-                onVisibleChanged:     if (!visible) root._clearArmed = false
-
-                color: root._clearArmed
-                    ? Theme.withAlpha(Theme.error, _clearTap.pressed ? 0.28 : 0.16)
-                    : _clearTap.pressed ? Theme.withAlpha(Theme.error, 0.20)
-                    : _clearHover.hovered ? Theme.withAlpha(Theme.subtext, 0.16) : Theme.menuControl
-                opacity: root._clearing ? 0.45 : 1.0
-
-                OutlineBorder {
-                    radius: _clearButton.radius
-                    outlineWidth: (root._clearArmed) ? 2 : 1
-                    outlineColor: root._clearArmed
-                        ? Theme.withAlpha(Theme.error, Theme.focusRingAlpha)
-                        : _clearHover.hovered ? Theme.menuControlLineHot : Theme.menuControlLine
-                    ColorFade on outlineColor {}
-                }
-
-                MotionBehavior on width {NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic } }
-                ColorFade on color {}
-                MotionBehavior on opacity {NumberAnimation { duration: Motion.fast } }
-                Accessible.role: Accessible.Button
-                Accessible.name: "Clear all notifications"
-                Accessible.focusable: !root._clearing
-                Accessible.onPressAction: root.requestClearAll()
-
-                HoverHandler { id: _clearHover; enabled: !root._clearing; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor }
-                TapHandler { id: _clearTap; enabled: !root._clearing; onTapped: root.requestClearAll() }
-
-                Row {
-                    anchors.centerIn: parent
-                    spacing: 4
-                    ShellText {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "󰆴"
-                        color: root._clearArmed ? Theme.error
-                            : _clearHover.hovered ? Theme.withAlpha(Theme.text, 0.88) : Theme.withAlpha(Theme.subtext, 0.72)
-                        font.pixelSize: Settings.fontSize
-                        ColorFade on color {}
-                    }
-                    ShellText {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: root._clearArmed ? "Confirm?" : "Clear"
-                        color: root._clearArmed ? Theme.error
-                            : _clearHover.hovered ? Theme.withAlpha(Theme.text, 0.88) : Theme.withAlpha(Theme.text, 0.76)
-                        font.pixelSize: Settings.fontCaption
-                        font.weight: root._clearArmed ? Font.DemiBold : Font.Normal
-                        ColorFade on color {}
-                    }
-                }
+                glyph: "󰆴"
+                label: "Clear"
+                busy:  root._clearing
+                onConfirmed: root.clearAll()
             }
         }
 
