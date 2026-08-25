@@ -60,7 +60,10 @@ Item {
     implicitWidth:  wsRow.implicitWidth + (urgentOffPage > 0 ? 12 : 0)
     implicitHeight: btnH
 
-    MotionBehavior on implicitWidth {NumberAnimation { duration: Motion.width; easing.type: Easing.OutCubic } }
+    MotionBehavior on implicitWidth {
+        gate: root.barActive && !Idle.isIdle
+        NumberAnimation { duration: Motion.width; easing.type: Easing.OutCubic }
+    }
 
     readonly property string monitorName: Compositor.monitorName(root.screen)
     readonly property bool monitorReady: monitorName.length > 0 && Compositor.activeWorkspaceId(monitorName) > 0
@@ -180,19 +183,23 @@ Item {
         function onWorkspaceShiftChanged() {
             if (!ShellSettings.workspaceShift) {
                 root._clearWorkspaceHandoffs()
-                _groupFadeAnim.stop()
-                root.opacity = 1
-                root._pageShift = 0
+                root._settleGroupMotion()
             }
         }
         function onReduceMotionChanged() {
-            if (ShellSettings.reduceMotion) root._clearWorkspaceHandoffs()
+            if (ShellSettings.reduceMotion) {
+                root._clearWorkspaceHandoffs()
+                root._settleGroupMotion()
+            }
         }
     }
     Connections {
         target: Idle
         function onIsIdleChanged() {
-            if (Idle.isIdle) root._clearWorkspaceHandoffs()
+            if (Idle.isIdle) {
+                root._clearWorkspaceHandoffs()
+                root._settleGroupMotion()
+            }
         }
     }
 
@@ -444,7 +451,10 @@ Item {
         root._clearWorkspaceHandoffs()
         _initialized = true
     }
-    onBarActiveChanged: if (!root.barActive) root._clearWorkspaceHandoffs()
+    onBarActiveChanged: if (!root.barActive) {
+        root._clearWorkspaceHandoffs()
+        root._settleGroupMotion()
+    }
 
     property bool _paging: false
     Timer { id: _pagingReset; interval: Motion.fast + Motion.width; onTriggered: root._paging = false }
@@ -464,8 +474,12 @@ Item {
         _pageDir = dir
         _paging = true
         _pagingReset.restart()
-        if (ShellSettings.workspaceShift) _groupFadeAnim.restart()
-        else root.opacity = 1
+        if (ShellSettings.workspaceShift && root.barActive
+                && !ShellSettings.reduceMotion && !Idle.isIdle) {
+            _groupFadeAnim.restart()
+        } else {
+            root._settleGroupMotion()
+        }
     }
 
     // reflow only: the marker slide and the page shift are animations, and following them retargets an open popup's x every frame
@@ -481,6 +495,12 @@ Item {
             NumberAnimation { target: root; property: "opacity";    to: 1; duration: Motion.ms(150); easing.type: Easing.OutCubic }
             NumberAnimation { target: root; property: "_pageShift"; to: 0; duration: Motion.ms(165); easing.type: Easing.OutQuart }
         }
+    }
+
+    function _settleGroupMotion(): void {
+        _groupFadeAnim.stop()
+        root.opacity = 1
+        root._pageShift = 0
     }
 
     function activate(id: int): void {
