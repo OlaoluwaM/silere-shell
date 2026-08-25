@@ -1,0 +1,71 @@
+# Installing
+
+You need `git`, Hyprland or niri, and Quickshell 0.3 or newer.
+
+```bash
+git clone https://github.com/s3rven/silere-shell
+cd silere-shell
+bash scripts/install.sh
+```
+
+The installer checks every QML module Silere imports and names any that are missing. It
+puts a checkout in your XDG config directory, or another path you choose, backs up files
+before editing them, and asks before touching compositor autostart. It prints the final
+install path when it's done.
+
+To start it, restart your compositor, or try it right away with
+`qs -p /that/path/shell.qml`.
+
+## Unattended installs
+
+Bootstrapping from a dotfiles script or a container? `SILERE_ASSUME_YES=1` answers the
+`[Y/n]` prompts and installs to the default path. It still backs up every file it edits,
+and still stops on a compositor it does not support.
+
+## Optional tools
+
+None of these are required. Installing one turns on the matching feature; skipping it
+hides that widget or marks it unavailable.
+
+| tool | enables |
+|---|---|
+| `pipewire` + `wireplumber` | volume, output picker |
+| `upower` | battery |
+| `nmcli` | VPN name fallback (network and Wi-Fi use Quickshell directly) |
+| `brightnessctl` | brightness |
+| `hyprsunset` | night light |
+| `matugen` | wallpaper theming |
+| `cava` | media visualizer |
+| `powerprofilesctl` | power profiles |
+| `inotifywait` | automatic screenshot-file watcher for underline feedback |
+| `checkupdates` / `apt` / `dnf` / `zypper` / `xbps-install` | package update badge |
+| `paru` / `yay` | AUR update count on Arch Linux |
+| `hyprlock` | lock action |
+| `systemctl` / `loginctl` | suspend, reboot, and shutdown actions |
+| `notify-send` | battery, temperature, and update notifications |
+| `ssh-keygen` | cryptographic verification of Silere release tags |
+
+The installer also reports on `busctl`, `pgrep`, `pkill` and `timeout`. Those ship with
+systemd, procps and coreutils, so they are listed only so a minimal system can see what
+is missing.
+
+## Matugen
+
+The interactive installer configures Matugen when it is installed. It copies Silere's
+template into Matugen's template directory and makes Matugen write
+`$XDG_CONFIG_HOME/matugen/silere-shell.json`; the shell watches that user-writable
+palette and reloads colours live. This works for both a Git checkout and a read-only
+package under `/usr/share`. Packaged installs print the one-time command that does the
+same thing, `install.sh --repair-matugen`.
+
+## Cava
+
+Cava needs no configuration step. Silere writes a private temporary raw-output profile
+under `$XDG_RUNTIME_DIR`, starts Cava only while the visualizer is actually needed, and
+leaves `~/.config/cava` untouched.
+
+## Removing it
+
+Run `bash scripts/uninstall.sh` from the installed checkout. That clears autostart, theme
+and update-timer integrations, but keeps the checkout, your settings, and the installed
+font.

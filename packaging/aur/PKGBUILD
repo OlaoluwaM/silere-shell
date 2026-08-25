@@ -77,4 +77,7 @@ EOF
 
     install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$_pkgname/LICENSE"
     install -Dm644 README.md "$pkgdir/usr/share/doc/$_pkgname/README.md"
+    # the README defers detail to these; maintainer notes stay out of the package
+    install -Dm644 -t "$pkgdir/usr/share/doc/$_pkgname/docs" \
+        docs/install.md docs/scripting.md docs/performance.md docs/troubleshooting.md
 }
