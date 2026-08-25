@@ -10,6 +10,12 @@ PageShell {
     id: root
 
     implicitHeight: _detail.height
+    // The outer SettingsPage can be Loader.Ready while its asynchronous section
+    // body is still incubating. MenuWindow uses this to avoid sizing to that
+    // short-lived header-only state during a tab transition.
+    readonly property bool contentReady: _detailBody.status === Loader.Ready
+        || _detailBody.status === Loader.Error
+    readonly property bool contentError: _detailBody.status === Loader.Error
 
     // the arranger scrolls this while a row is dragged past the viewport edge
     property Flickable scroller: null

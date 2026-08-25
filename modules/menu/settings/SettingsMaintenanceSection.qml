@@ -33,17 +33,196 @@ Column {
         function onOpenChanged() { if (!MenuState.open) root._disarm() }
     }
 
-    SectionLabel { label: "DEFAULTS"; first: true }
+    // the whole section only instantiates while it is the open page; the probe runs once on entry and never polls in the background
+    // Missing optional tools are useful information, but they are not a broken
+    // shell. Keep them out of the attention count so Maintenance does not read
+    // like an error page on a deliberately minimal installation.
+    readonly property var _health: {
+        const attention = []
+        const optional = []
+        if (!SystemTools.ready || SystemTools.probeFailed)
+            return { attention: attention, optional: optional }
+
+        const add = (target, g, n, s, v, p, a, c) => target.push({
+            g: g, n: n, s: s, v: v, p: p === true,
+            a: a || "", c: c || "transparent"
+        })
+
+        // a dead font tofus the bar AND the menu that would fix it, so it leads
+        if (!SystemTools.hasFcList)
+            add(optional, "󰈵", "Font verification",
+                "Installed interface fonts cannot be checked", "fontconfig", true)
+        else if (FontScan.lastError.length > 0)
+            add(attention, "󰈵", "Font check", FontScan.lastError,
+                "fc-list", false, "", Theme.warning)
+        else if (FontScan.scanned && FontScan.families.length === 0)
+            add(attention, "󰈵", "Icon font missing",
+                "Bar and menu icons may not render", "nerd-fonts", true,
+                "", Theme.warning)
+        else if (FontScan.scanned && ShellSettings.fontFamily.length > 0
+                 && FontScan.families.indexOf(ShellSettings.fontFamily) < 0)
+            add(attention, "󰈵", "Chosen font unavailable",
+                "Using " + Settings.font + " instead", "Fallback", false,
+                "", Theme.warning)
+
+        // wallpaper theming degrades instead of hiding, so it reads as working while the palette silently stays bundled — both causes need naming
+        if (!SystemTools.hasMatugen)
+            add(optional, "󰉦", "Wallpaper theming",
+                MatugenTheme.usingFallback ? "Wallpaper colors are unavailable"
+                    : "Last palette stays; sync stops",
+                "matugen", true)
+        else if (MatugenTheme.paletteStale)
+            add(attention, "󰉦", "Wallpaper palette unreadable",
+                "Showing the last colors that loaded", "Template", false,
+                "", Theme.warning)
+        else if (MatugenTheme.usingFallback) {
+            const repaired = SystemTools.matugenRepairState === "done"
+            add(repaired ? optional : attention, "󰉦", "Wallpaper palette",
+                SystemTools.matugenRepairState === "working" ? "Rewiring Matugen…"
+                    : SystemTools.matugenRepairState === "done" ? "Rewired — colors follow your next wallpaper change"
+                    : SystemTools.matugenRepairState === "failed" ? "Could not rewire; run scripts/install.sh"
+                    : "Matugen has not written one yet",
+                SystemTools.matugenRepairState === "working" ? "" : "Repair",
+                false, SystemTools.matugenRepairState === "working" ? "" : "matugen",
+                SystemTools.matugenRepairState === "done" ? Theme.success : Theme.warning)
+        }
+
+        const tool = (g, n, v) => add(optional, g, n,
+            "Install to enable this feature", v, true)
+        if (!SystemTools.hasBrightnessctl)     tool("󰃟", "Brightness control", "brightnessctl")
+        if (!SystemTools.hasHyprsunset)        tool("󰖙", "Night light", "hyprsunset")
+        if (!SystemTools.hasCava)              tool("󰝚", "Audio visualizer", "cava")
+        if (!SystemTools.hasPowerProfilesCtl)  tool("󰾅", "Power profiles", "power-profiles-daemon")
+        if (!SystemTools.hasHyprlock)          tool("󰌾", "Screen lock", "hyprlock")
+        if (!SystemTools.hasCheckupdates && !SystemTools.hasParu && !SystemTools.hasYay
+                && SystemTools.packageFamily === "pacman")
+            tool("󰚰", "Update checks", "pacman-contrib")
+        // the warnings page stays visible and settable without notify-send, so this one is inert rather than hidden
+        if (!SystemTools.hasNotifySend) {
+            const target = ShellSettings.osdBatteryWarn || ShellSettings.osdTempWarn
+                ? attention : optional
+            add(target, "󰂚", "System alerts",
+                target === attention
+                    ? "Enabled warnings cannot be delivered"
+                    : "Install to deliver battery and temperature warnings",
+                "libnotify", true, "",
+                target === attention ? Theme.warning : "transparent")
+        }
+        return { attention: attention, optional: optional }
+    }
+    readonly property var _attentionIssues: root._health.attention
+    readonly property var _optionalIssues: root._health.optional
+    readonly property bool _healthBusy: !SystemTools.ready || SystemTools.checking
+        || FontScan.scanning
+    readonly property string _healthStatus: {
+        if (!SystemTools.ready) return "Checking installed features…"
+        if (SystemTools.checking || FontScan.scanning) return "Refreshing availability…"
+        if (SystemTools.probeFailed) return "The health check could not finish"
+        if (root._attentionIssues.length > 0)
+            return root._attentionIssues.length
+                + (root._attentionIssues.length === 1
+                    ? " item needs attention" : " items need attention")
+        if (root._optionalIssues.length > 0)
+            return root._optionalIssues.length
+                + (root._optionalIssues.length === 1
+                    ? " optional feature unavailable" : " optional features unavailable")
+        return "Installed features are ready"
+    }
+    readonly property string _healthDetail: {
+        if (SystemTools.probeFailed) return SystemTools.lastError
+        if (root._healthBusy) return "The last confirmed results stay visible while Silere checks again."
+        if (root._attentionIssues.length > 0)
+            return "Review the items below. Optional packages are listed separately."
+        if (root._optionalIssues.length > 0)
+            return "Silere is healthy. Install an optional package only if you want that feature."
+        return "No dependency or configuration problems were found."
+    }
+
+    SectionLabel { label: "HEALTH"; first: true }
+    SettingsCard {
+        UpdateStatusCard {
+            glyph: root._healthBusy ? "󰑐"
+                : SystemTools.probeFailed ? "󰀦"
+                : root._attentionIssues.length > 0 ? "󰀪" : "󰗠"
+            title: "System health"
+            status: root._healthStatus
+            detail: root._healthDetail
+            detailError: SystemTools.probeFailed
+            statusColor: SystemTools.probeFailed ? Theme.error
+                : root._attentionIssues.length > 0 ? Theme.warning
+                : root._healthBusy ? Theme.accent : Theme.success
+            busy: root._healthBusy
+            animationActive: MenuState.settingsActive && !Idle.isIdle
+            primaryLabel: root._healthBusy ? "Checking" : "Check"
+            primaryGlyph: "󰑐"
+            primaryEnabled: !root._healthBusy
+            onPrimaryTriggered: SystemTools.refresh()
+        }
+    }
+
+    SectionLabel {
+        visible: SystemTools.ready && !SystemTools.probeFailed
+            && root._attentionIssues.length > 0
+        label: "NEEDS ATTENTION"
+    }
+    SettingsCard {
+        visible: SystemTools.ready && !SystemTools.probeFailed
+            && root._attentionIssues.length > 0
+        Repeater {
+            model: root._attentionIssues
+            ControlRow {
+                required property var modelData
+                glyph: modelData.g
+                title: modelData.n
+                status: modelData.s
+                valueText: modelData.v
+                statusColor: modelData.c
+                passive: !modelData.a
+                onActivated: if (modelData.a === "matugen") SystemTools.repairMatugen()
+            }
+        }
+        HintText {
+            visible: root._attentionIssues.some(i => i.p === true)
+            text: "The value on the right is the package or fallback involved."
+        }
+    }
+
+    SectionLabel {
+        visible: SystemTools.ready && !SystemTools.probeFailed
+            && root._optionalIssues.length > 0
+        label: "OPTIONAL FEATURES"
+    }
+    SettingsCard {
+        visible: SystemTools.ready && !SystemTools.probeFailed
+            && root._optionalIssues.length > 0
+        Repeater {
+            model: root._optionalIssues
+            ControlRow {
+                required property var modelData
+                glyph: modelData.g
+                title: modelData.n
+                status: modelData.s
+                valueText: modelData.v
+                passive: true
+            }
+        }
+        HintText {
+            text: "These are add-ons or informational checks, not shell failures. Add only the features you want."
+        }
+    }
+
+    SectionLabel { label: "RECOVERY" }
     SettingsCard {
         ControlRow {
             glyph: "󰦛"
-            title: root._armed ? "Confirm reset" : "Restore defaults"
+            title: root._armed ? "Confirm restore" : "Restore default settings"
             status: ShellSettings.modifiedCount > 0
                 ? ShellSettings.modifiedCount + (ShellSettings.modifiedCount === 1
-                    ? " setting changed" : " settings changed")
-                : "Everything is at its default"
+                    ? " setting will be reset" : " settings will be reset")
+                : "No changed settings to restore"
             valueText: root._armed ? "Tap again" : ""
             accentColor: root._armed ? Theme.error : Theme.accent
+            statusColor: root._armed ? Theme.error : "transparent"
             active: root._armed
             available: ShellSettings.modifiedCount > 0
             onActivated: {
@@ -60,106 +239,7 @@ Column {
             }
         }
         HintText {
-            text: "Backs up current settings before resetting. Wallpaper colors and calendar marks stay."
-        }
-    }
-
-    // the whole section only instantiates while it is the open page; the probe runs once on entry and never polls in the background
-    readonly property var _issues: {
-        const out = []
-        if (!SystemTools.ready) return out
-        if (SystemTools.probeFailed) return out
-
-        // a dead font tofus the bar AND the menu that would fix it, so it leads
-        if (!SystemTools.hasFcList)
-            out.push({ g: "󰈵", n: "Font check", s: "Cannot verify the interface font", v: "fontconfig", p: true })
-        else if (FontScan.lastError.length > 0)
-            out.push({ g: "󰈵", n: "Font check", s: FontScan.lastError, v: "fc-list" })
-        else if (FontScan.scanned && FontScan.families.length === 0)
-            out.push({ g: "󰈵", n: "Icon font", s: "No Nerd Font installed — bar icons cannot render", v: "nerd-fonts", p: true })
-        else if (FontScan.scanned && ShellSettings.fontFamily.length > 0
-                 && FontScan.families.indexOf(ShellSettings.fontFamily) < 0)
-            out.push({ g: "󰈵", n: "Chosen font", s: "“" + ShellSettings.fontFamily + "” is gone; using " + Settings.font, v: "fallback" })
-
-        // wallpaper theming degrades instead of hiding, so it reads as working while the palette silently stays bundled — both causes need naming
-        if (!SystemTools.hasMatugen)
-            out.push({ g: "󰉦", n: "Wallpaper theming",
-                s: MatugenTheme.usingFallback ? "Wallpaper colors are unavailable"
-                    : "Last palette stays; sync stops",
-                v: "matugen", p: true })
-        else if (MatugenTheme.paletteStale)
-            out.push({ g: "󰉦", n: "Wallpaper palette", s: "Unreadable; showing the last colors that loaded", v: "template" })
-        else if (MatugenTheme.usingFallback)
-            out.push({ g: "󰉦", n: "Wallpaper palette",
-                s: SystemTools.matugenRepairState === "working" ? "Rewiring Matugen…"
-                    : SystemTools.matugenRepairState === "done" ? "Rewired — colors follow your next wallpaper change"
-                    : SystemTools.matugenRepairState === "failed" ? "Could not rewire; run scripts/install.sh"
-                    : "Matugen has not written one yet",
-                v: SystemTools.matugenRepairState === "working" ? "" : "Repair",
-                a: SystemTools.matugenRepairState === "working" ? "" : "matugen" })
-
-        const tool = (g, n, v) => out.push({ g: g, n: n, s: "Hidden until this is installed", v: v, p: true })
-        if (!SystemTools.hasBrightnessctl)     tool("󰃟", "Brightness control", "brightnessctl")
-        if (!SystemTools.hasHyprsunset)        tool("󰖙", "Night light", "hyprsunset")
-        if (!SystemTools.hasCava)              tool("󰝚", "Audio visualizer", "cava")
-        if (!SystemTools.hasPowerProfilesCtl)  tool("󰾅", "Power profiles", "power-profiles-daemon")
-        if (!SystemTools.hasHyprlock)          tool("󰌾", "Screen lock", "hyprlock")
-        if (!SystemTools.hasCheckupdates && !SystemTools.hasParu && !SystemTools.hasYay
-                && SystemTools.packageFamily === "pacman")
-            tool("󰚰", "Update checks", "pacman-contrib")
-        // the warnings page stays visible and settable without notify-send, so this one is inert rather than hidden
-        if (!SystemTools.hasNotifySend)
-            out.push({ g: "󰂚", n: "System alerts", s: "Battery and temperature warnings cannot be sent", v: "libnotify", p: true })
-        return out
-    }
-
-    SectionLabel { label: "HEALTH" }
-    SettingsCard {
-        ControlRow {
-            visible: SystemTools.ready && !SystemTools.checking
-                && !SystemTools.probeFailed && root._issues.length === 0
-            glyph: "󰗠"
-            title: "No feature issues found"
-            status: "Available controls are ready"
-            passive: true
-        }
-        ControlRow {
-            visible: !SystemTools.ready || SystemTools.checking
-            glyph: "󰋼"
-            title: "Checking optional tools…"
-            passive: true
-        }
-        ControlRow {
-            visible: !SystemTools.checking && SystemTools.probeFailed
-            glyph: "󰀦"
-            title: "Optional tool check failed"
-            status: SystemTools.lastError
-            passive: true
-        }
-        Repeater {
-            model: root._issues
-            ControlRow {
-                required property var modelData
-                glyph: modelData.g
-                title: modelData.n
-                status: modelData.s
-                valueText: modelData.v
-                passive: !modelData.a
-                onActivated: if (modelData.a === "matugen") SystemTools.repairMatugen()
-            }
-        }
-        HintText {
-            // a repair action or a vanished font is not something to install; only package rows earn this line
-            visible: root._issues.some(i => i.p === true)
-            text: "Install the listed package to enable its feature."
-        }
-        ControlRow {
-            glyph: "󰑐"
-            title: "Recheck optional tools"
-            status: "Refresh after tool changes"
-            valueText: SystemTools.checking ? "Checking…" : "Check"
-            available: !SystemTools.checking
-            onActivated: SystemTools.refresh()
+            text: "Creates a backup first. Wallpaper colors and calendar marks stay unchanged."
         }
     }
 }

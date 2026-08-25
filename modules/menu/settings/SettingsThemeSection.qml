@@ -197,6 +197,7 @@ Column {
 
                     SwatchRow {
                         id: _swatchRow
+                        accessiblePrefix: _accentTitle.text
                         width: Math.max(_swatchViewport.width, implicitWidth)
                         height: parent.height
                         spread: true

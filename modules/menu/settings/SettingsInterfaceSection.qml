@@ -49,13 +49,13 @@ Column {
         }
         // the list is a small slice of what fc-list reports, and an installed font missing
         // from it reads as a broken scan rather than a deliberate filter
-        HintText {
-            visible: FontScan.scanned && FontScan.families.length > 0
-            text: "Nerd Fonts only — the shell draws its icons as glyphs, so other fonts show boxes."
-        }
-        HintText {
-            visible: FontScan.scanned && FontScan.families.length === 0
-            text: "No Nerd Font found; shell icons render as boxes until one is installed."
+        CollapsibleSection {
+            expanded: FontScan.scanned
+            HintText {
+                text: FontScan.families.length > 0
+                    ? "Nerd Fonts only — the shell draws its icons as glyphs, so other fonts show boxes."
+                    : "No Nerd Font found; shell icons render as boxes until one is installed."
+            }
         }
         SelectRow {
             glyph: "󰍉"; label: "UI scale"
@@ -88,7 +88,7 @@ Column {
         }
         ToggleRow {
             glyph: "󱖳"; label: "Reduce motion"
-            description: "Disable transitions"
+            description: "Disable transitions and animated effects"
             key: "reduceMotion"
         }
     }
@@ -107,52 +107,55 @@ Column {
         }
     }
 
-    SectionLabel {
-        label: "DISPLAY ROUTING"
-        visible: root._hasRouting
-    }
-    SettingsCard {
-        visible: root._hasRouting
+    CollapsibleSection {
+        expanded: root._hasRouting
 
-        SelectRow {
-            visible: root._hasBrightnessChoice
-            glyph: "󰃟"; label: "Brightness display"
-            currentValue: Brightness.deviceChoice
-            model: Brightness.deviceChoices
-            onChosen: (v) => ShellSettings.brightnessDevice = v
-        }
-
-        SelectRow {
-            visible: root._hasMultiScreen
-            glyph: "󰍹"; label: "Overlay display"
-            description: "Follow focus or choose a display"
-            currentValue: ShellSettings.overlayMonitor
-            fallbackLabel: ShellSettings.overlayMonitor.length > 0
-                ? ShellSettings.overlayMonitor + " (unavailable)" : "Follow focus"
-            model: {
-                const choices = [{ value: "", label: "Follow focus" }]
-                const screens = Quickshell.screens || []
-                for (let i = 0; i < screens.length; i++) {
-                    const name = screens[i].name
-                    choices.push({ value: name, label: name })
+        SectionLabel { label: "DISPLAY ROUTING" }
+        SettingsCard {
+            CollapsibleSection {
+                expanded: root._hasBrightnessChoice
+                SelectRow {
+                    glyph: "󰃟"; label: "Brightness display"
+                    currentValue: Brightness.deviceChoice
+                    model: Brightness.deviceChoices
+                    onChosen: (v) => ShellSettings.brightnessDevice = v
                 }
-                return choices
             }
-            onChosen: (v) => ShellSettings.overlayMonitor = v
-        }
 
-        Repeater {
-            model: root._hasMultiScreen ? Quickshell.screens : []
-            delegate: ToggleRow {
-                required property var modelData
-                glyph: "󰍺"
-                label: "Bar on " + modelData.name
-                checked: Monitors.barEnabled(modelData)
-                // turning off the last one is refused, and a switch that springs back with no reason reads as a broken toggle
-                enabled: !checked || Monitors.liveBarCount > 1
-                dependsNote: "Keeps the menu reachable"
-                onToggled: nextChecked => Monitors.setBarEnabled(
-                    modelData.name, nextChecked)
+            CollapsibleSection {
+                expanded: root._hasMultiScreen
+                SelectRow {
+                    glyph: "󰍹"; label: "Overlay display"
+                    description: "Follow focus or choose a display"
+                    currentValue: ShellSettings.overlayMonitor
+                    fallbackLabel: ShellSettings.overlayMonitor.length > 0
+                        ? ShellSettings.overlayMonitor + " (unavailable)" : "Follow focus"
+                    model: {
+                        const choices = [{ value: "", label: "Follow focus" }]
+                        const screens = Quickshell.screens || []
+                        for (let i = 0; i < screens.length; i++) {
+                            const name = screens[i].name
+                            choices.push({ value: name, label: name })
+                        }
+                        return choices
+                    }
+                    onChosen: (v) => ShellSettings.overlayMonitor = v
+                }
+
+                Repeater {
+                    model: root._hasMultiScreen ? Quickshell.screens : []
+                    delegate: ToggleRow {
+                        required property var modelData
+                        glyph: "󰍺"
+                        label: "Bar on " + modelData.name
+                        checked: Monitors.barEnabled(modelData)
+                        // turning off the last one is refused, and a switch that springs back with no reason reads as a broken toggle
+                        enabled: !checked || Monitors.liveBarCount > 1
+                        dependsNote: "Keeps the menu reachable"
+                        onToggled: nextChecked => Monitors.setBarEnabled(
+                            modelData.name, nextChecked)
+                    }
+                }
             }
         }
     }
