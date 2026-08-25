@@ -31,11 +31,13 @@ Only work since the latest release is listed here. Completed notes move to
 - Notification history reuses off-screen rows and shares one time snapshot per refresh while scrolling.
 - Maintenance leads with one clear health summary, separates real attention items from optional add-ons, and keeps settings recovery last.
 - Opening a settings dropdown folds the one already open.
+- Clear all in a notification popup uses the same button as the notification list.
 - `menu settings <page>` and `settings <key>` over IPC match a name without case.
 - The bar underline takes the accent colour instead of a flat grey.
 
 ### Fixed
 
+- A notification stays expanded while the pointer rests on it.
 - A fresh install finishes on the latest signed release.
 - Notification icons fall back to the app's own icon, including on the first notification of a session.
 - Bar › Layout keeps the roundness slider reachable while the bar is docked.
