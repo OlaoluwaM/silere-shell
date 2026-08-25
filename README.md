@@ -27,7 +27,7 @@ CPU, and every animation stops on its own when you walk away.
 
 ## Install
 
-You need `git`, Hyprland or niri, and Quickshell 0.3 or newer.
+You need `git`, Hyprland or niri, and Quickshell 0.3.1 or newer.
 
 ```bash
 git clone https://github.com/s3rven/silere-shell

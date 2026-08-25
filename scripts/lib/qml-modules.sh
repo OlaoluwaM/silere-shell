@@ -7,7 +7,7 @@
 # The floor the README and the AUR PKGBUILD both promise. Lint keeps those two in
 # step with this value; check.sh compares it against the Quickshell actually installed.
 # shellcheck disable=SC2034
-SILERE_MIN_QUICKSHELL="0.3"
+SILERE_MIN_QUICKSHELL="0.3.1"
 
 # Reads the version out of `qs --version`, e.g. "Quickshell 0.3.1 (revision ...)".
 # Prints nothing when the binary is missing or the format is one we don't know.
