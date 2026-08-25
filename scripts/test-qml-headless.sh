@@ -168,6 +168,22 @@ else
         --unterminated-case error
         --unintentional-empty-block error
         --unresolved-alias error
+        --access-singleton-via-object error
+        --comma error
+        --component-children-count error
+        --confusing-expression-statement error
+        --duplicate-import error
+        --enum-entry-matches-enum error
+        --equality-type-coercion error
+        --literal-constructor error
+        --multiline-strings error
+        --non-root-enum error
+        --prefer-non-var-properties error
+        --redundant-optional-chaining error
+        --stale-property-read error
+        --top-level-component error
+        --var-used-before-declaration error
+        --with error
     )
     qmllint_help="$("$QMLLINT" --help 2>&1 || true)"
     unsupported_lint_args=()

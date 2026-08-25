@@ -162,7 +162,7 @@ test_headless_qml_import_roots() (
     local stubs="$TMP/qml-tool-stubs"
     local first="$TMP/qml-import-first"
     local second="$TMP/qml-import-second"
-    local lint_help="--import --unused-imports --alias-cycle --assignment-in-condition --deprecated --duplicate-enum-entries --duplicate-inline-component --duplicate-property-binding --duplicated-name --eval --inheritance-cycle --invalid-lint-directive --missing-enum-entry --property-override --read-only-property --required --unreachable-code --unresolved-alias --missing-type --non-list-property --unterminated-case --unintentional-empty-block"
+    local lint_help="--import --unused-imports --alias-cycle --assignment-in-condition --deprecated --duplicate-enum-entries --duplicate-inline-component --duplicate-property-binding --duplicated-name --eval --inheritance-cycle --invalid-lint-directive --missing-enum-entry --property-override --read-only-property --required --unreachable-code --unresolved-alias --missing-type --non-list-property --unterminated-case --unintentional-empty-block --access-singleton-via-object --comma --component-children-count --confusing-expression-statement --duplicate-import --enum-entry-matches-enum --equality-type-coercion --literal-constructor --multiline-strings --non-root-enum --prefer-non-var-properties --redundant-optional-chaining --stale-property-read --top-level-component --var-used-before-declaration --with"
 
     mkdir -p "$stubs" "$first" "$second"
     printf '%s\n' \
