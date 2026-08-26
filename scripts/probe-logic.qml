@@ -972,6 +972,28 @@ ShellRoot {
             "power mode keeps a profile name it does not know built in")
         PowerProfiles.profiles = profilesWas
 
+        // qt reads the 12-hour clock off the whole format string: an hour formatted on its
+        // own still comes back 0-23 and lands beside a PM that contradicts it
+        const clock12Was = ShellSettings.clock12h
+        const oneAm    = new Date(2026, 0, 2, 1, 45)
+        const onePm    = new Date(2026, 0, 2, 13, 45)
+        const noon     = new Date(2026, 0, 2, 12, 5)
+        const midnight = new Date(2026, 0, 2, 0, 5)
+        ShellSettings.clock12h = false
+        root._check(DateTime.clockText(onePm) === Qt.formatDateTime(onePm, "HH:mm")
+                && DateTime.clockSuffix(onePm).length === 0,
+            "the 24-hour clock reads straight through with no suffix")
+        ShellSettings.clock12h = true
+        root._check(DateTime.clockHour(onePm) === DateTime.clockHour(oneAm)
+                && DateTime.clockHour(onePm) !== Qt.formatDateTime(onePm, "HH"),
+            "the 12-hour clock counts the afternoon from one, not thirteen")
+        root._check(DateTime.clockHour(midnight) === DateTime.clockHour(noon)
+                && DateTime.clockSuffix(midnight) !== DateTime.clockSuffix(noon),
+            "midnight and noon share an hour and split on the suffix")
+        root._check(DateTime.clockText(onePm).indexOf(DateTime.clockSuffix(onePm)) > 0,
+            "the composed clock text carries the suffix")
+        ShellSettings.clock12h = clock12Was
+
         // auto is a mode, not a value: it must never consume the hand-picked temperature
         const autoWas = ShellSettings.nightLightAuto
         const tempWas = ShellSettings.nightLightTemp

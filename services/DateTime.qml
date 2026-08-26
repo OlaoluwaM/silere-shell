@@ -47,6 +47,24 @@ Singleton {
         return days <= 1 ? "yesterday" : days + " days ago"
     }
 
+    // qt only counts 12-hour when AP shares the format string; "h" alone still reads 0-23
+    function clockHour(d): string {
+        if (!ShellSettings.clock12h) return Qt.formatDateTime(d, "HH")
+        const text = Qt.formatDateTime(d, "h'|'AP")
+        const at = text.indexOf("|")
+        return at < 0 ? text : text.slice(0, at)
+    }
+
+    function clockSuffix(d): string {
+        return ShellSettings.clock12h ? Qt.formatDateTime(d, "AP") : ""
+    }
+
+    function clockText(d): string {
+        const suffix = root.clockSuffix(d)
+        return root.clockHour(d) + ":" + Qt.formatDateTime(d, "mm")
+            + (suffix.length > 0 ? " " + suffix : "")
+    }
+
     function isoWeek(d): int {
         const t = new Date(d.getFullYear(), d.getMonth(), d.getDate())
         t.setDate(t.getDate() + 3 - (t.getDay() + 6) % 7)
@@ -94,13 +112,8 @@ Singleton {
             }
             cachedMinute = Qt.formatDateTime(current, "mm")
             hour24 = current.getHours()
-            if (ShellSettings.clock12h) {
-                cachedHour = Qt.formatDateTime(current, "h")
-                cachedAmPm = Qt.formatDateTime(current, "AP")
-            } else {
-                cachedHour = Qt.formatDateTime(current, "HH")
-                cachedAmPm = ""
-            }
+            cachedHour = root.clockHour(current)
+            cachedAmPm = root.clockSuffix(current)
         }
         if (!ShellSettings.barShowClock || !ShellSettings.showSeconds) {
             cachedSeconds = ""
