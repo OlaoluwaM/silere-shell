@@ -184,6 +184,11 @@ ShellRoot {
             "widget layout drops unknown keys")
         root._check(layout.loc.media.zone === "left" && layout.loc.clock.zone === "center",
             "widget layout reports normalized locations")
+        const legacyLayout = ShellSettings._normaliseBarWidgetLayout(
+            "workspaces,media", "", "shellUpdate,tray,updates,network,volume,brightness,battery,clock")
+        root._check(legacyLayout.center.length === 1
+                && legacyLayout.center[0] === "windowTitle",
+            "an older saved widget layout migrates the new window title to its center default")
 
         const workspaceStrip = workspaceStripFactory.createObject(root)
         const forwardCrossing = workspaceStrip._intermediateIndexes(0, 2)
@@ -1030,9 +1035,9 @@ ShellRoot {
         const ipcOrder = ShellSettings.barWidgetOrderLeftKeys.concat(
             ShellSettings.barWidgetOrderCenterKeys,
             ShellSettings.barWidgetOrderRightKeys)
-        root._check(ipcOrderResult === "clock"
+        root._check(ipcOrderResult === "clock,windowTitle"
                 && ShellSettings.barWidgetLocate("clock").zone === "center",
-            "a widget-order IPC write moves a key into the requested zone")
+            "a widget-order IPC write moves a key and restores center-default additions")
         root._check(ipcOrder.length === ShellSettings.barWidgetKeys.length
                 && new Set(ipcOrder).size === ipcOrder.length,
             "a widget-order IPC write restores missing keys and removes duplicates")

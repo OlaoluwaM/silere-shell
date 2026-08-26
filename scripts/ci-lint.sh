@@ -879,10 +879,14 @@ widget_components="$(awk '/_widgetComponents:[[:space:]]*\(\{/{take=1; next} \
 # a renamed toggle leaves the row bound to a key the schema no longer has, which reads
 # as a widget that cannot be hidden rather than as an error
 widget_orphan=""
+widget_unattributed=""
 while IFS= read -r wsetting; do
   [ -n "$wsetting" ] || continue
   grep -qE "\{ k: \"$wsetting\"," services/ShellSettings.qml \
     || widget_orphan="$widget_orphan $wsetting"
+  grep -E "\{ k: \"$wsetting\"," services/ShellSettings.qml \
+    | grep -qE 'sec: "[^"]*widgets' \
+    || widget_unattributed="$widget_unattributed $wsetting"
 done <<< "$(awk '/barWidgetMeta:[[:space:]]*\(\{/{take=1; next} \
   take && /^[[:space:]]*\}\)/{exit} take{print}' services/ShellSettings.qml \
   | sed -nE 's/.*setting: "([A-Za-z][A-Za-z0-9]*)".*/\1/p')"
@@ -893,6 +897,8 @@ if [ -z "$widget_keys" ] || [ "$widget_keys" != "$widget_meta" ] \
       "$widget_keys" "$widget_meta" "$widget_components"
 elif [ -n "$widget_orphan" ]; then
     fail "bar widget metadata names settings the schema does not have:$widget_orphan"
+elif [ -n "$widget_unattributed" ]; then
+    fail "bar widget settings must attribute changes to the widgets page:$widget_unattributed"
 else
     ok "bar widgets" "keys, metadata, and components agree"
 fi

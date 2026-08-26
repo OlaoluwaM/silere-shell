@@ -35,7 +35,8 @@ only when running, as `X is not a type` — that one confuses everybody once.
    the key you want
 4. an entry in `barWidgetMeta` in `services/ShellSettings.qml` — glyph, label, group,
    and the `setting` name that hides it (empty string means it cannot be hidden)
-5. that `setting` as a property plus a `_schema` entry, if it is hideable
+5. that `setting` as a property plus a `_schema` entry whose `sec:` names the
+   `widgets` page, if it is hideable
 6. the key appended to one of the `barWidgetOrder*` defaults, or it ships in no zone
    and only appears once someone drags it out of the arranger
 

@@ -11,11 +11,16 @@ Item {
 
     required property ShellScreen screen
 
-    property real availableWidth: -1
+    property bool compact: false
 
+    // the zone collapses the slot and skips its divider when nothing is focused
+    readonly property bool layoutVisible: root.hasClient
+
+    // a zone widget displaces its neighbours, so the cap tightens with the rest of the bar
     readonly property real   _widthCap: {
         const self = root.screen
-        return self ? Math.round(self.width * 0.25) : Infinity
+        if (!self) return Infinity
+        return Math.round(self.width * (root.compact ? 0.18 : 0.25))
     }
 
     readonly property string monitorName: Compositor.monitorName(root.screen)
@@ -231,9 +236,18 @@ Item {
         }
     }
 
-    // no Behavior: the box must snap with the text or the new title clips at both ends with no ellipsis
-    implicitWidth:  Math.ceil(content.width)
-    implicitHeight: parent ? parent.height : ShellSettings.barHeight
+    // the natural text width, not content.width: reading the box back through the zone's
+    // Loader would close a binding loop
+    readonly property real _naturalWidth: Math.ceil(Math.min(content.implicitWidth, root._widthCap))
+    implicitWidth: root._naturalWidth
+    // a zone widget shoves its neighbours when it resizes, and titles change on every
+    // navigation; ease the box so the rest of the bar does not twitch with the text
+    MotionBehavior on implicitWidth {
+        NumberAnimation { duration: Motion.width; easing.type: Easing.OutCubic }
+    }
+    // not parent.height: the zone's Loader takes its height from this item, so reading it back
+    // collapses to zero and the clip below erases the text
+    implicitHeight: ShellSettings.barHeight
 
     Item {
         anchors.fill: parent
@@ -253,9 +267,9 @@ Item {
             textFormat:     Text.StyledText
             font.pixelSize: Settings.fontSize
             elide:          Text.ElideRight
-            width:          Math.ceil(Math.min(implicitWidth,
-                                     root.availableWidth >= 0 ? root.availableWidth : implicitWidth,
-                                     root._widthCap))
+            // follows the easing box so the text re-elides as it grows instead of
+            // being clipped at both ends by a box that has not caught up
+            width:          Math.max(0, Math.min(root.width, root._naturalWidth))
         }
     }
 }

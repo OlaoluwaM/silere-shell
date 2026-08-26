@@ -30,7 +30,6 @@ Singleton {
     property bool   clock12h:            false
     property bool   showWindowTitle:     false
     property bool   showWindowTitleApp:  false
-    property bool   windowTitleCenterGap: true
     property bool   updatesWidget:       false
     property bool   updatesIncludeAur:   false
     property bool   trayWidget:          false
@@ -116,10 +115,10 @@ Singleton {
     property string barDisabledMonitors: ""
     property string overlayMonitor:      ""
 
-    readonly property var barWidgetKeys: ["workspaces", "shellUpdate", "tray", "updates", "network", "volume", "brightness", "battery", "media", "clock"]
+    readonly property var barWidgetKeys: ["workspaces", "windowTitle", "shellUpdate", "tray", "updates", "network", "volume", "brightness", "battery", "media", "clock"]
 
     property string barWidgetOrderLeft:  "workspaces,media"
-    property string barWidgetOrderCenter: ""
+    property string barWidgetOrderCenter: "windowTitle"
     property string barWidgetOrderRight: "shellUpdate,tray,updates,network,volume,brightness,battery,clock"
 
     function _widgetKeyList(value): var {
@@ -148,7 +147,9 @@ Singleton {
         for (let i = 0; i < all.length; i++) {
             const k = all[i]
             if (seen[k]) continue
-            if (k === "workspaces") left.push(k); else right.push(k)
+            if (k === "workspaces") left.push(k)
+            else if (k === "windowTitle") center.push(k)
+            else right.push(k)
         }
         const loc = {}
         const names = ["left", "center", "right"]
@@ -212,6 +213,7 @@ Singleton {
     readonly property var barWidgetMeta: ({
         // no setting: the diamond is the only way into the menu, so this one cannot be hidden
         workspaces:  { glyph: "󰊗", label: "Workspaces",      group: "workspaces", setting: "" },
+        windowTitle: { glyph: "󰖯", label: "Window title",    group: "workspaces", setting: "showWindowTitle" },
         shellUpdate: { glyph: "󰑐", label: "Shell update",    group: "updates", setting: "barShowShellUpdate" },
         tray:        { glyph: "󰇘", label: "System tray",     group: "tray",    setting: "trayWidget" },
         updates:     { glyph: "󰚰", label: "Package updates", group: "updates", setting: "updatesWidget" },
@@ -285,9 +287,8 @@ Singleton {
         { k: "showSeconds",         t: "bool", sec: "clock" },
         { k: "compactDate",         t: "bool", sec: "clock" },
         { k: "clock12h",            t: "bool", sec: "clock" },
-        { k: "showWindowTitle",     t: "bool", sec: "indicators" },
+        { k: "showWindowTitle",     t: "bool", sec: "widgets,indicators" },
         { k: "showWindowTitleApp",  t: "bool", sec: "indicators" },
-        { k: "windowTitleCenterGap", t: "bool", sec: "indicators" },
         { k: "updatesWidget",       t: "bool", sec: "widgets,updates" },
         { k: "updatesIncludeAur",   t: "bool", sec: "updates" },
         { k: "trayWidget",          t: "bool", sec: "widgets" },

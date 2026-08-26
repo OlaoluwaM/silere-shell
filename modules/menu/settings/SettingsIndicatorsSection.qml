@@ -19,15 +19,6 @@ Column {
                 key: "showWindowTitleApp"
             }
         }
-        // the centre visualiser takes this anchor too, with or without a title to place
-        CollapsibleSection {
-            expanded: ShellSettings.showWindowTitle
-                || (ShellSettings.mediaProgress && ShellSettings.mediaVisualizerPosition === "center")
-            ToggleRow {
-                glyph: "󰉠"; label: "Center between widgets"
-                key: "windowTitleCenterGap"
-            }
-        }
     }
 
     SectionLabel { label: "INTERACTION" }
