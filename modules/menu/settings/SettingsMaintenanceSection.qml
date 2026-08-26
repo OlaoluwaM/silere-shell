@@ -117,7 +117,7 @@ Column {
     readonly property string _healthStatus: {
         if (!SystemTools.ready) return "Checking installed features…"
         if (SystemTools.checking || FontScan.scanning) return "Refreshing availability…"
-        if (SystemTools.probeFailed) return "The health check could not finish"
+        if (SystemTools.probeFailed) return "The feature check could not finish"
         if (root._attentionIssues.length > 0)
             return root._attentionIssues.length
                 + (root._attentionIssues.length === 1
@@ -135,7 +135,7 @@ Column {
             return "Review the items below. Optional packages are listed separately."
         if (root._optionalIssues.length > 0)
             return "Silere is healthy. Install an optional package only if you want that feature."
-        return "No dependency or configuration problems were found."
+        return "All checked tools and integrations are available."
     }
 
     SectionLabel { label: "HEALTH"; first: true }
@@ -143,8 +143,8 @@ Column {
         UpdateStatusCard {
             glyph: root._healthBusy ? "󰑐"
                 : SystemTools.probeFailed ? "󰀦"
-                : root._attentionIssues.length > 0 ? "󰀪" : "󰗠"
-            title: "System health"
+                : root._attentionIssues.length > 0 ? "󰀪" : "󰄬"
+            title: "Feature readiness"
             status: root._healthStatus
             detail: root._healthDetail
             detailError: SystemTools.probeFailed
@@ -153,7 +153,7 @@ Column {
                 : root._healthBusy ? Theme.accent : Theme.success
             busy: root._healthBusy
             animationActive: MenuState.settingsActive && !Idle.isIdle
-            primaryLabel: root._healthBusy ? "Checking" : "Check"
+            primaryLabel: root._healthBusy ? "Refreshing" : "Refresh"
             primaryGlyph: "󰑐"
             primaryEnabled: !root._healthBusy
             onPrimaryTriggered: SystemTools.refresh()
@@ -239,7 +239,7 @@ Column {
             }
         }
         HintText {
-            text: "Creates a backup first. Wallpaper colors and calendar marks stay unchanged."
+            text: "Backs up settings first and keeps the five newest. Wallpaper colors and calendar marks stay unchanged."
         }
     }
 }
