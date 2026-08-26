@@ -986,6 +986,25 @@ ShellRoot {
         ShellSettings.nightLightTemp = tempWas
         ShellSettings.nightLightAuto = autoWas
 
+        // the probe budget belongs to one ambiguous spell, or a reading that leaves and
+        // re-enters ambiguity reuses a spent budget and the percentage the last spell resolved
+        const scaleWas = Battery._scale100
+        const attemptsWas = Battery._ambiguousAttempts
+        const overrideWas = Battery._pctOverride
+        Battery._ambiguousAttempts = 3
+        Battery._pctOverride = 42
+        Battery._clearAmbiguityProbe()
+        root._check(Battery._ambiguousAttempts === 0 && Battery._pctOverride === -1,
+            "battery clears both the probe budget and its answer, not just one")
+        // _raw is UPower's own reading, so the spell can only be ended here through the
+        // latch: whenever the scale is resolved the reading is no longer ambiguous
+        Battery._scale100 = true
+        root._check(!Battery._ambiguousRawOne,
+            "battery leaves ambiguity for good once the percentage scale is known")
+        Battery._scale100 = scaleWas
+        Battery._ambiguousAttempts = attemptsWas
+        Battery._pctOverride = overrideWas
+
         // the lua config framework replaces the plain dispatchers, so the two
         // dispatch forms are the difference between switching and doing nothing
         const luaWas = HyprDispatch.useLua

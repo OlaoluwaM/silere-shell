@@ -24,6 +24,13 @@ Singleton {
         restoreMode: Binding.RestoreNone
     }
     readonly property bool _ambiguousRawOne: available && !_scale100 && Math.abs(_raw - 1) < 0.0001
+    // the probe budget and its answer belong to one ambiguous spell: without this a reading that
+    // leaves and re-enters ambiguity reuses a spent budget and the percentage the earlier spell resolved
+    function _clearAmbiguityProbe(): void {
+        root._ambiguousAttempts = 0
+        root._pctOverride = -1
+    }
+    on_AmbiguousRawOneChanged: if (!root._ambiguousRawOne) root._clearAmbiguityProbe()
     readonly property real pct: (_ambiguousRawOne && _pctOverride >= 0)
         ? _pctOverride
         : (_scale100 ? _raw : (_raw * 100))
