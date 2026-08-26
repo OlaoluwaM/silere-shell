@@ -329,7 +329,10 @@ Item {
         return indexes
     }
     function _visibleIndex(wsId: int): int {
-        const index = root._visibleIndexById[wsId]
+        // a compositor signal can land mid-teardown, when the map reads back undefined
+        const byId = root._visibleIndexById
+        if (!byId) return -1
+        const index = byId[wsId]
         return index === undefined ? -1 : index
     }
 
