@@ -15,15 +15,15 @@ A Quickshell desktop shell for Hyprland and niri. One process draws the bar, men
 notifications, OSD, calendar and tray, so there is no separate bar, notification daemon
 or OSD helper to install and keep in step.
 
-Everything is set from a settings panel inside the shell — there is no config file to
-write, and changes apply as you make them.
+**No config editing.** Everything is set from a settings panel inside the shell, and
+changes apply as you make them.
 
-Background work only runs when it has something to do: an idle session sits near zero
-CPU, and every animation stops on its own when you walk away.
+**Idle work stays near zero.** Background work only runs when it has something to do, and
+every animation stops on its own when you walk away.
 
-There is no plugin system, so no third-party code runs inside the shell process. Hooks
-run your own commands as separate, time-bounded processes. Updates install only from
-release tags signed with the key bundled in the checkout.
+**Extensions stay out of process.** There is no plugin system. Hooks run your own commands
+as separate, time-bounded processes, and updates install only from release tags signed
+with the key bundled in the checkout.
 
 <p align="center">
   <img src="assets/shot-desktop.webp" alt="The Silere bar with the menu panel open" width="900"/>
@@ -70,20 +70,20 @@ Fonts, optional tools, unattended installs, Matugen wiring and removal:
 
 ## Controls
 
-| area | actions |
-|---|---|
-| workspaces | click switches. On the active diamond, click opens the menu and right-click opens quick actions. Middle-click sends the focused window to that workspace. Scroll switches too, once you turn it on under Settings › Workspaces. |
-| clock | click opens the calendar. Middle-click cycles seconds and date. |
-| calendar | scroll changes the month. Click the header to jump back to today. |
-| media | click plays or pauses. Scroll changes track. Middle-click jumps to the player. |
-| volume | scroll changes volume. Click mutes. |
-| brightness | scroll changes brightness. |
-| tray | click jumps to the app. Right-click opens its menu. Middle-click runs the app's secondary action, and scrolling is passed through to the app. |
-| notifications | click runs the default action. Right-click dismisses. Middle-click jumps to the app that sent it. |
-| menu | Escape steps back, then closes. Click anywhere outside to close. |
-| history | click an entry to read it in full. |
-
 Silere is pointer-driven: Escape and the Wi-Fi password field are the only keyboard paths.
+
+| area | pointer |
+|---|---|
+| workspaces | **click** switches · on the active diamond, **click** opens the menu and **right-click** opens quick actions · **middle-click** sends the focused window there · **scroll** switches too, once you turn it on under Settings › Workspaces |
+| clock | **click** opens the calendar · **middle-click** cycles seconds and date |
+| calendar | **scroll** changes the month · **click** the header to jump back to today |
+| media | **click** plays or pauses · **scroll** changes track · **middle-click** jumps to the player |
+| volume | **scroll** changes volume · **click** mutes |
+| brightness | **scroll** changes brightness |
+| tray | **click** jumps to the app · **right-click** opens its menu · **middle-click** runs the app's secondary action · **scroll** is passed through to the app |
+| notifications | **click** runs the default action · **right-click** dismisses · **middle-click** jumps to the app that sent it |
+| menu | **Escape** steps back, then closes · **click** anywhere outside to close |
+| history | **click** an entry to read it in full |
 
 ## Configuration
 
@@ -107,9 +107,7 @@ own on events like `battery-critical` or `workspace-changed`.
 ```bash
 SILERE_DIR="$HOME/.config/silere-shell"
 qs ipc -p "$SILERE_DIR/shell.qml" call menu toggle
-qs ipc -p "$SILERE_DIR/shell.qml" call menu settings updates
 qs ipc -p "$SILERE_DIR/shell.qml" call calendar toggle
-qs ipc -p "$SILERE_DIR/shell.qml" call quickActions toggle
 qs ipc -p "$SILERE_DIR/shell.qml" call settings set osdTimeout 3000
 ```
 
@@ -126,9 +124,9 @@ update the badge.
 
 ## Performance
 
-Idle use on a reference session measured under 1% of one CPU core, settling near 120 MB PSS
-after an hour — much of that the Qt and GPU driver floor rather than Silere. Measure your
-own checkout with `bash scripts/bench.sh 30`. Full numbers and the animation-driver note:
+Idle use on a reference session measured under 1% of one CPU core and 95-110 MB PSS — much
+of that the Qt and GPU driver floor rather than Silere. Measure your own checkout with
+`bash scripts/bench.sh 30`. Full numbers and the animation-driver note:
 [`docs/performance.md`](docs/performance.md).
 
 ## Troubleshooting
@@ -139,6 +137,18 @@ bash scripts/check.sh
 
 That runs the dependency, autostart and configuration checks. For startup errors, run
 `qs -p shell.qml` directly. Common problems: [`docs/troubleshooting.md`](docs/troubleshooting.md).
+
+## Docs
+
+| page | what's in it |
+|---|---|
+| [install.md](docs/install.md) | fonts, optional tools, unattended installs, Matugen, removal |
+| [scripting.md](docs/scripting.md) | the IPC surface, settings over IPC, section names, hooks |
+| [troubleshooting.md](docs/troubleshooting.md) | symptom by symptom, starting with `check.sh` |
+| [performance.md](docs/performance.md) | reference numbers, how to measure, the animation driver |
+| [forking.md](docs/forking.md) | the tree, what a change touches, what a rename has to get right |
+| [releasing.md](docs/releasing.md) | maintainer notes: cadence, tags, AUR, key rotation |
+| [CHANGELOG.md](CHANGELOG.md) | unreleased work, and every release archived under [docs/releases](docs/releases/) |
 
 ## Contributing
 

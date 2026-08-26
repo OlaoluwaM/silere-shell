@@ -1,6 +1,6 @@
 # Troubleshooting
 
-From the Silere checkout, run the dependency and configuration checks first:
+Start here:
 
 ```bash
 bash scripts/check.sh
@@ -12,28 +12,39 @@ does not carry it — clone the repository to run it.
 
 To inspect startup errors directly, run `qs -p shell.qml`.
 
-**It installed but nothing appears.** Silere runs on Hyprland and niri only. On either of
-those it is nearly always the autostart line — run `qs -p ~/.config/silere-shell/shell.qml`
-to check. If the bar comes up, add that command to your compositor's startup (`exec-once`
-on Hyprland, `spawn-at-startup` on niri) and restart it.
+## It installed but nothing appears
 
-**It stopped working after a system update.** A Qt update can leave the installed
-Quickshell unable to run, because it builds against Qt's private API. Reinstall Quickshell
-to rebuild it against the new Qt; `bash scripts/check.sh` reports this as its first failure.
+Silere runs on Hyprland and niri only. On either of those it is nearly always the autostart
+line — run `qs -p ~/.config/silere-shell/shell.qml` to check. If the bar comes up, add that
+command to your compositor's startup (`exec-once` on Hyprland, `spawn-at-startup` on niri)
+and restart it.
 
-**Notifications never appear.** Another daemon already owns
-`org.freedesktop.Notifications`. Silere works out which one and says so in an alert naming
-the process, a few seconds after start.
+## It stopped working after a system update
 
-**Icons or text use the wrong font.** Install a Nerd Font such as
-`ttf-jetbrains-mono-nerd`, then refresh the user font cache.
+A Qt update can leave the installed Quickshell unable to run, because it builds against
+Qt's private API. Reinstall Quickshell to rebuild it against the new Qt; `bash
+scripts/check.sh` reports this as its first failure.
 
-**Text has coloured fringes on a fractionally scaled display.** Start Silere with
-`QSG_DISTANCEFIELD_ANTIALIASING=gray` in its environment.
+## Notifications never appear
 
-**Brightness controls the wrong screen.** On hybrid laptops with several backlights, pick
-the right display under Settings › Interface.
+Another daemon already owns `org.freedesktop.Notifications`. Silere works out which one and
+says so in an alert naming the process, a few seconds after start.
 
-**A shell update is blocked by local edits.** Preview them with `bash scripts/repair.sh`.
-Running it with `--apply` saves the edits in a reversible Git stash and restores the
-shipped files; `--undo` restores the latest saved repair.
+## Icons or text use the wrong font
+
+Install a Nerd Font such as `ttf-jetbrains-mono-nerd`, then refresh the user font cache.
+
+## Text has coloured fringes on a fractionally scaled display
+
+Start Silere with `QSG_DISTANCEFIELD_ANTIALIASING=gray` in its environment.
+
+## Brightness controls the wrong screen
+
+On hybrid laptops with several backlights, pick the right display under Settings ›
+Interface.
+
+## A shell update is blocked by local edits
+
+Preview them with `bash scripts/repair.sh`. Running it with `--apply` saves the edits in a
+reversible Git stash and restores the shipped files; `--undo` restores the latest saved
+repair.

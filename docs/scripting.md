@@ -6,29 +6,48 @@ open them without simulating a click. Set `SILERE_DIR` to the path the installer
 ```bash
 SILERE_DIR="$HOME/.config/silere-shell"
 qs ipc -p "$SILERE_DIR/shell.qml" call menu toggle
-qs ipc -p "$SILERE_DIR/shell.qml" call menu tab 2
-qs ipc -p "$SILERE_DIR/shell.qml" call menu settings updates
-qs ipc -p "$SILERE_DIR/shell.qml" call calendar toggle
-qs ipc -p "$SILERE_DIR/shell.qml" call quickActions toggle
-qs ipc -p "$SILERE_DIR/shell.qml" call screenshot flash
-qs ipc -p "$SILERE_DIR/shell.qml" call settings toggle reduceMotion
-qs ipc -p "$SILERE_DIR/shell.qml" call settings set osdTimeout 3000
 ```
 
-Menu tabs are `0` (Home), `1` (Settings), and `2` (Recent). `quickActions` holds Do Not
-Disturb, night light, power mode and airplane mode. `screenshot flash` lets a screenshot
-tool trigger the underline effect directly, without the optional filesystem watcher.
+Run `qs ipc -p "$SILERE_DIR/shell.qml" show` for the current list.
+
+## Surfaces
+
+| call | opens |
+|---|---|
+| `menu toggle` | the menu |
+| `menu tab <n>` | the menu on `0` Home, `1` Settings or `2` Recent |
+| `menu settings <name>` | Settings on one page — names below |
+| `calendar toggle` | the calendar |
+| `quickActions toggle` | Do Not Disturb, night light, power mode and airplane mode |
 
 `menu`, `calendar` and `quickActions` each take `close` as well as `toggle`, for a keybind
-that dismisses without opening anything. Run `qs ipc -p "$SILERE_DIR/shell.qml" show` for
-the current list.
+that dismisses without opening anything.
 
-`settings` reads and writes any setting the Settings pages expose: `get`, `set`, `toggle`,
-`list [filter]`, and `modified`. A write echoes the value that landed, a rejected one names
-the values the key accepts, and `list` prints each key with its own range or vocabulary. The
-filter matches a section name as well as a key, so `list clock` reaches `showSeconds`.
+`screenshot flash` opens nothing: it lets a screenshot tool trigger the underline effect
+directly, without the optional filesystem watcher.
 
-## Settings section names
+## Settings
+
+`settings` reads and writes any setting the Settings pages expose.
+
+```bash
+qs ipc -p "$SILERE_DIR/shell.qml" call settings set osdTimeout 3000
+qs ipc -p "$SILERE_DIR/shell.qml" call settings toggle reduceMotion
+qs ipc -p "$SILERE_DIR/shell.qml" call settings list clock
+```
+
+| call | does |
+|---|---|
+| `get <key>` | prints one value |
+| `set <key> <value>` | writes it, and echoes the value that landed |
+| `toggle <key>` | flips a boolean |
+| `list [filter]` | prints each key with its own range or vocabulary |
+| `modified` | prints only what differs from the defaults |
+
+A rejected write names the values the key accepts. The `list` filter matches a section name
+as well as a key, so `list clock` reaches `showSeconds`.
+
+### Settings section names
 
 For `menu settings <name>`:
 
@@ -63,6 +82,8 @@ chmod +x ~/.config/silere-shell/hooks/battery-critical
 Hooks are read at startup; `qs ipc -p "$SILERE_DIR/shell.qml" call hooks rescan` picks up a
 new one without a restart, and `hooks list` shows which are active. An event with no
 executable file costs nothing.
+
+### Limits
 
 Hook runs are capped at 20 a second and 4 at a time, and one still running after 30 seconds
 is terminated. Anything past the rate cap is dropped rather than queued. While all four

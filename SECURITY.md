@@ -25,3 +25,17 @@ already runs code as the user.
 Notification images accept Quickshell's in-memory image provider, but not a filesystem
 path supplied by the sender. Application icon names still resolve through the installed
 icon theme.
+
+## Update trust
+
+Updates are verified: `scripts/update.sh` only fast-forwards to an annotated tag
+signed by a key in `security/update-signers`, using the copy of that key already
+in the installed checkout, and only when the tag belongs to `origin/main`.
+
+The first install is a different matter. `git clone` followed by
+`scripts/install.sh` runs code from `main` before any signature has been checked,
+and a repository that shipped a tampered `install.sh` would also ship a tampered
+signer list. Nothing inside the repository can close that gap — verifying a clone
+needs a trust anchor obtained separately from it. Treat the initial clone as the
+point where you decide to trust the source, and prefer a distribution package
+where one is available.
