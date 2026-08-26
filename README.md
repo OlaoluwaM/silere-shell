@@ -11,19 +11,11 @@
   <img src="https://img.shields.io/badge/runs%20on-Hyprland%20%C2%B7%20niri-747a98?style=flat-square&labelColor=17181d" alt="runs on Hyprland and niri"/>
 </p>
 
-A Quickshell desktop shell for Hyprland and niri. One process draws the bar, menu,
-notifications, OSD, calendar and tray, so there is no separate bar, notification daemon
-or OSD helper to install and keep in step.
+Silere is a Quickshell desktop shell for Hyprland and niri built around one idea: nothing
+runs without a reason.
 
-**No config editing.** Everything is set from a settings panel inside the shell, and
-changes apply as you make them.
-
-**Idle work stays near zero.** Background work only runs when it has something to do, and
-every animation stops on its own when you walk away.
-
-**Extensions stay out of process.** There is no plugin system. Hooks run your own commands
-as separate, time-bounded processes, and updates install only from release tags signed
-with the key bundled in the checkout.
+Bar, notifications, OSD, calendar and tray, all in one process — and it sits under 1% of a
+CPU core when you are not touching it.
 
 <p align="center">
   <img src="assets/shot-desktop.webp" alt="The Silere bar with the menu panel open" width="900"/>
@@ -39,12 +31,10 @@ cd silere-shell
 bash scripts/install.sh
 ```
 
-The installer names any missing QML module, backs up files before editing them, asks
-before touching compositor autostart, and prints the install path when it's done. Restart
-your compositor, or start it right away with `qs -p /that/path/shell.qml`.
+Restart your compositor, or start it right away with `qs -p /that/path/shell.qml`.
 
-**Click the active workspace diamond** to open the menu and settings. That is the way in,
-so bind a key to it early:
+Then **click the active workspace diamond**. That is the way into the menu and every
+setting, so bind a key to it early:
 
 ```bash
 qs ipc -p ~/.config/silere-shell/shell.qml call menu toggle
@@ -52,6 +42,17 @@ qs ipc -p ~/.config/silere-shell/shell.qml call menu toggle
 
 Fonts, optional tools, unattended installs, Matugen wiring and removal:
 [`docs/install.md`](docs/install.md).
+
+## Why Silere
+
+- **Work starts when there is work.** Every timer and poll runs only while something needs
+  it, and animations end on their own once the session goes idle.
+- **One process, not a stack.** No separate bar, notification daemon or OSD helper to
+  install, theme, and keep in step with each other.
+- **Settings live in the shell.** A panel with every option, applying the moment you
+  change it — no restart, no reload.
+- **Nothing third-party runs inside it.** There is no plugin system. Hooks run your own
+  commands as separate, time-bounded processes.
 
 ## What you get
 
@@ -87,17 +88,13 @@ Silere is pointer-driven: Escape and the Wi-Fi password field are the only keybo
 
 ## Configuration
 
-Everything is configurable from Settings inside the shell. Changes save on their own and
-apply without a restart.
+Settings live in the shell and save themselves. If you want the file, it is
+`$XDG_CONFIG_HOME/silere-shell/settings.json`, wherever the checkout sits, and it holds
+only what differs from the defaults. Values are type-checked and numeric ranges clamped on
+load, and a file Silere cannot read is left alone rather than overwritten.
 
-Overrides live in `$XDG_CONFIG_HOME/silere-shell/settings.json`, independent of where the
-checkout is. Only values that differ from their defaults are written, so the file stays
-short. Values are type-checked and numeric ranges are clamped on load, and a file Silere
-cannot read is left alone instead of overwritten.
-
-To restore defaults, use **Settings › System › Maintenance**. Editing the file by hand
-works too: delete a key to reset one option, or replace the whole file with
-`{ "__version": 1 }` to reset everything.
+To start over, use **Settings › System › Maintenance**, or replace the file with
+`{ "__version": 1 }`. Deleting a single key resets that one option.
 
 ## Scripting
 
@@ -116,11 +113,10 @@ The full IPC surface, the settings section names, and hooks:
 
 ## Updates
 
-Shell and package updates never install on their own. Shell checks follow stable version
-tags, accept only releases signed by Silere's bundled public verification key, and show the
-pending commits before a two-step installation confirmation. Signature verification proves
-where a release came from; it is not a claim that the code is harmless. Package checks only
-update the badge.
+Nothing installs on its own. Shell updates follow stable tags, accept only releases signed
+by the key bundled in the checkout, and show you the pending commits behind a two-step
+confirmation. A signature proves where a release came from, not that its code is harmless.
+Package updates only move the badge.
 
 ## Performance
 
