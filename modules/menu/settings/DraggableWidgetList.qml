@@ -23,7 +23,6 @@ Item {
     property var _previewLayout: ({ left: [], center: [], right: [], loc: ({}) })
     property string _draggingKey: ""
     property real _dragY: 0
-    property bool _resetArmed: false
 
     readonly property var _leftKeys: _draggingKey.length > 0
         ? _previewLayout.left : ShellSettings.barWidgetOrderLeftKeys
@@ -194,12 +193,6 @@ Item {
         root._previewLayout = ({ left: [], center: [], right: [], loc: ({}) })
     }
 
-    Timer {
-        id: _resetArmTimeout
-        interval: 3000
-        onTriggered: root._resetArmed = false
-    }
-
     Rectangle {
         id: _surface
         anchors.fill: parent
@@ -231,38 +224,24 @@ Item {
             font.pixelSize: Settings.fontCaption
         }
 
-        ActionButton {
+        ConfirmButton {
             id: _reset
             anchors.right: parent.right
             anchors.rightMargin: 8
             anchors.verticalCenter: parent.verticalCenter
-            height: Metrics.rowHeightFor(24)
-            label: root._resetArmed ? "Confirm" : "Reset"
-            emphasis: root._resetArmed
-            accentColor: root._resetArmed ? Theme.warning : Theme.accent
+            designHeight: 24
+            glyph: "󰦛"
+            label: "Reset"
+            tint: Theme.warning
             visible: ShellSettings.barWidgetsModified
-            width: visible ? implicitWidth : 0
-            onVisibleChanged: if (!visible) {
-                _resetArmTimeout.stop()
-                root._resetArmed = false
-            }
-            onTriggered: {
-                if (!root._resetArmed) {
-                    root._resetArmed = true
-                    _resetArmTimeout.restart()
-                    return
-                }
-                _resetArmTimeout.stop()
-                root._resetArmed = false
-                ShellSettings.resetBarWidgets()
-            }
+            onConfirmed: ShellSettings.resetBarWidgets()
         }
 
         Hairline {
             anchors.left: parent.left
-            anchors.leftMargin: 10
+            anchors.leftMargin: 14
             anchors.right: parent.right
-            anchors.rightMargin: 10
+            anchors.rightMargin: 14
             anchors.bottom: parent.bottom
             color: Theme.menuDivider
         }
@@ -287,6 +266,9 @@ Item {
             ShellText {
                 anchors.left: parent.left
                 anchors.leftMargin: 12
+                anchors.right: parent.right
+                anchors.rightMargin: 12
+                elide: Text.ElideRight
                 anchors.verticalCenter: parent.verticalCenter
                 text: (_zoneHeader.zone === "left" ? "Left"
                     : _zoneHeader.zone === "center" ? "Center" : "Right")
@@ -306,15 +288,21 @@ Item {
     }
 
     Rectangle {
+        id: _dropSlot
         visible: root._dragSlot >= 0
-        x: 12
-        width: root.width - 24
-        y: visible ? root._yForSlot(root._dragSlot) - 1 : root._dragY - 1
-        height: 2
-        radius: 1
-        z: 25
+        x: 4
+        width: root.width - 8
+        y: visible ? root._yForSlot(root._dragSlot) : root._dragY
+        height: root._rowH
+        radius: Theme.radiusControl
         antialiasing: true
-        color: Theme.withAlpha(Theme.accent, 0.82)
+        color: Theme.withAlpha(Theme.accent, 0.10)
+
+        OutlineBorder {
+            radius: _dropSlot.radius
+            outlineColor: Theme.withAlpha(Theme.accent, 0.42)
+        }
+
         MotionBehavior on y {
             gate: root._draggingKey.length > 0
             NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic }

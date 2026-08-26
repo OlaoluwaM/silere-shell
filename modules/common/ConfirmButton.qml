@@ -11,6 +11,7 @@ Rectangle {
     property string armedLabel: "Confirm?"
     property int restWidth: 68
     property int armedWidth: 92
+    property int designHeight: 30
     property bool busy: false
     property color tint: Theme.error
 
@@ -47,7 +48,7 @@ Rectangle {
     // longer label cannot clip against them
     width:  visible ? Math.max(root._armed ? root.armedWidth : root.restWidth,
                                _row.implicitWidth + 20) : 0
-    height: Metrics.rowHeightFor(30)
+    height: Metrics.rowHeightFor(root.designHeight)
     radius: Theme.radiusControl
     antialiasing: true
     onVisibleChanged: if (!visible) root.disarm()
