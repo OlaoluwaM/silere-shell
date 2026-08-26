@@ -44,6 +44,19 @@ else
   ok "markers" "none"
 fi
 
+section "tracked file listing"
+# git ls-files backs the packaged-payload and qmldir checks below. When git refuses to
+# read the repository — a container running as another uid trips safe.directory — it
+# returns nothing, and both of those pass over an empty list instead of failing.
+if ! command -v git >/dev/null 2>&1 \
+    || ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  skip "tracked" "not a git checkout; index-backed checks have nothing to read"
+elif tracked_probe="$(git ls-files -- '*.qml' 2>&1)" && [ -n "$tracked_probe" ]; then
+  ok "tracked" "git lists tracked files"
+else
+  fail "git cannot list tracked files, so index-backed checks would pass on an empty list: ${tracked_probe%%$'\n'*}"
+fi
+
 section "settings rail label width"
 # The nav rail is clamped to 160px and the UI font is monospace, so a label is either
 # inside the budget or it elides. test-layout-fit covers the detail pane, not the rail,

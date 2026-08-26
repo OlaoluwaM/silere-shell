@@ -27,6 +27,11 @@ jobs:
         with:
           persist-credentials: false
 
+      # the job runs as root over a workspace owned by the runner's uid, so without this
+      # git refuses to read the repository and every index-backed lint sees an empty list
+      - name: Trust the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Verify signed release tag
         run: >-
           git -c safe.directory="$PWD"
