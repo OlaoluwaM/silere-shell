@@ -465,6 +465,22 @@ else
   fail "shell.qml must default QSG_USE_SIMPLE_ANIMATION_DRIVER=1 so popups do not fall back to the 16 ms multi-window timer"
 fi
 
+section "arm-then-confirm guards"
+# TapHandler fires once per tap, so the second half of a double-click confirms the
+# action the first half armed. Every destructive row must reject that second tap.
+# -print0/xargs: an unquoted $(find) word-splits on a path containing a space.
+unguarded_confirm="$(find modules -name '*.qml' -print0 \
+  | xargs -0 -r grep -lE '[Aa]rmed[A-Za-z]* = ' \
+  | while read -r f; do
+      grep -q 'Metrics\.confirmGuardMs' "$f" || printf '%s\n' "$f"
+    done)"
+if [ -n "$unguarded_confirm" ]; then
+  fail "an armed confirm state must reject a double-click with Metrics.confirmGuardMs:"
+  printf '%s\n' "$unguarded_confirm"
+else
+  ok "confirm" "every armed confirm state guards against a double-click"
+fi
+
 section "underscore property handlers"
 # Qt strips leading underscores before capitalising a handler name, so property
 # `_foo` is served by on_FooChanged. on_fooChanged type-checks, loads, and never

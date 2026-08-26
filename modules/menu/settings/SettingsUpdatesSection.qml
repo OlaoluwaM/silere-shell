@@ -13,6 +13,7 @@ Column {
     property bool _changesOpen: false
     property bool _recentOpen: false
     property bool _installArmed: false
+    property real _installArmedAtMs: 0
 
     function _disarmInstall(): void {
         root._installArmed = false
@@ -27,10 +28,12 @@ Column {
         }
         if (!root._installArmed) {
             root._installArmed = true
+            root._installArmedAtMs = Date.now()
             root._changesOpen = true
             _installConfirm.restart()
             return
         }
+        if (Date.now() - root._installArmedAtMs < Metrics.confirmGuardMs) return
         root._disarmInstall()
         ShellUpdate.apply()
     }
