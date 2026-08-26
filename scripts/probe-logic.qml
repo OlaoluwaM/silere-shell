@@ -451,6 +451,10 @@ ShellRoot {
         const clean = JSON.parse(ShellSettings._serialize())
         root._check(Object.keys(clean).length === 1 && clean.__version === 1,
             "an unmodified settings file serializes to nothing but its version")
+        root._check(ShellSettings._backupSettingsText(
+                "probe-" + Date.now(), ShellSettings._serialize())
+                && ShellSettings._backupError.length === 0,
+            "a blocking settings backup reports success before recovery can continue")
 
         // the sec: on every schema entry exists only to light the nav dots, and ci-lint
         // guards the attribution but not the reader; an unrelated refactor deleted the

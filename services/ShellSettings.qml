@@ -255,11 +255,13 @@ Singleton {
     property bool _loaded: false
     property string _readError: ""
     property string _writeError: ""
+    property string _backupError: ""
     property string _diskText: ""
     property string _appliedText: ""
     readonly property bool ready: _loaded
     readonly property string settingsError: ConfigStore.error.length > 0
-        ? ConfigStore.error : _writeError.length > 0 ? _writeError : _readError
+        ? ConfigStore.error : _backupError.length > 0 ? _backupError
+        : _writeError.length > 0 ? _writeError : _readError
     readonly property int _settingsVersion: 1
     property var _defaults: ({})
     property real _loadedVersion: _settingsVersion
@@ -577,7 +579,11 @@ Singleton {
         // Capture the values visible in the UI, including changes still inside
         // PersistedFile's debounce window, rather than the older disk echo.
         // Stamped: a fixed name let a second reset overwrite the backup of the first.
-        _backupSettingsText("pre-reset-" + root._backupStamp(), root._serialize())
+        if (!root._backupSettingsText(
+                "pre-reset-" + root._backupStamp(), root._serialize())) {
+            root._backupError = "Could not back up settings. Defaults were not restored."
+            return
+        }
         ConfigStore.pruneBackups()
         root._bulkAssign = true
         for (let i = 0; i < _schema.length; i++) {
@@ -671,11 +677,15 @@ Singleton {
         }
     }
 
-    function _backupSettingsText(tag: string, text: string): void {
+    property bool _backupWriteSucceeded: false
+
+    function _backupSettingsText(tag: string, text: string): bool {
         const body = (text || "").trim()
-        if (body.length === 0) return
+        if (body.length === 0) return false
+        root._backupWriteSucceeded = false
         _backupFile.path = ConfigStore.directory + "/settings." + tag + ".bak.json"
         _backupFile.setText(body)
+        return root._backupWriteSucceeded
     }
 
     function _backupSettings(tag: string): void {
@@ -687,8 +697,16 @@ Singleton {
         atomicWrites: true
         blockWrites:  true
         printErrors:  false
-        onSaved: ConfigStore.hardenFile(_backupFile.path)
-        onSaveFailed: (error) => console.warn("silere-shell: failed to back up settings.json:", error)
+        onSaved: {
+            root._backupWriteSucceeded = true
+            root._backupError = ""
+            ConfigStore.hardenFile(_backupFile.path)
+        }
+        onSaveFailed: (error) => {
+            root._backupWriteSucceeded = false
+            root._backupError = "Could not back up settings."
+            console.warn("silere-shell: failed to back up settings.json:", error)
+        }
     }
 
     function _applyText(t: string): void {
