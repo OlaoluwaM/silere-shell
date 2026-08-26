@@ -26,6 +26,19 @@ Singleton {
 
     readonly property int maxRunsPerSecond: 20
     readonly property int maxRuntimeMs: 30000
+    // timeout owns a process group, while the inner shell stays alive until ordinary
+    // background children leave it; otherwise timeout exits with the hook entrypoint
+    readonly property int _containGraceMs: 2000
+    readonly property bool _contained: SystemTools.hasTimeout
+    readonly property string _groupWaitScript: '"$@"; code=$?; '
+        + 'IFS= read -r own < /proc/self/stat || exit "$code"; '
+        + 'self=${own%% *}; rest=${own##*) }; set -- $rest; group=$3; outer=$PPID; '
+        + 'while :; do alive=false; for stat in /proc/[0-9]*/stat; do '
+        + '[ -r "$stat" ] || continue; IFS= read -r line < "$stat" || continue; '
+        + 'pid=${line%% *}; rest=${line##*) }; set -- $rest; '
+        + '[ "${1:-}" != Z ] && [ "${3:-}" = "$group" ] '
+        + '&& [ "$pid" != "$self" ] && [ "$pid" != "$outer" ] '
+        + '&& { alive=true; break; }; done; $alive || exit "$code"; sleep 0.1; done'
 
     property var _present: ({})
     property var _found: ({})
@@ -74,10 +87,21 @@ Singleton {
 
     // execDetached reports no exit, so a rate cap alone cannot bound how many are alive at once
     component HookRunner: BoundedProcess {
-        timeoutMs: root.maxRuntimeMs
+        id: runner
+        property string hookPath: ""
+        // only a backstop once `timeout` owns the deadline: killing the wrapper leaves the group
+        // behind, so this must fire later than the wrapper's own term-then-kill window
+        timeoutMs: root._contained
+            ? root.maxRuntimeMs + root._containGraceMs + 3000
+            : root.maxRuntimeMs
         onRunningChanged: if (!running) Qt.callLater(root._drain)
+        onExited: (code) => {
+            if (code === 124 || code === 128 + 9)
+                console.warn("silere-shell: hook ran past "
+                    + root.maxRuntimeMs + "ms and was terminated: " + runner.hookPath)
+        }
         onTimeoutReached: console.warn("silere-shell: hook ran past "
-            + root.maxRuntimeMs + "ms and was terminated: " + command[0])
+            + runner.timeoutMs + "ms and was terminated: " + runner.hookPath)
     }
 
     property HookRunner _runner0: HookRunner {}
@@ -89,11 +113,24 @@ Singleton {
     property var _queued: ({})
     property var _queueOrder: []
 
+    // seconds, and never below 1: `timeout 0` means "no limit"
+    function _wrapArgv(argv): var {
+        const secs = Math.max(1, Math.round(root.maxRuntimeMs / 1000))
+        const grace = Math.max(1, Math.round(root._containGraceMs / 1000))
+        return ["timeout", "--kill-after=" + grace, String(secs),
+            "bash", "-c", root._groupWaitScript, "silere-hook"].concat(argv)
+    }
+
+    function _containedArgv(argv): var {
+        return root._contained ? root._wrapArgv(argv) : argv
+    }
+
     function _claimRunner(argv): bool {
         for (let i = 0; i < root._runners.length; i++) {
             const runner = root._runners[i]
             if (runner.running) continue
-            runner.command = argv
+            runner.hookPath = argv[0]
+            runner.command = root._containedArgv(argv)
             runner.running = true
             return true
         }

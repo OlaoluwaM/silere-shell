@@ -1005,6 +1005,24 @@ ShellRoot {
         Battery._ambiguousAttempts = attemptsWas
         Battery._pctOverride = overrideWas
 
+        // the inner shell keeps timeout alive after a hook entrypoint backgrounds work and exits
+        const hookArgv = ["/hooks/notification", "arg"]
+        const wrapped = Hooks._wrapArgv(hookArgv)
+        root._check(wrapped[0] === "timeout" && wrapped[1] === "--kill-after=2"
+                && wrapped[2] === "30" && wrapped[3] === "bash"
+                && wrapped[4] === "-c" && wrapped[5] === Hooks._groupWaitScript
+                && wrapped[6] === "silere-hook"
+                && wrapped[7] === "/hooks/notification" && wrapped[8] === "arg",
+            "a hook runs under the wrapper that signals its whole process group")
+        // SystemTools answers false until its scan lands, so the flag decides per run
+        root._check(JSON.stringify(Hooks._containedArgv(hookArgv))
+                === JSON.stringify(Hooks._contained ? wrapped : hookArgv),
+            "a hook is wrapped only where the wrapper is actually available")
+        root._check(Hooks._contained
+                ? Hooks._runner0.timeoutMs > Hooks.maxRuntimeMs + Hooks._containGraceMs
+                : Hooks._runner0.timeoutMs === Hooks.maxRuntimeMs,
+            "the in-shell hook timer backstops the wrapper instead of racing it")
+
         // the lua config framework replaces the plain dispatchers, so the two
         // dispatch forms are the difference between switching and doing nothing
         const luaWas = HyprDispatch.useLua

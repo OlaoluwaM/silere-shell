@@ -934,6 +934,52 @@ test_fresh_install_pins_release() (
     fi
 )
 
+# timeout stops watching when its direct command exits, so the inner shell must stay
+# until every ordinary background child has left the timeout-owned process group.
+test_hook_timeout_contains_tree() (
+    command -v timeout >/dev/null 2>&1 || {
+        printf 'SKIP: hook containment (timeout unavailable)\n'
+        return 0
+    }
+    local dir hook child
+    dir="$(mktemp -d)"
+    trap 'rm -rf "$dir"' RETURN
+    hook="$dir/hook"
+    cat > "$hook" <<EOF
+#!/bin/sh
+sh -c 'echo \$\$ > "$dir/child.pid"; exec sleep 600' &
+exit 0
+EOF
+    chmod +x "$hook"
+
+    # the same monitor Hooks.qml places between timeout and the hook
+    local monitor='"$@"; code=$?; '
+    monitor+='IFS= read -r own < /proc/self/stat || exit "$code"; '
+    monitor+='self=${own%% *}; rest=${own##*) }; set -- $rest; group=$3; outer=$PPID; '
+    monitor+='while :; do alive=false; for stat in /proc/[0-9]*/stat; do '
+    monitor+='[ -r "$stat" ] || continue; IFS= read -r line < "$stat" || continue; '
+    monitor+='pid=${line%% *}; rest=${line##*) }; set -- $rest; '
+    monitor+='[ "${1:-}" != Z ] && [ "${3:-}" = "$group" ] '
+    monitor+='&& [ "$pid" != "$self" ] && [ "$pid" != "$outer" ] '
+    monitor+='&& { alive=true; break; }; done; $alive || exit "$code"; sleep 0.1; done'
+    timeout --kill-after=1 1 bash -c "$monitor" silere-hook "$hook" >/dev/null 2>&1 &
+    local wrapper=$!
+    local waited=0
+    while [ ! -s "$dir/child.pid" ] && [ "$waited" -lt 50 ]; do
+        sleep 0.1
+        waited=$((waited + 1))
+    done
+    child="$(cat "$dir/child.pid" 2>/dev/null || true)"
+    [ -n "$child" ] || fail "hook containment: the test hook never reported its child"
+    wait "$wrapper" 2>/dev/null || true
+    sleep 1
+
+    if kill -0 "$child" 2>/dev/null; then
+        kill -KILL "$child" 2>/dev/null || true
+        fail "a hook's background child outlived the hook's runtime bound"
+    fi
+)
+
 test_xdg_paths_and_timer_default
 test_fresh_install_permissions
 test_marker_removal
@@ -947,6 +993,7 @@ test_hypr_discovery
 test_niri_config_discovery
 test_atomic_units
 test_atomic_update_cache
+test_hook_timeout_contains_tree
 # These workflows build git fixtures. Local minimal environments may skip them;
 # CI opts into making an accidental missing dependency a hard failure.
 if command -v git >/dev/null 2>&1 && command -v ssh-keygen >/dev/null 2>&1; then
