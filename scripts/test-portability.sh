@@ -15,6 +15,17 @@ assert_eq() {
     [ "$actual" = "$expected" ] || fail "$label (expected '$expected', got '$actual')"
 }
 
+# kill -0 succeeds on a zombie, and an orphan killed under a PID 1 that never reaps
+# stays one — which is every container job, GitHub Actions included
+_pid_running() { # $1 = pid
+    local line
+    # the redirect is what fails for a reaped pid, and it reports before a trailing
+    # 2>/dev/null would apply, so silence stderr first
+    IFS= read -r line 2>/dev/null < "/proc/$1/stat" || return 1
+    line=${line##*) }
+    [ "${line%% *}" != Z ]
+}
+
 _prepare_release_signer() {
     local repo="$1" key="$TMP/release-signing-key"
     if [ ! -f "$key" ]; then
@@ -976,7 +987,7 @@ EOF
     wait "$wrapper" 2>/dev/null || true
     sleep 1
 
-    if kill -0 "$child" 2>/dev/null; then
+    if _pid_running "$child"; then
         kill -KILL "$child" 2>/dev/null || true
         fail "a hook's background child outlived the hook's runtime bound"
     fi
