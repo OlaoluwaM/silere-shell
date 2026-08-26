@@ -48,7 +48,30 @@ Notable user-facing or operational changes go in `CHANGELOG.md` under
 Unreleased. Routine refactors, tests and formatting don't need an entry unless
 they change behaviour someone running Silere will notice.
 
+Keep sections in this order — Added, Changed, Fixed, Removed, Security. Once a
+section passes a dozen entries, split it under `####` headings naming the part of
+the shell each entry touches (Bar, Menu and settings, Notifications, Media,
+Network, System, Install and updates) rather than leaving one flat run to read
+through. Lint rejects a heading used twice in one file, so a part that appears
+under two sections needs a distinguishing word — `Bar` under Changed, `Bar fixes`
+under Fixed. Archived notes nest one level higher, under `###`.
+
+## Release archives
+
 When tagging, move the completed notes to `docs/releases/<version>.md` and add
 the version and date to the release index in `CHANGELOG.md`. The release
 workflow publishes that archived body, and lint rejects missing, unlinked or
 empty archives.
+
+An archive reads:
+
+1. `# Silere Shell <version>` — lint checks this line exactly
+2. `Released <YYYY-MM-DD>.`
+3. an **Upgrading:** line, even when it only says there is nothing to do
+4. the changelog sections
+5. a `[Compare with <previous>]` link to the GitHub compare view
+
+Lines 1 and 2 are stripped before publishing, so everything below them is the
+release body. The index entries in `CHANGELOG.md` are parsed as
+`- [<version>](docs/releases/<version>.md) — <date>`; lint reads that shape, so
+the list cannot become a table.

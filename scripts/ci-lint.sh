@@ -1146,6 +1146,26 @@ elif [ -n "$orphaned_release_paths" ]; then
   fail "release notes missing from CHANGELOG.md: $orphaned_release_paths"
   release_archive_failed=1
 fi
+# Every archive but the first release ends with its compare link. Nothing else proves
+# it: release-notes.sh publishes a body that is missing one just as happily.
+oldest_release="$(sed -nE 's#^- \[([0-9]+\.[0-9]+\.[0-9]+)\]\(docs/releases/[^)]+\).*#\1#p' \
+  CHANGELOG.md | tail -1)"
+missing_compare=""
+while IFS='|' read -r version archive; do
+  [ -n "$version" ] || continue
+  [ "$version" = "$oldest_release" ] && continue
+  [ -f "$archive" ] || continue
+  case "$(grep -v '^[[:space:]]*$' "$archive" | tail -1)" in
+    "[Compare with "*"](http"*"/compare/v"*"...v$version)") ;;
+    *) missing_compare="$missing_compare $archive" ;;
+  esac
+done < <(sed -nE \
+  's#^- \[([0-9]+\.[0-9]+\.[0-9]+)\]\((docs/releases/[^)]+)\).*#\1|\2#p' \
+  CHANGELOG.md)
+if [ -n "$missing_compare" ]; then
+  fail "a release archive must end with its compare link:$missing_compare"
+  release_archive_failed=1
+fi
 if bash scripts/release-notes.sh Unreleased >/dev/null 2>&1 \
     || bash scripts/release-notes.sh 999.999.999 >/dev/null 2>&1; then
   fail "release notes must reject Unreleased and unknown versions"
@@ -1153,6 +1173,24 @@ if bash scripts/release-notes.sh Unreleased >/dev/null 2>&1 \
 fi
 [ "$release_archive_failed" -ne 0 ] \
   || ok "release notes" "$release_count indexed archives are publishable"
+
+section "Markdown heading anchors"
+mapfile -d '' markdown_files < <(find README.md CHANGELOG.md CONTRIBUTING.md SECURITY.md docs \
+  -name '*.md' -print0)
+duplicate_headings="$(awk '
+  /^#{1,6}[[:space:]]/ {
+    heading = tolower($0)
+    sub(/^#{1,6}[[:space:]]+/, "", heading)
+    key = FILENAME SUBSEP heading
+    if (++seen[key] == 2) print FILENAME ": " heading
+  }
+' "${markdown_files[@]}")"
+if [ -n "$duplicate_headings" ]; then
+  fail "Markdown files contain duplicate heading anchors:"
+  printf '%s\n' "$duplicate_headings"
+else
+  ok "Markdown" "heading names are unique within each file"
+fi
 
 section "high-contrast alpha coverage"
 # every other Theme token re-bases onto white text under high contrast. An alpha that
