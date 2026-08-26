@@ -603,6 +603,8 @@ test_update_refuses_dirty_apply() (
     assert_eq "$old_head" "$(git -C "$client" rev-parse HEAD)" "missing origin/main apply HEAD"
 
     git -C "$client" update-ref refs/remotes/origin/main "$remote_head"
+    printf '%s\n' 1 "target $remote_head v1.0.1 verified" 'upstream update' \
+        > "$test_home/cache/silere-shell/update-pending"
     git -C "$client" remote set-url origin "$TMP/unavailable-update-origin.git"
     if ! HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" \
             PATH="$stub_dir:$PATH" \
@@ -1016,6 +1018,96 @@ test_update_lock_survives_orphaned_child() (
         || fail "the update fetch no longer closes the lock fd for its child"
 )
 
+# The confirm screen names one release, and --apply resolves the newest signed tag on
+# its own. A release published between the check and the press is trusted but was never
+# shown to anyone, so applying it would install something nobody agreed to.
+test_update_apply_binds_to_confirmed_release() (
+    export GIT_CONFIG_GLOBAL=/dev/null
+    export GIT_CONFIG_NOSYSTEM=1
+    local remote="$TMP/bind-remote.git"
+    local seed="$TMP/bind-seed"
+    local client="$TMP/bind-client"
+    local test_home="$TMP/bind-home"
+    local stub_dir="$TMP/bind-stubs" out head_before pending_flag confirmed_rev
+
+    git init --bare -q "$remote"
+    git --git-dir="$remote" symbolic-ref HEAD refs/heads/main
+    git init -q "$seed"
+    git -C "$seed" config user.name "Silere test"
+    git -C "$seed" config user.email "test@example.invalid"
+    _prepare_release_signer "$seed"
+    mkdir -p "$seed/scripts/lib"
+    cp "$ROOT/scripts/update.sh" "$seed/scripts/update.sh"
+    cp "$ROOT/scripts/lib/xdg.sh" "$seed/scripts/lib/xdg.sh"
+    printf 'upstream v1\n' > "$seed/tracked.qml"
+    git -C "$seed" add scripts security tracked.qml
+    git -C "$seed" commit -qm "initial"
+    git -C "$seed" branch -M main
+    _sign_release "$seed" v1.0.0
+    git -C "$seed" remote add origin "$remote"
+    git -C "$seed" push -q -u origin main --tags
+
+    git clone -q "$remote" "$client"
+    git -C "$client" config user.name "Silere test"
+    git -C "$client" config user.email "test@example.invalid"
+
+    mkdir -p "$test_home" "$stub_dir"
+    printf '#!/bin/sh\nexit 1\n' > "$stub_dir/systemctl"
+    printf '#!/bin/sh\nexit 0\n' > "$stub_dir/notify-send"
+    chmod +x "$stub_dir/systemctl" "$stub_dir/notify-send"
+
+    # the release the user sees and confirms
+    printf 'upstream v2\n' > "$seed/tracked.qml"
+    git -C "$seed" commit -qam "second"
+    _sign_release "$seed" v1.0.1
+    git -C "$seed" push -q origin main --tags
+    HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" PATH="$stub_dir:$PATH" \
+        bash "$client/scripts/update.sh" >/dev/null
+    confirmed_rev="$(git -C "$client" rev-parse 'v1.0.1^{}')"
+    grep -qF "target $confirmed_rev v1.0.1 verified" \
+        "$test_home/cache/silere-shell/update-pending" \
+        || fail "apply binding: the check did not record the full confirmed target"
+
+    pending_flag="$test_home/cache/silere-shell/update-pending"
+    cp "$pending_flag" "$pending_flag.good"
+    printf '%s\n' 1 'summary without a target' > "$pending_flag"
+    head_before="$(git -C "$client" rev-parse HEAD)"
+    if out="$(HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" PATH="$stub_dir:$PATH" \
+            bash "$client/scripts/update.sh" --apply 2>&1)"; then
+        fail "apply accepted a pending update with no confirmed target"
+    fi
+    printf '%s\n' "$out" | grep -q 'confirmed release is missing or malformed' \
+        || fail "apply binding: malformed-target refusal was unclear: $out"
+    assert_eq "$head_before" "$(git -C "$client" rev-parse HEAD)" \
+        "a malformed confirmed target leaves the checkout untouched"
+    mv "$pending_flag.good" "$pending_flag"
+
+    # a newer signed release lands before the press, and the client fetches it
+    printf 'upstream v3\n' > "$seed/tracked.qml"
+    git -C "$seed" commit -qam "third"
+    _sign_release "$seed" v1.0.2
+    git -C "$seed" push -q origin main --tags
+    git -C "$client" fetch -q --tags origin main
+
+    head_before="$(git -C "$client" rev-parse HEAD)"
+    if out="$(HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" PATH="$stub_dir:$PATH" \
+            bash "$client/scripts/update.sh" --apply 2>&1)"; then
+        fail "apply installed v1.0.2 when v1.0.1 was the confirmed release"
+    fi
+    printf '%s\n' "$out" | grep -q 'is not the release that was confirmed' \
+        || fail "apply binding: refusal did not name the confirmed release: $out"
+    assert_eq "$head_before" "$(git -C "$client" rev-parse HEAD)" \
+        "apply binding leaves the checkout untouched"
+
+    # re-checking re-confirms the newest release, and then apply proceeds
+    HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" PATH="$stub_dir:$PATH" \
+        bash "$client/scripts/update.sh" >/dev/null
+    HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" PATH="$stub_dir:$PATH" \
+        bash "$client/scripts/update.sh" --apply >/dev/null 2>&1 || true
+    assert_eq "upstream v3" "$(cat "$client/tracked.qml")" \
+        "apply proceeds once the newest release has been confirmed"
+)
+
 test_xdg_paths_and_timer_default
 test_fresh_install_permissions
 test_marker_removal
@@ -1038,6 +1130,7 @@ if command -v git >/dev/null 2>&1 && command -v ssh-keygen >/dev/null 2>&1; then
     test_fresh_install_pins_release
     test_update_rolls_back_broken_merge
     test_update_reporting
+    test_update_apply_binds_to_confirmed_release
     test_repair_workflow
 else
     if [ "${SILERE_REQUIRE_GIT_TESTS:-0}" = 1 ]; then

@@ -389,6 +389,18 @@ if [ "${1:-}" = "--apply" ]; then
     _resolve_trusted_release apply
     remote_rev="$release_rev"
     _exit_if_not_behind "$local_rev" "$remote_rev" 0
+    # The confirm screen names one release. A newer signed tag landing between the check
+    # and the press is still trusted, but it is not what was agreed to — send it back
+    # through a check rather than installing something the user never saw.
+    cached_target="$(sed -n '2p' "$FLAG" 2>/dev/null || true)"
+    if [[ ! "$cached_target" =~ ^target\ ([0-9a-f]{40}|[0-9a-f]{64})\ (v[0-9]+\.[0-9]+\.[0-9]+)\ verified$ ]]; then
+        _fail "the confirmed release is missing or malformed — check for updates again"
+    fi
+    cached_rev="${BASH_REMATCH[1]}"
+    cached_tag="${BASH_REMATCH[2]}"
+    if [ "$cached_tag" != "$release_tag" ] || [ "$cached_rev" != "$release_rev" ]; then
+        _fail "$release_tag is not the release that was confirmed ($cached_tag) — check for updates again"
+    fi
     if _has_local_changes; then
         _fail "local changes block the update — run: bash $ROOT/scripts/repair.sh --apply"
     fi
@@ -442,7 +454,7 @@ summary="$(git log -5 --oneline --no-decorate "${local_rev}..${remote_rev}")"
 target_tag="$release_tag"
 
 _write_cache_file "$FLAG" "$count" \
-    "target $(git rev-parse --short "$remote_rev") $target_tag verified" "$summary" \
+    "target $remote_rev $target_tag verified" "$summary" \
     || _quiet_fail "failed to write update status"
 
 # The badge is the persistent reminder. Notify once per pending revision, or a
