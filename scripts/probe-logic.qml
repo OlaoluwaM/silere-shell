@@ -941,6 +941,24 @@ ShellRoot {
                 && PowerProfiles._parseDegraded("Failed to get property") === "",
             "power mode fails closed to not throttled on unreadable output")
 
+        // auto is a mode, not a value: it must never consume the hand-picked temperature
+        const autoWas = ShellSettings.nightLightAuto
+        const tempWas = ShellSettings.nightLightTemp
+        ShellSettings.nightLightAuto = false
+        ShellSettings.nightLightTemp = 3400
+        root._check(NightLight.temperature === 3400,
+            "night light follows the manual temperature with auto off")
+        ShellSettings.nightLightAuto = true
+        root._check(NightLight.temperature === NightLight.suggestedTemp,
+            "night light follows the sun with auto on")
+        root._check(ShellSettings.nightLightTemp === 3400,
+            "night light auto does not overwrite the saved manual temperature")
+        ShellSettings.nightLightAuto = false
+        root._check(NightLight.temperature === 3400,
+            "night light restores the manual temperature when auto is turned off")
+        ShellSettings.nightLightTemp = tempWas
+        ShellSettings.nightLightAuto = autoWas
+
         // the lua config framework replaces the plain dispatchers, so the two
         // dispatch forms are the difference between switching and doing nothing
         const luaWas = HyprDispatch.useLua

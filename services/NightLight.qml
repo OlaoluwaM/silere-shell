@@ -12,7 +12,10 @@ Singleton {
     property bool _stopping:      false
     property bool _pendingEnable: false
     readonly property bool toolAvailable: SystemTools.hasHyprsunset
-    readonly property int  temperature: ShellSettings.nightLightTemp
+    // auto is a mode, not a value: nightLightTemp stays whatever the user last chose by hand,
+    // so turning auto off restores it instead of leaving the last solar step behind
+    readonly property int  temperature: ShellSettings.nightLightAuto ? root.suggestedTemp
+                                                                     : ShellSettings.nightLightTemp
 
     property bool _geoResolved: false
     property real _autoLat: 0
@@ -146,16 +149,10 @@ Singleton {
         }
     }
 
-    onSuggestedTempChanged: {
-        if (ShellSettings.nightLightAuto && root.enabled) ShellSettings.nightLightTemp = root.suggestedTemp
-    }
     Connections {
         target: ShellSettings
         function onNightLightAutoChanged() {
-            if (ShellSettings.nightLightAuto && root.enabled) {
-                root._solarTick++
-                ShellSettings.nightLightTemp = root.suggestedTemp
-            }
+            if (ShellSettings.nightLightAuto && root.enabled) root._solarTick++
         }
     }
 
@@ -199,10 +196,7 @@ Singleton {
             if (_sunsetProc.running || _stopping) { _pendingEnable = true; return }
             // don't spawn while a fallback pkill is in flight — it matches hyprsunset by name and would kill the new instance; queue instead
             if (_killProc.running) { _pendingEnable = true; return }
-            if (ShellSettings.nightLightAuto) {
-                root._solarTick++
-                ShellSettings.nightLightTemp = root.suggestedTemp
-            }
+            if (ShellSettings.nightLightAuto) root._solarTick++
             _startSunset()
         }
     }
