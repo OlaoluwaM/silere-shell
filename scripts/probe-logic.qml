@@ -941,6 +941,33 @@ ShellRoot {
                 && PowerProfiles._parseDegraded("Failed to get property") === "",
             "power mode fails closed to not throttled on unreadable output")
 
+        const ppdList = "  performance:\n    CpuDriver:\tamd_pstate\n"
+            + "    Degraded:   no\n\n* balanced:\n    CpuDriver:\tamd_pstate\n\n  power-saver:\n"
+        root._check(JSON.stringify(PowerProfiles._parseProfileList(ppdList))
+                === JSON.stringify(["performance", "balanced", "power-saver"]),
+            "power mode reads every profile the daemon lists")
+        root._check(PowerProfiles._parseProfileList(
+                "  balanced:\n    CpuDriver:\tamd_pstate\n").length === 1,
+            "power mode does not mistake a profile's detail lines for profiles")
+
+        const profilesWas = PowerProfiles.profiles
+        PowerProfiles.profiles = []
+        root._check(JSON.stringify(PowerProfiles._cycleOrder)
+                === JSON.stringify(PowerProfiles._knownProfiles),
+            "power mode falls back to the built-in profiles before the daemon answers")
+        // the machine that has no platform_profile: cycling must not offer performance
+        PowerProfiles.profiles = ["power-saver", "balanced"]
+        root._check(JSON.stringify(PowerProfiles._cycleOrder)
+                === JSON.stringify(["balanced", "power-saver"]),
+            "power mode cycles only the profiles this machine supports")
+        root._check(PowerProfiles._parseProfile("performance") === "",
+            "power mode rejects a profile this machine does not offer")
+        PowerProfiles.profiles = ["balanced", "quiet"]
+        root._check(PowerProfiles._cycleOrder.indexOf("quiet") === 1
+                && PowerProfiles._parseProfile("quiet") === "quiet",
+            "power mode keeps a profile name it does not know built in")
+        PowerProfiles.profiles = profilesWas
+
         // auto is a mode, not a value: it must never consume the hand-picked temperature
         const autoWas = ShellSettings.nightLightAuto
         const tempWas = ShellSettings.nightLightTemp

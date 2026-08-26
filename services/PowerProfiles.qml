@@ -8,7 +8,8 @@ Singleton {
     id: root
 
     readonly property bool available: SystemTools.hasPowerProfilesCtl
-    readonly property bool syncing: _get.running || _set.running || _getRetry.running
+    readonly property bool syncing: _get.running || _set.running || _list.running
+        || _getRetry.running
     property string profile: ""
     property string lastError: ""
 
@@ -31,7 +32,18 @@ Singleton {
 
     property int _getRetries: 0
     readonly property int _getRetryMax: 4
+    // the three every powerprofilesctl build knows; only a fallback now that the daemon is asked
     readonly property var _knownProfiles: ["balanced", "performance", "power-saver"]
+    // what this machine actually offers: a laptop with no platform_profile has no "performance",
+    // and cycling onto one the daemon rejects flips the row to a mode it then has to take back
+    property var profiles: []
+    readonly property var _cycleOrder: {
+        const found = root.profiles
+        if (found.length === 0) return _list.running ? [] : root._knownProfiles
+        // keep the familiar balanced/performance/power-saver rotation, then anything exotic
+        const ordered = root._knownProfiles.filter(p => found.indexOf(p) >= 0)
+        return ordered.concat(found.filter(p => root._knownProfiles.indexOf(p) < 0))
+    }
     Timer {
         id: _getRetry
         interval: 600
@@ -81,7 +93,26 @@ Singleton {
 
     function _parseProfile(value): string {
         const profile = SafeText.singleLineText(value, 64)
-        return root._knownProfiles.indexOf(profile) >= 0 ? profile : ""
+        return root._cycleOrder.indexOf(profile) >= 0 ? profile : ""
+    }
+
+    // `powerprofilesctl list` indents each name and marks the active one with "*":
+    //   * balanced:
+    //       CpuDriver: amd_pstate
+    function _parseProfileList(value): var {
+        const out = []
+        const lines = SafeText.boundedText(value, 4096).split("\n")
+        for (const line of lines) {
+            const m = /^[\s*]*([a-z][a-z-]{0,30}):\s*$/.exec(line)
+            if (m && out.indexOf(m[1]) < 0) out.push(m[1])
+            if (out.length >= 8) break
+        }
+        return out
+    }
+
+    function _discoverProfiles(): void {
+        if (!available || _list.running || root.profiles.length > 0) return
+        _list.exec(["powerprofilesctl", "list"])
     }
 
     // busctl prints a typed property as: s "reason"
@@ -94,8 +125,10 @@ Singleton {
     function cycle(): void {
         // _set.running guard: exec while a set's in flight drops the write but still flips the optimistic profile — UI and daemon diverge
         if (!available || profile === "" || _set.running) return
-        const order = ["balanced", "performance", "power-saver"]
-        const next = order[(order.indexOf(profile) + 1) % order.length]
+        const order = root._cycleOrder
+        const at = order.indexOf(profile)
+        if (order.length < 2 || at < 0) return
+        const next = order[(at + 1) % order.length]
         profile = next
         root._readError = false
         root.lastError = ""
@@ -108,13 +141,17 @@ Singleton {
 
     function _surfaceOpened(): void {
         root._getRetries = 0
+        root._discoverProfiles()
         root.refresh()
     }
 
     function _syncToolAvailability(): void {
         if (!SystemTools.ready) return
         if (root.available) {
-            if (root._watched) root.refresh()
+            if (root._watched) {
+                root._discoverProfiles()
+                root.refresh()
+            }
             return
         }
 
@@ -122,6 +159,8 @@ Singleton {
         if (_get.running) _get.running = false
         if (_set.running) _set.running = false
         if (_degradedProc.running) _degradedProc.running = false
+        if (_list.running) _list.running = false
+        root.profiles = []
         root._getRetries = 0
         root._correctiveRefreshPending = false
         root._readError = false
@@ -178,6 +217,24 @@ Singleton {
             if (shouldRetry && !timedOut) {
                 root._readError = true
                 root.lastError = "Could not verify the power mode"
+            }
+        }
+    }
+    BoundedProcess {
+        id: _list
+        timeoutMs: 8000
+        environment: ({ "LC_ALL": "C" })
+        stdout: StdioCollector { id: _listOut }
+        onExited: (code) => {
+            if (!root.available) return
+            if (!timedOut && code === 0) {
+                const found = root._parseProfileList(_listOut.text)
+                if (found.length > 0) root.profiles = found
+            }
+            if (root.profile === "" && root._watched && !_get.running && !_set.running) {
+                _getRetry.stop()
+                root._getRetries = 0
+                root.refresh()
             }
         }
     }
