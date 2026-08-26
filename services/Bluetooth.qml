@@ -97,6 +97,10 @@ Singleton {
     property bool   _pendingStarted: false
     // only undo pairable when this service raised it. An adapter already made pairable by the user or another tool belongs to that owner
     property var    _pairableAdapter: null
+    property int    _pairableTimeoutWas: 0
+    // BlueZ defaults PairableTimeout to 0, so a shell killed mid-attempt would leave the
+    // adapter pairable for good. Longer than _attemptGuard, so it never cuts an attempt short
+    readonly property int _pairableTimeoutSec: 60
 
     readonly property var _pendingDevice: {
         if (root._pendingAddr === "") return null
@@ -166,6 +170,8 @@ Singleton {
     function _armPairable(target): void {
         root._restorePairable()
         if (!target || target.pairable) return
+        root._pairableTimeoutWas = target.pairableTimeout
+        target.pairableTimeout = root._pairableTimeoutSec
         target.pairable = true
         root._pairableAdapter = target
     }
@@ -173,7 +179,9 @@ Singleton {
     function _restorePairable(): void {
         const owned = root._pairableAdapter
         root._pairableAdapter = null
-        if (owned) owned.pairable = false
+        if (!owned) return
+        owned.pairable = false
+        owned.pairableTimeout = root._pairableTimeoutWas
     }
 
     function _endAttempt(): void {

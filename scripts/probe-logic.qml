@@ -1227,17 +1227,18 @@ ShellRoot {
                 && Notifications._updateTimes["52"] === undefined,
             "state for ids neither history nor the server holds is pruned")
 
-        const closedAdapter = { pairable: false }
+        const closedAdapter = { pairable: false, pairableTimeout: 0 }
         Bluetooth._armPairable(closedAdapter)
-        root._check(closedAdapter.pairable,
-            "a pairing attempt opens the adapter pairing window")
+        root._check(closedAdapter.pairable
+                && closedAdapter.pairableTimeout === Bluetooth._pairableTimeoutSec,
+            "a pairing attempt opens a bounded adapter pairing window")
         Bluetooth._restorePairable()
-        root._check(!closedAdapter.pairable,
-            "a completed pairing attempt closes the pairing window it opened")
-        const openAdapter = { pairable: true }
+        root._check(!closedAdapter.pairable && closedAdapter.pairableTimeout === 0,
+            "a completed pairing attempt restores the pairing window it changed")
+        const openAdapter = { pairable: true, pairableTimeout: 120 }
         Bluetooth._armPairable(openAdapter)
         Bluetooth._restorePairable()
-        root._check(openAdapter.pairable,
+        root._check(openAdapter.pairable && openAdapter.pairableTimeout === 120,
             "pairing preserves an adapter another owner already made pairable")
 
         root._check(Bluetooth._attemptOutcome("pair", true, false, true, false, 0) === "ok",
