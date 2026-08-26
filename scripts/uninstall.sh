@@ -9,28 +9,11 @@ CONFIG_HOME="$(_silere_xdg_home "${XDG_CONFIG_HOME:-}" .config)" || {
     exit 1
 }
 
-# ── colors ──────────────────────────────────────────────────────────────────────
-if [ -t 1 ]; then
-    R='\033[0m' BOLD='\033[1m'
-    GREEN='\033[0;32m' CYAN='\033[0;36m' YELLOW='\033[1;33m' DIM='\033[2m' RED='\033[0;31m'
-else
-    R='' BOLD='' GREEN='' CYAN='' YELLOW='' DIM='' RED=''
-fi
+source "$SCRIPT_DIR/lib/ui.sh"
 
-_ok()   { printf "    ${GREEN}ok${R}      %s\n" "$*"; }
-_die()  { printf "    ${RED}error${R}   %s\n" "$*" >&2; exit 1; }
-_skip() { printf "    ${DIM}skip${R}    %s\n" "$*"; }
-_warn() { printf "    ${YELLOW}warn${R}    %s\n" "$*"; }
-_info() { printf "  ${CYAN}::${R}  %s\n" "$*"; }
-
-_section() { printf "\n${BOLD}==> %s${R}\n" "$1"; }
-
-# opening /dev/tty is the only real test: -r passes with no controlling terminal
-# and the read below would then die on an unset reply instead of saying why
 _ask() {
     local reply
-    { : </dev/tty; } 2>/dev/null \
-        || _die "interactive uninstall requires a TTY — run scripts/uninstall.sh from a terminal"
+    _need_tty "interactive uninstall requires a TTY — run scripts/uninstall.sh from a terminal"
     printf "  ${CYAN}::${R}  %s ${DIM}[y/N]${R} " "$1"
     read -r reply </dev/tty
     [[ "$reply" =~ ^[Yy] ]]
