@@ -70,12 +70,13 @@ _has_local_changes() {
 
 # A blackholed network keeps a fetch running past the shell's own check timeout,
 # and the orphan inherits the update lock's fd — wedging every later run behind
-# it. The systemd path is already capped by TimeoutStartSec; this covers the rest.
+# it. 9>&- is what closes that: a fetch nothing can signal any more still cannot
+# hold the lock. --kill-after covers one that sits on SIGTERM.
 _git_fetch() {
     if command -v timeout >/dev/null 2>&1; then
-        GIT_TERMINAL_PROMPT=0 timeout 90 git fetch --quiet "$@"
+        GIT_TERMINAL_PROMPT=0 timeout --kill-after=5 90 git fetch --quiet "$@" 9>&-
     else
-        GIT_TERMINAL_PROMPT=0 git fetch --quiet "$@"
+        GIT_TERMINAL_PROMPT=0 git fetch --quiet "$@" 9>&-
     fi
 }
 
@@ -162,7 +163,7 @@ _merged_tree_starts() {
     [ -f "$ROOT/config/MatugenPalette.qml" ] || return 0
     local log code=0 verdict=0
     log="$(mktemp "${TMPDIR:-/tmp}/silere-update-smoke.XXXXXX.log")" || return 0
-    timeout 5s qs -p "$ROOT/shell.qml" --no-color >"$log" 2>&1 || code=$?
+    timeout --kill-after=5 5s qs -p "$ROOT/shell.qml" --no-color >"$log" 2>&1 9>&- || code=$?
     # 124 is the timeout firing, i.e. it stayed up for the whole window
     if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then
         # an unreachable display is not the update's fault; never roll back over it

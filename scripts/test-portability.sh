@@ -980,6 +980,42 @@ EOF
     fi
 )
 
+# The updater serializes on an flock'd fd 9. Any child that inherits it holds the lock
+# for as long as it lives, so a fetch that outlives its run wedges every later one --
+# the failure _git_fetch's comment describes. Closing the fd for the child is what makes
+# that impossible; a timeout alone does not, because the orphan is the case where it failed.
+test_update_lock_survives_orphaned_child() (
+    command -v flock >/dev/null 2>&1 || {
+        printf 'SKIP: update lock orphan (flock unavailable)\n'
+        return 0
+    }
+    local dir lock kid
+    dir="$(mktemp -d)"
+    trap 'rm -rf "$dir"' RETURN
+    lock="$dir/update.lock"
+    : > "$lock"
+
+    # the redirect _git_fetch applies to its child, with the parent gone afterwards
+    bash -c "
+        exec 9>>'$lock'
+        flock -n 9 || exit 1
+        sleep 30 9>&- &
+        echo \$! > '$dir/kid'
+    " || fail "update lock orphan: could not take the lock"
+    kid="$(cat "$dir/kid" 2>/dev/null || true)"
+    [ -n "$kid" ] || fail "update lock orphan: no child was started"
+
+    if flock -n "$lock" -c true 2>/dev/null; then
+        kill -KILL "$kid" 2>/dev/null || true
+    else
+        kill -KILL "$kid" 2>/dev/null || true
+        fail "an update child outliving its run still holds the update lock"
+    fi
+
+    grep -q 'git fetch --quiet "$@" 9>&-' "$ROOT/scripts/update.sh" \
+        || fail "the update fetch no longer closes the lock fd for its child"
+)
+
 test_xdg_paths_and_timer_default
 test_fresh_install_permissions
 test_marker_removal
@@ -994,6 +1030,7 @@ test_niri_config_discovery
 test_atomic_units
 test_atomic_update_cache
 test_hook_timeout_contains_tree
+test_update_lock_survives_orphaned_child
 # These workflows build git fixtures. Local minimal environments may skip them;
 # CI opts into making an accidental missing dependency a hard failure.
 if command -v git >/dev/null 2>&1 && command -v ssh-keygen >/dev/null 2>&1; then
