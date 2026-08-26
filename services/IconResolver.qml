@@ -45,6 +45,19 @@ Singleton {
         return root.localSource(Quickshell.iconPath(value, true))
     }
 
+    function senderImageSource(raw): string {
+        const source = root.localSource(raw)
+        return source.startsWith("image:") || source.startsWith("qrc:") ? source : ""
+    }
+
+    function senderIconSource(raw): string {
+        const value = String(raw ?? "").trim()
+        if (value.startsWith("/")) return ""
+        const match = root._scheme.exec(value)
+        if (match && match[1].toLowerCase() === "file") return ""
+        return root.iconSource(value)
+    }
+
     function appMeta(identity): var {
         const original = SafeText.boundedText(identity, root.maxIdentityChars).trim()
         if (original.length === 0) return null

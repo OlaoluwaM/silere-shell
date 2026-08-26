@@ -653,6 +653,15 @@ ShellRoot {
             "icon resolver keeps absolute file URLs")
         root._check(IconResolver.localSource("image://icon/test") === "image://icon/test",
             "icon resolver keeps Qt image providers")
+        root._check(IconResolver.senderImageSource("/tmp/fifo.png") === ""
+                && IconResolver.senderImageSource("file:///tmp/fifo.png") === "",
+            "notification images never open sender-provided filesystem nodes")
+        root._check(IconResolver.senderImageSource("image://notification/1")
+                === "image://notification/1",
+            "notification image providers remain available")
+        root._check(IconResolver.senderIconSource("/tmp/fifo.png") === ""
+                && IconResolver.senderIconSource("file:///tmp/fifo.png") === "",
+            "notification icons never open sender-provided filesystem nodes")
         root._check(IconResolver.localSource("/tmp/icon #?.png")
                 === "file:///tmp/icon%20%23%3F.png",
             "icon resolver encodes local file paths")

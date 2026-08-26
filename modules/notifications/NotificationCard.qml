@@ -59,13 +59,12 @@ Item {
         Notifications.entriesTick
         return Notifications.entryIconSource(notification.desktopEntry, card.appNameText)
     }
-    readonly property string notificationImageSource: Notifications.fileUrl(notification.image)
+    readonly property string notificationImageSource:
+        Notifications.notificationImageSource(notification.image)
     readonly property bool hasNotificationImage: notificationImageSource.length > 0
 
     readonly property string contentImageSource: notificationImageSource
     readonly property bool hasContentImage: contentImageSource.length > 0
-    readonly property string contentImageTarget: contentImageSource.startsWith("/")
-        || contentImageSource.startsWith("file:") ? contentImageSource : ""
     readonly property bool showContentImage: hasContentImage
         && _previewImg.status === Image.Ready
         && _previewImg.implicitWidth >= 200
@@ -115,8 +114,6 @@ Item {
         if (!card.enabled) return
         if (card._defaultAction)
             card._defaultAction.invoke()
-        else if (card.showContentImage && card.contentImageTarget.length > 0)
-            Qt.openUrlExternally(card.contentImageTarget)
 
         HyprActions.focusNotificationSource(card.notification)
         if (!card._defaultAction || !card.notification.resident)

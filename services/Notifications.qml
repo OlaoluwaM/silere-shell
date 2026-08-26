@@ -443,9 +443,8 @@ Singleton {
         return SafeText.boundedText(plain, limit)
     }
 
-    // bare absolute paths resolve against the qml context (qrc:/...) and fail to load
-    function fileUrl(raw): string {
-        return IconResolver.localSource(raw)
+    function notificationImageSource(raw): string {
+        return IconResolver.senderImageSource(raw)
     }
 
     function resolveIconSource(raw): string {
@@ -469,7 +468,7 @@ Singleton {
     }
 
     function appIconSource(appIcon, desktopEntry, appName): string {
-        const direct = root.resolveIconSource(appIcon)
+        const direct = IconResolver.senderIconSource(appIcon)
         if (direct.length > 0) return direct
         return root.entryIconSource(desktopEntry, appName)
     }
