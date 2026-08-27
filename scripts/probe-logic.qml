@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import "config"
 import "services"
 import "modules/bar"
@@ -26,6 +27,7 @@ ShellRoot {
     Component { id: sliderTrackFactory; SliderTrack {} }
     Component { id: gradientSliderFactory; GradientSlider {} }
     Component { id: boundedProcessFactory; BoundedProcess {} }
+    Component { id: processFactory; Process {} }
     Component { id: supervisedProcessFactory; SupervisedProcess {} }
     Component { id: barUnderlineFactory; BarUnderline {} }
     Component {
@@ -73,6 +75,10 @@ ShellRoot {
 
     property var _timeoutProbe: null
     property var _killProbe: null
+    property var _orphanCheck: null
+    readonly property string _orphanPidFile:
+        (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp")
+        + "/silere-bounded-orphan-" + Quickshell.processId
 
     function _check(condition: bool, label: string): void {
         root._checks++
@@ -1418,7 +1424,10 @@ ShellRoot {
     // outlives its own timeout and holds a runner slot for good unless the pid is killed
     function _runKillEscalationCheck(): void {
         root._killProbe = boundedProcessFactory.createObject(root, {
-            command: ["bash", "-c", "trap '' TERM; sleep 30"],
+            command: ["bash", "-c",
+                '(trap \'\' TERM; sleep 30) & echo $! > "$1"; '
+                    + 'trap \'\' TERM; sleep 30',
+                "silere-bounded-probe", root._orphanPidFile],
             timeoutMs: 80
         })
         const startedAt = Date.now()
@@ -1433,9 +1442,31 @@ ShellRoot {
                 "a helper that traps SIGTERM is still killed outright")
             root._killProbe.destroy()
             root._killProbe = null
-            Qt.callLater(root._finish)
+            _orphanSettle.restart()
         })
         root._killProbe.running = true
+    }
+
+    // the wrapper and its descendant fall in the same kill pass, so let that pass drain
+    Timer {
+        id: _orphanSettle
+        interval: 400
+        onTriggered: {
+            root._orphanCheck = processFactory.createObject(root, {
+                command: ["bash", "-c",
+                    'read -r orphan < "$1" || exit 1; [ -n "$orphan" ] || exit 1; '
+                        + '[ ! -e "/proc/$orphan" ]',
+                    "silere-bounded-check", root._orphanPidFile]
+            })
+            root._orphanCheck.exited.connect(function(code) {
+                root._check(code === 0,
+                    "a bounded process terminates descendants with its wrapper")
+                root._orphanCheck.destroy()
+                root._orphanCheck = null
+                Qt.callLater(root._finish)
+            })
+            root._orphanCheck.running = true
+        }
     }
 
     function _finish(): void {
