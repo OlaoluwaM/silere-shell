@@ -24,6 +24,10 @@ settings file carries its own `__version` and migrates separately.
 - Dragging a bar widget outlines the slot it will drop into.
 - Hovering the active workspace prepares the menu between frames, then releases it if no click follows.
 - The low-battery and hot-CPU glows settle on the same four-minute mark.
+- The window title takes the alignment and padding of the zone it sits in.
+- A divider separates the window title from the workspaces strip.
+- The window title drops a track name the media widget in its zone already shows.
+- The clock eases in and out as it is switched on and off.
 
 #### Menu and settings
 
@@ -31,6 +35,7 @@ settings file carries its own `__version` and migrates separately.
 - Opening a settings dropdown folds the one already open.
 - Reset in Widgets › Show & order uses the same confirm button as the rest of the menu.
 - Settings explains when Reduce motion pauses animated effects such as the audio visualiser.
+- Widgets › Window title › App name says where the name appears.
 
 #### Notifications
 
@@ -66,8 +71,15 @@ settings file carries its own `__version` and migrates separately.
 - Turning off Widgets › Workspaces › Urgent window pulse also stops the off-page urgent dot pulsing.
 - Workspace marker and page effects settle when their bar sleeps, the session goes idle, or their setting is turned off.
 - The workspace marker keeps its place when a compositor event arrives while the bar is rebuilding.
+- Clock digits and the bar's readouts hold still behind the overview and through an idle screen.
+- On niri, a workspace counts as occupied whenever it holds windows.
 - Bar readings reach a screen reader even when the bar holds values back until hover, and volume says when it is muted.
 - The 12h clock counts one to twelve, with midnight and noon both reading twelve.
+- The window title shows on the focused monitor when the compositor names no output for a window.
+- The window title updates in place while a window keeps its identity, and crossfades when the window changes.
+- Widgets › Window title › App name off keeps the app name hidden for a window that reports no title.
+- The window title reaches a screen reader.
+- The underline sweep centres on a widget placed in the centre zone.
 
 #### Menu and settings fixes
 
@@ -89,6 +101,8 @@ settings file carries its own `__version` and migrates separately.
 
 #### System fixes
 
+- A background command stopped at its time limit takes its own child processes with it.
+- Every background command Silere runs has a time limit, and the optional tool scan reports when it gives up.
 - The night light temperature set by hand is kept while Follow sun position is on, and returns when it is turned off.
 - The power mode control offers only the profiles the machine supports.
 - The battery percentage recovers on hardware that reports charge ambiguously, instead of staying wrong for the session.
