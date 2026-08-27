@@ -7,6 +7,7 @@ Item {
     property alias text: _label.text
     property color color: Theme.text
     property bool  expanded: true
+    property bool  animate: true
     // fixed-width floor: ticking digits re-hint per pair under fractional scaling and the +-1px wobble walks the whole bar once a second
     property string reserveText: ""
     property bool _ready: false
@@ -30,7 +31,7 @@ Item {
     clip: width + 0.5 < Math.ceil(_label.implicitWidth)
 
     MotionBehavior on width {
-        gate: root._ready
+        gate: root._ready && root.animate
         NumberAnimation { duration: Motion.width; easing.type: Easing.OutCubic }
     }
 
@@ -43,7 +44,7 @@ Item {
         ColorFade on color {}
         opacity:        root.expanded ? 1.0 : 0.0
         MotionBehavior on opacity {
-            gate: root._ready
+            gate: root._ready && root.animate
             NumberAnimation { duration: Motion.width; easing.type: Easing.OutCubic }
         }
     }

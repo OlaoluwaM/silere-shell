@@ -5,7 +5,6 @@ import "../../common"
 
 Pill {
     id: root
-    property bool barActive: true
 
     readonly property bool canRead: Network.toolAvailable
     readonly property bool show: ShellSettings.barShowNetwork

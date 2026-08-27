@@ -15,6 +15,9 @@ Item {
     property int    maxTextWidth: 150
     property bool   compact: ShellSettings.barCompact
     readonly property int horizontalPadding: Metrics.pillPadFor(compact)
+    property bool   barActive: true
+    readonly property bool motionActive: root.barActive && root.visible
+        && !Idle.isIdle && !ShellSettings.reduceMotion
     property bool   animateGlyph: true
     property bool   animateText: false
     property int    glyphPixelSize: Settings.iconSize + 2
@@ -69,8 +72,8 @@ Item {
         _hoverRevealTimer.stop()
         _shrinkDelay.stop()
         hoverActive = false
-        if (_ready) _settleAnimatedContent()
     }
+    onMotionActiveChanged: if (!motionActive && _ready) _settleAnimatedContent()
     Timer {
         id: _shrinkDelay
         interval: root.shrinkDelay
@@ -106,7 +109,7 @@ Item {
 
     onGlyphChanged: {
         if (!_ready) { _shownGlyph = glyph; return }
-        if (!root.visible || !animateGlyph || ShellSettings.reduceMotion) {
+        if (!root.motionActive || !animateGlyph) {
             _settleAnimatedContent()
             return
         }
@@ -120,8 +123,7 @@ Item {
         ScriptAction    { script: root._shownGlyph = root._nextGlyph }
         NumberAnimation { target: _glyphText; property: "scale"; from: 0.72; to: 1.0; duration: Motion.fast; easing.type: Easing.OutQuart }
         onFinished: {
-            if (root.visible && !ShellSettings.reduceMotion
-                    && root._nextGlyph !== root._shownGlyph)
+            if (root.motionActive && root._nextGlyph !== root._shownGlyph)
                 _glyphStamp.start()
         }
     }
@@ -264,7 +266,7 @@ Item {
                 enabled: root.animateText
                 function onTextChanged() {
                     if (!root._ready) { _textEl._shown = root.text; return }
-                    if (!root.visible || ShellSettings.reduceMotion) {
+                    if (!root.motionActive) {
                         root._settleAnimatedContent()
                         return
                     }
@@ -283,8 +285,7 @@ Item {
 
     Loader {
         id: _contentScan
-        active: root.visible && root.contentScanEnabled
-            && !ShellSettings.reduceMotion
+        active: root.motionActive && root.contentScanEnabled
         width: Math.max(1, root.contentScanWidth)
         height: row.height
         x: row.x - width + (row.width + width) * Math.max(0, Math.min(1, root.contentScanProgress))
@@ -348,13 +349,4 @@ Item {
         interval: 80
         onTriggered: root.hoverActive = true
     }
-
-    Connections {
-        target: ShellSettings
-        function onReduceMotionChanged() {
-            if (ShellSettings.reduceMotion && root._ready)
-                root._settleAnimatedContent()
-        }
-    }
-
 }

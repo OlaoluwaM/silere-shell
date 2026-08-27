@@ -6,6 +6,7 @@ import Quickshell.Io
 import "config"
 import "services"
 import "modules/bar"
+import "modules/common"
 import "modules/bar/widgets"
 import "modules/bar/widgets/workspaces"
 import "modules/menu/controls"
@@ -41,6 +42,8 @@ ShellRoot {
         }
     }
     Component { id: workspaceButtonFactory; WorkspaceButton {} }
+    Component { id: pillFactory; Pill { visible: true; glyph: "a" } }
+    Component { id: rollingTextFactory; RollingText { visible: true; text: "one" } }
     Component { id: workspaceStripFactory; Workspaces { screen: null } }
     Component {
         id: workspaceMarkerFactory
@@ -256,6 +259,28 @@ ShellRoot {
                 && workspaceMarker._glint === -1.15,
             "retiring workspace effects restores every animated marker value")
         workspaceMarker.destroy()
+
+        const pill = pillFactory.createObject(root)
+        pill._ready = true
+        root._check(pill !== null && pill.motionActive,
+            "an awake pill on a visible bar permits content motion")
+        pill.glyph = "b"
+        root._check(pill._shownGlyph === "a",
+            "an awake pill animates a glyph swap instead of jumping to it")
+        pill.barActive = false
+        root._check(!pill.motionActive && pill._shownGlyph === "b",
+            "a sleeping bar lands the pending glyph without animating")
+        pill.destroy()
+
+        const rolling = rollingTextFactory.createObject(root)
+        root._check(rolling !== null, "a rolling readout builds")
+        rolling._ready = true
+        rolling.text = "two"
+        root._check(rolling.clip, "an awake readout rolls between two values")
+        rolling.animate = false
+        root._check(!rolling.clip && rolling._shown === "two",
+            "a sleeping readout drops the roll and lands on the value")
+        rolling.destroy()
 
         const underline = barUnderlineFactory.createObject(root)
         root._check(underline !== null, "the reactive underline builds")

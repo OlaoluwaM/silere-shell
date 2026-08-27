@@ -3,15 +3,15 @@ import "../../../config"
 import "../../../services"
 import "../../common"
 
-Row {
+Item {
     id: root
-    spacing: 0
-    leftPadding: Metrics.pillPadFor(compact)
-    rightPadding: Metrics.pillPadFor(compact)
 
     property var screen: null
     property bool compact: ShellSettings.barCompact
+    property bool barActive: true
+    readonly property bool _animatable: root.barActive && !Idle.isIdle
     property real menuAnchorX: 0
+    readonly property int _horizontalPadding: Metrics.pillPadFor(compact)
 
     // a keybind opens with no trigger widget, so the state's fallback x has to stay fresh
     readonly property bool _anchorFallbackBar: !!root.screen && root.screen.name === Monitors.overlayBarName
@@ -37,10 +37,20 @@ Row {
     Component.onCompleted: root._syncMenuAnchor()
 
     readonly property bool mirrored: ShellSettings.barWidgetOrderLeftKeys.indexOf("clock") !== -1
-    layoutDirection: mirrored ? Qt.RightToLeft : Qt.LeftToRight
 
     readonly property bool show: ShellSettings.barShowClock
-    visible: show
+    property real _showProgress: show ? 1.0 : 0.0
+    readonly property bool layoutVisible: show || _showProgress > 0.001
+    implicitWidth: (_content.implicitWidth + root._horizontalPadding * 2) * _showProgress
+    implicitHeight: _content.implicitHeight
+    visible: layoutVisible
+    enabled: show
+    opacity: _showProgress
+    clip: _showProgress < 0.999
+
+    MotionBehavior on _showProgress {
+        NumberAnimation { duration: Motion.normal; easing.type: Easing.OutCubic }
+    }
 
     readonly property bool  _hov:    (_hover.hovered && ShellSettings.barHoverHighlight)
     readonly property color _cSub:   _hov ? Theme.mix(Theme.subtext, Theme.accent, 0.30) : Theme.subtext
@@ -57,66 +67,80 @@ Row {
         CalendarState.toggleAt(root.menuAnchorX, root.screen, root)
     }
 
-    Item {
-        id: _dateSectionClip
-        anchors.verticalCenter: parent.verticalCenter
-        height:  _dateRow.implicitHeight
-        width:   ShellSettings.clockShowDate ? _dateRow.implicitWidth + Metrics.clockDateGapFor(root.compact) : 0
-        opacity: ShellSettings.clockShowDate ? 1.0 : 0.0
-        visible: ShellSettings.clockShowDate || opacity > 0.001
-        clip:    true
-
-        MotionBehavior on width   {NumberAnimation { duration: Motion.width; easing.type: Easing.OutCubic } }
-        MotionBehavior on opacity {NumberAnimation { duration: Motion.width; easing.type: Easing.OutCubic } }
-
-        Row {
-            id: _dateRow
-            anchors.verticalCenter: parent.verticalCenter
-            x: root.mirrored ? parent.width - width : 0
-            spacing: 0
-
-            CollapsingText {
-                text:     DateTime.cachedDayName
-                color:    root._cSub
-                expanded: !ShellSettings.compactDate && !root.compact
-            }
-            RollingText {
-                text:  DateTime.cachedDateCore
-                color: root._cSub
-            }
-        }
-    }
-
     Row {
+        id: _content
+        x: root._horizontalPadding
         anchors.verticalCenter: parent.verticalCenter
         spacing: 0
+        layoutDirection: root.mirrored ? Qt.RightToLeft : Qt.LeftToRight
 
-        RollingText {
-            text:  DateTime.cachedHour
-            color: root._cText
+        Item {
+            id: _dateSectionClip
+            anchors.verticalCenter: parent.verticalCenter
+            height:  _dateRow.implicitHeight
+            width:   ShellSettings.clockShowDate ? _dateRow.implicitWidth + Metrics.clockDateGapFor(root.compact) : 0
+            opacity: ShellSettings.clockShowDate ? 1.0 : 0.0
+            visible: ShellSettings.clockShowDate || opacity > 0.001
+            clip:    true
+
+            MotionBehavior on width   {NumberAnimation { duration: Motion.width; easing.type: Easing.OutCubic } }
+            MotionBehavior on opacity {NumberAnimation { duration: Motion.width; easing.type: Easing.OutCubic } }
+
+            Row {
+                id: _dateRow
+                anchors.verticalCenter: parent.verticalCenter
+                x: root.mirrored ? parent.width - width : 0
+                spacing: 0
+
+                CollapsingText {
+                    text:     DateTime.cachedDayName
+                    color:    root._cSub
+                    animate:  root._animatable
+                    expanded: !ShellSettings.compactDate && !root.compact
+                }
+                RollingText {
+                    text:    DateTime.cachedDateCore
+                    color:   root._cSub
+                    animate: root._animatable
+                }
+            }
         }
-        RollingText { text: ":"; color: root._cText }
-        RollingText {
-            text:  DateTime.cachedMinute
-            color: root._cText
-        }
-        CollapsingText {
-            text:     DateTime.cachedSeconds
-            color:    root._cSec
-            expanded: ShellSettings.showSeconds
-            reserveText: ":00"
-        }
-        CollapsingText {
-            text:     DateTime.cachedAmPm ? " " + DateTime.cachedAmPm : ""
-            color:    root._cFaint
-            expanded: ShellSettings.clock12h
+
+        Row {
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 0
+
+            RollingText {
+                text:    DateTime.cachedHour
+                color:   root._cText
+                animate: root._animatable
+            }
+            RollingText { text: ":"; color: root._cText; animate: root._animatable }
+            RollingText {
+                text:    DateTime.cachedMinute
+                color:   root._cText
+                animate: root._animatable
+            }
+            CollapsingText {
+                text:     DateTime.cachedSeconds
+                color:    root._cSec
+                animate:  root._animatable
+                expanded: ShellSettings.showSeconds
+                reserveText: ":00"
+            }
+            CollapsingText {
+                text:     DateTime.cachedAmPm ? " " + DateTime.cachedAmPm : ""
+                color:    root._cFaint
+                animate:  root._animatable
+                expanded: ShellSettings.clock12h
+            }
         }
     }
 
     Accessible.role: Accessible.Button
     Accessible.name: "Clock, " + DateTime.cachedHour + ":" + DateTime.cachedMinute
         + (DateTime.cachedAmPm.length > 0 ? " " + DateTime.cachedAmPm : "")
-    Accessible.focusable: true
+    Accessible.focusable: root.show
     Accessible.onPressAction: root._openCalendar()
 
     TapHandler {

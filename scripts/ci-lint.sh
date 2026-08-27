@@ -420,6 +420,19 @@ else
   ok "motion" "PulseLoop gating stays on active"
 fi
 
+section "bar widget sleep state"
+# A widget that never learns the bar slept keeps rolling its text and swapping its
+# glyphs behind the overview and through a blanked screen. Every entry in the map
+# takes barActive, whether or not it animates today.
+unsleeping_widgets="$(grep -nE '^[[:space:]]*Component \{ id: _c' modules/bar/BarContent.qml \
+  | grep -v 'barActive:' || true)"
+if [ -n "$unsleeping_widgets" ]; then
+  fail "every bar widget component must be passed barActive:"
+  printf '%s\n' "$unsleeping_widgets"
+else
+  ok "motion" "every bar widget receives the bar's active state"
+fi
+
 section "portable QML key handlers"
 # qmlcachegen accepts arbitrary Keys.onFooPressed names, but the live engine
 # rejects handlers that are not signals on QtQuick.Keys. Keep this allowlist
