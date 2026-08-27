@@ -2,7 +2,6 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
-import Quickshell.Io
 
 Singleton {
     id: root
@@ -79,8 +78,9 @@ Singleton {
             "bash", path])
     }
 
-    Process {
+    BoundedProcess {
         id: _mkdir
+        timeoutMs: 10000
         command: ["bash", "-c",
             "umask 077; mkdir -m 0700 -p -- \"$1\" && chmod 0700 -- \"$1\"; " +
             "for f in \"$2\" \"$3\"; do " +

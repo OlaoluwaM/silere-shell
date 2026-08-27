@@ -156,8 +156,9 @@ Singleton {
         _scan.running = true
     }
 
-    Process {
+    BoundedProcess {
         id: _scan
+        timeoutMs: 5000
         command: ["bash", "-c",
             "d=\"$1\"; shift; cd -- \"$d\" 2>/dev/null || exit 0; "
             + "for f in \"$@\"; do [ -f \"$f\" ] && [ -x \"$f\" ] "

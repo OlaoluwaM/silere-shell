@@ -46,8 +46,9 @@ Singleton {
         }
     }
 
-    Process {
+    BoundedProcess {
         id: _proc
+        timeoutMs: 20000
         // %{family} not %{family[0]}: fontconfig lists aliases in one comma-separated value, and slot zero drops installed fonts
         command: ["fc-list", "--format", "%{family}\n"]
         stdout: StdioCollector { id: _out }

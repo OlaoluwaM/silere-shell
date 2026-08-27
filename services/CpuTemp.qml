@@ -97,8 +97,9 @@ Singleton {
 
     Component.onCompleted: root._started = true
 
-    Process {
+    BoundedProcess {
         id: _detectProc
+        timeoutMs: 10000
         environment: ({ "LC_ALL": "C" })
         command: ["bash", "-c",
             "detect_sensor() { " +

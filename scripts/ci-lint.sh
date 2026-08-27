@@ -1256,6 +1256,27 @@ else
   ok "process" "every process timeout derives from BoundedProcess"
 fi
 
+section "unbounded process opt-out"
+# A killed process exits nonzero, and every one-shot handler already reads that as failure,
+# so a plain Process is only right for something meant to outlive the call that starts it.
+# Anchoring on Process at the line start is what keeps BoundedProcess from matching here.
+unbounded=""
+while IFS= read -r qml; do
+  case "$qml" in */BoundedProcess.qml|*/SupervisedProcess.qml) continue ;; esac
+  hit="$(awk -v F="$qml" '
+    marked { id = $0; sub(/^[ \t]*id:[ \t]*/, "", id); marked = 0
+             if (id != "_sunsetProc") printf "%s:%d %s\n", F, NR - 1, id }
+    /^[ \t]*Process[ \t]*\{[ \t]*$/ { marked = 1 }
+  ' "$qml")"
+  [ -n "$hit" ] && unbounded="$unbounded$hit"$'\n'
+done < <(find services modules config -name '*.qml' 2>/dev/null | sort)
+if [ -n "$unbounded" ]; then
+  fail "a one-shot command needs BoundedProcess.timeoutMs; only a long-running process stays plain:"
+  while IFS= read -r m; do [ -n "$m" ] && printf '  %s\n' "$m"; done <<< "$unbounded"
+else
+  ok "process" "only the hyprsunset daemon runs unbounded"
+fi
+
 section "shared scroll feel"
 # ShellListView and ShellFlickable already set this. Ten consumers restated it, so the
 # primitives' own value was the one thing a scroll-feel change could not reach.

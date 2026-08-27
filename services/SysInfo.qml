@@ -159,8 +159,9 @@ Singleton {
             "}"])
     }
 
-    Process {
+    BoundedProcess {
         id: _slowProc
+        timeoutMs: 5000
         stdout: SplitParser {
             onRead: (line) => {
                 if (!root._active) return

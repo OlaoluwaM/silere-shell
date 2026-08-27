@@ -290,8 +290,9 @@ Singleton {
         }
     }
 
-    Process {
+    BoundedProcess {
         id: _killProc
+        timeoutMs: 5000
         onExited: (code) => {
             if (!root.toolAvailable) {
                 root._pendingEnable = false

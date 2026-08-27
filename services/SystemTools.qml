@@ -90,6 +90,16 @@ Singleton {
         Quickshell.execDetached(argv)
     }
 
+    // a scan that never lands leaves every capability flag false for the session
+    function _scanFailed(message: string): void {
+        root._tools = ({})
+        root.packageFamily = ""
+        root.lastError = message
+        root.ready = true
+        root.checking = false
+        root._scanRevision++
+    }
+
     function refresh(): void {
         if (_checkProc.running) return
         // keep the last confirmed capability set while refreshing. Features no longer disappear briefly when Settings triggers a fresh probe
@@ -116,18 +126,16 @@ Singleton {
 
     Component.onCompleted: refresh()
 
-    Process {
+    BoundedProcess {
         id: _checkProc
+        timeoutMs: 15000
         stdout: StdioCollector { id: _checkOut }
+        onTimeoutReached: root._scanFailed("Optional tool scan timed out")
         onExited: (code) => {
+            if (_checkProc.timedOut) return
             if (code !== 0) {
-                // A refresh must not leave removed tools advertised forever.
-                root._tools = ({})
-                root.packageFamily = ""
-                root.lastError = "Optional tool scan failed (exit " + code + ")"
-                root.ready = true
-                root.checking = false
-                root._scanRevision++
+                // a refresh must not leave removed tools advertised forever
+                root._scanFailed("Optional tool scan failed (exit " + code + ")")
                 return
             }
             const found = {}

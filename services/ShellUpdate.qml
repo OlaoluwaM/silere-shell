@@ -209,8 +209,9 @@ Singleton {
 
     onCurrentVersionChanged: root.recentReady = false
 
-    Process {
+    BoundedProcess {
         id: _recentProc
+        timeoutMs: 15000
         command: ["bash", root._script, "--recent"]
         stdout: StdioCollector { id: _recentOut }
         onExited: (code) => {
@@ -226,8 +227,9 @@ Singleton {
         _versionProc.running = true
     }
 
-    Process {
+    BoundedProcess {
         id: _versionProc
+        timeoutMs: 15000
         command: ["bash", root._script, "--version"]
         stdout: StdioCollector { id: _versionOut }
         onExited: (code) => {
