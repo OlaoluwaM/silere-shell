@@ -99,7 +99,8 @@ Item {
         property real _bloomBoost:  0.0
         property real _screenshotSweepCenter: 0.50
         function _widgetSweep(key: string): real {
-            return ShellSettings.barWidgetLocate(key).zone === "left" ? 0.32 : 0.68
+            const zone = ShellSettings.barWidgetLocate(key).zone
+            return zone === "left" ? 0.32 : zone === "center" ? 0.50 : 0.68
         }
         readonly property real _sweepCenterTarget: {
             if (_notifFlash.running)                                         return 0.50
