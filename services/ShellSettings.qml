@@ -213,7 +213,7 @@ Singleton {
     readonly property var barWidgetMeta: ({
         // no setting: the diamond is the only way into the menu, so this one cannot be hidden
         workspaces:  { glyph: "󰊗", label: "Workspaces",      group: "workspaces", setting: "" },
-        windowTitle: { glyph: "󰖯", label: "Window title",    group: "workspaces", setting: "showWindowTitle" },
+        windowTitle: { glyph: "󰖯", label: "Window title",    group: "windowTitle", setting: "showWindowTitle" },
         shellUpdate: { glyph: "󰑐", label: "Shell update",    group: "updates", setting: "barShowShellUpdate" },
         tray:        { glyph: "󰇘", label: "System tray",     group: "tray",    setting: "trayWidget" },
         updates:     { glyph: "󰚰", label: "Package updates", group: "updates", setting: "updatesWidget" },

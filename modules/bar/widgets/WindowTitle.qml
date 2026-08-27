@@ -12,9 +12,20 @@ Item {
     required property ShellScreen screen
 
     property bool compact: false
+    property bool barActive: true
+    readonly property int _horizontalPadding: Metrics.pillPadFor(compact)
+    readonly property string _zone: ShellSettings.barWidgetLocate("windowTitle").zone
+    readonly property bool _titleVisible: ShellSettings.showWindowTitle && root.hasClient
+        && (root.currentTitle.length > 0
+            || (ShellSettings.showWindowTitleApp && root.currentApp.length > 0))
 
-    // the zone collapses the slot and skips its divider when nothing is focused
-    readonly property bool layoutVisible: root.hasClient
+    readonly property bool layoutVisible: root._titleVisible || root._op > 0.001
+        || root.implicitWidth > 0.5 || _debounce.running || _seq.running
+
+    Accessible.role: Accessible.StaticText
+    Accessible.name: !root.layoutVisible || root._displayText.length === 0 ? ""
+        : root._shownTitle.length > 0 ? "Active window, " + root._shownTitle
+        : root._shownApp.length > 0 ? "Active window, " + root._shownApp : ""
 
     // a zone widget displaces its neighbours, so the cap tightens with the rest of the bar
     readonly property real   _widthCap: {
@@ -36,10 +47,63 @@ Item {
     }
 
     readonly property var    toplevel:     Compositor.activeToplevel
+    readonly property string clientOutput: toplevel ? String(toplevel.output || "") : ""
     readonly property bool   hasClient:    toplevel !== null && toplevel !== undefined
-                                           && toplevel.output === monitorName
-    readonly property string currentTitle: toplevel?.title ?? ""
-    readonly property string currentApp:   toplevel?.appId ?? ""
+                                           && (clientOutput === monitorName
+                                               || (clientOutput.length === 0
+                                                   && Compositor.focusedMonitor === monitorName))
+    readonly property string currentRef:   hasClient ? String(toplevel?.ref ?? "") : ""
+    readonly property string rawTitle:     hasClient ? (toplevel?.title ?? "") : ""
+    readonly property string currentApp:   hasClient
+        ? String(toplevel?.appId || toplevel?.cls || toplevel?.initialClass || "") : ""
+
+    function _matchKey(s: string): string {
+        return String(s || "").toLowerCase()
+            .replace(/[‐‑‒–—―]/g, "-").replace(/\s+/g, " ").trim()
+    }
+
+    readonly property bool _mediaSharesZone: {
+        const media = ShellSettings.barWidgetLocate("media")
+        return root._zone.length > 0 && media.zone === root._zone
+    }
+    readonly property bool _mediaCandidate: root._mediaSharesZone
+        && ShellSettings.barShowMedia && Media.shown
+    readonly property bool _mediaTitleMatch: {
+        if (!root._mediaCandidate) return false
+        const windowTitle = root._matchKey(root.rawTitle)
+        const mediaTitle = root._matchKey(Media.title)
+        return mediaTitle.length >= 12 && windowTitle.indexOf(mediaTitle) !== -1
+    }
+    property bool _mediaMatchHeld: false
+    property string _mediaMatchRef: ""
+    readonly property bool _mediaOwnsTitle: root._mediaTitleMatch
+        || (root._mediaCandidate && root._mediaMatchHeld
+            && root._mediaMatchRef === root.currentRef)
+    readonly property string currentTitle: root._mediaOwnsTitle ? "" : root.rawTitle
+
+    function _syncMediaOwnership(): void {
+        if (root._mediaTitleMatch) {
+            _mediaRelease.stop()
+            root._mediaMatchHeld = true
+            root._mediaMatchRef = root.currentRef
+            return
+        }
+        if (!root._mediaCandidate || root._mediaMatchRef !== root.currentRef) {
+            _mediaRelease.stop()
+            root._mediaMatchHeld = false
+            return
+        }
+        if (root._mediaMatchHeld) _mediaRelease.restart()
+    }
+
+    on_MediaTitleMatchChanged: root._syncMediaOwnership()
+    on_MediaCandidateChanged: root._syncMediaOwnership()
+
+    Timer {
+        id: _mediaRelease
+        interval: 500
+        onTriggered: root._mediaMatchHeld = false
+    }
 
     function _clean(s: string): string {
         const raw = String(s || "").trim()
@@ -68,16 +132,21 @@ Item {
 
     property string _shownApp:   ""
     property string _shownTitle: ""
+    property string _shownRef:   ""
+    property bool   _shownVisible: false
     property real   _op:         0
     property real   _y:          0
-    property real   _scale:      1.0
     property string _pendApp:    ""
     property string _pendTitle:  ""
+    property string _pendRef:    ""
+    property bool   _pendVisible: false
     property bool   _shownShowApp: true
     property bool   _pendShowApp:  true
     property real   _slideD:     0
-    property real   _scaleStart: 1.0
     property real   _opTarget:   1.0
+    property int    _outMs:      0
+    property int    _inMs:       0
+    property bool   _queued:     false
 
     function _settleCurrent(): void {
         _debounce.stop()
@@ -86,26 +155,51 @@ Item {
         if (monitorWsId > 0) _lastWsId = monitorWsId
         _shownApp = _clean(currentApp)
         _shownTitle = currentTitle
+        _shownRef = currentRef
+        _shownVisible = _titleVisible
         _shownShowApp = ShellSettings.showWindowTitleApp
-        _op = hasClient ? 1.0 : 0.0
+        _op = _titleVisible ? 1.0 : 0.0
         _y = 0
-        _scale = 1.0
+        _queued = false
+    }
+
+    function _matchesCurrent(): bool {
+        return root._shownApp === root._clean(root.currentApp)
+            && root._shownTitle === root.currentTitle
+            && root._shownRef === root.currentRef
+            && root._shownVisible === root._titleVisible
+            && root._shownShowApp === ShellSettings.showWindowTitleApp
+            && Math.abs(root._op - (root._titleVisible ? 1.0 : 0.0)) < 0.001
+    }
+
+    function _capturePending(): void {
+        root._pendApp = root._clean(root.currentApp)
+        root._pendTitle = root.currentTitle
+        root._pendRef = root.currentRef
+        root._pendVisible = root._titleVisible
+        root._pendShowApp = ShellSettings.showWindowTitleApp
     }
 
     function _queueTransition(): void {
-        if (!root._ready || Idle.isIdle) return
+        if (!root._ready) return
+        if (!root.barActive || Idle.isIdle) {
+            root._settleCurrent()
+            return
+        }
         if (ShellSettings.reduceMotion) {
             root._settleCurrent()
             return
         }
-        if (!root._wsJustChanged && !_seq.running && !_debounce.running
-                && root._shownApp === root._clean(root.currentApp)
-                && root._shownTitle === root.currentTitle
-                && root._shownShowApp === ShellSettings.showWindowTitleApp
-                && Math.abs(root._op - (root.hasClient ? 1.0 : 0.0)) < 0.001)
+        if (!root._wsJustChanged && root._matchesCurrent()) return
+        if (_seq.running) {
+            root._capturePending()
+            root._queued = true
             return
-        // every monitor sees the global toplevel signals; a title already hidden on this output has nothing to animate
-        if (!root.hasClient && root._op <= 0.001 && !_seq.running) return
+        }
+        if (!root._titleVisible && root._op <= 0.001 && root.implicitWidth <= 0.5) {
+            root._settleCurrent()
+            return
+        }
         _debounce.restart()
     }
 
@@ -128,10 +222,19 @@ Item {
         return "#" + _h2(a * 255) + _h2(c.r * 255) + _h2(c.g * 255) + _h2(c.b * 255)
     }
 
+    readonly property bool _showAppAndTitle: root._shownShowApp
+        && root._shownApp.length > 0 && root._shownTitle.length > 0
+        && !root._titleMatchesApp
+    readonly property string _displayText: !root._shownVisible ? ""
+        : root._showAppAndTitle
+            ? root._shownApp + " " + ShellSettings.dotTextGlyph + " " + root._shownTitle
+            : root._shownTitle.length > 0 ? root._shownTitle
+            : root._shownShowApp ? root._shownApp : ""
     readonly property string _formatted: {
+        if (root._displayText.length === 0) return ""
         const appCol   = _hex(Theme.subtext, 1.0)
         const titleCol = _hex(Theme.text, 1.0)
-        if (_shownShowApp && _shownApp.length > 0 && _shownTitle.length > 0 && !_titleMatchesApp) {
+        if (root._showAppAndTitle) {
             const dotCol = _hex(Theme.barSeparator, Theme.barSeparator.a)
             return '<font color="' + appCol   + '">' + _esc(_shownApp) + '</font> '
                  + '<font color="' + dotCol   + '">' + _esc(ShellSettings.dotTextGlyph) + '</font> '
@@ -145,31 +248,40 @@ Item {
     }
 
     Component.onCompleted: {
+        root._syncMediaOwnership()
         _wsJustChanged = false
         _shownApp   = _clean(currentApp)
         _shownTitle = currentTitle
+        _shownRef   = currentRef
+        _shownVisible = _titleVisible
         _shownShowApp = ShellSettings.showWindowTitleApp
-        _op         = hasClient ? 1.0 : 0.0
+        _op         = _titleVisible ? 1.0 : 0.0
         _ready      = true
         Qt.callLater(function() {
-            if (root && root.monitorWsId > 0)
-                root._lastWsId = root.monitorWsId
+            if (!root) return
+            if (root.monitorWsId > 0) root._lastWsId = root.monitorWsId
         })
     }
 
     onHasClientChanged:  root._queueTransition()
+    onCurrentRefChanged: {
+        root._syncMediaOwnership()
+        root._queueTransition()
+    }
     onCurrentAppChanged: root._queueTransition()
+    onCurrentTitleChanged: root._queueTransition()
+    onBarActiveChanged: {
+        if (!root._ready) return
+        if (root.barActive) root._queueTransition()
+        else root._settleCurrent()
+    }
     Connections {
         target: ShellSettings
+        function onShowWindowTitleChanged() { root._queueTransition() }
         function onShowWindowTitleAppChanged() { root._queueTransition() }
         function onReduceMotionChanged() {
             if (ShellSettings.reduceMotion) root._settleCurrent()
         }
-    }
-
-    onCurrentTitleChanged: {
-        if (!_ready || !hasClient || Idle.isIdle || _debounce.running || _seq.running) return
-        root._shownTitle = currentTitle
     }
 
     Connections {
@@ -189,19 +301,29 @@ Item {
         onTriggered: {
             const isWsSwitch = root._wsJustChanged && root.monitorWsId !== root._lastWsId
             root._wsJustChanged = false
+            root._capturePending()
+
+            const identityChanged = root._shownRef !== root._pendRef
+                || root._shownApp !== root._pendApp
+                || root._shownVisible !== root._pendVisible
+                || root._shownShowApp !== root._pendShowApp
+            const fullTransition = isWsSwitch || identityChanged
 
             root._dir = isWsSwitch ? (root.monitorWsId > root._lastWsId ? 1 : -1) : 1
             if (root.monitorWsId > 0) root._lastWsId = root.monitorWsId
 
+            if (!fullTransition) {
+                root._shownTitle = root._pendTitle
+                root._op = root._pendVisible ? 1.0 : 0.0
+                return
+            }
+
             root._slideD     = isWsSwitch ? 5 : 0
-            root._scaleStart = isWsSwitch ? 1.0 : 0.985
-            root._opTarget   = root.hasClient ? 1.0 : 0.0
-            root._pendApp    = root._clean(root.currentApp)
-            root._pendTitle  = root.currentTitle
-            root._pendShowApp = ShellSettings.showWindowTitleApp
+            root._opTarget   = root._pendVisible ? 1.0 : 0.0
+            root._outMs      = root._op <= 0.001 ? 0 : 80
+            root._inMs       = !root._pendVisible ? 0 : 135
 
             _yOut.to     = -root._slideD * root._dir
-            _scaleOut.to = root._scaleStart
             _opIn.to     = root._opTarget
 
             _seq.restart()
@@ -212,38 +334,48 @@ Item {
         id: _seq
 
         ParallelAnimation {
-            NumberAnimation {                 target: root; property: "_op";    to: 0; duration: Motion.ms(90);  easing.type: Easing.InCubic  }
-            NumberAnimation { id: _yOut;      target: root; property: "_y";            duration: Motion.ms(115); easing.type: Easing.InCubic }
-            NumberAnimation { id: _scaleOut;  target: root; property: "_scale";        duration: Motion.ms(105); easing.type: Easing.InCubic }
+            NumberAnimation {                 target: root; property: "_op";    to: 0; duration: Motion.ms(root._outMs); easing.type: Easing.InCubic }
+            NumberAnimation { id: _yOut;      target: root; property: "_y";            duration: Motion.ms(root._outMs); easing.type: Easing.InCubic }
         }
         ScriptAction {
             script: {
                 root._shownApp   = root._pendApp
                 root._shownTitle = root._pendTitle
+                root._shownRef   = root._pendRef
+                root._shownVisible = root._pendVisible
                 root._shownShowApp = root._pendShowApp
                 root._y     = root._slideD * root._dir
-                root._scale = root._scaleStart
             }
         }
         ParallelAnimation {
-            NumberAnimation { id: _opIn; target: root; property: "_op";              duration: Motion.ms(145); easing.type: Easing.OutCubic }
-            NumberAnimation {            target: root; property: "_y";     to: 0;     duration: Motion.ms(170); easing.type: Easing.OutQuart }
-            NumberAnimation {            target: root; property: "_scale"; to: 1.0;   duration: Motion.ms(160); easing.type: Easing.OutCubic }
+            NumberAnimation { id: _opIn; target: root; property: "_op";              duration: Motion.ms(root._inMs); easing.type: Easing.OutCubic }
+            NumberAnimation {            target: root; property: "_y";     to: 0;     duration: Motion.ms(root._inMs); easing.type: Easing.OutQuart }
         }
-        ScriptAction {
-            script: if (!_debounce.running && root._shownTitle !== root.currentTitle)
-                root._shownTitle = root.currentTitle
+        onFinished: {
+            const again = root._queued || root._wsJustChanged || !root._matchesCurrent()
+            root._queued = false
+            if (again) Qt.callLater(root._queueTransition)
         }
     }
 
-    // the natural text width, not content.width: reading the box back through the zone's
-    // Loader would close a binding loop
-    readonly property real _naturalWidth: Math.ceil(Math.min(content.implicitWidth, root._widthCap))
+    readonly property real _contentCap: Math.max(0,
+        root._widthCap - root._horizontalPadding * 2)
+    TextMetrics {
+        id: _textMetrics
+        font.family: Settings.font
+        font.pixelSize: Settings.fontSize
+        text: root._displayText
+    }
+    readonly property real _measuredContentWidth: root._displayText.length > 0
+        ? Math.ceil(Math.min(_textMetrics.advanceWidth, root._contentCap)) : 0
+    readonly property real _naturalWidth: root._displayText.length > 0
+        ? root._measuredContentWidth + root._horizontalPadding * 2
+        : 0
     implicitWidth: root._naturalWidth
     // a zone widget shoves its neighbours when it resizes, and titles change on every
     // navigation; ease the box so the rest of the bar does not twitch with the text
     MotionBehavior on implicitWidth {
-        NumberAnimation { duration: Motion.width; easing.type: Easing.OutCubic }
+        NumberAnimation { duration: Motion.ms(110); easing.type: Easing.OutCubic }
     }
     // not parent.height: the zone's Loader takes its height from this item, so reading it back
     // collapses to zero and the clip below erases the text
@@ -255,21 +387,22 @@ Item {
 
         ShellText {
             id: content
-            x: Math.round((parent.width - width) / 2)
+            x: root._zone === "left" ? root._horizontalPadding
+                : root._zone === "right"
+                    ? Math.round(parent.width - width - root._horizontalPadding)
+                    : Math.round((parent.width - width) / 2)
             anchors.verticalCenter:       parent.verticalCenter
             anchors.verticalCenterOffset: root._y
             opacity:         root._op
             visible:         root._op > 0
-            scale:           root._scale
-            transformOrigin: Item.Center
 
             text:           root._formatted
             textFormat:     Text.StyledText
             font.pixelSize: Settings.fontSize
             elide:          Text.ElideRight
-            // follows the easing box so the text re-elides as it grows instead of
-            // being clipped at both ends by a box that has not caught up
-            width:          Math.max(0, Math.min(root.width, root._naturalWidth))
+            width:          Math.max(0, Math.min(
+                root.width - root._horizontalPadding * 2,
+                root._measuredContentWidth))
         }
     }
 }
