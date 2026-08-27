@@ -48,13 +48,25 @@ section "tracked file listing"
 # git ls-files backs the packaged-payload and qmldir checks below. When git refuses to
 # read the repository — a container running as another uid trips safe.directory — it
 # returns nothing, and both of those pass over an empty list instead of failing.
-if ! command -v git >/dev/null 2>&1 \
-    || ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  skip "tracked" "not a git checkout; index-backed checks have nothing to read"
+# That refusal fails rev-parse too, so a tree carrying no repository has to be told apart
+# from a repository git declines to open: only the first has nothing to read. A checkout
+# still on disk, and anything running under SILERE_REQUIRE_GIT_TESTS, is the second.
+tracked_err=""
+if ! command -v git >/dev/null 2>&1; then
+  tracked_err="git is not installed"
+elif ! tracked_err="$(git rev-parse --is-inside-work-tree 2>&1 >/dev/null)"; then
+  tracked_err="${tracked_err:-git cannot open this repository}"
 elif tracked_probe="$(git ls-files -- '*.qml' 2>&1)" && [ -n "$tracked_probe" ]; then
-  ok "tracked" "git lists tracked files"
+  tracked_err=""
 else
-  fail "git cannot list tracked files, so index-backed checks would pass on an empty list: ${tracked_probe%%$'\n'*}"
+  tracked_err="${tracked_probe:-git listed no tracked file}"
+fi
+if [ -z "$tracked_err" ]; then
+  ok "tracked" "git lists tracked files"
+elif [ -e .git ] || [ "${SILERE_REQUIRE_GIT_TESTS:-0}" = 1 ]; then
+  fail "git cannot list tracked files, so index-backed checks would pass on an empty list: ${tracked_err%%$'\n'*}"
+else
+  skip "tracked" "not a git checkout; index-backed checks have nothing to read"
 fi
 
 section "settings rail label width"
