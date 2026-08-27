@@ -28,6 +28,7 @@ ShellRoot {
     Component { id: sliderTrackFactory; SliderTrack {} }
     Component { id: gradientSliderFactory; GradientSlider {} }
     Component { id: boundedProcessFactory; BoundedProcess {} }
+    Component { id: niriBackendFactory; CompositorNiri {} }
     Component { id: processFactory; Process {} }
     Component { id: supervisedProcessFactory; SupervisedProcess {} }
     Component { id: barUnderlineFactory; BarUnderline {} }
@@ -919,6 +920,23 @@ ShellRoot {
         SystemTools.checking = checkingWas
         SystemTools.lastError = lastErrorWas
         SystemTools._scanRevision = revisionWas
+
+        const niri = niriBackendFactory.createObject(root)
+        niri._onLine(JSON.stringify({ WorkspacesChanged: { workspaces: [
+            { id: 11, idx: 1, output: "DP-1", is_active: true,  is_focused: true },
+            { id: 22, idx: 2, output: "DP-1", is_active: false, is_focused: false }
+        ]}}))
+        niri._onLine(JSON.stringify({ WindowsChanged: { windows: [
+            { id: 90, workspace_id: 22, app_id: "probe.app", title: "t", pid: 1 }
+        ]}}))
+        const niriWs = niri.workspaces
+        const niriById = {}
+        for (let i = 0; i < niriWs.length; i++) niriById[niriWs[i].wsId] = niriWs[i]
+        root._check(niriById[2] !== undefined && niriById[2].occupied === true,
+            "a niri workspace holding an unfocused window reads as occupied")
+        root._check(niriById[1] !== undefined && niriById[1].occupied === false,
+            "a niri workspace holding no window reads as empty")
+        niri.destroy()
         SystemTools._tools = toolsWas
         SystemTools.packageFamily = familyWas
         SystemTools.ready = readyWas

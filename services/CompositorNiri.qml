@@ -83,6 +83,17 @@ QtObject {
 
     readonly property var workspaces: {
         const src = root._wsRaw
+        // an active window is not occupancy: a workspace holding only unfocused windows
+        // reports none, so count real windows the way the hyprland backend does
+        const winCount = {}
+        const wins = root._winRaw
+        for (let i = 0; i < wins.length; i++) {
+            const win = wins[i]
+            if (!win) continue
+            const home = win.workspace_id
+            if (home !== null && home !== undefined)
+                winCount[home] = (winCount[home] ?? 0) + 1
+        }
         const out = []
         for (let i = 0; i < src.length; i++) {
             const w = src[i]
@@ -90,7 +101,7 @@ QtObject {
             out.push({
                 wsId: w.idx, name: w.name ?? "", output: w.output ?? "",
                 active: !!w.is_active, urgent: !!w.is_urgent,
-                occupied: w.active_window_id !== null && w.active_window_id !== undefined,
+                occupied: (winCount[w.id] ?? 0) > 0,
                 ref: w.id
             })
         }
@@ -224,15 +235,6 @@ QtObject {
             }
             root._wsRaw = ws
             root.workspaceActivated(output)
-            return
-        }
-        if (ev.WorkspaceActiveWindowChanged) {
-            const d = ev.WorkspaceActiveWindowChanged
-            const ws = root._wsRaw.slice()
-            for (let i = 0; i < ws.length; i++)
-                if (ws[i] && ws[i].id === d.workspace_id)
-                    ws[i] = Object.assign({}, ws[i], { active_window_id: d.active_window_id })
-            root._wsRaw = ws
             return
         }
         if (ev.WorkspaceUrgencyChanged) {
