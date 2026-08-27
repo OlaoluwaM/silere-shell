@@ -920,6 +920,29 @@ ShellRoot {
         SystemTools.checking = checkingWas
         SystemTools.lastError = lastErrorWas
         SystemTools._scanRevision = revisionWas
+        const cpuActiveWas = SysInfo._active
+        const cpuTotalWas = SysInfo._lastCpuTotal
+        const cpuIdleWas = SysInfo._lastCpuIdle
+        const cpuPctWas = SysInfo.cpuPct
+        SysInfo._active = true
+        SysInfo._lastCpuTotal = 0
+        SysInfo._lastCpuIdle = 0
+        // nonzero iowait: it counts as idle, and a sample without it proves nothing
+        SysInfo._applyCpuStat("cpu  100 0 100 800 100 0 0 0 0 0\n")
+        SysInfo._applyCpuStat("cpu  150 0 150 900 150 0 0 0 0 0\n")
+        root._check(Math.abs(SysInfo.cpuPct - 0.4) < 0.001,
+            "cpu load counts iowait as idle, not as busy")
+        // guest and guest_nice are already counted inside user and nice
+        SysInfo._lastCpuTotal = 0
+        SysInfo._lastCpuIdle = 0
+        SysInfo._applyCpuStat("cpu  100 0 100 800 0 0 0 0 500 500\n")
+        SysInfo._applyCpuStat("cpu  150 0 150 900 0 0 0 0 900 900\n")
+        root._check(Math.abs(SysInfo.cpuPct - 0.5) < 0.001,
+            "cpu load leaves out guest time already counted in user")
+        SysInfo._lastCpuTotal = cpuTotalWas
+        SysInfo._lastCpuIdle = cpuIdleWas
+        SysInfo.cpuPct = cpuPctWas
+        SysInfo._active = cpuActiveWas
 
         const niri = niriBackendFactory.createObject(root)
         niri._onLine(JSON.stringify({ WorkspacesChanged: { workspaces: [
@@ -937,6 +960,27 @@ ShellRoot {
         root._check(niriById[1] !== undefined && niriById[1].occupied === false,
             "a niri workspace holding no window reads as empty")
         niri.destroy()
+
+        // nmcli -t escapes a colon inside a name; the VPN row is the only reader left
+        const nmFields = Network._splitNmcliLine("home\\:vpn:vpn:activated")
+        root._check(nmFields.length === 3 && nmFields[0] === "home:vpn"
+                && nmFields[1] === "vpn" && nmFields[2] === "activated",
+            "an escaped colon stays inside one nmcli field")
+        const nmSlash = Network._splitNmcliLine("back\\\\slash:vpn")
+        root._check(nmSlash.length === 2 && nmSlash[0] === "back\\slash",
+            "an escaped backslash ends its own escape")
+        const nmEmpty = Network._splitNmcliLine("a::b")
+        root._check(nmEmpty.length === 3 && nmEmpty[1] === "",
+            "an empty nmcli field is kept in place")
+
+        const wheelKey = "probe-scroll"
+        root._check(Scroll._processDelta(60, wheelKey, 120, 2, 0) === 0,
+            "a half-notch wheel step emits nothing on its own")
+        root._check(Scroll._processDelta(60, wheelKey, 120, 2, 0) === 1,
+            "two half-notches accumulate into one step")
+        root._check(Scroll._processDelta(600, wheelKey, 120, 2, 0) === 2,
+            "one wheel burst emits at most the step ceiling")
+
         SystemTools._tools = toolsWas
         SystemTools.packageFamily = familyWas
         SystemTools.ready = readyWas
