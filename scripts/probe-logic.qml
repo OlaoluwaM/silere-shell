@@ -1556,8 +1556,11 @@ ShellRoot {
         onTriggered: {
             root._orphanCheck = processFactory.createObject(root, {
                 command: ["bash", "-c",
+                    // a killed orphan re-parents to a PID 1 that may never reap it, and its
+                    // /proc entry outlives it as a zombie
                     'read -r orphan < "$1" || exit 1; [ -n "$orphan" ] || exit 1; '
-                        + '[ ! -e "/proc/$orphan" ]',
+                        + 'IFS= read -r line 2>/dev/null < "/proc/$orphan/stat" || exit 0; '
+                        + 'line=${line##*) }; [ "${line%% *}" = Z ]',
                     "silere-bounded-check", root._orphanPidFile]
             })
             root._orphanCheck.exited.connect(function(code) {
