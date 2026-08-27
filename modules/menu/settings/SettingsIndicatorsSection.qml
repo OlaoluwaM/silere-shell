@@ -16,6 +16,7 @@ Column {
             expanded: ShellSettings.showWindowTitle
             ToggleRow {
                 glyph: "󰀻"; label: "App name"
+                description: "Show it beside or instead of the title"
                 key: "showWindowTitleApp"
             }
         }
