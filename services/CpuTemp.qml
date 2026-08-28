@@ -11,10 +11,7 @@ Singleton {
     property real temp: 0
     readonly property bool available: temp > 0
     property bool _started: false
-    readonly property bool needed: MenuState.homeActive
-        || (MenuState.settingsActive
-            && (MenuState.settingsSection === "warnings"
-                || MenuState.settingsSection === "underline"))
+    readonly property bool needed: MenuState.homeActive || MenuState.tempSectionActive
     // the bar's vitals widget shows a TEMP chip off this same hot/critical hysteresis,
     // so its presence in the bar layout keeps the 5s sensor poll alive alongside the
     // OSD-warning and underline-glow consumers that already justify running unattended

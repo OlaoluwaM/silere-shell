@@ -84,6 +84,12 @@ AnchoredPopupState {
         if (next !== settingsSection) settingsSection = next
     }
 
+    // the sections whose pages surface the live temperature; CpuTemp gates its sensor
+    // poll on this, and naming them beside the section validation above means a section
+    // rename cannot silently strand the readout in a service file
+    readonly property bool tempSectionActive: settingsActive
+        && (settingsSection === "warnings" || settingsSection === "underline")
+
     signal tabRequested(int index)
 
     function _validTab(index: int): int {
