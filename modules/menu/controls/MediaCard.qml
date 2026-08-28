@@ -289,7 +289,10 @@ ClippingRectangle {
     // transport sit below _seek.top and were never part of this target.
     MouseArea {
         id: _playerTarget
-        anchors.fill: parent
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: _seek.top
         cursorShape: Qt.PointingHandCursor
         onClicked: root._focusPlayer()
     }
