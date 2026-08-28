@@ -66,4 +66,22 @@ Singleton {
         root.triggerScreen = null
         root._setAnchor(null)
     }
+
+    // --- fork extension: shared keybind-open fallback-anchor targeting ----------
+    // A keybind or IPC open has no trigger widget, so a state's fallback anchorX
+    // has to come from whichever live widget sits on the overlay bar (services/
+    // Monitors.qml), and highlighting an open popup on a bar needs to know whether
+    // it's this state that's showing there. Every trigger widget used to re-derive
+    // both independently per state; centralised here so a state answers for
+    // itself and a widget only ever supplies its own screen and geometry.
+    function targetsScreen(screen): bool {
+        if (!screen) return false
+        return root.triggerScreen ? root.triggerScreen.name === screen.name
+                                   : Monitors.activeName === screen.name
+    }
+    // widgets call this unconditionally; only the one on the overlay bar actually writes
+    function publishFallbackAnchor(screen, x: real): void {
+        if (!screen || screen.name !== Monitors.overlayBarName) return
+        root.anchorX = x
+    }
 }

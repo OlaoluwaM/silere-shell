@@ -32,26 +32,10 @@ Item {
         root._publishFallbackAnchor()
     }
     function _publishFallbackAnchor(): void {
-        if (!root._anchorFallbackBar) return
-        MenuState.anchorX = root.menuAnchorX
-        QuickActionsState.anchorX = root.menuAnchorX
+        MenuState.publishFallbackAnchor(root.screen, root.menuAnchorX)
+        QuickActionsState.publishFallbackAnchor(root.screen, root.menuAnchorX)
     }
     on_AnchorFallbackBarChanged: root._syncMenuAnchor()
-
-    readonly property bool _menuTargetsThisBar: {
-        const self = root.screen
-        if (!self) return false
-        const target = MenuState.triggerScreen
-        return target ? target.name === self.name
-                      : Monitors.activeName === self.name
-    }
-    readonly property bool _quickActionsTargetsThisBar: {
-        const self = root.screen
-        if (!self) return false
-        const target = QuickActionsState.triggerScreen
-        return target ? target.name === self.name
-                      : Monitors.activeName === self.name
-    }
 
     readonly property int effectiveWsCount: Math.max(1, minVisible)
     property int _lastNormalActiveId: 1
@@ -399,8 +383,8 @@ Item {
     // offers itself each time the anchor goes vacant, so a rebuild that outlives its
     // replacement still ends up held by whichever one survives
     function _reclaimPopupAnchors(): void {
-        if (root._menuTargetsThisBar) MenuState.adoptAnchor(root)
-        if (root._quickActionsTargetsThisBar) QuickActionsState.adoptAnchor(root)
+        if (MenuState.targetsScreen(root.screen)) MenuState.adoptAnchor(root)
+        if (QuickActionsState.targetsScreen(root.screen)) QuickActionsState.adoptAnchor(root)
     }
     Connections {
         target: MenuState
@@ -611,7 +595,7 @@ Item {
         shown: root.monitorReady && root.activeIndex >= 0
         inSpecial: root.inSpecial
         urgent: root.urgent(root.activeId)
-        menuTargets: root._menuTargetsThisBar
+        menuTargets: MenuState.targetsScreen(root.screen)
         barActive: root.barActive
         paging: root._paging
         monitorReady: root.monitorReady

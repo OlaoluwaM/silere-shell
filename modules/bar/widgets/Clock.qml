@@ -20,7 +20,7 @@ Row {
         const pt = root.mapToItem(null, root.width / 2, 0)
         if (!isFinite(pt.x)) return
         root.menuAnchorX = pt.x
-        if (root._anchorFallbackBar) CalendarState.anchorX = pt.x
+        CalendarState.publishFallbackAnchor(root.screen, pt.x)
     }
     on_AnchorFallbackBarChanged: root._syncMenuAnchor()
     Connections {
