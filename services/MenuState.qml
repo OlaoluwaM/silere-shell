@@ -91,10 +91,13 @@ AnchoredPopupState {
     }
 
     // Match the rail's visual order rather than the internal numeric ids.
+    // settings and system need distinct positions or a switch between them
+    // computes a zero delta and the page slides the default (forward) way.
     function tabPosition(index: int): int {
         if (index === homeTab) return 0
         if (index === recentTab) return 1
-        return 2
+        if (index === settingsTab) return 2
+        return 3
     }
 
     function selectTab(index: int): int {
