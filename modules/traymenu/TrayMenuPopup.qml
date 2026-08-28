@@ -185,8 +185,8 @@ PanelWindow {
 
             readonly property bool sep:       modelData?.isSeparator ?? false
             readonly property bool on:        (modelData?.enabled ?? true) && !sep
-            readonly property bool sub:       (modelData?.hasChildren ?? false)
-                && menuDepth < 8
+            readonly property bool branch:    modelData?.hasChildren ?? false
+            readonly property bool sub:       branch && menuDepth < 8
             readonly property int  btnType:   modelData?.buttonType ?? 0
             readonly property bool checkable: btnType !== 0
             readonly property bool checked:   (modelData?.checkState ?? Qt.Unchecked) === Qt.Checked
@@ -248,9 +248,12 @@ PanelWindow {
                 cursorShape: Qt.PointingHandCursor
                 onHoveredChanged: if (hovered && _entry.sub) _entry._openFlyout(false)
             }
+            // default DragThreshold, not ReleaseWithinBounds: the tap grab must stay passive
+            // so an overflowing menu can still press-drag scroll from on top of a row
             TapHandler {
-                enabled: _entry.on && !_entry.sub
-                gesturePolicy: TapHandler.ReleaseWithinBounds
+                // branch, not sub: past the depth cap a branch row goes inert rather than
+                // firing triggered on a container item and closing the whole menu
+                enabled: _entry.on && !_entry.branch
                 onTapped: {
                     win._emitMenuSignal(_entry.modelData, "triggered", "sendTriggered")
                     TrayMenuState.close()
@@ -258,7 +261,6 @@ PanelWindow {
             }
             TapHandler {
                 enabled: _entry.on && _entry.sub
-                gesturePolicy: TapHandler.ReleaseWithinBounds
                 onTapped: _entry._toggleFlyout()
             }
 
@@ -411,7 +413,13 @@ PanelWindow {
                     _menuStack = _menuStack.slice(0, -1)
                     _subScroll.contentY = 0
                 }
+                // mirrors win._rootOpenedSent: with an inert opacity Behavior the close snaps
+                // visible off before onOpenedChanged runs, so whichever of the two handlers
+                // gets there first must flush closed exactly once, off the still-intact stack
+                property bool _drillMenusClosed: false
                 function _closeDrillMenus(): void {
+                    if (_drillMenusClosed) return
+                    _drillMenusClosed = true
                     for (let i = _menuStack.length - 1; i >= 0; i--)
                         win._emitMenuSignal(_menuStack[i], "closed", "sendClosed")
                 }
@@ -419,24 +427,34 @@ PanelWindow {
                 onOpenedChanged: {
                     if (!_entry.sub) return
                     if (opened) {
+                        _flyout._drillMenusClosed = false
                         _flyout._syncOrigin()
                         win._emitMenuSignal(_flyout._currentMenu, "opened", "sendOpened")
                     } else {
                         _flyout._closeDrillMenus()
                     }
                 }
-                onVisibleChanged: if (!visible && !opened) _menuStack = []
+                onVisibleChanged: if (!visible && !opened) {
+                    _flyout._closeDrillMenus()
+                    _menuStack = []
+                }
                 Component.onDestruction: if (_entry.sub && _flyout.opened) _flyout._closeDrillMenus()
 
                 HoverHandler {
                     id: _flyHover
                     blocking: _flyout._rootLaneOverlay
+                    // the cascade gap is otherwise a dead zone: crossing it unhovers the row
+                    // and the flyout both, and pausing in it closed the cascade mid-reach
+                    margin: _flyout._cascadeGap
                 }
 
                 Timer {
                     id: _flyClose
                     interval: 180
-                    onTriggered: if (!_rowHover.hovered && !_flyHover.hovered) _entry.closeFlyout()
+                    // click-built navigation (a drill stack, the root-lane overlay) is not
+                    // hover-scoped: it closes by Back, outside tap or Escape, never by leaving
+                    onTriggered: if (!_rowHover.hovered && !_flyHover.hovered
+                        && !_flyout._canGoBack) _entry.closeFlyout()
                 }
                 Connections {
                     target: _flyHover
@@ -445,6 +463,15 @@ PanelWindow {
                 Connections {
                     target: _rowHover
                     function onHoveredChanged() { if (!_rowHover.hovered && _flyout.opened) _flyClose.restart() }
+                }
+
+                // _flyHover blocks hover alone; a press over what no submenu row claims (a
+                // separator, a disabled row, the gaps) would still fall through to the live
+                // root rows a lane overlay covers, triggering an item nobody can see
+                MouseArea {
+                    anchors.fill: parent
+                    enabled: _flyout.opened
+                    acceptedButtons: Qt.AllButtons
                 }
 
                 ShellFlickable {
@@ -500,7 +527,6 @@ PanelWindow {
                                 cursorShape: Qt.PointingHandCursor
                             }
                             TapHandler {
-                                gesturePolicy: TapHandler.ReleaseWithinBounds
                                 onTapped: _flyout._goBack()
                             }
                         }
