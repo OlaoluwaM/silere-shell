@@ -74,7 +74,7 @@ Column {
         // the window title separator takes this alpha under the None style too
         CollapsibleSection {
             expanded: ShellSettings.dotStyle !== "none"
-                || (ShellSettings.showWindowTitle && ShellSettings.showWindowTitleApp)
+                || ShellSettings.titleAppDotConfigured
             SliderRow {
                 glyph: ShellSettings.dotTextGlyph
                 glyphColor: Theme.withAlpha(Theme.text, Math.max(0.35, ShellSettings.dotOpacity))

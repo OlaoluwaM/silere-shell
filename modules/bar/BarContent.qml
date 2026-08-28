@@ -172,7 +172,7 @@ Item {
     readonly property bool _osdBarShowing: ShellSettings.osdEnabled && ShellSettings.osdBarIntegrated
         && root._isOverlayBar && OsdBarState.showing && !OsdBarState.barConcealed
     readonly property bool _centerVizMode: ShellSettings.mediaVisualizerPosition === "center"
-    readonly property bool _centerVizWanted: _centerVizMode && ShellSettings.mediaProgress
+    readonly property bool _centerVizWanted: ShellSettings.centerVizConfigured
         && !ShellSettings.reduceMotion && !Idle.isIdle
         && root.barActive && root._onActiveBar && Media.shown && Media.playing && Media.cavaReady
     readonly property bool _centerVizHasRoom: titleAvailableWidth >= 48

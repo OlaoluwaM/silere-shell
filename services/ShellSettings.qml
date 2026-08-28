@@ -14,6 +14,10 @@ Singleton {
     property string mediaVisualizerPreset: "balanced"
     property string mediaVisualizerStyle:  "wave"
     property string mediaVisualizerPosition: "media"
+    // the configured half of BarContent's centre-visualiser decision, shared with the
+    // settings disclosure that reveals the centre-gap row so the two cannot drift
+    readonly property bool centerVizConfigured: mediaProgress
+        && mediaVisualizerPosition === "center"
     property bool   workspaceShift:      true
     property bool   neutralTheme:        GeneratedDefaults.neutralTheme
     property bool   neutralAccentAuto:   false
@@ -30,6 +34,9 @@ Singleton {
     property bool   clock12h:            GeneratedDefaults.clock12h
     property bool   showWindowTitle:     false
     property bool   showWindowTitleApp:  false
+    // the configured half of WindowTitle's app-dot decision, shared with the settings
+    // disclosure that reveals the dot rows for the same no-drift reason as centerViz
+    readonly property bool titleAppDotConfigured: showWindowTitle && showWindowTitleApp
     property bool   windowTitleCenterGap: true
     property bool   trayWidget:          GeneratedDefaults.trayWidget
     property bool   valuesOnHover:       true
