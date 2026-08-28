@@ -199,8 +199,11 @@ PanelWindow {
             function closeFlyout(): void {
                 if (_flyout.opened) _flyout.opened = false
             }
-            function _openFlyout(): void {
+            function _openFlyout(allowAdaptiveExpansion: bool): void {
                 if (!_entry.sub || _flyout.opened) return
+                _flyout._syncOrigin()
+                if (_flyout._adaptiveExpansion && !allowAdaptiveExpansion) return
+
                 // one visible child branch per menu branch; closing the siblings releases their nested models
                 const sibs = _entry.parent ? _entry.parent.children : []
                 for (let k = 0; k < sibs.length; k++) {
@@ -208,7 +211,6 @@ PanelWindow {
                     if (c !== _entry && c && typeof c.closeFlyout === "function")
                         c.closeFlyout()
                 }
-                _flyout._syncOrigin()
                 if (_flyout._needsDrillIn) {
                     win._drillIntoFlyout(_entry.ownerFlyout, _entry.modelData)
                     return
@@ -218,7 +220,7 @@ PanelWindow {
             }
             function _toggleFlyout(): void {
                 if (_flyout.opened) _entry.closeFlyout()
-                else _entry._openFlyout()
+                else _entry._openFlyout(true)
             }
             Hairline {
                 visible: _entry.sep
@@ -244,7 +246,7 @@ PanelWindow {
                 id: _rowHover
                 enabled: _entry.on
                 cursorShape: Qt.PointingHandCursor
-                onHoveredChanged: if (hovered && _entry.sub) _entry._openFlyout()
+                onHoveredChanged: if (hovered && _entry.sub) _entry._openFlyout(false)
             }
             TapHandler {
                 enabled: _entry.on && !_entry.sub
@@ -366,6 +368,7 @@ PanelWindow {
                     && _entry.ownerFlyout !== null
                 readonly property bool _rootLaneOverlay: !_rightFits && !_leftFits
                     && _entry.ownerFlyout === null
+                readonly property bool _adaptiveExpansion: _needsDrillIn || _rootLaneOverlay
                 readonly property bool _flip: !_rightFits && _leftFits
                 readonly property real _panelH: Math.min(_subCol.implicitHeight + pad * 2, Math.max(48, win.height - 8))
                 readonly property real _targetY: Math.max(4 - _origin.y, Math.min(-pad, win.height - 4 - _origin.y - _panelH))
