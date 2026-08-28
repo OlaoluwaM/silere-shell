@@ -78,4 +78,12 @@ Singleton {
         if (wifiControllable && want.wifi && !Network.wifiEnabled) Network.toggleWifi()
         if (btControllable && want.bt && !Bluetooth.enabled) Bluetooth.toggle()
     }
+
+    // a chord press goes through the same latch-aware toggle the row and pill
+    // use, so restore still brings back only the radios airplane itself cut
+    IpcHandler {
+        target: "airplane"
+
+        function toggle(): void { if (root.airplaneAvailable) root.toggleAirplane() }
+    }
 }
