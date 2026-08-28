@@ -91,10 +91,11 @@ Row {
                 radius: 3
                 antialiasing: true
                 color: Theme.accent
-                OutlineBorder {
-                    radius: parent.radius
-                    outlineColor: Theme.surface
-                }
+                // plain border, not OutlineBorder: that Shape exists because Rectangle.border
+                // over-weights rounded corners, but a full circle has no straight edge to
+                // diverge from, and a curve-renderer Shape per badge is real cost at this size
+                border.width: 1
+                border.color: Theme.surface
             }
         }
     }
