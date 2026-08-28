@@ -76,6 +76,7 @@ Item {
         card.appNameText || card.summaryText, "N")
     readonly property bool hasBody:       bodyText.length > 0
     readonly property bool isCritical: notification.urgency === NotificationUrgency.Critical
+    property bool _bodyExpanded: false
 
     readonly property real _cardRadius: Theme.surfaceRadius
 
@@ -118,6 +119,14 @@ Item {
     function _actionText(action): string {
         return Notifications.plainText(action?.text, 256).trim()
     }
+
+    function _resetBodyExpansion(): void {
+        card._bodyExpanded = false
+    }
+
+    onNotificationChanged: card._resetBodyExpansion()
+    onNotifIdChanged:      card._resetBodyExpansion()
+    onBodyTextChanged:     card._resetBodyExpansion()
 
     NumberAnimation {
         id: _collapseAnim
@@ -366,14 +375,66 @@ Item {
             }
 
             ShellText {
+                id: _body
                 visible:          card.hasBody
                 width:            parent.width
                 text:             card.bodyText
                 color:            Theme.withAlpha(Theme.menuTextMuted, 0.82)
                 font.pixelSize:   Settings.fontLabel
                 wrapMode:         Text.WordWrap
-                maximumLineCount: _cardHover.hovered ? 12 : 3
+                maximumLineCount: card._bodyExpanded ? 12 : 3
                 elide:            Text.ElideRight
+            }
+
+            Item {
+                id: _bodyDisclosure
+                visible: card.hasBody && (card._bodyExpanded || _body.truncated)
+                width:   parent.width
+                height:  Math.max(16, _bodyDisclosureLabel.implicitHeight)
+
+                ShellText {
+                    id: _bodyDisclosureLabel
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: card._bodyExpanded ? qsTr("Less") : qsTr("More")
+                    color: _bodyDisclosureHover.hovered
+                        ? Theme.accent : Theme.withAlpha(Theme.accent, 0.78)
+                    font.pixelSize: Settings.fontLabel
+                    font.weight:    Font.Medium
+                    ColorFade on color {}
+                }
+
+                Item {
+                    id: _bodyDisclosureChevron
+                    width:  16
+                    height: 16
+                    anchors.left: _bodyDisclosureLabel.right
+                    anchors.leftMargin: 2
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    ShellText {
+                        anchors.centerIn: parent
+                        text: "󰅀"
+                        color: _bodyDisclosureHover.hovered
+                            ? Theme.accent : Theme.withAlpha(Theme.accent, 0.78)
+                        font.pixelSize: Settings.fontCaption
+                        rotation: card._bodyExpanded ? 180 : 0
+                        transformOrigin: Item.Center
+                        MotionBehavior on rotation {
+                            NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic }
+                        }
+                        ColorFade on color {}
+                    }
+                }
+
+                HoverHandler {
+                    id: _bodyDisclosureHover
+                    cursorShape: Qt.PointingHandCursor
+                }
+
+                TapHandler {
+                    gesturePolicy: TapHandler.ReleaseWithinBounds
+                    onTapped: card._bodyExpanded = !card._bodyExpanded
+                }
             }
 
             Item {
