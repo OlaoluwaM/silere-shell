@@ -394,6 +394,13 @@ if [ "$qs_usable" = 1 ]; then
     smoke_log=""
     cov_log=""
     cov_cfg=""
+    # one launcher for every runtime probe below: the timeout, entry point and log
+    # plumbing must not drift between the smoke, coverage and bad-settings runs
+    _run_shell_probe() { # logfile [ENV=val ...]
+      local _log="$1"; shift
+      timeout 5s env "$@" qs -p shell.qml --no-color >"$_log" 2>&1
+    }
+
     _smoke_cleanup() {
       if [ -n "$smoke_log" ]; then rm -f "$smoke_log"; fi
       if [ -n "$cov_log" ]; then rm -f "$cov_log"; fi
@@ -404,7 +411,7 @@ if [ "$qs_usable" = 1 ]; then
 
     code=0
     smoke_log="$(mktemp "${TMPDIR:-/tmp}/silere-qs-smoke.XXXXXX.log")"
-    timeout 5s qs -p shell.qml --no-color >"$smoke_log" 2>&1 || code=$?
+    _run_shell_probe "$smoke_log" || code=$?
     if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then
       if grep -qE 'Failed to create wl_display|could not connect to display|no Qt platform plugin could be initialized' "$smoke_log"; then
         warn "startup" "display inaccessible; runtime smoke test skipped"
@@ -437,8 +444,7 @@ if [ "$qs_usable" = 1 ]; then
         } > "$cov_cfg/silere-shell/settings.json"
         cov_log="$(mktemp "${TMPDIR:-/tmp}/silere-qs-cov.XXXXXX.log")"
         code=0
-        XDG_CONFIG_HOME="$cov_cfg" timeout 5s qs -p shell.qml --no-color \
-          >"$cov_log" 2>&1 || code=$?
+        _run_shell_probe "$cov_log" XDG_CONFIG_HOME="$cov_cfg" || code=$?
         if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then
           cat "$cov_log"
           fail "off-path load" "Quickshell exited with status $code with every option on"
@@ -473,8 +479,7 @@ if [ "$qs_usable" = 1 ]; then
         mkdir -p "$bad_cfg/silere-shell"
         printf '%s' "$_case" > "$bad_cfg/silere-shell/settings.json"
         code=0
-        XDG_CONFIG_HOME="$bad_cfg" timeout 5s qs -p shell.qml --no-color \
-          >"$bad_log" 2>&1 || code=$?
+        _run_shell_probe "$bad_log" XDG_CONFIG_HOME="$bad_cfg" || code=$?
         if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then
           bad_failures="$bad_failures  exited $code on: ${_case:-<empty>}"$'\n'
         elif grep -qE 'Failed to load configuration|Type [^ ]+ unavailable|Binding loop detected' "$bad_log"; then
