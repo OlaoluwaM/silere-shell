@@ -11,6 +11,11 @@ Singleton {
     property bool checking: false
     property string lastError: ""
     property var _tools: ({})
+    function _sameTools(a, b): bool {
+        for (const k in a) if (b[k] !== a[k]) return false
+        for (const k in b) if (a[k] !== b[k]) return false
+        return true
+    }
     // packageFamily left out on purpose: it fed the removed updater (see
     // docs/upstream-divergences.md), and nothing else reads it
     // ready stays true during a refresh so controls do not disappear. Consumers
@@ -105,11 +110,12 @@ Singleton {
         onExited: (code) => {
             if (code !== 0) {
                 // A refresh must not leave removed tools advertised forever.
+                const lost = !root._sameTools(root._tools, ({}))
                 root._tools = ({})
                 root.lastError = "Optional tool scan failed (exit " + code + ")"
                 root.ready = true
                 root.checking = false
-                root._scanRevision++
+                if (lost) root._scanRevision++
                 return
             }
             const found = {}
@@ -118,11 +124,14 @@ Singleton {
                 const name = lines[i].trim()
                 if (name.length > 0) found[name] = true
             }
+            // revision only moves on a real capability edge: consumers re-spawn probe
+            // processes on it, and most refreshes find the exact same tool set
+            const changed = !root._sameTools(root._tools, found)
             root._tools = found
             root.lastError = ""
             root.ready = true
             root.checking = false
-            root._scanRevision++
+            if (changed) root._scanRevision++
         }
     }
 }
