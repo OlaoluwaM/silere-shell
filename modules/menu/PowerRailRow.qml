@@ -4,6 +4,7 @@ import QtQuick
 import "../../config"
 import "../../services"
 import "../common"
+import "controls"
 
 Rectangle {
     id: root
@@ -14,13 +15,17 @@ Rectangle {
     property bool interactive: true
     property bool dangerous: false
     property bool confirm: false
-    property bool armed: false
+    readonly property bool armed: _confirm.armed
     property bool tintedGlyph: false
     property string confirmLabel: "Press again"
     property int confirmTimeout: 3000
     property color accentColor: Theme.accent
 
     signal triggered()
+
+    // single-target row -- any non-empty key means "this row is armed", so the
+    // key itself carries no meaning beyond that
+    ArmConfirm { id: _confirm; interval: root.confirmTimeout }
 
     readonly property bool _hot: root.enabled && root.interactive && (_hover.hovered)
     readonly property bool _showValue: root.value.length > 0 && !root.armed
@@ -77,39 +82,22 @@ Rectangle {
     }
 
     function disarm(): void {
-        root.armed = false
+        _confirm.disarm()
     }
 
     function activate(): void {
         if (!root.enabled || !root.interactive) return
-        if (!root.confirm || root.armed) {
-            // TapHandler fires once per tap, so a double-click would arm and confirm in one gesture
-            if (root.armed && Date.now() - root._confirmStartedMs < Metrics.confirmGuardMs) return
-            root.disarm()
-            root.triggered()
-        } else {
-            root.armed = true
-            _armTimer.restart()
-        }
+        if (!root.confirm) { root.triggered(); return }
+        if (_confirm.tryConfirm("armed")) root.triggered()
     }
 
     onEnabledChanged: if (!root.enabled) root.disarm()
     onInteractiveChanged: if (!root.interactive) root.disarm()
     onConfirmChanged: if (!root.confirm) root.disarm()
 
-    onArmedChanged: {
-        _confirmStartedMs = root.armed ? Date.now() : 0
-        _confirmProgress = root.armed ? 1.0 : 0.0
-    }
-
-    Timer {
-        id: _armTimer
-        interval: root.confirmTimeout
-        onTriggered: root.disarm()
-    }
+    onArmedChanged: root._confirmProgress = root.armed ? 1.0 : 0.0
 
     property real _confirmProgress: 0.0
-    property real _confirmStartedMs: 0
 
     // keep the confirmation countdown time-based so delayed frames never extend it
     Timer {
@@ -118,7 +106,7 @@ Rectangle {
         triggeredOnStart: true
         running: root.armed && !ShellSettings.reduceMotion
         onTriggered: {
-            const elapsed = Date.now() - root._confirmStartedMs
+            const elapsed = Date.now() - _confirm.armedAtMs
             root._confirmProgress = Math.max(0, 1 - elapsed / Math.max(1, root.confirmTimeout))
         }
     }

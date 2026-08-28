@@ -16,9 +16,7 @@ Item {
     width: parent ? parent.width : 0
     implicitHeight: _col.implicitHeight
 
-    property string _armedAddr: ""
-    property real _armedAtMs: 0
-    Timer { id: _disarmTimer; interval: 3000; onTriggered: root._armedAddr = "" }
+    ArmConfirm { id: _confirm }
 
     // only one device's details panel is open at a time, matched by address rather than
     // index/identity — Bluetooth.devices resorts (and rebuilds delegates) on any device's
@@ -40,14 +38,13 @@ Item {
     function _syncScanState(): void {
         Bluetooth.setScan(root.open && Bluetooth.available && Bluetooth.enabled && !Idle.isIdle)
         if (!Bluetooth.available || !Bluetooth.enabled) {
-            _disarmTimer.stop()
-            root._armedAddr = ""
+            _confirm.disarm()
         }
     }
 
     onOpenChanged: {
         _syncScanState()
-        if (!open) { _disarmTimer.stop(); root._armedAddr = ""; root._detailsAddr = ""; Bluetooth.abandonAttempt() }
+        if (!open) { _confirm.disarm(); root._detailsAddr = ""; Bluetooth.abandonAttempt() }
     }
     Component.onCompleted: _syncScanState()
     Component.onDestruction: {
@@ -132,7 +129,7 @@ Item {
                     id: _row
                     width: parent.width
 
-                    readonly property bool   _armed: root._armedAddr === _entry.modelData.address && _entry.modelData.connected
+                    readonly property bool   _armed: _confirm.key === _entry.modelData.address && _entry.modelData.connected
                     readonly property bool   _failed: Bluetooth.errorAddr === _entry.modelData.address
                     readonly property int _batt: Bluetooth.batteryPercent(_entry.modelData)
                     readonly property string _state:
@@ -161,17 +158,7 @@ Item {
                         if (_entry.modelData.pairing) {
                             Bluetooth.cancelPair(addr)
                         } else if (_entry.modelData.connected) {
-                            if (root._armedAddr === addr) {
-                                // TapHandler fires once per tap, so a double-click would arm and confirm in one gesture
-                                if (Date.now() - root._armedAtMs < Metrics.confirmGuardMs) return
-                                root._armedAddr = ""
-                                _disarmTimer.stop()
-                                Bluetooth.disconnectDevice(addr)
-                            } else {
-                                root._armedAddr = addr
-                                root._armedAtMs = Date.now()
-                                _disarmTimer.restart()
-                            }
+                            if (_confirm.tryConfirm(addr)) Bluetooth.disconnectDevice(addr)
                         } else if (_entry.modelData.paired) {
                             Bluetooth.connectDevice(addr)
                         } else {

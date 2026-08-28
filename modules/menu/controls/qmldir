@@ -1,3 +1,6 @@
+# interaction state machines
+ArmConfirm 1.0 ArmConfirm.qml
+
 # containers and layout
 CollapsibleSection 1.0 CollapsibleSection.qml
 EntryList          1.0 EntryList.qml

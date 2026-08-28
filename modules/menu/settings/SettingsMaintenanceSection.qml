@@ -10,27 +10,18 @@ Column {
     width: parent ? parent.width : 0
     spacing: 0
 
-    property bool _armed: false
-    property real _armedAtMs: 0
+    ArmConfirm { id: _confirm }
+    readonly property bool _armed: _confirm.armed
 
     // reopening Maintenance re-detects tools installed or removed while the shell is running. FontScan follows the completed tool refresh itself
     Component.onCompleted: SystemTools.refresh()
 
-    function _disarm(): void {
-        root._armed = false
-        _armTimer.stop()
-    }
-
-    Timer {
-        id: _armTimer
-        interval: 3000
-        onTriggered: root._armed = false
-    }
-
     Connections {
         target: MenuState
-        function onSettingsSectionChanged() { root._disarm() }
-        function onOpenChanged() { if (!MenuState.open) root._disarm() }
+        // null-guarded: these can fire while the section is tearing down, after the
+        // helper child is already gone
+        function onSettingsSectionChanged() { if (_confirm) _confirm.disarm() }
+        function onOpenChanged() { if (!MenuState.open && _confirm) _confirm.disarm() }
     }
 
     SectionLabel { label: "DEFAULTS"; first: true }
@@ -46,18 +37,7 @@ Column {
             accentColor: root._armed ? Theme.error : Theme.accent
             active: root._armed
             available: ShellSettings.modifiedCount > 0
-            onActivated: {
-                if (root._armed) {
-                    // TapHandler fires once per tap, so a double-click would arm and confirm in one gesture
-                    if (Date.now() - root._armedAtMs < Metrics.confirmGuardMs) return
-                    root._disarm()
-                    ShellSettings.resetToDefaults()
-                } else {
-                    root._armed = true
-                    root._armedAtMs = Date.now()
-                    _armTimer.restart()
-                }
-            }
+            onActivated: if (_confirm.tryConfirm("reset")) ShellSettings.resetToDefaults()
         }
         HintText {
             text: "Backs up current settings before resetting. Wallpaper colors and calendar marks stay."

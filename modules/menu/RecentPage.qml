@@ -16,9 +16,10 @@ PageShell {
     onPageShown: _timeTick++
 
     property bool _clearing: false
-    property bool _clearArmed: false
-    property real _clearArmedAtMs: 0
     property int _timeTick: 0
+
+    ArmConfirm { id: _clearConfirm }
+    readonly property bool _clearArmed: _clearConfirm.armed
 
     Timer {
         interval: 60000
@@ -27,11 +28,7 @@ PageShell {
         onTriggered: root._timeTick++
     }
 
-    Timer { id: _clearArmTimer; interval: 3000; onTriggered: root._clearArmed = false }
-    onPageHidden: {
-        _clearArmTimer.stop()
-        root._clearArmed = false
-    }
+    onPageHidden: _clearConfirm.disarm()
 
     function formatTime(ms): string {
         const value = Number(ms || Date.now())
@@ -72,12 +69,7 @@ PageShell {
 
     function requestClearAll(): void {
         if (_clearing || Notifications.historyCount === 0) return
-        if (_clearArmed) {
-            // TapHandler fires once per tap, so a double-click would arm and confirm in one gesture
-            if (Date.now() - root._clearArmedAtMs < Metrics.confirmGuardMs) return
-            _clearArmed = false; _clearArmTimer.stop(); clearAll()
-        }
-        else { _clearArmed = true; root._clearArmedAtMs = Date.now(); _clearArmTimer.restart() }
+        if (_clearConfirm.tryConfirm("clear")) clearAll()
     }
 
     function clearAll(): void {
@@ -163,7 +155,8 @@ PageShell {
                 height: Metrics.rowHeightFor(30)
                 radius: Theme.radiusControl
                 antialiasing: true
-                onVisibleChanged:     if (!visible) root._clearArmed = false
+                // null-guarded: visibility flips once more during page teardown, after the helper is gone
+                onVisibleChanged:     if (!visible && _clearConfirm) _clearConfirm.disarm()
 
                 color: root._clearArmed
                     ? Theme.withAlpha(Theme.error, _clearTap.pressed ? 0.28 : 0.16)

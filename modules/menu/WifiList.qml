@@ -20,9 +20,7 @@ Item {
     // suffices instead of a per-row set
     property bool _detailsOpen: false
 
-    property string _armedSsid: ""
-    property real _armedAtMs: 0
-    Timer { id: _disarmTimer; interval: 3000; onTriggered: root._armedSsid = "" }
+    ArmConfirm { id: _confirm }
 
     // a structural wifiNetworks rebuild while a password row is being typed into,
     // or while the details disclosure is open, would destroy and recreate that
@@ -31,31 +29,39 @@ Item {
     // same risk for a row armed to confirm disconnect — a scan resort must not
     // move it between the two taps
     function _syncWifiListFreeze(): void {
-        Network.setWifiListFrozen(root._selected !== "" || root._detailsOpen || root._armedSsid !== "")
+        Network.setWifiListFrozen(root._selected !== "" || root._detailsOpen || _confirm.armed)
     }
     on_SelectedChanged: root._syncWifiListFreeze()
     on_DetailsOpenChanged: root._syncWifiListFreeze()
-    on_ArmedSsidChanged: root._syncWifiListFreeze()
+    Connections {
+        target: _confirm
+        function onKeyChanged() { root._syncWifiListFreeze() }
+    }
 
     function _canScan(): bool {
         return root.open && Network.toolAvailable && Network.wifiEnabled && !Idle.isIdle
+    }
+
+    // shared by both places that drop out of the interaction mid-flow: a scan
+    // going stale (_syncScanState) and the list closing (onOpenChanged)
+    function _resetInteraction(): void {
+        root._selected = ""
+        root._detailsOpen = false
+        _confirm.disarm()
+        Network.clearWifiScan()
     }
 
     function _syncScanState(): void {
         if (_canScan()) {
             Network.scanWifi(true)
         } else if (root.open) {
-            _selected = ""
-            _detailsOpen = false
-            _armedSsid = ""
-            _disarmTimer.stop()
-            Network.clearWifiScan()
+            root._resetInteraction()
         }
     }
 
     onOpenChanged: {
         if (open) _syncScanState()
-        else      { _selected = ""; _detailsOpen = false; _armedSsid = ""; _disarmTimer.stop(); Network.clearWifiScan() }
+        else      root._resetInteraction()
     }
     Component.onCompleted: _syncScanState()
     Component.onDestruction: {
@@ -87,7 +93,7 @@ Item {
         // through wifiConnecting so that reset above can't be relied on to catch it —
         // same reasoning clears a stale "Disconnect?" arm left by a disconnect from
         // elsewhere (e.g. the system tray, or the network dropping on its own)
-        function onConnectionNameChanged() { root._detailsOpen = false; root._armedSsid = ""; _disarmTimer.stop() }
+        function onConnectionNameChanged() { root._detailsOpen = false; _confirm.disarm() }
     }
     Connections {
         target: Idle
@@ -144,7 +150,7 @@ Item {
                 readonly property bool _sel:        root._selected === modelData.ssid
                 readonly property bool _connecting: Network.wifiConnecting === modelData.ssid
                 readonly property bool _failed:     Network.wifiError === modelData.ssid
-                readonly property bool _armed:      root._armedSsid === modelData.ssid && modelData.active
+                readonly property bool _armed:      _confirm.key === modelData.ssid && modelData.active
                 // collapses on its own once this network stops being the active one
                 readonly property bool _detailsOpen: root._detailsOpen && modelData.active
 
@@ -183,17 +189,7 @@ Item {
 
                     function _activate(): void {
                         if (_entry.modelData.active) {
-                            if (root._armedSsid === _entry.modelData.ssid) {
-                                // TapHandler fires once per tap, so a double-click would arm and confirm in one gesture
-                                if (Date.now() - root._armedAtMs < Metrics.confirmGuardMs) return
-                                root._armedSsid = ""
-                                _disarmTimer.stop()
-                                Network.disconnectWifi()
-                            } else {
-                                root._armedSsid = _entry.modelData.ssid
-                                root._armedAtMs = Date.now()
-                                _disarmTimer.restart()
-                            }
+                            if (_confirm.tryConfirm(_entry.modelData.ssid)) Network.disconnectWifi()
                             return
                         }
                         // a known network reconnects from its stored key; once that key is
