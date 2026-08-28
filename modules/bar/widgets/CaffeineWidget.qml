@@ -18,6 +18,13 @@ StatusActionPill {
     show: ShellSettings.barShowCaffeine && Caffeine.available
         && (Caffeine.inhibited || Caffeine.manualActive)
 
+    // the pill's own text is empty until hover-expanded, which a screen reader never
+    // does; mirrors the hover label's ladder below
+    accessibleName: Caffeine.manualActive
+        ? (Caffeine.remainingMinutes >= 0
+            ? "Caffeine, " + Durations.label(Caffeine.remainingMinutes) + " left"
+            : "Caffeine on")
+        : Caffeine.inhibitorLabel
     glyph: "󰅶"
     // single-state widget, so the reference is the glyph itself
     glyphAlignReference: "󰅶"

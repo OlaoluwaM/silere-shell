@@ -12,6 +12,10 @@ StatusActionPill {
 
     show: Notifications.dnd
 
+    // the pill's own text is empty until hover-expanded, which a screen reader never does
+    accessibleName: Notifications.dndRemainingMinutes >= 0
+        ? "Do Not Disturb, " + Durations.label(Notifications.dndRemainingMinutes) + " left"
+        : "Do Not Disturb on"
     glyph: "󰂛"
     // single-state widget, so the reference is the glyph itself
     glyphAlignReference: "󰂛"

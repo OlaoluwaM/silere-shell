@@ -32,6 +32,8 @@ Pill {
     MotionBehavior on _baseOpacity { NumberAnimation { duration: Motion.medium; easing.type: Easing.OutCubic } }
     MotionBehavior on scale        { NumberAnimation { duration: Motion.normal; easing.type: Easing.OutQuart } }
 
+    // the pill's own text is empty until hover-expanded, which a screen reader never does
+    accessibleName: Audio.sourceMuted ? "Microphone muted" : "Microphone in use"
     glyph: Audio.sourceMuted ? "󰍭" : "󰍬"
     // Fixed per the glyphAlignReference doctrine: the reference is a stamp anchor,
     // not a mirror of current state, so it stays on the unmuted glyph the two share.

@@ -12,6 +12,8 @@ StatusActionPill {
 
     show: QuickActionsState.airplaneAvailable && !QuickActionsState.radiosOn
 
+    // the pill's own text is empty until hover-expanded, which a screen reader never does
+    accessibleName: "Airplane mode on"
     glyph: "󰀝"
     // single-state widget, so the reference is the glyph itself
     glyphAlignReference: "󰀝"

@@ -37,6 +37,8 @@ StatusActionPill {
         onTriggered: root._stopping = false
     }
 
+    // the bare timer text says nothing about what is being timed
+    accessibleName: "Recording, " + root._elapsedLabel
     glyph: "󰑊"
     glyphAlignReference: "󰑊"
     // Theme.error, not a private red: it's the same tier the vitals' critical chips and
