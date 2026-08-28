@@ -142,6 +142,7 @@ Item {
     Component { id: _cBrightness;  BrightnessWidget { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact } }
     Component { id: _cCaffeine;    CaffeineWidget   { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact } }
     Component { id: _cDnd;         DndWidget        { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact } }
+    Component { id: _cAirplane;    AirplaneWidget   { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact } }
     Component { id: _cBattery;     BatteryWidget    { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact } }
     Component { id: _cVitals;      VitalsWidget     { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact } }
     Component { id: _cPrivacy;     PrivacyWidget    { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact } }
@@ -151,7 +152,7 @@ Item {
 
     readonly property var _widgetComponents: ({
         workspaces: _cWorkspaces, tray: _cTray, traypopup: _cTrayPopup,
-        network: _cNetwork, bluetooth: _cBluetooth, volume: _cVolume, brightness: _cBrightness, caffeine: _cCaffeine, dnd: _cDnd, battery: _cBattery,
+        network: _cNetwork, bluetooth: _cBluetooth, volume: _cVolume, brightness: _cBrightness, caffeine: _cCaffeine, dnd: _cDnd, airplane: _cAirplane, battery: _cBattery,
         vitals: _cVitals, privacy: _cPrivacy, recording: _cRecording, media: _cMedia, clock: _cClock
     })
 

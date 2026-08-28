@@ -299,6 +299,17 @@ PageShell {
                     }
                 }
             }
+
+            ControlRow {
+                id: _airplaneRow
+                visible: QuickActionsState.airplaneAvailable
+                active: !QuickActionsState.radiosOn
+                glyph: "󰀝"
+                title: "Airplane Mode"
+                status: !QuickActionsState.radiosOn ? "On" : "Off"
+                showSwitch: true
+                onActivated: QuickActionsState.toggleAirplane()
+            }
         }
 
         SectionLabel { label: "Controls" }

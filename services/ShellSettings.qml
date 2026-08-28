@@ -152,7 +152,7 @@ Singleton {
     property string barDisabledMonitors: ""
     property string overlayMonitor:      ""
 
-    readonly property var barWidgetKeys: ["workspaces", "tray", "traypopup", "network", "bluetooth", "caffeine", "dnd", "volume", "brightness", "battery", "vitals", "recording", "privacy", "media", "clock"]
+    readonly property var barWidgetKeys: ["workspaces", "tray", "traypopup", "network", "bluetooth", "caffeine", "dnd", "airplane", "volume", "brightness", "battery", "vitals", "recording", "privacy", "media", "clock"]
 
     // packaging-only, like recordingStateFile/keybindsFile above: no settings page
     // writes this, the Nix side is the only thing that ever flips it to true
@@ -273,6 +273,9 @@ Singleton {
         // as recording below. Group "network" extends caffeine's visual statement:
         // both pills are self-set session modes, so they cluster as one "modes" run.
         dnd:         { glyph: "󰂛", label: "Do Not Disturb",  group: "network", setting: "" },
+        // no setting: it exists only while airplane mode holds the radios down, same
+        // rationale as dnd above; group "network" seats it beside the radios it cuts
+        airplane:    { glyph: "󰀝", label: "Airplane Mode",   group: "network", setting: "" },
         volume:      { glyph: "󰕾", label: "Volume",          group: "levels", setting: "barShowVolume" },
         brightness:  { glyph: "󰃟", label: "Brightness",      group: "levels", setting: "barShowBrightness" },
         battery:     { glyph: "󰂄", label: "Battery",         group: "power",  setting: "barShowBattery" },

@@ -5,6 +5,7 @@ Volume        1.0 Volume.qml
 BatteryWidget     1.0 BatteryWidget.qml
 CaffeineWidget    1.0 CaffeineWidget.qml
 DndWidget         1.0 DndWidget.qml
+AirplaneWidget    1.0 AirplaneWidget.qml
 BrightnessWidget  1.0 BrightnessWidget.qml
 NetworkWidget 1.0 NetworkWidget.qml
 BluetoothWidget 1.0 BluetoothWidget.qml
