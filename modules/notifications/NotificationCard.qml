@@ -124,9 +124,10 @@ Item {
         card._bodyExpanded = false
     }
 
+    // not on bodyText: an in-place update (progress, chat) would collapse the body
+    // under the reader on every tick; only a different notification resets it
     onNotificationChanged: card._resetBodyExpansion()
     onNotifIdChanged:      card._resetBodyExpansion()
-    onBodyTextChanged:     card._resetBodyExpansion()
 
     NumberAnimation {
         id: _collapseAnim
@@ -180,9 +181,11 @@ Item {
     readonly property real _enterX:  slideDir * 44
     readonly property real _hiddenX: slideDir * (implicitWidth + 16)
 
-    // reading one card holds the whole stack: cards expiring out from under the pointer reflow what is being read
+    // reading one card holds the whole stack: cards expiring out from under the pointer reflow what is being read.
+    // an expanded body is the same explicit read-me, even after the pointer wanders off the card
     property bool stackHovered: false
     readonly property bool _paused: _cardHover.hovered || card.stackHovered
+        || card._bodyExpanded
 
     property real _hoverPausedMs: 0
     property real _hoverStartMs:  0
@@ -392,48 +395,56 @@ Item {
                 width:   parent.width
                 height:  Math.max(16, _bodyDisclosureLabel.implicitHeight)
 
-                ShellText {
-                    id: _bodyDisclosureLabel
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: card._bodyExpanded ? qsTr("Less") : qsTr("More")
-                    color: _bodyDisclosureHover.hovered
-                        ? Theme.accent : Theme.withAlpha(Theme.accent, 0.78)
-                    font.pixelSize: Settings.fontLabel
-                    font.weight:    Font.Medium
-                    ColorFade on color {}
-                }
-
+                // the hit target hugs the label: a full-width strip took the clicks aimed
+                // at the notification itself, in the empty run right of the chevron
                 Item {
-                    id: _bodyDisclosureChevron
-                    width:  16
-                    height: 16
-                    anchors.left: _bodyDisclosureLabel.right
-                    anchors.leftMargin: 2
-                    anchors.verticalCenter: parent.verticalCenter
+                    id: _bodyDisclosureTap
+                    width:  _bodyDisclosureLabel.implicitWidth + 2 + _bodyDisclosureChevron.width
+                    height: parent.height
 
                     ShellText {
-                        anchors.centerIn: parent
-                        text: "󰅀"
+                        id: _bodyDisclosureLabel
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: card._bodyExpanded ? qsTr("Less") : qsTr("More")
                         color: _bodyDisclosureHover.hovered
                             ? Theme.accent : Theme.withAlpha(Theme.accent, 0.78)
-                        font.pixelSize: Settings.fontCaption
-                        rotation: card._bodyExpanded ? 180 : 0
-                        transformOrigin: Item.Center
-                        MotionBehavior on rotation {
-                            NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic }
-                        }
+                        font.pixelSize: Settings.fontLabel
+                        font.weight:    Font.Medium
                         ColorFade on color {}
                     }
-                }
 
-                HoverHandler {
-                    id: _bodyDisclosureHover
-                    cursorShape: Qt.PointingHandCursor
-                }
+                    Item {
+                        id: _bodyDisclosureChevron
+                        width:  16
+                        height: 16
+                        anchors.left: _bodyDisclosureLabel.right
+                        anchors.leftMargin: 2
+                        anchors.verticalCenter: parent.verticalCenter
 
-                TapHandler {
-                    gesturePolicy: TapHandler.ReleaseWithinBounds
-                    onTapped: card._bodyExpanded = !card._bodyExpanded
+                        ShellText {
+                            anchors.centerIn: parent
+                            text: "󰅀"
+                            color: _bodyDisclosureHover.hovered
+                                ? Theme.accent : Theme.withAlpha(Theme.accent, 0.78)
+                            font.pixelSize: Settings.fontCaption
+                            rotation: card._bodyExpanded ? 180 : 0
+                            transformOrigin: Item.Center
+                            MotionBehavior on rotation {
+                                NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic }
+                            }
+                            ColorFade on color {}
+                        }
+                    }
+
+                    HoverHandler {
+                        id: _bodyDisclosureHover
+                        cursorShape: Qt.PointingHandCursor
+                    }
+
+                    TapHandler {
+                        gesturePolicy: TapHandler.ReleaseWithinBounds
+                        onTapped: card._bodyExpanded = !card._bodyExpanded
+                    }
                 }
             }
 
