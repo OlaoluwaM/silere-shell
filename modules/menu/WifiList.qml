@@ -19,15 +19,23 @@ Item {
     // only the connected entry ever renders the details disclosure, so one flag
     // suffices instead of a per-row set
     property bool _detailsOpen: false
+
+    property string _armedSsid: ""
+    property real _armedAtMs: 0
+    Timer { id: _disarmTimer; interval: 3000; onTriggered: root._armedSsid = "" }
+
     // a structural wifiNetworks rebuild while a password row is being typed into,
     // or while the details disclosure is open, would destroy and recreate that
     // row's delegate out from under the user — losing the password field's text/
-    // focus, or replaying WifiDetails' opening reveal from a cold Disclosure gate
+    // focus, or replaying WifiDetails' opening reveal from a cold Disclosure gate;
+    // same risk for a row armed to confirm disconnect — a scan resort must not
+    // move it between the two taps
     function _syncWifiListFreeze(): void {
-        Network.setWifiListFrozen(root._selected !== "" || root._detailsOpen)
+        Network.setWifiListFrozen(root._selected !== "" || root._detailsOpen || root._armedSsid !== "")
     }
     on_SelectedChanged: root._syncWifiListFreeze()
     on_DetailsOpenChanged: root._syncWifiListFreeze()
+    on_ArmedSsidChanged: root._syncWifiListFreeze()
 
     function _canScan(): bool {
         return root.open && Network.toolAvailable && Network.wifiEnabled && !Idle.isIdle
@@ -39,13 +47,15 @@ Item {
         } else if (root.open) {
             _selected = ""
             _detailsOpen = false
+            _armedSsid = ""
+            _disarmTimer.stop()
             Network.clearWifiScan()
         }
     }
 
     onOpenChanged: {
         if (open) _syncScanState()
-        else      { _selected = ""; _detailsOpen = false; Network.clearWifiScan() }
+        else      { _selected = ""; _detailsOpen = false; _armedSsid = ""; _disarmTimer.stop(); Network.clearWifiScan() }
     }
     Component.onCompleted: _syncScanState()
     Component.onDestruction: {
@@ -74,8 +84,10 @@ Item {
         // a disconnect (name goes empty) or a switch to a different network both change
         // this; either way any details panel left open belongs to a network that is no
         // longer the connected one, and the row's own tap (disconnect) never routes
-        // through wifiConnecting so that reset above can't be relied on to catch it
-        function onConnectionNameChanged() { root._detailsOpen = false }
+        // through wifiConnecting so that reset above can't be relied on to catch it —
+        // same reasoning clears a stale "Disconnect?" arm left by a disconnect from
+        // elsewhere (e.g. the system tray, or the network dropping on its own)
+        function onConnectionNameChanged() { root._detailsOpen = false; root._armedSsid = ""; _disarmTimer.stop() }
     }
     Connections {
         target: Idle
@@ -114,8 +126,9 @@ Item {
             // to 0 and every delegate rebuilt. Keyed on ssid (unique -- _wifiList
             // dedupes into bySsid), a republish becomes row-level ops: same-ssid rows
             // update in place via dataChanged, so scroll position and live delegates
-            // survive. The freeze while a password row or the details drawer is open
-            // stays: the row's own removal or a resort mid-typing is still disruptive.
+            // survive. The freeze while a password row is open, the details drawer is
+            // open, or a row is armed to confirm disconnect stays: the row's own
+            // removal or a resort mid-gesture is still disruptive.
             model: ScriptModel {
                 values: root.open ? Network.wifiNetworks : []
                 objectProp: "ssid"
@@ -131,6 +144,7 @@ Item {
                 readonly property bool _sel:        root._selected === modelData.ssid
                 readonly property bool _connecting: Network.wifiConnecting === modelData.ssid
                 readonly property bool _failed:     Network.wifiError === modelData.ssid
+                readonly property bool _armed:      root._armedSsid === modelData.ssid && modelData.active
                 // collapses on its own once this network stops being the active one
                 readonly property bool _detailsOpen: root._detailsOpen && modelData.active
 
@@ -147,7 +161,8 @@ Item {
                     width: parent.width
                     glyph: Network.signalGlyph(_entry.modelData.signal)
                     label: _entry.modelData.label
-                    status: _entry.modelData.active ? "Connected"
+                    status: _entry._armed ? "Disconnect?"
+                        : _entry.modelData.active ? "Connected"
                         : _entry._connecting ? "Connecting…"
                         : _entry._failed ? (Network.wifiErrorNeedsSecret ? "Wrong password" : "Failed")
                         : _entry._sel ? "Password"
@@ -155,14 +170,30 @@ Item {
                         : "Open"
                     selected: _entry.modelData.active
                     highlighted: _entry._sel
-                    failed: _entry._failed
+                    warning: _entry._armed
+                    // armed outranks a lingering failure — a stale wrong-password error
+                    // must not steal the confirm prompt's tint from under the second tap
+                    failed: !_entry._armed && _entry._failed
                     // the body tap already means disconnect for the connected entry, so
                     // its details live behind the chevron's separate hit zone instead
                     expandable: _entry.modelData.active
                     expanded: _entry._detailsOpen
 
                     function _activate(): void {
-                        if (_entry.modelData.active) { Network.disconnectWifi(); return }
+                        if (_entry.modelData.active) {
+                            if (root._armedSsid === _entry.modelData.ssid) {
+                                // TapHandler fires once per tap, so a double-click would arm and confirm in one gesture
+                                if (Date.now() - root._armedAtMs < Metrics.confirmGuardMs) return
+                                root._armedSsid = ""
+                                _disarmTimer.stop()
+                                Network.disconnectWifi()
+                            } else {
+                                root._armedSsid = _entry.modelData.ssid
+                                root._armedAtMs = Date.now()
+                                _disarmTimer.restart()
+                            }
+                            return
+                        }
                         // a known network reconnects from its stored key; once that key is
                         // refused, repeating it can only fail again, so take a new one
                         const needsSecret = !_entry.modelData.known
