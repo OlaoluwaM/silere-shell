@@ -58,6 +58,7 @@ StatusActionPill {
     scale:          1.0
     // the icon cell is a fixed width: one glyph fits, two overflow it
     glyph:          Network.icon
+    accessibleName: root.text.length > 0 ? "Network, " + root.text : "Network"
     // full-strength wifi: the widest ink in this widget's glyph family
     glyphAlignReference: "󰤨"
     maxTextWidth:   compact ? 150 : 260

@@ -225,6 +225,7 @@ PageShell {
             HintText {
                 visible: root._brightnessAvailable && Brightness.lastError.length > 0
                 text: Brightness.lastError
+                textColor: Theme.withAlpha(Theme.error, 0.90)
             }
         }
         SectionLabel {
@@ -252,6 +253,10 @@ PageShell {
                       : _ethActive ? "Ethernet active"
                       : Network.wifiEnabled ? "Not connected"
                       : "Off"
+                statusColor: Network.wifiError.length > 0 ? Theme.error
+                    : Network.wifiHardBlocked ? Theme.warning
+                    : Network.wifiConnecting.length > 0 ? Theme.accent
+                    : "transparent"
                 showSwitch: true
                 available: !Network.wifiHardBlocked
                 expandable: Network.wifiEnabled
@@ -323,6 +328,7 @@ PageShell {
                 status: NightLight.lastError.length > 0 ? NightLight.lastError
                       : NightLight.enabled ? NightLight.temperature + "K" : NightLight.recommendLabel
                 accentColor: NightLight.lastError.length > 0 ? Theme.error : Theme.warning
+                statusColor: NightLight.lastError.length > 0 ? Theme.error : "transparent"
                 showSwitch: true
                 expandable: NightLight.enabled
                 expanded: root._picker === "nightlight"
@@ -447,8 +453,12 @@ PageShell {
                 valueText: PowerProfiles.profile !== "" ? PowerProfiles.label
                          : PowerProfiles.syncing ? "Checking…"
                          : "Unavailable"
-                status: PowerProfiles.lastError
-                accentColor: PowerProfiles.lastError.length > 0 ? Theme.error : Theme.accent
+                status: PowerProfiles.lastError.length > 0 ? PowerProfiles.lastError
+                      : PowerProfiles.degraded ? "Throttled" : ""
+                accentColor: PowerProfiles.lastError.length > 0 || PowerProfiles.degraded
+                    ? Theme.error : Theme.accent
+                statusColor: PowerProfiles.lastError.length > 0 ? Theme.error
+                    : PowerProfiles.degraded ? Theme.warning : "transparent"
                 onActivated: PowerProfiles.cycle()
             }
 

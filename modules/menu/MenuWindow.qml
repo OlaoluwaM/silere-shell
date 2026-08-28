@@ -91,16 +91,18 @@ PanelWindow {
         // that compounds toward opaque and kills the frost, so leave the card itself unpainted
         color: Theme._glass ? "transparent" : Theme.popup
 
-        readonly property int _compactW: 398
-        readonly property int _powerW: 566
-        readonly property int _settingsW: 630
+        // every panel width stays on the 4px grid, or the outline's right edge lands on a
+        // half output px at fractional scale and rasterizes wider than its left
+        readonly property int _compactW: 400
+        readonly property int _powerW: 568
+        readonly property int _settingsW: 632
         readonly property bool _settingsNavVisible:
             activeTab === 1 && !powerOpen
         readonly property bool _railExpanded: _settingsNavVisible || powerOpen
         readonly property int _targetPanelW: activeTab === 1 ? _settingsW
             : powerOpen ? _powerW : _compactW
         readonly property int _availablePanelW: win.width > 0
-            ? Math.max(1, Math.floor(win.width - _minX * 2))
+            ? Math.max(4, Metrics.snap4Down(win.width - _minX * 2))
             : _settingsW
         readonly property int panelW: Math.max(1,
             Math.min(_targetPanelW, _availablePanelW))
@@ -111,7 +113,7 @@ PanelWindow {
         readonly property int _navMaxW: 160
         readonly property int navW: {
             const available = panelW - railCollapsedW
-            const desired = Math.max(_navMinW, Math.round(panelW * 0.28))
+            const desired = Math.max(_navMinW, Metrics.snap4(panelW * 0.28))
             const detailSafe = Math.max(_navMinW, available - 224)
             const sidebarFit = Math.max(0, available - 96)
             return Math.max(0, Math.min(_navMaxW, desired, detailSafe, sidebarFit))
@@ -123,18 +125,19 @@ PanelWindow {
             gate: panel._geometryReady && panel.open
             NumberAnimation {
                 duration: panel._railMotionMs
-                easing.type: panel._railMotionEasing
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: panel._railMotionCurve
             }
         }
         readonly property int _railMotionMs: _railExpanded
             ? Motion.panelResize : Motion.panelCollapse
-        readonly property int _railMotionEasing: _railExpanded
-            ? Easing.OutQuint : Easing.InOutCubic
+        readonly property var _railMotionCurve: _railExpanded
+            ? Motion.emphasizedDecel : Motion.emphasizedAccel
         // live width, not the target: the page reflows ahead of the outer edge otherwise
         readonly property int contentW: Math.max(1, Math.round(width - railW))
         readonly property int contentPad: activeTab === 1
             ? Math.max(12, Math.min(20,
-                Math.round(12 + (width - 398) * 8 / 232)))
+                Metrics.snap4(12 + (width - _compactW) * 8 / (_settingsW - _compactW))))
             : _railExpanded && width >= 460 ? 18 : 12
         // the left inset sits against the rail's hairline, which already reads as
         // separation; the right inset meets the panel outline directly, so it gets
@@ -154,16 +157,16 @@ PanelWindow {
                 Math.floor(win.height - _edgeY - _minX),
                 Math.floor(win.height * _maxPanelHFrac)))
             : contentPane.targetH
-        // the notifications list held a fixed idealMinH-sized viewport, which reads
-        // cramped over a long backlog on a tall output: let it take a fraction of the
-        // screen height instead, with the old fixed size kept as the floor so a
-        // short output never gets less room than before, and the panel's own height
-        // cap as the ceiling so the list never outgrows its container
-        readonly property real _recentHFrac: 0.48
-        readonly property int recentViewportH: Math.max(1, Math.min(
-            _availablePanelH - pageTopInset - pageBottomInset,
-            Math.max(idealMinH - pageTopInset - pageBottomInset,
-                Math.round(win.height * _recentHFrac))))
+        // grows with what the list actually holds: a flat 360 cap scrolled hard on a tall
+        // output, but sizing off the screen alone left an empty history as a tall blank box.
+        // 70 is NotificationCard's own minimum height, so this under-counts tall cards on purpose
+        readonly property int recentViewportH: {
+            const floorH = panel.idealMinH - panel.pageTopInset - panel.pageBottomInset
+            const availH = panel._availablePanelH - panel.pageTopInset - panel.pageBottomInset
+            const wantH = Metrics.rowHeightFor(38) + 18 + Notifications.historyCount * 70
+            return Math.max(1, Math.min(availH, Math.max(floorH,
+                Math.min(Metrics.snap4(panel._availablePanelH * 0.6), Metrics.snap4(wantH)))))
+        }
         readonly property int targetPanelH: Math.max(1,
             Math.min(contentPane.targetH, _availablePanelH))
 
@@ -230,6 +233,16 @@ PanelWindow {
 
         on_LoadedDeferredChanged: _syncPageRetention()
 
+        // settings costs ~60ms to build and it lands on the tap that starts the widen
+        function warmSettings(): void {
+            if (!MenuState.open || panel.activeTab === 1
+                    || panel._settingsRetained) return
+            panel._loadedDeferred = true
+            panel._settingsRetained = true
+            panel._settingsNavRetained = true
+            _settingsUnload.restart()
+        }
+
         function _settlePageVisuals(): void {
             if (homeLoader.item) homeLoader.item.settleVisual(activeTab === 0)
             if (settingsLoader.item) settingsLoader.item.settleVisual(activeTab === 1)
@@ -275,8 +288,7 @@ PanelWindow {
             function onOpenChanged() {
                 if (MenuState.open) {
                     _closedUnload.stop()
-                    // closeFinished is canceled when a close animation reverses;
-                    // transient drawer state must not depend on that callback.
+                    // closeFinished is canceled when a close animation reverses; transient drawer state must not depend on that callback
                     panel.powerOpen = false
                     panel._outerHeightMotion = false
                     _outerHeightMotionHold.stop()
@@ -295,8 +307,7 @@ PanelWindow {
 
         Timer {
             id: _settingsUnload
-            // Keep Settings warm briefly for quick comparisons, then release
-            // both the page and its category delegates together.
+            // keep Settings warm briefly for quick comparisons, then release both the page and its category delegates together
             interval: 8000
             onTriggered: {
                 if (panel.activeTab === 1) return
@@ -346,15 +357,13 @@ PanelWindow {
             gate: panel._geometryReady && panel.open
             NumberAnimation {
                 duration: panel._railMotionMs
-                easing.type: panel._railMotionEasing
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: panel._railMotionCurve
             }
         }
         // duration caps the velocity: without it a tall page swap crawls for ~700ms while the
         // width beside it lands in _railMotionMs, and every scroll-affordance settle times out early
         MotionBehavior on height {
-            // inner disclosures animate their own height, so the card follows those
-            // values directly; this outer easing is only for the jumps — page swaps,
-            // section swaps, and the nav accordion's stepped floor
             gate: panel._geometryReady && panel.open && panel._outerHeightMotion
             SmoothedAnimation {
                 velocity: Motion.panelVelocity
@@ -400,8 +409,7 @@ PanelWindow {
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
                     vertical: true
-                    // The expanded drawer is declared later, so keep the rail
-                    // edge above its surface instead of letting it paint over it.
+                    // the expanded drawer is declared later, so keep the rail edge above its surface instead of letting it paint over it
                     z: 20
                     color: Theme.menuDivider
                     ColorFade on color {}
@@ -436,14 +444,16 @@ PanelWindow {
                         NumberAnimation {
                             duration: panel._settingsNavVisible
                                 ? Motion.ms(130) : Motion.ms(90)
-                            easing.type: panel._settingsNavVisible
-                                ? Easing.OutCubic : Easing.InCubic
+                            easing.type: Easing.BezierSpline
+                            easing.bezierCurve: panel._settingsNavVisible
+                                ? Motion.standardDecel : Motion.standardAccel
                         }
                     }
                     MotionBehavior on _slide {
                         NumberAnimation {
                             duration: panel._railMotionMs
-                            easing.type: panel._railMotionEasing
+                            easing.type: Easing.BezierSpline
+                            easing.bezierCurve: panel._railMotionCurve
                         }
                     }
 
@@ -479,13 +489,17 @@ PanelWindow {
                     MotionBehavior on height {
                         NumberAnimation {
                             duration: panel.powerOpen ? Motion.panelResize : Motion.panelCollapse
-                            easing.type: panel.powerOpen ? Easing.OutQuart : Easing.InCubic
+                            easing.type: Easing.BezierSpline
+                            easing.bezierCurve: panel.powerOpen
+                                ? Motion.emphasizedDecel : Motion.emphasizedAccel
                         }
                     }
                     MotionBehavior on opacity {
                         NumberAnimation {
                             duration: Motion.fast
-                            easing.type: panel.powerOpen ? Easing.OutCubic : Easing.InCubic
+                            easing.type: Easing.BezierSpline
+                            easing.bezierCurve: panel.powerOpen
+                                ? Motion.standardDecel : Motion.standardAccel
                         }
                     }
 
@@ -547,14 +561,17 @@ PanelWindow {
                         width: Math.max(height, _railBadgeCount.implicitWidth + 7)
                         height: 14; radius: height / 2
                         color: Theme.accent; antialiasing: true
-                        border.width: 2
-                        border.color: Theme.menuPane
                         opacity: _show ? 1.0 : 0.0
                         scale:   _show ? 1.0 : 0.5
                         visible: opacity > 0.01
                         transformOrigin: Item.Center
                         MotionBehavior on opacity {NumberAnimation { duration: Motion.fast } }
                         MotionBehavior on scale   {NumberAnimation { duration: Motion.ms(120); easing.type: Easing.OutCubic } }
+                        OutlineBorder {
+                            radius: parent.radius
+                            outlineWidth: 2
+                            outlineColor: Theme.menuPane
+                        }
                         ShellText {
                             id: _railBadgeCount
                             anchors.fill: parent
@@ -578,6 +595,7 @@ PanelWindow {
                         || panel.navW < panel._navMinW
                     active: panel.activeTab === 1
                     onTapped: panel.switchTab(1)
+                    onHoveredChanged: if (hovered) panel.warmSettings()
                 }
 
                 RailNavItem {
@@ -715,6 +733,21 @@ PanelWindow {
                       : panel.activeTab === 2 ? recentLoader.status === Loader.Error
                       : panel.activeTab === 3 ? systemLoader.status === Loader.Error
                       : false
+                    // a build shorter than this reads as a flicker, not as feedback
+                    property bool _pageSlow: false
+                    on_PagePendingChanged: {
+                        if (tabContent._pagePending) {
+                            _pageSlowDefer.restart()
+                        } else {
+                            _pageSlowDefer.stop()
+                            tabContent._pageSlow = false
+                        }
+                    }
+                    Timer {
+                        id: _pageSlowDefer
+                        interval: 220
+                        onTriggered: tabContent._pageSlow = tabContent._pagePending
+                    }
                     height: panel.activeTab === 0 ? (homeLoader.item?.implicitHeight ?? 0)
                           : panel.activeTab === 1 ? (settingsLoader.item?.implicitHeight
                                 ?? _pagePlaceholder.implicitHeight)
@@ -729,13 +762,20 @@ PanelWindow {
                         height: implicitHeight
                         implicitHeight: Math.max(1, panel.idealMinH
                             - panel.pageTopInset - panel.pageBottomInset)
-                        opacity: tabContent._pagePending ? 1 : 0
+                        readonly property bool _shown:
+                            tabContent._pageSlow || tabContent._pageError
+                        opacity: _pagePlaceholder._shown ? 1 : 0
                         visible: opacity > 0.001
                         enabled: false
                         z: 5
 
                         MotionBehavior on opacity {
-                            NumberAnimation { duration: Motion.pageOut; easing.type: Easing.InCubic }
+                            NumberAnimation {
+                                duration: Motion.pageOut
+                                easing.type: Easing.BezierSpline
+                                easing.bezierCurve: _pagePlaceholder._shown
+                                    ? Motion.standardDecel : Motion.standardAccel
+                            }
                         }
 
                         Column {

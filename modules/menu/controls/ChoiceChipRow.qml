@@ -27,8 +27,7 @@ MenuRow {
     readonly property int _stackedH: 4 * Math.ceil(Math.max(56,
         6 + _labelRow.height + 4 + root._controlH + 6) / 4)
     readonly property int _chipGap: 5
-    // detached chips size to the widest option so every chip in a row matches,
-    // instead of splitting a fixed track into equal cells
+    // detached chips size to the widest option so every chip in a row matches, instead of splitting a fixed track into equal cells
     FontMetrics {
         id: _chipFm
         font.family: Settings.font
@@ -36,7 +35,8 @@ MenuRow {
         font.weight: Font.DemiBold
     }
     readonly property real _widestOptionW: {
-        const dep = _chipFm.font.pixelSize + _chipFm.font.weight
+        // advanceWidth() is a call, so it registers no dependency; reading the font does
+        void _chipFm.font.pixelSize
         let w = 0
         for (let i = 0; i < root.model.length; i++) {
             const o = root.model[i]
@@ -63,7 +63,7 @@ MenuRow {
     MotionBehavior on height {
         NumberAnimation { duration: Motion.normal; easing.type: Easing.OutCubic }
     }
-    opacity: root.enabled ? 1.0 : 0.45
+    opacity: root.enabled ? 1.0 : Theme.disabledOpacity
 
     MotionBehavior on opacity {
         NumberAnimation { duration: Motion.medium }
@@ -161,6 +161,14 @@ MenuRow {
                         + (index < _choiceGroup.cellRemainder ? 1 : 0)
                     height: _choiceGroup.height
 
+                    Accessible.role: Accessible.RadioButton
+                    Accessible.name: _option.optionLabel
+                    Accessible.focusable: root.enabled
+                    Accessible.checkable: true
+                    Accessible.checked: _option.active
+                    Accessible.onPressAction: if (root.enabled)
+                        root.chosen(_option.modelData.value)
+
                     HoverHandler {
                         id: _hover
                         enabled: root.enabled
@@ -183,19 +191,15 @@ MenuRow {
                         scale: _tap.pressed ? Motion.pressScale
                             : _hover.hovered ? Motion.hoverScale : 1.0
                         transformOrigin: Item.Center
-                        // ghost: the selected chip carries only its accent outline, so the
-                        // resting fill belongs to the unselected ones
+                        // ghost: the selected chip carries only its accent outline, so the resting fill belongs to the unselected ones
                         color: _option.active
                             ? (_tap.pressed
                                 ? Theme.withAlpha(root.accentColor, 0.13)
                                 : _hover.hovered
                                     ? Theme.withAlpha(root.accentColor, 0.09)
                                     : Theme.withAlpha(root.accentColor, 0.055))
-                            : _tap.pressed
-                                ? Theme.withAlpha(Theme.text, 0.09)
-                                : _hover.hovered
-                                    ? Theme.withAlpha(Theme.text, 0.055)
-                                    : Theme.withAlpha(Theme.text, 0.028)
+                            : Theme.buttonFill(root.accentColor,
+                                _hover.hovered, _tap.pressed)
                         ColorFade on color {}
                         MotionBehavior on scale {
                             NumberAnimation {
@@ -210,10 +214,8 @@ MenuRow {
                             outlineWidth: 1
                             outlineColor: _option.active
                                     ? Theme.controlLineActive(root.accentColor)
-                                    : _hover.hovered
-                                        ? Theme.withAlpha(root.accentColor,
-                                            ShellSettings.highContrast ? 0.38 : 0.22)
-                                        : Theme.menuControlLine
+                                    : Theme.buttonLine(root.accentColor,
+                                        _hover.hovered, _tap.pressed)
                             ColorFade on outlineColor {}
                         }
                     }

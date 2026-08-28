@@ -10,18 +10,24 @@ Item {
     property bool active: false
     property color accentColor: Theme.accent
     property int railW: 44
-    // Expanded drawers already provide their own labels. Keeping this tooltip
-    // open there paints it over the drawer's controls.
+    // expanded drawers already provide their own labels. Keeping this tooltip open there paints it over the drawer's controls
     property bool labelPillEnabled: true
     property RailLabelGroup labels: null
     property bool _hoverReady: false
 
+    readonly property alias hovered: _hover.hovered
     readonly property bool _hot: _hover.hovered
 
     signal tapped()
 
     width: railW
     height: Metrics.rowHeightFor(34)
+
+    Accessible.role: Accessible.PageTab
+    Accessible.name: root.label
+    Accessible.focusable: true
+    Accessible.selected: root.active
+    Accessible.onPressAction: root.tapped()
 
     Timer {
         id: _labelDelay
@@ -84,8 +90,7 @@ Item {
 
     ShellText {
         id: _iconText
-        // NativeRendering blurs on a fractional origin, so solve for the ink centre and snap
-        // the result: centreIn plus a float offset lands the glyph on a sub-pixel x every time
+        // centreIn plus a float offset lands the glyph on a sub-pixel x; solve for the ink centre and snap the result instead
         x: Math.round(parent.width / 2
             - (_ink.tightBoundingRect.x + _ink.tightBoundingRect.width / 2))
         y: Math.round((parent.height - _iconText.height) / 2)

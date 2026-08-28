@@ -19,11 +19,11 @@ conflict.
 ## Removed outright — keep deleted
 
 The fork is distributed by nixos-config and never publishes releases, so
-the release and distribution machinery is gone whole (the package-updates
-widget went the same way earlier; upstream had dropped it by v1.1.1, so
-only these paths still differ). Resolve delete/modify conflicts under
-these paths as ours, and re-delete anything a merge brings back under
-them:
+the release and distribution machinery is gone whole, and the package-
+updates/self-update stack went the same way (upstream still ships and
+iterates it — the v0.8.0 merge re-deleted all six files). Resolve
+delete/modify conflicts under these paths as ours, and re-delete anything
+a merge brings back under them:
 
 <!-- keep-deleted:begin -->
 packaging/aur
@@ -31,11 +31,33 @@ scripts/release-notes.sh
 docs/releasing.md
 docs/releases
 .github/workflows
+CHANGELOG.md
+modules/bar/widgets/ShellUpdateWidget.qml
+modules/bar/widgets/UpdatesWidget.qml
+modules/menu/controls/UpdateStatusCard.qml
+modules/menu/settings/SettingsUpdatesSection.qml
+services/ShellUpdate.qml
+services/Updates.qml
 <!-- keep-deleted:end -->
 
 ci-lint enforces the list: a path here that exists again fails the gate,
 so resurrecting one on purpose means removing its line in the same commit.
 `.github/workflows` covers all Actions — the gates run locally only.
+
+## Compositor facade stays monolithic
+
+Upstream v0.8.0 split `services/Compositor.qml` into a facade over
+per-backend adapters (`CompositorHyprland.qml`, `CompositorNiri.qml`).
+The fork's Compositor carries substantial fork-only work (windowGapX /
+barSideGap, live title sync, occupancy counting) inside the monolith, so
+the split was declined at the v0.8.0 merge rather than ported mid-
+conflict. Standing resolutions: `services/Compositor.qml` merges as ours;
+re-delete the two adapter files and their `services/qmldir` lines; the
+ci-lint sections that referenced the adapters (niri event stream, inert
+events, the Quickshell.Hyprland import allowlist) point at Compositor.qml
+— and HyprDispatch.qml stays on that allowlist. Upstream's
+adapter-contract lint section stays deleted. Adopting the split later is
+a cold, deliberate port that retires this entry.
 
 ## Shared files — union, with contracts
 

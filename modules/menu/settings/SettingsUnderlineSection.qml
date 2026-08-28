@@ -16,6 +16,14 @@ Column {
         !ShellSettings.underlineScreenshotGlow ? "off"
         : ShellSettings.screenshotGlowSweep ? "sweep"
         : "flash"
+    readonly property bool _hasReactiveSource:
+        ShellSettings.underlineIdleGlow
+        || ShellSettings.underlineNotifGlow
+        || ShellSettings.underlineNetGlow
+        || (Battery.available && ShellSettings.underlineBattGlow)
+        || (!CpuTemp.sensorMissing && ShellSettings.underlineTempGlow)
+        || ShellSettings.underlineScreenshotGlow
+        || ShellSettings.mediaProgress
 
     function _setScreenshotStyle(style) {
         ShellSettings.batch(() => {
@@ -99,7 +107,7 @@ Column {
                 ToggleRow {
                     glyph: "󱝊"; label: "Full width"
                     description: ShellSettings.barFloating
-                        ? "Ring the whole bar instead of fading out at the top"
+                        ? "Ring the whole bar instead of fading out"
                         : "Light the whole bar instead of the centre"
                     key: "underlineFullWidth"
                 }
@@ -134,10 +142,12 @@ Column {
                         ToggleRow {
                             glyph: "󱃍"; label: "Battery low"
                             key: "underlineBattGlow"
+                            visible: Battery.available
                         }
                         ToggleRow {
                             glyph: "󰔏"; label: "Temperature"
                             key: "underlineTempGlow"
+                            visible: !CpuTemp.sensorMissing
                         }
                         ChoiceChipRow {
                             glyph: "󰄀"; label: "Screenshots"
@@ -156,18 +166,12 @@ Column {
                         }
                         HintText {
                             visible: SystemTools.hasInotifywait && Screenshot.watcherRetired
-                            text: "No screenshot folder to watch; feedback stops until one exists."
+                            text: "Create a screenshot folder, then recheck tools under Maintenance."
                         }
                         HintText {
                             // the base glow line is drawn either way; what is missing here is anything to react to
-                            visible: !ShellSettings.underlineIdleGlow
-                                && !ShellSettings.underlineNotifGlow
-                                && !ShellSettings.underlineNetGlow
-                                && !ShellSettings.underlineBattGlow
-                                && !ShellSettings.underlineTempGlow
-                                && !ShellSettings.underlineScreenshotGlow
-                                && !ShellSettings.mediaProgress
-                            text: "No event will light the underline; it stays at its resting glow."
+                            visible: !root._hasReactiveSource
+                            text: "No event will light the underline."
                         }
                     }
                 }

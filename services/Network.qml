@@ -185,8 +185,7 @@ Singleton {
 
     function _wifiList(): var {
         if (!_scannerWanted) return []
-        // SSIDs are external strings: a normal object loses names such as
-        // "constructor" and lets "__proto__" alter the lookup prototype.
+        // SSIDs are external strings: a normal object loses names such as "constructor" and lets "__proto__" alter the lookup prototype
         const bySsid = Object.create(null)
         const order = []
         const devices = root._devices
@@ -202,10 +201,7 @@ Singleton {
                 const signal = Math.round(Math.max(0, Math.min(1, network.signalStrength || 0)) * 100)
                 const existing = bySsid[ssid]
                 if (existing) {
-                    if (signal > existing.signal) {
-                        existing.signal = signal
-                        existing.ref = network
-                    }
+                    if (signal > existing.signal) existing.signal = signal
                     if (network.connected) existing.active = true
                     if (network.known) existing.known = true
                     continue
@@ -216,8 +212,7 @@ Singleton {
                     signal: signal,
                     secured: network.security !== WifiSecurityType.Open,
                     active: network.connected,
-                    known: network.known,
-                    ref: network
+                    known: network.known
                 }
                 order.push(ssid)
             }
@@ -232,7 +227,19 @@ Singleton {
             const tier = signalTier(B.signal) - signalTier(A.signal)
             return tier !== 0 ? tier : A.ssid.localeCompare(B.ssid)
         })
-        return order.map(ssid => bySsid[ssid])
+        // the row draws a tier, never the percentage: publishing the raw signal changed the
+        // list's content every few seconds, and one changed entry rebuilds every delegate
+        return order.map(ssid => {
+            const entry = bySsid[ssid]
+            return {
+                ssid: entry.ssid,
+                label: entry.label,
+                glyph: signalGlyph(entry.signal),
+                secured: entry.secured,
+                active: entry.active,
+                known: entry.known
+            }
+        })
     }
 
     // the row only ever draws a tier's icon, never the raw percentage, so keying

@@ -30,6 +30,7 @@ MenuRow {
     readonly property real shownValue: _track.shownValue
 
     rowHovered:     _rowHover.hovered
+    rowPressed:     _track.dragging
     rowInteractive: root.enabled
 
     signal changed(real value)
@@ -43,7 +44,7 @@ MenuRow {
 
     // 4px multiple so row.y inside SettingsCard lands on whole physical px and every divider renders one thickness
     height:         Metrics.rowHeightFor(56)
-    opacity: root.enabled ? 1.0 : 0.45
+    opacity: root.enabled ? 1.0 : Theme.disabledOpacity
     MotionBehavior on opacity {
         NumberAnimation { duration: Motion.medium }
     }
@@ -117,6 +118,8 @@ MenuRow {
         hitPad: 8
 
         interactive: root.enabled
+        accessibleName: root.label
+        accessibleValueText: root.displayValue
         value: root.value
         min:   root.min
         max:   root.max

@@ -37,7 +37,12 @@ Singleton {
             if (players[i]) out.push(players[i])
         // playerctld only mirrors the real players; keep it solely when nothing else is on the bus
         const real = out.filter(p => (p.dbusName || "").indexOf("playerctld") < 0)
-        return real.length > 0 ? real : out
+        const pool = real.length > 0 ? real : out
+        // browsers leave the MPRIS service registered after the tab goes, stopped and with no
+        // metadata: counting those offers a switcher that cycles onto an empty card. Stopped
+        // only - a paused player is one the user may well want to come back to
+        const live = pool.filter(p => p.playbackState !== MprisPlaybackState.Stopped)
+        return live.length > 0 ? live : pool
     }
     readonly property int playerCount: playerList.length
 
@@ -123,6 +128,10 @@ Singleton {
     readonly property real _rawLength:  (player && player.lengthSupported)
         ? root.finiteNonnegative(player.length) : 0
     readonly property bool lengthKnown: _rawLength > 0 && _rawLength <= 86400
+    // only the sentinel means endless; a browser reports 0 between videos and through an
+    // ad break, and calling that live claims something about the track instead of admitting
+    // the length is not known yet
+    readonly property bool endless:     _rawLength > 86400
     readonly property real length:      lengthKnown ? _rawLength : 0
     readonly property bool canSeek:     player ? player.canSeek : false
     // position still ticks without a length; only the ratio and the seek bar need one
@@ -274,10 +283,7 @@ Singleton {
 
     Timer { id: _visualizerStopGrace; interval: 150 }
 
-    // One table per style, plus the low-power row a visualizer on an inactive bar drops to.
-    // Denser shapes get fewer bars and a lower frame rate: a wave reads as a curve through
-    // its points, bars and pulse resolve detail the eye cannot use at the same rate.
-    // Written out rather than derived — the earlier trim-and-floor form never once clamped.
+    // denser shapes get fewer bars and a lower frame rate; the derived form never once clamped
     readonly property var _vizProfiles: ({
         wave:     { eco: { bars: 10, fps: 26 }, balanced: { bars: 16, fps: 38 }, smooth: { bars: 22, fps: 50 } },
         bars:     { eco: { bars: 10, fps: 23 }, balanced: { bars: 14, fps: 35 }, smooth: { bars: 18, fps: 47 } },

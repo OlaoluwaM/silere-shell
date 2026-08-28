@@ -15,7 +15,11 @@ Item {
     property bool barActive: true
     readonly property bool show: ShellSettings.trayWidget && _items.count > 0
     readonly property bool layoutVisible: show || implicitWidth > 0.5
-    readonly property int iconSize: Math.max(14, Math.min(18, Math.round(ShellSettings.barHeight * 0.44)))
+    // the bar height is a ceiling, not the source: the old barHeight*0.44 ignored uiScale
+    // entirely, so tray icons were the one thing that could not follow the interface scale
+    readonly property int iconSize: Math.max(12,
+        Math.min(Math.round(ShellSettings.barHeight * 0.62),
+            Math.round(ShellSettings.barIconSize * ShellSettings.uiScale) + 4))
     readonly property int _pillPad: Metrics.pillPadFor(compact)
 
     // only appearing/leaving eases; hover growth is already eased by the label, and a second ease on top lags the slot behind its own content
@@ -85,14 +89,18 @@ Item {
 
                 onNeedsAttentionChanged: _attentionSettled = false
 
+                Accessible.role: Accessible.Button
+                Accessible.name: _tile.label
+                Accessible.focusable: root.show
+                Accessible.onPressAction: root._activateItem(_tile.modelData, _tile)
+
                 width: root.iconSize + (_hoverLabel.width > 0 ? _hoverLabel.width + 5 : 0)
                 height: root.iconSize
                 opacity: passive ? 0.78 : 1.0
                 anchors.verticalCenter: parent.verticalCenter
 
                 function syncMenuAnchor(): void {
-                    // Labels grow to the right on hover; the popup belongs to the
-                    // icon, so its anchor must not wander with the label width.
+                    // labels grow to the right on hover; the popup belongs to the icon, so its anchor must not wander with the label width
                     const pt = _tile.mapToItem(null, root.iconSize / 2, 0)
                     if (isFinite(pt.x)) _tile.menuAnchorX = pt.x
                 }

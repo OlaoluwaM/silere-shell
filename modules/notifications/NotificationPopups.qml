@@ -19,15 +19,18 @@ PanelWindow {
     exclusiveZone:  -1
 
     readonly property int _shadowPad: ShellSettings.barShadow ? 16 : 0
-    readonly property int _cardW: Math.max(180, Math.min(320,
+    // the body wraps at 3 lines collapsed, so a card pinned at 320 elides sooner as type grows
+    readonly property int _cardW: Math.max(180, Math.min(
+        Metrics.snap4(320 * Settings.fontSize / 12),
         targetScreen ? targetScreen.width - 24 - _shadowPad : 320))
+    readonly property bool _hasBar: Metrics.barPresent(targetScreen)
     // Compositor.barSideGap is the one place this math lives (fraction or fit-gaps),
     // shared with Bar.qml's configuredSurfaceWidth so popups can't fall out of step with the bar edge
-    readonly property real _barSideGap: ShellSettings.barFloating && targetScreen
+    readonly property real _barSideGap: ShellSettings.barFloating && _hasBar && targetScreen
         ? Compositor.barSideGap(targetScreen.width)
         : 0
-    readonly property real _edgeMargin: ShellSettings.barFloating ? Math.max(0, _barSideGap) : 10
-    readonly property int _barClearance: Metrics.popupClearance(6)
+    readonly property real _edgeMargin: ShellSettings.barFloating && _hasBar ? Math.max(0, _barSideGap) : 10
+    readonly property int _barClearance: Metrics.popupClearanceOn(targetScreen, 6)
     readonly property int _availableH: targetScreen
         ? Math.max(64, Math.floor(targetScreen.height - _barClearance - 12)) : 640
     readonly property int _availableContentH: Math.max(48,
@@ -97,6 +100,11 @@ PanelWindow {
                 ColorFade on outlineColor {}
             }
 
+            Accessible.role: Accessible.Button
+            Accessible.name: chip.label
+            Accessible.focusable: chip.shown
+            Accessible.onPressAction: chip.triggered()
+
             HoverHandler { id: _hover; cursorShape: Qt.PointingHandCursor }
             TapHandler   { id: _tap; onTapped: chip.triggered() }
 
@@ -135,8 +143,8 @@ PanelWindow {
     }
 
     margins {
-        top:    win._barBottom ? 6 : Metrics.popupClearance(2)
-        bottom: win._barBottom ? Metrics.popupClearance(2) : 0
+        top:    win._barBottom ? 6 : Metrics.popupClearanceOn(win.targetScreen, 2)
+        bottom: win._barBottom ? Metrics.popupClearanceOn(win.targetScreen, 2) : 0
         right: win._pos === "top-right" ? Math.max(0, win._edgeMargin - win._shadowPad) : 0
         left:  win._left              ? Math.max(0, win._edgeMargin - win._shadowPad) : 0
     }

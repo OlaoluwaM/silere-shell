@@ -13,6 +13,8 @@ Item {
     // hue is a circle, saturation is not: one wraps past the end, the other stops
     property bool wraps: true
     property string wheelKey: "accent-hue"
+    property string accessibleName: ""
+    property string accessibleValueText: String(root.value)
 
     property Gradient trackGradient: null
 
@@ -23,10 +25,17 @@ Item {
 
     signal picked(real position)
 
+    Accessible.role: Accessible.Slider
+    Accessible.name: root.accessibleName
+    Accessible.description: root.accessibleValueText
+    Accessible.focusable: root.enabled && root.interactive
+    Accessible.onIncreaseAction: root._nudge(1, 1)
+    Accessible.onDecreaseAction: root._nudge(-1, 1)
+
     width: parent ? parent.width : 0
     implicitHeight: Metrics.rowHeightFor(24)
     height: implicitHeight
-    opacity: root.enabled && root.interactive ? 1.0 : 0.45
+    opacity: root.enabled && root.interactive ? 1.0 : Theme.disabledOpacity
 
     function _wrapped(p: real): real {
         return ((p % 1) + 1) % 1
@@ -49,15 +58,15 @@ Item {
         anchors.fill: parent
         radius: Theme.radiusInline
         antialiasing: true
-        color: _mouse.containsMouse
-            ? Theme.controlFill(Theme.accent, 0.055)
-            : Theme.menuControl
+        color: Theme.controlTrackFill(Theme.accent, false,
+            _mouse.containsMouse, _mouse.pressed)
         ColorFade on color {}
 
         OutlineBorder {
             radius: _well.radius
             outlineWidth: 1
-            outlineColor: _mouse.containsMouse ? Theme.menuControlLineHot : Theme.menuControlLine
+            outlineColor: Theme.controlTrackLine(Theme.accent, false,
+                _mouse.containsMouse, _mouse.pressed)
             ColorFade on outlineColor {}
         }
     }

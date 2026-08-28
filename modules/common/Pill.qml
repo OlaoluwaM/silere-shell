@@ -55,13 +55,20 @@ Item {
 
     signal activated()
 
+    property string accessibleName: root.text
+
+    Accessible.role: root.interactive ? Accessible.Button : Accessible.StaticText
+    Accessible.name: root.accessibleName
+    Accessible.focusable: root.interactive
+    Accessible.onPressAction: if (root.interactive) root.activated()
+
     readonly property int  pillH:   Metrics.barRowHeight
     readonly property bool hasText: text.length > 0
 
     property bool collapsed: false
     property int  shrinkDelay: 600
     property real _minW: 0
-    // whole px: a fractional text width puts the pill and every widget after it off-pixel and blurs NativeRendering text
+    // whole px: a fractional text width puts the pill and every widget after it off-pixel
     readonly property real rowWidth: Math.ceil(row.implicitWidth)
     implicitWidth:  collapsed ? 0 : Math.max(rowWidth, _minW) + horizontalPadding * 2
 

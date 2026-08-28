@@ -19,6 +19,7 @@ Pill {
     readonly property color _iconColor: overChargeLimit ? Theme.warning : Battery.iconColor
 
     glyph:          Battery.icon
+    accessibleName: batteryPill.text.length > 0 ? "Battery " + batteryPill.text : "Battery"
     // full battery: every level and charging variant shares its outline
     glyphAlignReference: "󰁹"
     glyphAlignNudge: -1

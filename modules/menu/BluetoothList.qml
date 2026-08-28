@@ -17,6 +17,7 @@ Item {
     implicitHeight: _col.implicitHeight
 
     property string _armedAddr: ""
+    property real _armedAtMs: 0
     Timer { id: _disarmTimer; interval: 3000; onTriggered: root._armedAddr = "" }
 
     // only one device's details panel is open at a time, matched by address rather than
@@ -46,10 +47,14 @@ Item {
 
     onOpenChanged: {
         _syncScanState()
-        if (!open) { _disarmTimer.stop(); root._armedAddr = ""; root._detailsAddr = "" }
+        if (!open) { _disarmTimer.stop(); root._armedAddr = ""; root._detailsAddr = ""; Bluetooth.abandonAttempt() }
     }
     Component.onCompleted: _syncScanState()
-    Component.onDestruction: { Bluetooth.setScan(false); Bluetooth.setDevicesFrozen(false) }
+    Component.onDestruction: {
+        Bluetooth.setScan(false)
+        Bluetooth.setDevicesFrozen(false)
+        Bluetooth.abandonAttempt()
+    }
 
     Connections {
         target: Bluetooth
@@ -128,6 +133,7 @@ Item {
                     width: parent.width
 
                     readonly property bool   _armed: root._armedAddr === _entry.modelData.address && _entry.modelData.connected
+                    readonly property bool   _failed: Bluetooth.errorAddr === _entry.modelData.address
                     readonly property int _batt: Bluetooth.batteryPercent(_entry.modelData)
                     readonly property string _state:
                         _armed ? "Disconnect?"
@@ -135,6 +141,7 @@ Item {
                         : _entry.modelData.state === Bt.BluetoothDeviceState.Connecting    ? "Connecting…"
                         : _entry.modelData.state === Bt.BluetoothDeviceState.Disconnecting ? "Disconnecting…"
                         : _entry.modelData.connected ? (_batt >= 0 ? _batt + "%" : "Connected")
+                        : _row._failed ? (Bluetooth.errorKind === "pair" ? "Pairing failed" : "Failed")
                         : _entry.modelData.paired    ? "Paired"
                         : "Pair"
 
@@ -143,6 +150,7 @@ Item {
                     status: _state
                     selected: _entry.modelData.connected
                     warning: _armed || _entry.modelData.pairing
+                    failed:  _failed
                     // the body tap already means connect/disconnect for this row, so
                     // details live behind the chevron's separate hit zone instead
                     expandable: _entry.modelData.connected
@@ -154,11 +162,14 @@ Item {
                             Bluetooth.cancelPair(addr)
                         } else if (_entry.modelData.connected) {
                             if (root._armedAddr === addr) {
+                                // TapHandler fires once per tap, so a double-click would arm and confirm in one gesture
+                                if (Date.now() - root._armedAtMs < Metrics.confirmGuardMs) return
                                 root._armedAddr = ""
                                 _disarmTimer.stop()
                                 Bluetooth.disconnectDevice(addr)
                             } else {
                                 root._armedAddr = addr
+                                root._armedAtMs = Date.now()
                                 _disarmTimer.restart()
                             }
                         } else if (_entry.modelData.paired) {

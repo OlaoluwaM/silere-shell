@@ -57,7 +57,59 @@ Singleton {
     }
 
     function _trimHistory(): void {
-        while (_history.count > root._maxHistory) _history.remove(_history.count - 1)
+        const dropped = []
+        while (_history.count > root._maxHistory) {
+            const id = _history.get(_history.count - 1).id
+            if (id !== undefined) dropped.push(String(id))
+            _history.remove(_history.count - 1)
+        }
+        root._forgetTrimmed(dropped)
+    }
+
+    // Clearing or restoring history leaves these maps whole. Drop entries that
+    // belong to neither history nor a notification still owned by the server.
+    function _pruneOrphanState(activeNotifications): void {
+        const keep = Object.create(null)
+        for (let i = 0; i < _history.count; i++) keep[String(_history.get(i).id)] = true
+        // On a hot reload NotificationServer already owns its kept objects, but
+        // root.list is rebuilt only after persisted timestamps are restored.
+        // Include those objects now or their original age/read state is lost.
+        const active = Array.isArray(activeNotifications) ? activeNotifications : []
+        for (let i = 0; i < active.length; i++) {
+            const entry = active[i]
+            if (entry && entry.id !== undefined) keep[String(entry.id)] = true
+        }
+        const seen = Object.keys(root._seen)
+            .concat(Object.keys(root._times), Object.keys(root._updateTimes))
+        const stale = []
+        for (let i = 0; i < seen.length; i++)
+            if (keep[seen[i]] !== true && stale.indexOf(seen[i]) < 0) stale.push(seen[i])
+        root._forgetTrimmed(stale)
+    }
+
+    // history is capped but these maps were not: an id that rolled off kept its seen
+    // flag and timestamps for the life of the process, and every arrival re-serialized them
+    function _forgetTrimmed(keys): void {
+        if (keys.length === 0) return
+        const live = Object.create(null)
+        for (let i = 0; i < root.list.length; i++) live[String(root.list[i].id)] = true
+
+        const seen = root._cloneMap(root._seen)
+        const times = root._cloneMap(root._times)
+        const updates = root._cloneMap(root._updateTimes)
+        let cutSeen = false, cutTimes = false, cutUpdates = false
+
+        for (let i = 0; i < keys.length; i++) {
+            const key = keys[i]
+            if (live[key] === true) continue
+            if (key in seen)    { delete seen[key];    cutSeen = true }
+            if (key in times)   { delete times[key];   cutTimes = true }
+            if (key in updates) { delete updates[key]; cutUpdates = true }
+        }
+
+        if (cutSeen)    root._seen = seen
+        if (cutTimes)   root._times = times
+        if (cutUpdates) root._updateTimes = updates
     }
 
     function _prependHistory(entry): void {
@@ -87,6 +139,8 @@ Singleton {
         // var properties can be undefined for one frame during hot-reload
         if (!root._seen || typeof root._seen !== "object") root._seen = Object.create(null)
         if (!root._times || typeof root._times !== "object") root._times = Object.create(null)
+        if (!root._updateTimes || typeof root._updateTimes !== "object")
+            root._updateTimes = Object.create(null)
     }
 
     function _parsePersistentJson(raw: string, fallback): var {
@@ -94,7 +148,38 @@ Singleton {
         catch (e) { return fallback }
     }
 
-    function _restorePersistentState(): void {
+    function _validStateId(value): bool {
+        const text = String(value)
+        if (!/^(0|[1-9][0-9]{0,9})$/.test(text)) return false
+        const id = Number(text)
+        return isFinite(id) && id <= 2147483647
+    }
+
+    function _normalizeSeenMap(map): var {
+        const out = Object.create(null)
+        if (!map || typeof map !== "object" || Array.isArray(map)) return out
+        const keys = Object.keys(map)
+        for (let i = 0; i < keys.length; i++) {
+            const key = keys[i]
+            if (root._validStateId(key) && map[key] === true) out[key] = true
+        }
+        return out
+    }
+
+    function _normalizeTimesMap(map): var {
+        const out = Object.create(null)
+        if (!map || typeof map !== "object" || Array.isArray(map)) return out
+        const keys = Object.keys(map)
+        for (let i = 0; i < keys.length; i++) {
+            const key = keys[i]
+            const value = Number(map[key])
+            if (root._validStateId(key) && isFinite(value)
+                    && value > 0 && value <= 8.64e15) out[key] = value
+        }
+        return out
+    }
+
+    function _restorePersistentState(activeNotifications): void {
         const savedHistory = ShellSettings.notifHistoryPersistent
             ? root._parsePersistentJson(_persist.historyJson, []) : []
         const savedSeen = root._parsePersistentJson(_persist.seenJson, Object.create(null))
@@ -106,22 +191,30 @@ Singleton {
                 if (e) _history.append(e)
             }
         }
-        root._seen = root._cloneMap(savedSeen)
-        root._times = root._cloneMap(savedTimes)
+        root._seen = root._normalizeSeenMap(savedSeen)
+        root._times = root._normalizeTimesMap(savedTimes)
+        root._ensurePersistentState()
         root._persistentReady = true
+        root._pruneOrphanState(activeNotifications)
         root._saveHistory()
     }
 
     Connections {
         target: ShellSettings
+        function onNotifPopupEnabledChanged() {
+            if (!ShellSettings.notifPopupEnabled)
+                root._retireActiveNotifications()
+        }
         function onNotifHistoryLimitChanged() {
             root._trimHistory()
             root._saveHistory()
         }
         function onNotifHistoryPersistentChanged() {
-            // Privacy-first: turning persistence off removes text restored from
-            // an earlier session. New entries still form an in-memory history.
-            if (!ShellSettings.notifHistoryPersistent) _history.clear()
+            // privacy-first: turning persistence off removes text restored from an earlier session. New entries still form an in-memory history
+            if (!ShellSettings.notifHistoryPersistent) {
+                _history.clear()
+                root._pruneOrphanState()
+            }
             root._saveHistory()
         }
     }
@@ -206,6 +299,7 @@ Singleton {
 
     signal sourcePulse(int wsId, bool critical)
     signal contentUpdated(int notifId)
+    signal notificationShown(string appName, string summary, bool critical)
 
     readonly property bool _fullscreenWatchWanted: ShellSettings.notifFullscreenSilence
         || ShellSettings.mediaProgress
@@ -324,6 +418,28 @@ Singleton {
         return !replaced
     }
 
+    // Unloading the popup window destroys every card timer, but it does not
+    // untrack the notifications held by the server. If popups are enabled
+    // again those timerless cards otherwise return as stale notifications.
+    function _retireActiveNotifications(): void {
+        const active = Array.isArray(root.list) ? root.list.slice() : []
+        if (active.length === 0) return
+
+        // clear first: changing tracked may synchronously emit closed, and the close handler must not archive the same object a second time
+        root.list = []
+        root.lastCritical = false
+        for (let i = 0; i < active.length; i++) {
+            const e = active[i]
+            if (!e) continue
+            if (e.notification) {
+                root._archiveNotification(e.notification, e.id,
+                    root._times[e.id] ?? e.time ?? Date.now())
+                e.notification.tracked = false
+            }
+            root._forgetState(e.id)
+        }
+    }
+
     function _markClosing(id: int, notification): void {
         if (!notification) return
         const key = String(id)
@@ -439,9 +555,9 @@ Singleton {
 
     Component.onCompleted: {
         ConfigStore.hardenQuickshellState()
-        root._restorePersistentState()
-        root._ensurePersistentState()
         const vals = notifServer.trackedNotifications.values ?? []
+        root._restorePersistentState(vals)
+        root._ensurePersistentState()
         const rebuilt = []
         const live = {}
         const nextTimes = root._cloneMap(root._times)
@@ -529,6 +645,8 @@ Singleton {
             if (isNewObject) n.closed.connect(() => root._onClosed(n.id, n))
             n.tracked = true
             if (existing >= 0 && !isNewObject) root.contentUpdated(n.id)
+            else root.notificationShown(String(n.appName || ""), String(n.summary || ""),
+                n.urgency === NotificationUrgency.Critical)
 
             if (ShellSettings.wsNotifPulse) {
                 const srcWs = HyprActions.notificationSourceWorkspace(n)

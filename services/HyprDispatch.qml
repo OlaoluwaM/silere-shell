@@ -5,9 +5,6 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
 
-// The mechanism for talking to Hyprland, with no opinion about compositor state.
-// Keeping it separate from HyprActions is what stops Compositor and HyprActions
-// depending on each other.
 Singleton {
     id: root
 
@@ -21,6 +18,11 @@ Singleton {
         id: _luaCheck
         command: ["bash", Quickshell.shellDir + "/scripts/install.sh", "--hypr-config-kind"]
         onExited: (code) => {
+            if (!SystemTools.hasHyprctl) {
+                root.useLua = false
+                root._luaChecked = false
+                return
+            }
             root.useLua = (code === 0)
             root._luaChecked = true
         }
@@ -37,6 +39,12 @@ Singleton {
     Connections {
         target: SystemTools
         function onReadyChanged() { root._detectLua() }
+        function onScanRevisionChanged() {
+            root._luaChecked = false
+            root.useLua = false
+            if (!SystemTools.hasHyprctl && _luaCheck.running) _luaCheck.running = false
+            root._detectLua()
+        }
     }
 
     function _quote(value): string {

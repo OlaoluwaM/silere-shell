@@ -17,7 +17,7 @@ Singleton {
     property bool   workspaceShift:      true
     property bool   neutralTheme:        GeneratedDefaults.neutralTheme
     property bool   neutralAccentAuto:   false
-    property string neutralAccent:       "#b8bdd8"
+    property string neutralAccent:       "#9babe9"
     property string matugenAccentRole:   GeneratedDefaults.matugenAccentRole
     property string matugenDepth:        GeneratedDefaults.matugenDepth
     property string baseTone:            GeneratedDefaults.baseTone
@@ -90,7 +90,7 @@ Singleton {
     property bool   osdChargedNotify: false
     property bool   osdBarIntegrated: false
     property bool   osdMatchBar:      true
-    property bool   settingsNavPinned:   true
+    property bool   settingsNavPinned:   false
     property bool   settingsNavDots:     true
     property bool   reduceMotion:        false
     property bool   highContrast:        false
@@ -139,6 +139,7 @@ Singleton {
     property bool   barCompact:          false
     property bool   barHoverHighlight:   false
     property int    barHeight:           GeneratedDefaults.barHeight
+    property int    barIconSize:         12
     property bool   barFloating:         GeneratedDefaults.barFloating
     property int    barGap:              GeneratedDefaults.barGap
     property real   barWidth:            GeneratedDefaults.barWidth
@@ -440,6 +441,7 @@ Singleton {
         { k: "barCompact",          t: "bool", sec: "separators" },
         { k: "barHoverHighlight",   t: "bool", sec: "indicators" },
         { k: "barHeight",           t: "int",  min: 24,   max: 60, sec: "surface" },
+        { k: "barIconSize",        t: "int",  min: 10,   max: 20, sec: "interface" },
         { k: "barFloating",         t: "bool", sec: "surface" },
         { k: "barGap",              t: "int",  min: 0,    max: 24, sec: "surface" },
         { k: "barWidth",            t: "real", min: 0.5,  max: 1.0, sec: "surface" },
@@ -472,37 +474,105 @@ Singleton {
         { k: "wsIconMono",          t: "bool", sec: "workspaces" },
         { k: "wsActiveMarker",      t: "enum", vals: ["gem", "dot", "bar"], sec: "workspaces" }
     ]
-    // a settings row binds by key: the schema already states type and range, so a
-    // row that restates them is duplication the two can drift apart on
+    // a settings row binds by key: the schema already states type and range, so a row that restates them is duplication the two can drift apart on
     function schemaFor(key: string): var {
         for (let i = 0; i < root._schema.length; i++)
             if (root._schema[i].k === key) return root._schema[i]
         return null
     }
 
-    function setValue(key: string, value): void {
+    function setValue(key: string, value): bool {
         const entry = root.schemaFor(key)
-        if (entry) root._coerce(entry, value)
+        return entry ? root._coerce(entry, value) : false
     }
 
-    function _coerce(s, v): void {
+    function _coerce(s, v): bool {
         switch (s.t) {
         case "bool":
             if (typeof v === "boolean") root[s.k] = v
             else if (v === "true" || v === "false") root[s.k] = v === "true"
-            break
+            else return false
+            return true
         case "int": {
             const n = (typeof v === "number" || (typeof v === "string" && v.trim().length > 0)) ? Number(v) : NaN
-            if (isFinite(n)) root[s.k] = Math.max(s.min, Math.min(s.max, Math.round(n)))
-            break
+            if (!isFinite(n)) return false
+            root[s.k] = Math.max(s.min, Math.min(s.max, Math.round(n)))
+            return true
         }
         case "real": {
             const n = (typeof v === "number" || (typeof v === "string" && v.trim().length > 0)) ? Number(v) : NaN
-            if (isFinite(n)) root[s.k] = Math.max(s.min, Math.min(s.max, n))
-            break
+            if (!isFinite(n)) return false
+            root[s.k] = Math.max(s.min, Math.min(s.max, n))
+            return true
         }
-        case "enum": if (s.vals.indexOf(v) >= 0) root[s.k] = v; break
-        case "re":   if (typeof v === "string" && s.re.test(v)) root[s.k] = v; break
+        case "enum": if (s.vals.indexOf(v) >= 0) { root[s.k] = v; return true } return false
+        case "re":   if (typeof v === "string" && s.re.test(v)) { root[s.k] = v; return true } return false
+        }
+        return false
+    }
+
+    function constraintOf(key: string): string {
+        const s = root.schemaFor(key)
+        if (!s) return ""
+        switch (s.t) {
+        case "bool": return "true|false"
+        case "int":
+        case "real": return s.min + ".." + s.max
+        case "enum": return s.vals.join("|")
+        case "re":   return String(s.re)
+        }
+        return ""
+    }
+
+    IpcHandler {
+        target: "settings"
+
+        function get(key: string): string {
+            if (!root.schemaFor(key)) return "unknown setting '" + key + "'; try `list`"
+            return String(root[key])
+        }
+
+        function set(key: string, value: string): string {
+            if (!root.schemaFor(key)) return "unknown setting '" + key + "'; try `list`"
+            if (!root.setValue(key, value))
+                return "'" + value + "' is not valid for " + key
+                    + "; expected " + root.constraintOf(key)
+            return String(root[key])
+        }
+
+        function toggle(key: string): string {
+            const s = root.schemaFor(key)
+            if (!s) return "unknown setting '" + key + "'; try `list`"
+            if (s.t !== "bool")
+                return key + " is not a toggle; expected " + root.constraintOf(key)
+            root[key] = !root[key]
+            return String(root[key])
+        }
+
+        function list(filter: string): string {
+            const want = String(filter || "").trim()
+            // keys are camelCase, so a typed-out lowercase filter matches nothing without this
+            const fold = want.toLowerCase()
+            const out = []
+            for (let i = 0; i < root._schema.length; i++) {
+                const s = root._schema[i]
+                if (fold.length > 0 && s.sec.toLowerCase().indexOf(fold) < 0
+                    && s.k.toLowerCase().indexOf(fold) < 0)
+                    continue
+                out.push(s.k + "=" + String(root[s.k])
+                    + "  [" + root.constraintOf(s.k) + "]")
+            }
+            if (out.length > 0) return out.join("\n")
+            return "nothing matches '" + want + "'"
+        }
+
+        function modified(): string {
+            const keys = Object.keys(root._modifiedKeys).sort()
+            if (keys.length === 0) return "every setting is at its default"
+            const out = []
+            for (let i = 0; i < keys.length; i++)
+                out.push(keys[i] + "=" + String(root[keys[i]]))
+            return out.join("\n")
         }
     }
 
@@ -561,8 +631,7 @@ Singleton {
             + "-" + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds())
     }
 
-    // one user action that moves several keys is still one settings change: without
-    // this each discrete key flushes the whole file on its own
+    // one user action that moves several keys is still one settings change: without this each discrete key flushes the whole file on its own
     function batch(apply): void {
         if (root._bulkAssign) { apply(); return }
         root._bulkAssign = true
@@ -604,8 +673,7 @@ Singleton {
 
     function _onSettingChanged(key: string): void {
         if (!_loaded) return
-        // Sliders can emit dozens of changes per second. Track the one key
-        // that moved instead of rescanning the entire schema on every tick.
+        // sliders can emit dozens of changes per second. Track the one key that moved instead of rescanning the entire schema on every tick
         const modified = !root._sameValue(root[key], root._defaults[key])
         const wasModified = root._modifiedKeys[key] === true
         if (modified !== wasModified) {

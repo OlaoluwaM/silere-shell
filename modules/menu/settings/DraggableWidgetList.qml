@@ -146,8 +146,7 @@ Item {
             root._previewMove(key, targetZone, targetIndex)
     }
 
-    // the pointer stays put while the view scrolls, so edge distance is measured in the
-    // scroller's own coordinates, not the list's
+    // the pointer stays put while the view scrolls, so edge distance is measured in the scroller's own coordinates, not the list's
     function _updateAutoScroll(): void {
         const f = root.scroller
         if (!f || root._draggingKey.length === 0) {
@@ -160,8 +159,7 @@ Item {
     }
 
     property int _autoScrollDir: 0
-    // translation is measured from the grab point, so auto-scrolled distance has to be
-    // carried separately or the next pointer move undoes it
+    // translation is measured from the grab point, so auto-scrolled distance has to be carried separately or the next pointer move undoes it
     property real _dragScrollOffset: 0
 
     Timer {
@@ -449,14 +447,21 @@ Item {
                 width: 44
                 height: parent.height
 
+                Accessible.role: Accessible.CheckBox
+                Accessible.name: _row.meta.label
+                Accessible.checked: _row.checked
+                Accessible.focusable: true
+                Accessible.onToggleAction: _toggleTap.activate()
+
                 HoverHandler { id: _toggleHover; cursorShape: Qt.PointingHandCursor }
                 TapHandler {
                     id: _toggleTap
-                    onTapped: {
+                    function activate(): void {
                         _toggle.armFlipAnimation()
                         ShellSettings.setBarWidgetConfiguredVisible(
                             _row.key, !_row.checked)
                     }
+                    onTapped: _toggleTap.activate()
                 }
 
                 ToggleSwitch {

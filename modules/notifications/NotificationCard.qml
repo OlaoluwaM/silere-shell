@@ -65,9 +65,15 @@ Item {
         && _previewImg.implicitWidth !== _previewImg.implicitHeight
     readonly property bool _previewSettled: !hasContentImage
         || _previewImg.status === Image.Ready || _previewImg.status === Image.Error
-    // Keep every header on the same text grid. Invalid or absent app icons get
-    // an initial instead of collapsing the slot and shifting the whole card.
+    // keep every header on the same text grid. Invalid or absent app icons get an initial instead of collapsing the slot and shifting the whole card
     readonly property bool showIconSlot: _previewSettled
+
+    Accessible.role: Accessible.Notification
+    Accessible.name: card.appNameText.length > 0
+        ? card.appNameText + ": " + card.summaryText : card.summaryText
+    Accessible.description: card.bodyText
+    Accessible.focusable: true
+    Accessible.onPressAction: card.activatePrimary()
 
     readonly property string summaryText: Notifications.plainText(notification.summary, 2048)
     readonly property string bodyText:    Notifications.plainText(notification.body)
@@ -90,7 +96,8 @@ Item {
         cardRect.opacity = 0
         cardRect.x = card._hiddenX
         card.enabled = false
-        if (ShellSettings.reduceMotion || !card.visible) {
+        if (!Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)
+                || !card.visible) {
             card.dismissRequested(card.notifId, card.notification, card._expired)
             return
         }
@@ -166,7 +173,7 @@ Item {
         id: _timeUpdate
         interval: 30000
         running:  card.visible && ShellSettings.notifPopupEnabled
-            && card.enabled && card._timeLive
+            && card.enabled && card._timeLive && !Idle.isIdle
         repeat:   true
         onTriggered: card._updateTime()
     }
@@ -216,7 +223,8 @@ Item {
     property real _timeoutProgress: 1.0
     property real _countdownPulse:  1.0
     readonly property bool _showCountdown: card.visible && card.enabled
-        && _autoClose.shouldRun && !ShellSettings.reduceMotion
+        && _autoClose.shouldRun
+        && Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)
 
     function _syncCountdown(): void {
         const full = _autoClose.fullInterval
@@ -251,6 +259,16 @@ Item {
         card._syncCountdown()
     }
 
+    Connections {
+        target: Idle
+        function onIsIdleChanged() {
+            if (!Idle.isIdle) {
+                card._updateTime()
+                card._syncCountdown()
+            }
+        }
+    }
+
     Loader {
         active: card.visible && ShellSettings.barShadow
         anchors.fill: cardRect
@@ -275,7 +293,8 @@ Item {
 
         property bool _behaviorEnabled: false
         // abs: a top-left stack slides to negative x, and a layer toggling off mid-slide flashes the card
-        layer.enabled: card.visible && !ShellSettings.reduceMotion
+        layer.enabled: card.visible
+            && Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)
             && (Math.abs(x) > 0.5 || opacity < 0.999)
 
         Component.onCompleted: {
@@ -288,14 +307,14 @@ Item {
             } else {
                 x = 0
                 opacity = 1.0
-                Qt.callLater(() => { cardRect._behaviorEnabled = true })
+                Qt.callLater(() => { if (cardRect) cardRect._behaviorEnabled = true })
             }
         }
 
-        MotionBehavior on x       { gate: card.visible && cardRect._behaviorEnabled; NumberAnimation { duration: card._leaving ? Motion.ms(200) : Motion.ms(280); easing.type: card._leaving ? Easing.InCubic : Easing.OutCubic } }
+        MotionBehavior on x       { gate: card.visible && cardRect._behaviorEnabled && !Idle.isIdle; NumberAnimation { duration: card._leaving ? Motion.ms(200) : Motion.ms(280); easing.type: card._leaving ? Easing.InCubic : Easing.OutCubic } }
         // the fade must outlast the slide both ways: a 140ms fade against the 200ms exit is spent a third of the way out
-        MotionBehavior on opacity { gate: card.visible && cardRect._behaviorEnabled; NumberAnimation { duration: Motion.ms(200); easing.type: card._leaving ? Easing.InCubic : Easing.OutCubic } }
-        MotionBehavior on height  { gate: card.visible && cardRect._behaviorEnabled; NumberAnimation { duration: Motion.ms(160); easing.type: Easing.OutCubic } }
+        MotionBehavior on opacity { gate: card.visible && cardRect._behaviorEnabled && !Idle.isIdle; NumberAnimation { duration: Motion.ms(200); easing.type: card._leaving ? Easing.InCubic : Easing.OutCubic } }
+        MotionBehavior on height  { gate: card.visible && cardRect._behaviorEnabled && !Idle.isIdle; NumberAnimation { duration: Motion.ms(160); easing.type: Easing.OutCubic } }
 
         // same chrome tone as the menu/calendar/tray popups, or a standalone card reads as a lighter floating row.
         // urgency rides the outline, glyph and ring only: tinting the whole fill red drowns the text it is warning about
@@ -467,6 +486,7 @@ Item {
                         height: parent.height; radius: parent.radius
                         color:  Theme.accent
                         MotionBehavior on width {
+                            gate: !Idle.isIdle
                             NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic }
                         }
                     }
@@ -544,6 +564,11 @@ Item {
                             font.weight: Font.Medium
                             ColorFade on color {}
                         }
+
+                        Accessible.role: Accessible.Button
+                        Accessible.name: card._actionText(_actBtn.modelData)
+                        Accessible.focusable: true
+                        Accessible.onPressAction: card.invokeAction(_actBtn.modelData)
 
                         MouseArea {
                             id: _actMa
@@ -625,6 +650,11 @@ Item {
             z: 2
             MotionBehavior on opacity      {NumberAnimation { duration: Motion.fast } }
             ColorFade on color {}
+            Accessible.role: Accessible.Button
+            Accessible.name: "Dismiss notification"
+            Accessible.focusable: true
+            Accessible.onPressAction: card.dismiss()
+
             HoverHandler { id: _closeHover; cursorShape: Qt.PointingHandCursor }
             TapHandler   { onTapped: card.dismiss() }
             ShellText {
@@ -648,7 +678,10 @@ Item {
             outlineColor: card.isCritical
                 ? Theme.withAlpha(Theme.error,  0.62)
                 : Theme.outline
-            MotionBehavior on outlineColor {ColorAnimation { duration: Motion.medium } }
+            MotionBehavior on outlineColor {
+                gate: !Idle.isIdle
+                ColorAnimation { duration: Motion.medium }
+            }
         }
     }
 

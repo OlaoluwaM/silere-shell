@@ -1,63 +1,31 @@
 pragma Singleton
 
 import QtQuick
-import Quickshell
 import Quickshell.Io
 
-Singleton {
+AnchoredPopupState {
     id: root
-    property bool open:    false
-    property real anchorX: 10
-    property QtObject anchorSource: null
-    property ShellScreen triggerScreen: null
-    readonly property real effectiveAnchorX: {
-        const live = Number(root.anchorSource?.menuAnchorX)
-        return isFinite(live) ? live : root.anchorX
-    }
-    // a destroyed widget nulls this with no assignment behind it. Reordering bar widgets
-    // hands the zone's Repeater a new array, which rebuilds every delegate, so the anchor
-    // drops for a turn and comes straight back; only a bar that really went never returns.
-    property bool _anchorWriting: false
-    function _setAnchor(source): void {
-        _anchorRegrab.stop()
-        root._anchorWriting = true
-        root.anchorSource = source ?? null
-        root._anchorWriting = false
-    }
-    // claimed by whichever live widget asks first, not by the one being rebuilt: a zone's
-    // Repeater creates the replacements before it destroys the originals, and the
-    // destruction is deferred, so an edge-triggered handover lands on a dying instance
-    function adoptAnchor(source): void {
-        if (!root.open || !source) return
-        if (root._anchorWriting || root.anchorSource !== null) return
-        root._setAnchor(source)
-    }
-    onAnchorSourceChanged: {
-        if (anchorSource !== null) { _anchorRegrab.stop(); return }
-        if (root._anchorWriting || !root.open) return
-        _anchorRegrab.restart()
-    }
-    // never expose this timer's state: a consumer that reacts by taking the anchor stops
-    // the very timer it is bound to, which is a binding loop
-    Timer {
-        id: _anchorRegrab
-        interval: 150
-        onTriggered: if (root.open && root.anchorSource === null) root.close()
-    }
+
+    anchorX: 10
 
     readonly property int homeTab: 0
     readonly property int settingsTab: 1
     readonly property int recentTab: 2
     readonly property int systemTab: 3
     property int _activeTab: homeTab
+    property int _previousTab: homeTab
     readonly property int activeTab: _activeTab
+    readonly property int previousTab: _previousTab
+    readonly property int tabDirection: {
+        const delta = tabPosition(activeTab) - tabPosition(previousTab)
+        return delta === 0 ? 0 : (delta > 0 ? 1 : -1)
+    }
     readonly property bool homeActive: open && activeTab === homeTab
     readonly property bool settingsActive: open && activeTab === settingsTab
 
     property string settingsSection: "theme"
 
-    // Order by user impact and frequency: global appearance first, daily bar
-    // surfaces next, then feedback; operational and recovery tools stay last.
+    // order by user impact and frequency: global appearance first, daily bar surfaces next, then feedback; operational and recovery tools stay last
     readonly property var settingsTree: [
         { glyph: "󰉦", label: "Appearance", children: [
             { glyph: "󰉦", label: "Theme",       section: "theme",
@@ -122,9 +90,19 @@ Singleton {
         return Math.max(homeTab, Math.min(systemTab, index))
     }
 
+    // Match the rail's visual order rather than the internal numeric ids.
+    function tabPosition(index: int): int {
+        if (index === homeTab) return 0
+        if (index === recentTab) return 1
+        return 2
+    }
+
     function selectTab(index: int): int {
         const tab = root._validTab(index)
-        if (root._activeTab !== tab) root._activeTab = tab
+        if (root._activeTab !== tab) {
+            root._previousTab = root._activeTab
+            root._activeTab = tab
+        }
         return tab
     }
 
@@ -133,17 +111,8 @@ Singleton {
             close()
             return
         }
-        anchorX = x
-        _setAnchor(source)
-        triggerScreen = screen ?? null
-        _activeTab = homeTab
-        open = true
-    }
-    function close(): void {
-        // open first: clearing anchorSource while open re-enters close() through its handler
-        if (open) open = false
-        triggerScreen = null
-        _setAnchor(null)
+        selectTab(homeTab)
+        openAt(x, screen, source)
     }
     function showTab(index: int): void {
         const tab = selectTab(index)
@@ -157,18 +126,15 @@ Singleton {
 
         function toggle(): void {
             if (root.open) { root.close(); return }
-            root.triggerScreen = null
-            root._setAnchor(null)
-            root._activeTab = root.homeTab
-            root.open = true
+            root.selectTab(root.homeTab)
+            root.openUnanchored()
         }
         function close(): void { root.close() }
         // kept for compatibility with keybinds already carrying the numeric index
         function tab(index: int): string {
             if (index < root.homeTab || index > root.systemTab)
                 return "unknown menu tab " + index + "; valid: 0 (home), 1 (settings), 2 (recent), 3 (system)"
-            root.triggerScreen = null
-            root._setAnchor(null)
+            root._unanchor()
             root.showTab(index)
             return "ok"
         }
@@ -198,13 +164,11 @@ Singleton {
         // keep `section: "` out of any literal below: ci-lint harvests nav entries by that pattern
         function settings(name: string): string {
             const known = root._flatSections.indexOf(name) >= 0
-            root.triggerScreen = null
-            root._setAnchor(null)
+            root._unanchor()
             root.setSettingsSection(name)
             root.showTab(root.settingsTab)
             if (known) return "ok"
-            // pages get renamed; a keybind carrying an old name still opens Settings
-            // rather than doing nothing, and says why it landed somewhere else
+            // pages get renamed; a keybind carrying an old name still opens Settings rather than doing nothing, and says why it landed somewhere else
             return "unknown settings page '" + name + "'; opened theme instead. valid: "
                 + root._flatSections.join(", ")
         }

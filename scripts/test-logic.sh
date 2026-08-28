@@ -9,6 +9,11 @@ if ! command -v qs >/dev/null 2>&1; then
     echo "SKIP: quickshell (qs) not installed" >&2
     exit 0
 fi
+# installed but unable to start must not skip: that would pass CI with no coverage
+if ! qs_probe="$(qs --version 2>&1)"; then
+    echo "FAIL: quickshell (qs) will not start: ${qs_probe%%$'\n'*}" >&2
+    exit 1
+fi
 
 log="$(mktemp "${TMPDIR:-/tmp}/silere-logic.XXXXXX.log")"
 cfg="$(mktemp -d "${TMPDIR:-/tmp}/silere-logic-cfg.XXXXXX")"
@@ -35,7 +40,7 @@ trap 'exit 130' INT TERM
 mkdir -p "$cfg/silere-shell"
 printf '{"__version":1}\n' > "$cfg/silere-shell/settings.json"
 
-XDG_CONFIG_HOME="$cfg" XDG_RUNTIME_DIR="$runtime" \
+XDG_CONFIG_HOME="$cfg" XDG_STATE_HOME="$cfg" XDG_RUNTIME_DIR="$runtime" \
     QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen \
     qs -p "$probe_project/probe-logic.qml" --no-color >"$log" 2>&1 &
 probe_pid=$!

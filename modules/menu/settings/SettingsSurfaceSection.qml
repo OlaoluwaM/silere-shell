@@ -1,4 +1,5 @@
 import QtQuick
+import "../../../config"
 import "../../../services"
 import "../controls"
 
@@ -27,14 +28,26 @@ Column {
             ]
             onChosen: (v) => ShellSettings.barHeight = v
         }
+        // docked pins the bar's own corners to zero, but widget hover capsules and the
+        // OSD pill still take this radius, so the row stays reachable under a truthful name
+        SliderRow {
+            glyph: "󱓻"
+            label: ShellSettings.barFloating ? "Roundness" : "Highlight roundness"
+            key: "barRadius"
+            // the bar caps its corners at half its height; the raw number overstates past that
+            displayValue: ShellSettings.barRadius === 0 ? "Flat"
+                : ShellSettings.barFloating
+                    && ShellSettings.barRadius >= ShellSettings.barHeight / 2 ? "Round"
+                : ShellSettings.barRadius + "px"
+        }
         SliderRow {
             glyph: "󰗌"; label: "Opacity"
             key: "barOpacity"
             step: 0.02
-            displayValue: Math.round(ShellSettings.barOpacity * 100) + "%"
+            displayValue: Math.round(Theme.panelOpacity * 100) + "%"
         }
         ToggleRow {
-            glyph: "󱡓"; label: "Match on popups"
+            glyph: "󱡓"; label: "Popups match bar opacity"
             description: "Notifications, calendar, tray and quick actions"
             key: "popupMatchBarOpacity"
         }
@@ -44,7 +57,7 @@ Column {
     SettingsCard {
         ToggleRow {
             glyph: "󰂵"; label: "Glass surfaces"
-            description: "Frost popups and let the wallpaper tint show through"
+            description: "Frost popups with the wallpaper tint"
             key: "glassSurfaces"
         }
         SliderRow {
@@ -67,7 +80,7 @@ Column {
             expanded: ShellSettings.barFloating
             ToggleRow {
                 glyph: "󰡌"; label: "Fit window gaps"
-                description: "Align to Hyprland's gaps_out instead of a width fraction"
+                description: "Align to Hyprland's gaps_out, not a fraction"
                 key: "barFitGaps"
             }
             // width only means something once fit-gaps is off; it's the fraction that mode replaces
@@ -86,12 +99,6 @@ Column {
                 key: "barGap"
                 step: 4
                 displayValue: ShellSettings.barGap === 0 ? "None" : ShellSettings.barGap + "px"
-            }
-            // only the floating bar paints its own corners; docked multiplies the radius by 0
-            SliderRow {
-                glyph: "󱓻"; label: "Roundness"
-                key: "barRadius"
-                displayValue: ShellSettings.barRadius === 0 ? "Flat" : ShellSettings.barRadius + "px"
             }
         }
     }

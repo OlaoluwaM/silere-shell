@@ -160,6 +160,15 @@ Item {
         root.groupToggled()
     }
 
+    function _syncExpansionMode(keepGroupsOpen: bool, section: string): void {
+        if (!keepGroupsOpen)
+            root._expandedGroup = root._groupIndexForSection(section)
+        // the mode changes every group's height at once. Let the panel follow that disclosure and reveal the selected leaf after the rows settle
+        root._settleGroup = -1
+        _disclosureSettle.restart()
+        root.groupToggled()
+    }
+
     function _toggleGroup(index: int): void {
         if (root.allExpanded) {
             const collapsing = root._isExpanded(index)
@@ -191,7 +200,10 @@ Item {
     Timer {
         id: _disclosureSettle
         interval: Motion.medium
-        onTriggered: root._scrollToGroup(root._settleGroup)
+        onTriggered: {
+            if (root._settleGroup >= 0) root._scrollToGroup(root._settleGroup)
+            else root._scrollToSelection()
+        }
     }
 
     Timer {
@@ -236,6 +248,13 @@ Item {
             if (root.active) root._selectGroupAndScroll()
         }
     }
+    Connections {
+        target: ShellSettings
+        function onSettingsNavPinnedChanged() {
+            root._syncExpansionMode(
+                ShellSettings.settingsNavPinned, MenuState.settingsSection)
+        }
+    }
 
     ShellFlickable {
         id: _navScroll
@@ -248,7 +267,11 @@ Item {
 
         MotionBehavior on contentY {
             gate: !_navScroll.moving
-            NumberAnimation { duration: Motion.medium; easing.type: Easing.OutQuart }
+            NumberAnimation {
+                duration: Motion.normal
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Motion.standard
+            }
         }
 
         Item {
@@ -306,25 +329,36 @@ Item {
                             height: root._groupH
                             radius: Theme.radiusInline
                             antialiasing: true
-                            // the group holding the current page, not every open one.
-                            // hover brightens that marking rather than replacing it, or
-                            // the cursor erases the only sign of where you are
+                            // hover brightens the current group's marking instead of replacing it
                             color: !_grp.groupActive
-                                ? (_headerHover.hovered
+                                ? (_headerTap.pressed
+                                    ? Theme.withAlpha(Theme.accent, 0.12)
+                                    : _headerHover.hovered
                                     ? Theme.withAlpha(Theme.text, 0.035) : "transparent")
                                 : _grp.expanded
                                     ? Theme.withAlpha(Theme.accent,
-                                        _headerHover.hovered ? 0.075 : 0.035)
+                                        _headerTap.pressed ? 0.13
+                                            : _headerHover.hovered ? 0.075 : 0.035)
                                     : Theme.controlFill(Theme.accent,
                                         ShellSettings.highContrast
-                                            ? (_headerHover.hovered ? 0.24 : 0.16)
-                                            : (_headerHover.hovered ? 0.17 : 0.10))
+                                            ? (_headerTap.pressed ? 0.30
+                                                : _headerHover.hovered ? 0.24 : 0.16)
+                                            : (_headerTap.pressed ? 0.22
+                                                : _headerHover.hovered ? 0.17 : 0.10))
+
+                            Accessible.role: Accessible.Button
+                            Accessible.name: _grp.modelData.label
+                            Accessible.description: _grp.expanded ? "Expanded" : "Collapsed"
+                            Accessible.focusable: true
+                            Accessible.selected: _grp.groupActive
+                            Accessible.onPressAction: root._toggleGroup(_grp.index)
 
                             HoverHandler {
                                 id: _headerHover
                                 cursorShape: Qt.PointingHandCursor
                             }
                             TapHandler {
+                                id: _headerTap
                                 onTapped: {
                                     root._toggleGroup(_grp.index)
                                 }
@@ -391,7 +425,12 @@ Item {
                             visible: height > 0
                             clip: height < _leafColumn.implicitHeight + root._childrenPad * 2
 
-                            Disclosure on height { expanded: _grp.expanded }
+                            Disclosure on height {
+                                expanded: _grp.expanded
+                                symmetric: !root.allExpanded
+                                enterCurve: Motion.standard
+                                exitCurve: Motion.standard
+                            }
 
                             Column {
                                 id: _leafColumn
@@ -399,17 +438,16 @@ Item {
                                 y: root._childrenPad
                                 width: parent.width - 6
                                 spacing: root._navRowGap
-                                property real _shift: _grp.expanded ? 0 : -4
                                 opacity: _grp.expanded ? 1 : 0
-                                transform: Translate { y: _leafColumn._shift }
 
                                 MotionBehavior on opacity {
                                     NumberAnimation {
                                         duration: Motion.fast
-                                        easing.type: _grp.expanded ? Easing.OutCubic : Easing.InCubic
+                                        easing.type: Easing.BezierSpline
+                                        easing.bezierCurve: _grp.expanded
+                                            ? Motion.standardDecel : Motion.standardAccel
                                     }
                                 }
-                                Disclosure on _shift { expanded: _grp.expanded }
 
                                 Repeater {
                                     id: _leafRepeater
@@ -419,7 +457,6 @@ Item {
                                     delegate: Rectangle {
                                         id: _leaf
 
-                                        required property int index
                                         required property var modelData
                                         readonly property bool active: MenuState.settingsSection === modelData.section
                                         readonly property string glyph: modelData.glyph ?? ""
@@ -432,17 +469,29 @@ Item {
                                         color: _leaf.active
                                             ? Theme.withAlpha(Theme.accent,
                                                 ShellSettings.highContrast
-                                                    ? (_leafHover.hovered ? 0.20 : 0.14)
-                                                    : (_leafHover.hovered ? 0.115 : 0.075))
+                                                    ? (_leafTap.pressed ? 0.27
+                                                        : _leafHover.hovered ? 0.20 : 0.14)
+                                                    : (_leafTap.pressed ? 0.16
+                                                        : _leafHover.hovered ? 0.115 : 0.075))
+                                            : _leafTap.pressed
+                                                ? Theme.withAlpha(Theme.accent, 0.12)
                                             : _leafHover.hovered
                                                 ? Theme.withAlpha(Theme.text, 0.042)
                                                 : "transparent"
+
+                                        Accessible.role: Accessible.PageTab
+                                        Accessible.name: _leaf.modelData.label
+                                        Accessible.focusable: true
+                                        Accessible.selected: _leaf.active
+                                        Accessible.onPressAction: root._activateSection(
+                                            _leaf.modelData.section)
 
                                         HoverHandler {
                                             id: _leafHover
                                             cursorShape: Qt.PointingHandCursor
                                         }
                                         TapHandler {
+                                            id: _leafTap
                                             onTapped: {
                                                 root._activateSection(_leaf.modelData.section)
                                             }

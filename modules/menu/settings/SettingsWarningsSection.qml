@@ -25,6 +25,14 @@ Column {
         ShellSettings.osdBatteryWarn, ShellSettings.underlineBattGlow)
     readonly property string _tempAlertMode: root._alertMode(
         ShellSettings.osdTempWarn, ShellSettings.underlineTempGlow)
+    readonly property bool _batteryDesktopAlert:
+        Battery.available && ShellSettings.osdBatteryWarn
+    readonly property bool _tempDesktopAlert:
+        !CpuTemp.sensorMissing && ShellSettings.osdTempWarn
+    readonly property bool _desktopAlertsEnabled:
+        root._batteryDesktopAlert || root._tempDesktopAlert
+    readonly property bool _hardwareStatusVisible:
+        !Battery.available && CpuTemp.sensorMissing
 
     readonly property var _alertChipModel: ShellSettings.underlineGlow
         ? [
@@ -47,17 +55,15 @@ Column {
             model: root._alertChipModel
             onChosen: (v) => root._setAlertMode(v, "osdBatteryWarn", "underlineBattGlow")
         }
-        CollapsibleSection {
-            expanded: root._battAlertMode !== "off"
-            SliderRow {
-                glyph: "󱃍"; label: "Alert below"
-                key: "batteryLowThreshold"
-                step: 5
-                displayValue: ShellSettings.batteryLowThreshold + "%"
-                glyphColor: Battery.critical ? Theme.error : (Battery.low ? Theme.warning : Theme.withAlpha(Theme.subtext, 0.85))
-            }
-            HintText { text: "Escalates to critical at " + Math.max(5, Math.round(ShellSettings.batteryLowThreshold / 2)) + "%." }
+        // ungated: the power rail label, the vitals strip and the battery colour read this threshold whether or not either warning is switched on
+        SliderRow {
+            glyph: "󱃍"; label: "Low below"
+            key: "batteryLowThreshold"
+            step: 5
+            displayValue: ShellSettings.batteryLowThreshold + "%"
+            glyphColor: Battery.critical ? Theme.error : (Battery.low ? Theme.warning : Theme.withAlpha(Theme.subtext, 0.85))
         }
+        HintText { text: "Escalates to critical at " + Math.max(5, Math.round(ShellSettings.batteryLowThreshold / 2)) + "%." }
         ToggleRow {
             glyph: "󰂄"; label: "Fully charged alert"
             enabled: ShellSettings.osdEnabled
@@ -66,33 +72,50 @@ Column {
         }
     }
 
-    SectionLabel { label: "CPU TEMPERATURE"; first: !Battery.available }
+    SectionLabel {
+        label: "CPU TEMPERATURE"
+        first: !Battery.available
+        visible: !CpuTemp.sensorMissing
+    }
     SettingsCard {
+        visible: !CpuTemp.sensorMissing
         ChoiceChipRow {
             glyph: "󰔏"; label: "High temperature warning"
             currentValue: root._tempAlertMode
             model: root._alertChipModel
             onChosen: (v) => root._setAlertMode(v, "osdTempWarn", "underlineTempGlow")
         }
-        CollapsibleSection {
-            expanded: root._tempAlertMode !== "off"
-            SliderRow {
-                glyph: "󰔏"; label: "Alert above"
-                key: "tempHotThreshold"
-                step: 5
-                displayValue: ShellSettings.tempHotThreshold + "°"
-                glyphColor: CpuTemp.critical ? Theme.error : (CpuTemp.hot ? Theme.warning : Theme.withAlpha(Theme.subtext, 0.85))
-            }
-            HintText { text: "Escalates to critical at " + (ShellSettings.tempHotThreshold + 8) + "°." }
+        SliderRow {
+            glyph: "󰔏"; label: "Hot above"
+            key: "tempHotThreshold"
+            step: 5
+            displayValue: ShellSettings.tempHotThreshold + "°"
+            glyphColor: CpuTemp.critical ? Theme.error : (CpuTemp.hot ? Theme.warning : Theme.withAlpha(Theme.subtext, 0.85))
+        }
+        HintText { text: "Escalates to critical at " + (ShellSettings.tempHotThreshold + 8) + "°." }
+    }
+
+    SectionLabel {
+        label: "HARDWARE"
+        first: true
+        visible: root._hardwareStatusVisible
+    }
+    SettingsCard {
+        visible: root._hardwareStatusVisible
+        ControlRow {
+            glyph: "󰋼"
+            title: "No alert hardware found"
+            status: "Battery and temperature alerts stay hidden"
+            passive: true
         }
     }
 
     CollapsibleSection {
         id: _alertsSection
-        expanded: ShellSettings.osdBatteryWarn || ShellSettings.osdTempWarn
+        expanded: root._desktopAlertsEnabled
         Loader {
             width: parent.width
-            active: ShellSettings.osdBatteryWarn || ShellSettings.osdTempWarn || _alertsSection.height > 0.5
+            active: root._desktopAlertsEnabled || _alertsSection.height > 0.5
             height: item ? item.implicitHeight : 0
             sourceComponent: Component {
                 Column {

@@ -11,12 +11,11 @@ Repeater {
     property color lineColor: Theme.menuDivider
     readonly property real _dpr: Math.max(1, Screen.devicePixelRatio)
 
-    function _present(item): bool {
+    function present(item): bool {
         if (!item) return false
         if (item.layoutPresent !== undefined)
             return item.layoutPresent === true
-        // Standard card rows expose their edge or divider contract. Their
-        // animated height is presentation only and must not drive the scan.
+        // standard card rows expose their edge or divider contract. Their animated height is presentation only and must not drive the scan
         if (item.topRadius !== undefined
                 || item.suppressDividerAbove !== undefined)
             return item.visible
@@ -30,7 +29,7 @@ Repeater {
         for (let i = 0; i < children.length; i++) {
             result.push(hasAbove)
             const c = children[i]
-            if (root._present(c) && !(c.suppressDividerAbove ?? false)) hasAbove = true
+            if (root.present(c) && !(c.suppressDividerAbove ?? false)) hasAbove = true
         }
         return result
     }

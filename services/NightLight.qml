@@ -227,6 +227,8 @@ Singleton {
     Connections {
         target: SystemTools
         function onReadyChanged() { root._checkActive(); root._startGeo() }
+        // a tool refresh can flip systemctl's availability; redo the check on the scan's completion edge
+        function onScanRevisionChanged() { root._checkActive(); root._startGeo() }
     }
     Connections {
         target: ShellSettings

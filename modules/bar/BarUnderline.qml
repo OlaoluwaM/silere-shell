@@ -52,6 +52,7 @@ Item {
             : (((_tempGlowEnabled && CpuTemp.critical) || (_batteryGlowEnabled && Battery.critical)) ? 0.74 : 0.62)
         property real _idleFloor: ShellSettings.underlineIdleGlow ? 0.20 : 0
         MotionBehavior on _idleFloor {
+            gate: !Idle.isIdle
             NumberAnimation { duration: Motion.slow; easing.type: Easing.OutCubic }
         }
         readonly property real _activeGlowStrength: Math.min(1, 0.45 + 0.4 * ShellSettings.glowStrength)
@@ -59,6 +60,7 @@ Item {
         readonly property real _eventGlow:   Math.max(_scaledGlow, _batteryGlow, _tempGlow)
         property real _mediaGlow: (ShellSettings.mediaProgress && Media.shown && Media.cavaReady) ? 0.18 : 0
         MotionBehavior on _mediaGlow {
+            gate: !Idle.isIdle
             NumberAnimation { duration: Motion.slow; easing.type: Easing.OutCubic }
         }
         readonly property real _combined:    Math.min(_ceiling, Math.max(_idleFloor, _eventGlow, _mediaGlow))
@@ -78,16 +80,25 @@ Item {
             return Theme.accent
         }
         property color _effectColor: _effectColorTarget
-        MotionBehavior on _effectColor {ColorAnimation { duration: Motion.ms(350) } }
+        MotionBehavior on _effectColor {
+            gate: !Idle.isIdle
+            ColorAnimation { duration: Motion.ms(350) }
+        }
 
         property color _stopColor: Qt.rgba(
             _effectColorTarget.r, _effectColorTarget.g, _effectColorTarget.b, 0.9
         )
-        MotionBehavior on _stopColor {ColorAnimation { duration: Motion.ms(350) } }
+        MotionBehavior on _stopColor {
+            gate: !Idle.isIdle
+            ColorAnimation { duration: Motion.ms(350) }
+        }
         property color _stopColorMid: Qt.rgba(
             _effectColorTarget.r, _effectColorTarget.g, _effectColorTarget.b, 0.45
         )
-        MotionBehavior on _stopColorMid {ColorAnimation { duration: Motion.ms(350) } }
+        MotionBehavior on _stopColorMid {
+            gate: !Idle.isIdle
+            ColorAnimation { duration: Motion.ms(350) }
+        }
         property real _sweepSpread: 0.28
         property real _bloomBoost:  0.0
         property real _screenshotSweepCenter: 0.50
@@ -110,8 +121,7 @@ Item {
             ? 0.5 : _sweepSpread
         readonly property real _renderCenter: ShellSettings.underlineFullWidth
             ? 0.5 : _sweepCenter
-        // both stops share one rgb and differ only in alpha, so lerp that; mix() would
-        // return alpha 1 and light the ends brighter than the peak
+        // both stops share one rgb and differ only in alpha, so lerp that; mix() would return alpha 1 and light the ends brighter than the peak
         readonly property color _renderEdge: ShellSettings.underlineFullWidth
             ? Theme.withAlpha(_stopColor,
                 _stopColorMid.a + (_stopColor.a - _stopColorMid.a) * 0.55)
@@ -120,12 +130,17 @@ Item {
         property real _sweepCenter: _sweepCenterTarget
         MotionBehavior on _sweepCenter {
             // sweep already animates this frame-by-frame, a second Behavior would lag behind it
-            gate: !(_lineEffect._shotActive && ShellSettings.screenshotGlowSweep)
+            gate: !Idle.isIdle
+                && !(_lineEffect._shotActive && ShellSettings.screenshotGlowSweep)
             NumberAnimation { duration: Motion.ms(400); easing.type: Easing.OutCubic }
         }
 
         property real _screenshotGlow: 0.0
         readonly property bool _shotActive: _screenshotGlow > 0.001
+
+        function _canRunEventMotion(): bool {
+            return Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)
+        }
 
         function _playScreenshot(): void {
             _screenshotPulse.stop()
@@ -134,7 +149,7 @@ Item {
             _bloomBoost = 0
             _sweepSpread = 0.28
             _screenshotSweepCenter = 0.50
-            if (ShellSettings.reduceMotion) return
+            if (!_lineEffect._canRunEventMotion()) return
             if (ShellSettings.screenshotGlowSweep)
                 _screenshotSweep.restart()
             else
@@ -244,7 +259,8 @@ Item {
                 const incoming = Notifications.activeCount > _lineEffect._prevNotifCount
                 if (incoming && _lineEffect._skipNextNotif) {
                     _lineEffect._skipNextNotif = false
-                } else if (ShellSettings.underlineNotifGlow && incoming && !ShellSettings.reduceMotion) {
+                } else if (ShellSettings.underlineNotifGlow && incoming
+                        && _lineEffect._canRunEventMotion()) {
                     _notifFlash.restart()
                 }
                 _lineEffect._prevNotifCount = Notifications.activeCount
@@ -277,7 +293,8 @@ Item {
             })
         }
         function _canPreview(): bool {
-            return _settingsReady && MenuState.open && !ShellSettings.reduceMotion
+            return _settingsReady && MenuState.open
+                && _lineEffect._canRunEventMotion()
         }
         function _stopTransient(): void {
             _previewTimer.stop()
@@ -296,16 +313,29 @@ Item {
         Connections {
             target: ShellSettings
             function onUnderlineNotifGlowChanged() {
-                if (ShellSettings.underlineNotifGlow && _lineEffect._canPreview()) _previewTimer.restart()
+                if (!ShellSettings.underlineNotifGlow) {
+                    // event effects share sweep geometry; settling them together avoids leaving a stopped effect's bloom behind another one
+                    _lineEffect._stopTransient()
+                } else if (_lineEffect._canPreview()) {
+                    _previewTimer.restart()
+                }
             }
             function onUnderlineNetGlowChanged() {
-                if (ShellSettings.underlineNetGlow && _lineEffect._canPreview()) _previewTimer.restart()
+                if (!ShellSettings.underlineNetGlow) {
+                    _lineEffect._stopTransient()
+                } else if (_lineEffect._canPreview()) {
+                    _previewTimer.restart()
+                }
             }
             function onGlowStrengthChanged() {
                 if (_lineEffect._canPreview()) _previewTimer.restart()
             }
             function onUnderlineScreenshotGlowChanged() {
-                if (ShellSettings.underlineScreenshotGlow && _lineEffect._canPreview()) _screenshotPreviewTimer.restart()
+                if (!ShellSettings.underlineScreenshotGlow) {
+                    _lineEffect._stopTransient()
+                } else if (_lineEffect._canPreview()) {
+                    _screenshotPreviewTimer.restart()
+                }
             }
             function onScreenshotGlowSweepChanged() {
                 if (_lineEffect._canPreview() && ShellSettings.underlineScreenshotGlow) _screenshotPreviewTimer.restart()
@@ -313,6 +343,12 @@ Item {
             function onReduceMotionChanged() {
                 if (!ShellSettings.reduceMotion) return
                 _lineEffect._stopTransient()
+            }
+        }
+        Connections {
+            target: Idle
+            function onIsIdleChanged() {
+                if (Idle.isIdle) _lineEffect._stopTransient()
             }
         }
         Timer {
@@ -338,7 +374,8 @@ Item {
                 return
             }
 
-            if (_lastNetConnected && disconnected && ShellSettings.underlineNetGlow && !ShellSettings.reduceMotion) {
+            if (_lastNetConnected && disconnected && ShellSettings.underlineNetGlow
+                    && _lineEffect._canRunEventMotion()) {
                 _netLossFlash.restart()
             } else if (currentConnected || !Network.available) {
                 _netLossFlash.stop()

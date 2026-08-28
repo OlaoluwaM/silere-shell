@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import Quickshell
 import "../../../config"
 import "../../../services"
 import "../controls"
@@ -14,27 +13,7 @@ Column {
     property bool _armed: false
     property real _armedAtMs: 0
 
-    // "" | working | done | failed. Rewiring Matugen is the one health issue with a
-    // fix Silere owns, so it is the one that gets an action; a missing package is
-    // not ours to install.
-    property string _repairState: ""
-
-    function _repairMatugen(): void {
-        if (root._repairState === "working") return
-        root._repairState = "working"
-        _repairProc.running = true
-    }
-
-    BoundedProcess {
-        id: _repairProc
-        timeoutMs: 15000
-        command: ["bash", Quickshell.shellDir + "/scripts/install.sh", "--repair-matugen"]
-        onExited: code => root._repairState = code === 0 ? "done" : "failed"
-        onTimeoutReached: root._repairState = "failed"
-    }
-
-    // Reopening Maintenance re-detects tools installed or removed while the
-    // shell is running. FontScan follows the completed tool refresh itself.
+    // reopening Maintenance re-detects tools installed or removed while the shell is running. FontScan follows the completed tool refresh itself
     Component.onCompleted: SystemTools.refresh()
 
     function _disarm(): void {
@@ -85,8 +64,7 @@ Column {
         }
     }
 
-    // The whole section only instantiates while it is the open page; the probe
-    // runs once on entry and never polls in the background.
+    // the whole section only instantiates while it is the open page; the probe runs once on entry and never polls in the background
     readonly property var _issues: {
         const out = []
         if (!SystemTools.ready) return out
@@ -105,20 +83,22 @@ Column {
                  && FontScan.families.indexOf(ShellSettings.fontFamily) < 0)
             out.push({ g: "󰈵", n: "Chosen font", s: "“" + ShellSettings.fontFamily + "” is gone; using " + Settings.font, v: "fallback" })
 
-        // wallpaper theming degrades instead of hiding, so it reads as working while
-        // the palette silently stays bundled — both causes need naming
+        // wallpaper theming degrades instead of hiding, so it reads as working while the palette silently stays bundled — both causes need naming
         if (!SystemTools.hasMatugen)
-            out.push({ g: "󰉦", n: "Wallpaper theming", s: "Colors stay at Silere's bundled palette", v: "matugen" })
+            out.push({ g: "󰉦", n: "Wallpaper theming",
+                s: MatugenTheme.usingFallback ? "Wallpaper colors are unavailable"
+                    : "Last palette stays; sync stops",
+                v: "matugen" })
         else if (MatugenTheme.paletteStale)
             out.push({ g: "󰉦", n: "Wallpaper palette", s: "Unreadable; showing the last colors that loaded", v: "template" })
         else if (MatugenTheme.usingFallback)
             out.push({ g: "󰉦", n: "Wallpaper palette",
-                s: root._repairState === "working" ? "Rewiring Matugen…"
-                    : root._repairState === "done" ? "Rewired — colors follow your next wallpaper change"
-                    : root._repairState === "failed" ? "Could not rewire; run scripts/install.sh"
+                s: SystemTools.matugenRepairState === "working" ? "Rewiring Matugen…"
+                    : SystemTools.matugenRepairState === "done" ? "Rewired — colors follow your next wallpaper change"
+                    : SystemTools.matugenRepairState === "failed" ? "Could not rewire; run scripts/install.sh"
                     : "Matugen has not written one yet",
-                v: root._repairState === "working" ? "" : root._repairState === "done" ? "" : "Repair",
-                a: root._repairState === "working" || root._repairState === "done" ? "" : "matugen" })
+                v: SystemTools.matugenRepairState === "working" ? "" : "Repair",
+                a: SystemTools.matugenRepairState === "working" ? "" : "matugen" })
 
         const tool = (g, n, v) => out.push({ g: g, n: n, s: "Hidden until this is installed", v: v })
         if (!SystemTools.hasBrightnessctl)     tool("󰃟", "Brightness control", "brightnessctl")
@@ -138,8 +118,8 @@ Column {
             visible: SystemTools.ready && !SystemTools.checking
                 && !SystemTools.probeFailed && root._issues.length === 0
             glyph: "󰗠"
-            title: "All optional tools found"
-            status: "No features are hidden"
+            title: "No feature issues found"
+            status: "Available controls are ready"
             passive: true
         }
         ControlRow {
@@ -164,12 +144,20 @@ Column {
                 status: modelData.s
                 valueText: modelData.v
                 passive: !modelData.a
-                onActivated: if (modelData.a === "matugen") root._repairMatugen()
+                onActivated: if (modelData.a === "matugen") SystemTools.repairMatugen()
             }
         }
         HintText {
             visible: root._issues.length > 0
             text: "Install the listed package to enable its feature."
+        }
+        ControlRow {
+            glyph: "󰑐"
+            title: "Recheck optional tools"
+            status: "Refresh after tool changes"
+            valueText: SystemTools.checking ? "Checking…" : "Check"
+            available: !SystemTools.checking
+            onActivated: SystemTools.refresh()
         }
     }
 }

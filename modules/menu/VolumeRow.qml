@@ -43,6 +43,7 @@ Item {
         cardInset:    root.cardInset
         cardLeftBleed: root.cardLeftBleed
         glyph: Audio.icon
+        accessibleName: "Volume"
         wheelKey: "volume"
         value: Audio.uiVolume
         valueText: Audio.label
@@ -79,7 +80,6 @@ Item {
                 delegate: InlineOptionRow {
                     id: _opt
                     required property var modelData
-                    required property int index
                     readonly property bool active: modelData.value === Audio.sink
 
                     width: _optCol.width

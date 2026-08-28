@@ -21,13 +21,16 @@ singleton OverviewState 1.0 OverviewState.qml
 singleton Screenshot    1.0 Screenshot.qml
 
 # shell
+AnchoredPopupState      1.0 AnchoredPopupState.qml
 BoundedProcess          1.0 BoundedProcess.qml
 TemplateLauncher        1.0 TemplateLauncher.qml
 singleton Caffeine      1.0 Caffeine.qml
 singleton CalendarState 1.0 CalendarState.qml
 singleton ConfigStore    1.0 ConfigStore.qml
+singleton ControlSurfaces 1.0 ControlSurfaces.qml
 singleton DateTime      1.0 DateTime.qml
 singleton FontScan      1.0 FontScan.qml
+singleton Hooks         1.0 Hooks.qml
 singleton Idle          1.0 Idle.qml
 singleton Keybinds      1.0 Keybinds.qml
 singleton KeybindsPopupState 1.0 KeybindsPopupState.qml

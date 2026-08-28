@@ -20,7 +20,10 @@ Singleton {
     readonly property bool barConcealed: OverviewState.active || Notifications.fullscreenActive
     readonly property alias entries: _entries
     readonly property int activeCount: _entries.count
-    MotionBehavior on fillColor {ColorAnimation { duration: Motion.medium } }
+    MotionBehavior on fillColor {
+        gate: !Idle.isIdle
+        ColorAnimation { duration: Motion.medium }
+    }
 
     signal bumped()
 
@@ -35,9 +38,10 @@ Singleton {
     }
 
     property bool _seenInitialBrightness: false
-    readonly property bool _batteryWatcherWanted: ShellSettings.osdEnabled
+    readonly property bool _batteryWatcherWanted: !Idle.isIdle && ShellSettings.osdEnabled
         && (ShellSettings.osdBatteryWarn || ShellSettings.osdChargedNotify)
-    readonly property bool _tempWatcherWanted: ShellSettings.osdEnabled && ShellSettings.osdTempWarn
+    readonly property bool _tempWatcherWanted: !Idle.isIdle
+        && ShellSettings.osdEnabled && ShellSettings.osdTempWarn
 
     property bool _armed: false
     Timer {
@@ -63,6 +67,28 @@ Singleton {
 
     function _hasBarKind(kind: string): bool {
         return kind !== "battery" && kind !== "temp" && kind !== "notif"
+    }
+
+    function _presentationAllowed(idle: bool, enabled: bool): bool {
+        return !idle && enabled
+    }
+
+    function _kindAllowedByFilter(kind: string, filter: string): bool {
+        return filter === "both" || kind === filter
+    }
+
+    function _clearEntries(): void {
+        _entrySweep.stop()
+        _rapidTimer.stop()
+        _deviceNameTimer.stop()
+        _entries.clear()
+        root._expiresAt = ({})
+        root._removeAt = ({})
+        root._closingSig = ({})
+        root._commitClose = ({})
+        root.rapid = false
+        root._showDeviceName = false
+        root._syncPrimary()
     }
 
     function _entryIndex(kind: string): int {
@@ -174,7 +200,7 @@ Singleton {
         if (!live && _closingSig[kind] === _sig(kind, value, muted)
             && (_commitClose[kind] || 0) > Date.now()) return false
         if (!_upsertEntry(kind, icon, value, label, muted, color)) return false
-        if (live && !root.rapid && !ShellSettings.reduceMotion) {
+        if (live && !root.rapid && !ShellSettings.reduceMotion && !Idle.isIdle) {
             root.bumped()
         }
         return true
@@ -182,11 +208,10 @@ Singleton {
 
     function show(kind: string, icon: string, value: real, label: string, muted: bool, deliberate: bool): void {
         if (!_armed) return
-        if (!ShellSettings.osdEnabled) return
+        if (!root._presentationAllowed(Idle.isIdle, ShellSettings.osdEnabled)) return
         // only the home page carries the volume/brightness rows; elsewhere the menu replaces nothing
         if (MenuState.homeActive) return
-        if (ShellSettings.osdKindFilter === "volume"     && kind !== "volume")     return
-        if (ShellSettings.osdKindFilter === "brightness" && kind !== "brightness") return
+        if (!root._kindAllowedByFilter(kind, ShellSettings.osdKindFilter)) return
 
         if (deliberate) {
             // a nudge is a real keypress, not an echo -- it must reopen a card
@@ -203,7 +228,8 @@ Singleton {
     }
 
     function showAlert(kind: string, icon: string, value: real, label: string, fillColor: color): void {
-        if (!_armed || !ShellSettings.osdEnabled) return
+        if (!_armed
+                || !root._presentationAllowed(Idle.isIdle, ShellSettings.osdEnabled)) return
         root.fillColor = fillColor
         _applyValues(kind, icon, value, label, false, fillColor)
     }
@@ -302,7 +328,7 @@ Singleton {
             if (!name || name === root._lastSinkName) return
             const isFirst = root._lastSinkName === ""
             root._lastSinkName = name
-            if (isFirst) return
+            if (isFirst || Idle.isIdle) return
             root._showDeviceName = true
             _deviceNameTimer.restart()
             const effectiveMuted = Audio.muted || Audio.uiVolume <= 0
@@ -370,5 +396,21 @@ Singleton {
             if (NotifWatch.conflict.length === 0) return
             root.showAlert("notif", "󰂛", 0, "Notifications blocked · " + NotifWatch.conflict, Theme.warning)
         }
+    }
+
+    Connections {
+        target: Idle
+        function onIsIdleChanged() {
+            if (Idle.isIdle) root._clearEntries()
+        }
+    }
+
+    Connections {
+        target: ShellSettings
+        function onOsdEnabledChanged() {
+            if (!ShellSettings.osdEnabled) root._clearEntries()
+        }
+        // a live volume entry must not reappear after changing the filter to brightness (or vice versa). The next accepted input starts fresh
+        function onOsdKindFilterChanged() { root._clearEntries() }
     }
 }

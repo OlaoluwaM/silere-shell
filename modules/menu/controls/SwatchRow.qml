@@ -10,11 +10,11 @@ Item {
     property var options: []
     property var colors: []
     property int activeIndex: -1
+    property bool outlined: false
     property bool spread: false
     property int edgePadding: 4
     property color ringColor: "transparent"
     property int hoveredIndex: -1
-    property string groupLabel: ""
 
     signal picked(int index)
 
@@ -60,9 +60,9 @@ Item {
                 required property var modelData
                 required property int index
                 chipColor: root.colorAt(index)
-                ringColor: root.ringColor.a > 0 ? root.ringColor : chipColor
                 name:      modelData.name ?? ""
-                groupLabel: root.groupLabel
+                spectrum:  modelData.spectrum === true
+                outlined:  root.outlined
                 active:    index === root.activeIndex
                 onPicked:  root.picked(index)
                 onHoverChanged: (n, h) => {

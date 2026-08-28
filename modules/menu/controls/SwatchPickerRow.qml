@@ -11,6 +11,7 @@ Item {
     property alias options: _sr.options
     property alias colors: _sr.colors
     property alias activeIndex: _sr.activeIndex
+    property alias outlined: _sr.outlined
     property alias ringColor: _sr.ringColor
     property bool tintedReadout: false
 
@@ -35,7 +36,7 @@ Item {
     MotionBehavior on height {
         NumberAnimation { duration: Motion.normal; easing.type: Easing.OutCubic }
     }
-    opacity: enabled ? 1.0 : 0.45
+    opacity: enabled ? 1.0 : Theme.disabledOpacity
     MotionBehavior on opacity {NumberAnimation { duration: Motion.medium } }
 
     readonly property int _shownIdx: _sr.hoveredIndex >= 0 ? _sr.hoveredIndex : _sr.activeIndex
@@ -93,7 +94,6 @@ Item {
             : Math.round((root.height - height) / 2)
         width: implicitWidth
         height: implicitHeight
-        groupLabel: root.label
         onPicked: (i) => root.picked(i)
     }
 }

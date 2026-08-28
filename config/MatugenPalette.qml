@@ -27,7 +27,7 @@ Singleton {
         surface:    "#1d1f26",
         text:       "#e9eaf0",
         subtext:    "#a0a4b0",
-        accent:     "#b8bdd8",
+        accent:     "#9babe9",
         error:      "#dd92a2",
         warning:    "#d4ad77",
         success:    "#94bd8b"
@@ -115,8 +115,7 @@ Singleton {
 
     function _load(raw: string): void {
         const parsed = root._parsePalette(raw)
-        // Keep the last valid palette during an editor save or atomic replace;
-        // a malformed external file must never partially recolor the shell.
+        // keep the last valid palette during an editor save or atomic replace; a malformed external file must never partially recolor the shell
         if (parsed === null) {
             root.paletteStale = root._everLoaded
             return
@@ -132,6 +131,11 @@ Singleton {
         root.paletteStale = false
     }
 
+    function _markUnreadable(): void {
+        // missing on first launch is the normal bundled fallback. Disappearing after a good load means the colors on screen are now a retained copy
+        root.paletteStale = root._everLoaded
+    }
+
     FileView {
         id: _paletteFile
         path: root.palettePath
@@ -139,5 +143,6 @@ Singleton {
         printErrors: false
         onLoaded: root._load(_paletteFile.text() || "")
         onFileChanged: reload()
+        onLoadFailed: root._markUnreadable()
     }
 }

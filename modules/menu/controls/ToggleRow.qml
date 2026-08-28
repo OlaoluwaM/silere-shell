@@ -14,12 +14,12 @@ MenuRow {
     property string dependsNote:  ""
 
     rowHovered:     _hover.hovered
+    rowPressed:     _tap.pressed
     rowInteractive: root._canToggle
 
     signal toggled(bool nextChecked)
 
-    // Connections, not an onToggled handler: a handler here would be replaced by
-    // one written at the use site instead of running alongside it
+    // Connections, not an onToggled handler: a handler here would be replaced by one written at the use site instead of running alongside it
     Connections {
         target: root
         function onToggled(nextChecked) {
@@ -55,8 +55,16 @@ MenuRow {
         NumberAnimation { duration: Motion.normal; easing.type: Easing.OutCubic }
     }
 
-    opacity: root.enabled && root.available ? 1.0 : (_canToggle ? 0.72 : 0.52)
+    opacity: root.enabled && root.available ? 1.0 : (_canToggle ? 0.72 : Theme.disabledOpacity)
     MotionBehavior on opacity {NumberAnimation { duration: Motion.medium } }
+
+    Accessible.role: Accessible.CheckBox
+    Accessible.name: root.label
+    Accessible.description: root._detailText
+    Accessible.focusable: root._canToggle
+    Accessible.checkable: true
+    Accessible.checked: root.checked
+    Accessible.onPressAction: root._activate()
 
     HoverHandler { id: _hover; cursorShape: root._canToggle ? Qt.PointingHandCursor : Qt.ArrowCursor }
     TapHandler {

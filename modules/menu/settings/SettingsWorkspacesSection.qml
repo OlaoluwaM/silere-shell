@@ -11,7 +11,7 @@ Column {
     SettingsCard {
         ToggleRow {
             glyph: "󰕭"; label: "Dynamic workspaces"
-            description: "Show only occupied workspaces plus one empty at the end"
+            description: "Show occupied workspaces plus one empty"
             key: "wsDynamic"
         }
         SliderRow {

@@ -44,12 +44,14 @@ Singleton {
             if (SystemTools.hasFcList) {
                 if (SystemTools.ready) root.scan(false)
             } else if (SystemTools.ready) {
+                if (_proc.running) _proc.running = false
                 root._scanned = false
                 root.scanned = false
                 root.scanning = false
                 root.families = []
                 root.nerdFamilies = []
                 root.hasIconFont = false
+                root.lastError = ""
             }
         }
     }
@@ -61,6 +63,13 @@ Singleton {
         stdout: StdioCollector { id: _out }
         onExited: (code) => {
             root.scanning = false
+            if (!SystemTools.hasFcList) {
+                root._scanned = false
+                root.scanned = false
+                root.families = []
+                root.lastError = ""
+                return
+            }
             if (code !== 0) {
                 root._scanned = false
                 root.lastError = "Font scan failed (exit " + code + ")"

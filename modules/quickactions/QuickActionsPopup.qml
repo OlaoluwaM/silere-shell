@@ -66,7 +66,6 @@ PanelWindow {
         property string label: ""
         property string stateText: ""
         property bool   active: false
-        property bool   checkable: true
         readonly property bool _pressed: _rowTap.pressed
 
         signal triggered()
@@ -77,6 +76,14 @@ PanelWindow {
 
         width: parent ? parent.width : 0
         height: Metrics.rowHeightFor(38)
+
+        Accessible.role: Accessible.CheckBox
+        Accessible.name: _row.label
+        Accessible.description: _row.stateText
+        Accessible.focusable: _row.visible
+        Accessible.checkable: true
+        Accessible.checked: _row.active
+        Accessible.onPressAction: _row._activate()
 
         HoverHandler { id: _rowHover; cursorShape: Qt.PointingHandCursor }
         TapHandler   { id: _rowTap; onTapped: _row._activate() }
@@ -90,19 +97,6 @@ PanelWindow {
                 : (_rowHover.hovered)
                     ? Theme.withAlpha(Theme.menuHover, 0.08) : "transparent"
             ColorFade on color {}
-        }
-
-        Rectangle {
-            anchors.left: parent.left
-            anchors.leftMargin: 3
-            anchors.verticalCenter: parent.verticalCenter
-            width: 2; height: 14; radius: 1
-            antialiasing: true
-            color: Theme.accent
-            opacity: _row.active ? 0.82 : 0.0
-            scale: _row.active ? 1.0 : 0.5
-            MotionBehavior on opacity {NumberAnimation { duration: Motion.fast } }
-            MotionBehavior on scale {NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic } }
         }
 
         ShellText {
@@ -170,9 +164,13 @@ PanelWindow {
         barBottom: QuickActionsState.barBottom
 
         readonly property int pad: 6
-        readonly property int contentW: 236
+        // label and state pill both grow with the font, so a fixed width elides three of the
+        // four rows at raised uiScale. never below 236: the pill's padding and floor do not
+        // shrink with the font, so scaling down costs the label more than it saves
+        readonly property int contentW: Math.max(236,
+            Metrics.snap4(236 * Settings.fontSize / 12))
         width: contentW + pad * 2
-        height: _rows.implicitHeight + pad * 2
+        height: Metrics.snap4Up(_rows.implicitHeight + pad * 2)
 
         Component.onCompleted: if (QuickActionsState.open) card.forceActiveFocus()
 
@@ -203,13 +201,28 @@ PanelWindow {
             }
             QuickActionRow {
                 visible: PowerProfiles.available
-                checkable: false
                 glyph: PowerProfiles.glyph.length > 0 ? PowerProfiles.glyph : "󰾅"
                 label: "Power Mode"
                 active: PowerProfiles.profile === "performance"
                 stateText: PowerProfiles.label.length > 0 ? PowerProfiles.label
                          : PowerProfiles.syncing ? "Checking…" : "…"
                 onTriggered: PowerProfiles.cycle()
+            }
+            QuickActionRow {
+                visible: QuickActionsState.wifiControllable
+                glyph: Network.wifiEnabled ? "󰤨" : "󰤭"
+                label: "Wi-Fi"
+                active: Network.wifiEnabled
+                stateText: Network.wifiEnabled ? "On" : "Off"
+                onTriggered: Network.toggleWifi()
+            }
+            QuickActionRow {
+                visible: QuickActionsState.btControllable
+                glyph: Bluetooth.enabled ? "󰂯" : "󰂲"
+                label: "Bluetooth"
+                active: Bluetooth.enabled
+                stateText: Bluetooth.enabled ? "On" : "Off"
+                onTriggered: Bluetooth.toggle()
             }
             QuickActionRow {
                 visible: QuickActionsState.airplaneAvailable

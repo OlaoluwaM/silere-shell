@@ -16,6 +16,7 @@ Pill {
     MotionBehavior on _baseOpacity {NumberAnimation { duration: Motion.medium; easing.type: Easing.OutCubic } }
 
     glyph:      Audio.icon
+    accessibleName: root.text.length > 0 ? "Volume " + root.text : "Volume"
     // loudest state: quieter variants keep the speaker body's alignment
     glyphAlignReference: "󰕾"
     glyphAlignNudge: -1

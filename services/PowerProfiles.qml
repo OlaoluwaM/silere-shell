@@ -205,8 +205,7 @@ Singleton {
     Component.onCompleted: { if (root.available) root._listProfiles() }
     onBackendChanged: { root.profiles = []; if (root.available) root._listProfiles() }
 
-    // quick actions carries the same row: gating reads on the menu alone leaves it on "…"
-    readonly property bool _watched: MenuState.open || QuickActionsState.open
+    readonly property bool _watched: ControlSurfaces.anyOpen
     on_WatchedChanged: if (!root._watched && !root._correctiveRefreshPending) _getRetry.stop()
 
     function _surfaceOpened(): void {
@@ -214,21 +213,35 @@ Singleton {
         root.refresh()
     }
 
-    Connections {
-        target: MenuState
-        function onOpenChanged() { if (MenuState.open) root._surfaceOpened() }
+    function _syncToolAvailability(): void {
+        if (!SystemTools.ready) return
+        if (root.available) {
+            // cycle()/setProfile() step through this list, so a late tool arrival must fill it
+            if (root.profiles.length === 0) root._listProfiles()
+            if (root._watched) root.refresh()
+            return
+        }
+
+        _getRetry.stop()
+        if (_get.running) _get.running = false
+        if (_set.running) _set.running = false
+        if (_degradedProc.running) _degradedProc.running = false
+        root._getRetries = 0
+        root._correctiveRefreshPending = false
+        root._readError = false
+        root.profile = ""
+        root._degradedReason = ""
+        root.lastError = ""
     }
+
     Connections {
-        target: QuickActionsState
-        function onOpenChanged() { if (QuickActionsState.open) root._surfaceOpened() }
+        target: ControlSurfaces
+        function onOpened() { root._surfaceOpened() }
     }
     Connections {
         target: SystemTools
-        function onReadyChanged() {
-            if (!SystemTools.ready) return
-            if (root.available) root._listProfiles()
-            if (root.available && root._watched) root.refresh()
-        }
+        function onReadyChanged() { root._syncToolAvailability() }
+        function onScanRevisionChanged() { root._syncToolAvailability() }
     }
     BoundedProcess {
         id: _get
@@ -242,6 +255,7 @@ Singleton {
             root.lastError = "Power mode check timed out"
         }
         onExited: (code) => {
+            if (!root.available) return
             if (_set.running || _gen !== root._writeGen) return
             if (code === 0) {
                 const p = root._parseCurrent(_getOut.text)
@@ -290,6 +304,10 @@ Singleton {
         stdout: StdioCollector { id: _degradedOut }
         onTimeoutReached: root._degradedReason = ""
         onExited: (code) => {
+            if (!root.available) {
+                root._degradedReason = ""
+                return
+            }
             root._degradedReason = (root.backend === "powerprofilesctl"
                     && root.profile === "performance" && code === 0 && !timedOut)
                 ? root._parseDegraded(_degradedOut.text) : ""
@@ -305,6 +323,7 @@ Singleton {
             root.lastError = "Power mode change timed out"
         }
         onExited: (code) => {
+            if (!root.available) return
             if (timedOut) {
                 root._queueCorrectiveRefresh()
                 return
@@ -315,8 +334,7 @@ Singleton {
                 root._queueCorrectiveRefresh()
                 return
             }
-            // the row re-reads the daemon, so a swallowed failure just flips the
-            // label back with no reason given
+            // the row re-reads the daemon, so a swallowed failure just flips the label back with no reason given
             root._readError = false
             root.lastError = SafeText.boundedText(
                 _setErr.text.trim().split("\n").pop() || "Could not change the power mode", 160)

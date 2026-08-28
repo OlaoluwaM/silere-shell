@@ -28,6 +28,11 @@ if ! command -v qs >/dev/null 2>&1; then
     echo "SKIP: quickshell (qs) not installed" >&2
     exit 0
 fi
+# installed but unable to start must not skip: that would pass CI with no coverage
+if ! qs_probe="$(qs --version 2>&1)"; then
+    echo "FAIL: quickshell (qs) will not start: ${qs_probe%%$'\n'*}" >&2
+    exit 1
+fi
 # No display check on purpose: the offscreen QPA plugin needs neither Wayland
 # nor X, which is what lets this run in a CI container.
 if [ "$#" -gt 0 ]; then
@@ -114,7 +119,12 @@ fi
 mkdir -p "$scale_cfg/silere-shell"
 ui_max="$(sed -n 's/.*k: "uiScale".*max: \([0-9.]*\).*/\1/p' services/ShellSettings.qml | head -1)"
 [ -n "$ui_max" ] || { echo "test-surfaces: cannot read the uiScale max from the schema" >&2; exit 1; }
-printf '{"__version":1,"uiScale":%s}\n' "$ui_max" > "$scale_cfg/silere-shell/settings.json"
+# icon size is a second size axis and multiplies with uiScale, so the largest pass
+# has to raise both or the widest icon cell never gets built
+icon_max="$(sed -n 's/.*k: "barIconSize".*max: \([0-9]*\).*/\1/p' services/ShellSettings.qml | head -1)"
+[ -n "$icon_max" ] || { echo "test-surfaces: cannot read the barIconSize max from the schema" >&2; exit 1; }
+printf '{"__version":1,"uiScale":%s,"barIconSize":%s}\n' "$ui_max" "$icon_max" \
+    > "$scale_cfg/silere-shell/settings.json"
 
 # Neither Qt.exit() nor Quickshell.exit() ends a Quickshell process, so the probe
 # cannot quit itself: run it in the background, wait for its sentinel line, then

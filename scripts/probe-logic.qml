@@ -4,8 +4,11 @@ import QtQuick
 import Quickshell
 import "config"
 import "services"
+import "modules/bar"
 import "modules/bar/widgets"
+import "modules/bar/widgets/workspaces"
 import "modules/menu/controls"
+import "modules/notifications"
 
 // Small behavioral assertions for pure logic that a type-check or construction
 // probe cannot validate. Keep this free of compositor and hardware dependencies.
@@ -24,6 +27,23 @@ ShellRoot {
     Component { id: gradientSliderFactory; GradientSlider {} }
     Component { id: boundedProcessFactory; BoundedProcess {} }
     Component { id: durationPickerFactory; DurationPickerColumn {} }
+    Component { id: supervisedProcessFactory; SupervisedProcess {} }
+    Component { id: barUnderlineFactory; BarUnderline {} }
+    Component { id: workspaceButtonFactory; WorkspaceButton {} }
+    Component { id: workspaceStripFactory; Workspaces { screen: null } }
+    Component {
+        id: notificationCardFactory
+        NotificationCard {
+            notification: ({
+                actions: [], hints: ({}), appIcon: "", image: "",
+                appName: "Probe", desktopEntry: "", summary: "Probe",
+                body: "", urgency: 1, expireTimeout: 5000,
+                resident: false, transient: false
+            })
+            notifId: 2147483646
+            createdAt: Date.now()
+        }
+    }
 
     property var _timeoutProbe: null
 
@@ -60,6 +80,71 @@ ShellRoot {
                 && MatugenTheme._parsePalette("{\"accent\":\"#ffffff\"}") === null
                 && MatugenTheme._parsePalette("{\"accent\":\"red\"}") === null,
             "matugen palette accepts only complete six-digit hex role sets")
+        const paletteEverWas = MatugenTheme._everLoaded
+        const paletteStaleWas = MatugenTheme.paletteStale
+        MatugenTheme._everLoaded = true
+        MatugenTheme.paletteStale = false
+        MatugenTheme._markUnreadable()
+        root._check(MatugenTheme.paletteStale && !MatugenTheme.usingFallback,
+            "a palette that disappears after loading is reported as retained")
+        MatugenTheme._everLoaded = false
+        MatugenTheme.paletteStale = false
+        MatugenTheme._markUnreadable()
+        root._check(!MatugenTheme.paletteStale && MatugenTheme.usingFallback,
+            "a missing first palette remains the normal bundled fallback")
+        MatugenTheme._everLoaded = paletteEverWas
+        MatugenTheme.paletteStale = paletteStaleWas
+
+        const buttonIdle = Theme.buttonFill(Theme.accent, false, false)
+        const buttonHover = Theme.buttonFill(Theme.accent, true, false)
+        const buttonPress = Theme.buttonFill(Theme.accent, true, true)
+        root._check(buttonIdle.a < buttonHover.a && buttonHover.a < buttonPress.a,
+            "shared button fills deepen from rest through hover to press")
+        const buttonLineIdle = Theme.buttonLine(Theme.accent, false, false)
+        const buttonLineHover = Theme.buttonLine(Theme.accent, true, false)
+        const buttonLinePress = Theme.buttonLine(Theme.accent, true, true)
+        root._check(buttonLineIdle.a < buttonLineHover.a
+                && buttonLineHover.a < buttonLinePress.a,
+            "shared button outlines strengthen with interaction")
+
+        const grooveIdle = Theme.controlTrackFill(Theme.accent, false, false, false)
+        const grooveHover = Theme.controlTrackFill(Theme.accent, false, true, false)
+        const groovePress = Theme.controlTrackFill(Theme.accent, false, true, true)
+        root._check(Theme.lchOf(grooveIdle).L < Theme.lchOf(grooveHover).L
+                && Theme.lchOf(grooveHover).L < Theme.lchOf(groovePress).L,
+            "toggle and slider grooves brighten from rest through hover to press")
+        const activeTrackIdle = Theme.controlTrackFill(
+            Theme.accent, true, false, false)
+        const activeTrackPress = Theme.controlTrackFill(
+            Theme.accent, true, true, true)
+        root._check(Theme.lchOf(activeTrackIdle).L
+                < Theme.lchOf(activeTrackPress).L,
+            "checked toggles and slider fills deepen on press")
+        const activeLineIdle = Theme.controlTrackLine(
+            Theme.accent, true, false, false)
+        const activeLineHover = Theme.controlTrackLine(
+            Theme.accent, true, true, false)
+        const activeLinePress = Theme.controlTrackLine(
+            Theme.accent, true, true, true)
+        root._check(activeLineIdle.a < activeLineHover.a
+                && activeLineHover.a < activeLinePress.a,
+            "active toggle and slider outlines strengthen with interaction")
+
+        let accentMinL = Infinity
+        let accentMaxL = -Infinity
+        let accentNames = ({})
+        for (let i = 0; i < Theme.neutralAccentPresets.length; i++) {
+            const preset = Theme.neutralAccentPresets[i]
+            const lch = Theme.lchOf(preset.color)
+            accentMinL = Math.min(accentMinL, lch.L)
+            accentMaxL = Math.max(accentMaxL, lch.L)
+            accentNames[preset.name] = true
+        }
+        root._check(Theme.neutralAccentPresets.length === 8
+                && Object.keys(accentNames).length === 8,
+            "neutral accent presets keep eight distinct named choices")
+        root._check(accentMaxL - accentMinL < 0.35,
+            "neutral accent presets carry equal perceived lightness")
 
         const layout = ShellSettings._normaliseBarWidgetLayout(
             ["media", "media", "unknown"], ["clock"], ["workspaces"])
@@ -73,8 +158,163 @@ ShellRoot {
         root._check(layout.loc.media.zone === "left" && layout.loc.clock.zone === "center",
             "widget layout reports normalized locations")
 
+        const workspaceStrip = workspaceStripFactory.createObject(root)
+        const forwardCrossing = workspaceStrip._intermediateIndexes(0, 2)
+        const reverseCrossing = workspaceStrip._intermediateIndexes(3, 0)
+        root._check(forwardCrossing.length === 1 && forwardCrossing[0] === 1
+                && reverseCrossing.join(",") === "2,1",
+            "workspace hand-offs retain every crossed cell in travel order")
+        root._check(workspaceStrip._intermediateIndexes(0, 1).length === 0,
+            "adjacent workspace switches add no intermediate fade")
+        root._check(workspaceStrip.visibleIds.length > 0
+                && workspaceStrip._visibleIndex(workspaceStrip.visibleIds[0]) === 0
+                && workspaceStrip._visibleIndex(999999) === -1,
+            "workspace page IDs resolve through the shared index")
+        const earlyHandoff = workspaceStrip._handoffDelayAt(0, 100, 25)
+        const laterHandoff = workspaceStrip._handoffDelayAt(0, 100, 75)
+        root._check(earlyHandoff === 0 && laterHandoff > earlyHandoff,
+            "workspace hand-off timing follows the marker's eased travel")
+        root._check(workspaceStrip._handoffDelayAt(100, 0, 25) === laterHandoff,
+            "a reversed jump staggers by distance travelled, not by index")
+        root._check(workspaceStrip._handoffDelayAt(50, 50, 50) === 0,
+            "a hand-off with no distance to cover waits for nothing")
+        workspaceStrip.destroy()
+
+        root._check(Motion.allowsMotion(false, false)
+                && !Motion.allowsMotion(true, false)
+                && !Motion.allowsMotion(false, true),
+            "visible motion is disabled by idle and reduce-motion states")
+
+        const underline = barUnderlineFactory.createObject(root)
+        root._check(underline !== null, "the reactive underline builds")
+        underline.destroy()
+
+        const notificationCard = notificationCardFactory.createObject(root)
+        root._check(notificationCard !== null, "a notification card builds")
+        notificationCard.destroy()
+
+        root._check(OsdBarState._presentationAllowed(false, true)
+                && !OsdBarState._presentationAllowed(true, true)
+                && !OsdBarState._presentationAllowed(false, false),
+            "OSD presentation is disabled while idle or globally switched off")
+        root._check(OsdBarState._kindAllowedByFilter("volume", "both")
+                && OsdBarState._kindAllowedByFilter("brightness", "both")
+                && OsdBarState._kindAllowedByFilter("volume", "volume")
+                && !OsdBarState._kindAllowedByFilter("brightness", "volume"),
+            "OSD input filtering admits only the selected feedback kind")
+
+        root._check(!OverlayCoordinator._environmentBlocksControls(false, false)
+                && OverlayCoordinator._environmentBlocksControls(true, false)
+                && OverlayCoordinator._environmentBlocksControls(false, true),
+            "screen blanking and overview activation retire open control surfaces")
+
+        const settingsNavComponent = Qt.createComponent("file://"
+            + Quickshell.shellDir + "/modules/menu/SettingsNav.qml")
+        const settingsNav = settingsNavComponent.status === Component.Ready
+            ? settingsNavComponent.createObject(root) : null
+        root._check(settingsNav !== null,
+            "the internal settings navigation is available to the behavior probe")
+        if (settingsNav !== null) {
+            settingsNav._expandedGroup = 0
+            settingsNav._syncExpansionMode(false, "updates")
+            root._check(settingsNav._expandedGroup
+                    === settingsNav._groupIndexForSection("updates"),
+                "leaving multi-group navigation keeps the selected settings group open")
+            settingsNav.destroy()
+        }
+        settingsNavComponent.destroy()
+
+        // available is temp>0, which drops to 0 every time the service is
+        // released; a control gated on it flickers on every menu open
+        const tempPathWas = CpuTemp._sensorPath
+        const tempProbeWas = CpuTemp._probeComplete
+        CpuTemp._sensorPath = ""
+        CpuTemp._probeComplete = false
+        root._check(!CpuTemp.sensorMissing,
+            "temperature controls stay put until the sensor probe answers")
+        CpuTemp._probeComplete = true
+        root._check(CpuTemp.sensorMissing,
+            "a finished probe that found nothing hides the temperature controls")
+        CpuTemp._sensorPath = "/sys/class/hwmon/hwmon0/temp1_input"
+        root._check(!CpuTemp.sensorMissing,
+            "a detected sensor keeps its controls whatever the current reading")
+        CpuTemp._sensorPath = tempPathWas
+        CpuTemp._probeComplete = tempProbeWas
+
+        const shiftWas = ShellSettings.workspaceShift
+        const reduceMotionWas = ShellSettings.reduceMotion
+        ShellSettings.workspaceShift = true
+        ShellSettings.reduceMotion = false
+        const crossingCell = workspaceButtonFactory.createObject(root, {
+            wsId: 2, monitorReady: true, active: false, occupied: false,
+            urgent: false, apps: [], compact: false, iconSize: 12,
+            cellWidth: 26, rowHeight: 24, barActive: true,
+            initialized: true, paging: false, markerCovers: true
+        })
+        crossingCell.playMarkerPass(0)
+        root._check(crossingCell && crossingCell.markerPassActive,
+            "a crossed workspace starts its fade hand-off")
+        crossingCell._markerPassCover = 0.6
+        crossingCell.playMarkerPass(20)
+        root._check(crossingCell.markerPassActive
+                && crossingCell._markerPassCover === 0,
+            "a repeated workspace hand-off restarts from full opacity")
+        crossingCell.active = true
+        root._check(!crossingCell.markerPassActive
+                && crossingCell._markerPassCover === 0,
+            "an active destination cancels any intermediate fade")
+        crossingCell.active = false
+        crossingCell.markerCovers = false
+        crossingCell.playMarkerPass(0)
+        root._check(!crossingCell.markerPassActive,
+            "a bar marker leaves the cells it crosses alone")
+        crossingCell.destroy()
+        ShellSettings.workspaceShift = shiftWas
+        ShellSettings.reduceMotion = reduceMotionWas
+
         // the settings file is untrusted input and the README promises it is type-checked
         // and clamped; a hand-edited or truncated file reaches setValue the same way
+        // every key, not just the sampled ones: a schema entry whose declared
+        // type disagrees with its property only shows up as a coerced NaN or a
+        // silently kept hostile value
+        const hostile = [99999, -99999, 9e99, -9e99, 0, "", "  ", "tall", "true",
+            "false", null, undefined, NaN, Infinity, -Infinity, [], ({}), "0x10"]
+        let fuzzBad = ""
+        let fuzzCount = 0
+        const fuzzSchema = ShellSettings._schema
+        for (let i = 0; i < fuzzSchema.length && fuzzBad.length === 0; i++) {
+            const entry = fuzzSchema[i]
+            const key = entry.k
+            const before = ShellSettings[key]
+            for (let j = 0; j < hostile.length; j++) {
+                ShellSettings.setValue(key, hostile[j])
+                const got = ShellSettings[key]
+                fuzzCount++
+                let ok = true
+                if (entry.t === "bool") ok = typeof got === "boolean"
+                else if (entry.t === "int")
+                    ok = typeof got === "number" && isFinite(got)
+                        && got >= entry.min && got <= entry.max
+                        && Math.abs(got - Math.round(got)) < 1e-9
+                else if (entry.t === "real")
+                    ok = typeof got === "number" && isFinite(got)
+                        && got >= entry.min - 1e-9 && got <= entry.max + 1e-9
+                else if (entry.t === "enum")
+                    ok = entry.vals.indexOf(got) >= 0
+                else if (entry.t === "re")
+                    ok = typeof got === "string" && entry.re.test(got)
+                if (!ok) {
+                    fuzzBad = key + " (" + entry.t + ") became " + JSON.stringify(got)
+                        + " from " + JSON.stringify(hostile[j])
+                    break
+                }
+            }
+            ShellSettings[key] = before
+        }
+        root._check(fuzzBad.length === 0,
+            "every setting survives hostile input: " + (fuzzBad.length === 0
+                ? fuzzCount + " coercions held their type and range" : fuzzBad))
+
         root._checkCoerce("barHeight", 99999, 60, "an over-range int clamps to its maximum")
         root._checkCoerce("barHeight", -5, 24, "an under-range int clamps to its minimum")
         root._checkCoerce("barHeight", "tall", 36, "a non-numeric int is refused")
@@ -199,6 +439,19 @@ ShellRoot {
         root._check(boundedHistoryNumbers.id === 12 && boundedHistoryNumbers.urgency === 2
                 && boundedHistoryNumbers.time === 0,
             "history bounds numeric roles before inserting them into the model")
+        const restoredSeen = Notifications._normalizeSeenMap(JSON.parse(
+            '{"1":true,"2":"true","-1":true,"2147483648":true,"__proto__":true}'))
+        root._check(Object.getPrototypeOf(restoredSeen) === null
+                && restoredSeen["1"] === true
+                && Object.keys(restoredSeen).length === 1,
+            "notification restore accepts only boolean read flags for valid ids")
+        const restoredTimes = Notifications._normalizeTimesMap({
+            "1": 1234, "2": "5678", "03": 9, "4": Infinity, "5": -1
+        })
+        root._check(Object.getPrototypeOf(restoredTimes) === null
+                && restoredTimes["1"] === 1234 && restoredTimes["2"] === 5678
+                && Object.keys(restoredTimes).length === 2,
+            "notification restore keeps only finite timestamps for valid ids")
 
         const savedLimit = ShellSettings.notifHistoryLimit
         Notifications.clearHistory()
@@ -429,6 +682,12 @@ ShellRoot {
             "slider scroll steps stop at the minimum")
         root._check(track._posToVal(0) === 0 && track._posToVal(100) === 1,
             "slider inset endpoints preserve the full range")
+        track.enabled = false
+        trackChanged = -1
+        track.nudge(1, 1)
+        root._check(track.shownValue === 0 && trackChanged === -1,
+            "disabled slider ignores accessibility and programmatic nudges")
+        track.enabled = true
         track.interactive = false
         track.nudge(1, 1)
         root._check(track.shownValue === 0,
@@ -531,6 +790,67 @@ ShellRoot {
             "settings clamp history limit low")
         ShellSettings.notifHistoryLimit = originalLimit
 
+        // the IPC surface reports failure from the same coercion the file load uses,
+        // so a key added to the schema is scriptable without touching the handler
+        const toneWas = ShellSettings.baseTone
+        const timeoutWas = ShellSettings.osdTimeout
+        root._check(ShellSettings.setValue("osdTimeout", 3000) === true,
+            "a valid write reports that it applied")
+        root._check(ShellSettings.setValue("osdTimeout", 999999) === true
+                && ShellSettings.osdTimeout === 10000,
+            "a clamped write still reports that it applied")
+        root._check(ShellSettings.setValue("osdTimeout", "not a number") === false,
+            "a non-numeric write to an int key reports that it did not apply")
+        root._check(ShellSettings.setValue("baseTone", "banana") === false
+                && ShellSettings.baseTone === toneWas,
+            "an unknown enum value neither applies nor claims to")
+        root._check(ShellSettings.setValue("noSuchSetting", 1) === false,
+            "a write to an unknown key reports that it did not apply")
+        ShellSettings.baseTone = toneWas
+        ShellSettings.osdTimeout = timeoutWas
+
+        root._check(ShellSettings.constraintOf("barShowClock") === "true|false",
+            "a bool key states its constraint")
+        root._check(ShellSettings.constraintOf("barSpacing") === "4..24",
+            "an int key states its range")
+        root._check(ShellSettings.constraintOf("baseTone") === "black|charcoal|graphite",
+            "an enum key states its vocabulary")
+        root._check(ShellSettings.constraintOf("noSuchSetting") === "",
+            "an unknown key states no constraint")
+
+        root._check(Hooks.events.indexOf("theme-changed") >= 0
+                && Hooks.events.indexOf("../../evil") < 0,
+            "hooks run only the event names they publish")
+        root._check(!Hooks.has("theme-changed"),
+            "a hook with no executable file is never reported active")
+        Hooks.fire("theme-changed", ["#000000"])
+        Hooks.fire("no-such-event", [])
+        root._check(Hooks._runTimes.length === 0,
+            "an unset hook spends no run budget rather than spawning")
+        let hookRunsAllowed = 0
+        for (let i = 0; i < Hooks.maxRunsPerSecond + 5; i++)
+            if (Hooks._budgetAllows()) hookRunsAllowed++
+        root._check(hookRunsAllowed === Hooks.maxRunsPerSecond,
+            "an event storm stops at " + Hooks.maxRunsPerSecond + " hook runs a second")
+        Hooks._runTimes = []
+
+        const supervised = supervisedProcessFactory.createObject(root, {
+            superviseWhen: false,
+            _gaveUp: true,
+            _cooldown: true,
+            _restartCount: 4
+        })
+        supervised.retry()
+        root._check(!supervised.gaveUp && !supervised._cooldown
+                && supervised._restartCount === 0 && !supervised.running,
+            "a retired supervised process can retry from a clean backoff state")
+        supervised.destroy()
+
+        NotifWatch.conflict = "stale-daemon"
+        NotifWatch.recheck()
+        root._check(NotifWatch.conflict === "",
+            "a notification-owner recheck clears stale conflict state immediately")
+
         const hues = [0, 30, 90, 150, 210, 270, 330]
         for (let i = 0; i < hues.length; i++) {
             const expected = hues[i]
@@ -559,12 +879,86 @@ ShellRoot {
         root._check(nothingHeld.wifi && nothingHeld.bt,
             "leaving airplane mode with nothing latched restores both radios")
 
+        PowerProfiles._getRetries = 3
         QuickActionsState.open = true
         root._check(PowerProfiles._watched,
             "quick actions keeps the power profile readable without the menu")
+        root._check(PowerProfiles._getRetries === 0,
+            "a control surface opening restarts the power profile read")
         QuickActionsState.open = false
         root._check(!PowerProfiles._watched,
             "closing every panel releases the power profile read")
+
+        CalendarState.anchorSource = null
+        CalendarState.anchorX = 640
+        root._check(CalendarState.effectiveAnchorX === 640,
+            "an anchorless calendar open falls back to the published anchor x")
+        QuickActionsState.anchorSource = null
+        QuickActionsState.anchorX = 512
+        root._check(QuickActionsState.effectiveAnchorX === 512,
+            "an anchorless quick actions open falls back to the published anchor x")
+
+        Notifications._seen  = { "41": true, "42": true }
+        Notifications._times = { "41": 1000, "42": 2000 }
+        Notifications._forgetTrimmed(["41"])
+        root._check(Notifications._seen["41"] === undefined
+                && Notifications._times["41"] === undefined
+                && Notifications._seen["42"] === true
+                && Notifications._times["42"] === 2000,
+            "a notification trimmed out of history drops its seen and time entries")
+
+        Notifications._seen  = { "51": true, "52": true }
+        Notifications._times = { "51": 1000, "52": 2000 }
+        Notifications._updateTimes = { "51": 1100, "52": 2100 }
+        Notifications._pruneOrphanState([{ id: 51 }])
+        root._check(Notifications._seen["51"] === true
+                && Notifications._times["51"] === 1000
+                && Notifications._updateTimes["51"] === 1100,
+            "reload pruning preserves state for a notification the server still tracks")
+        root._check(Notifications._seen["52"] === undefined
+                && Notifications._times["52"] === undefined
+                && Notifications._updateTimes["52"] === undefined,
+            "state for ids neither history nor the server holds is pruned")
+
+        const closedAdapter = { pairable: false }
+        Bluetooth._armPairable(closedAdapter)
+        root._check(closedAdapter.pairable,
+            "a pairing attempt opens the adapter pairing window")
+        Bluetooth._restorePairable()
+        root._check(!closedAdapter.pairable,
+            "a completed pairing attempt closes the pairing window it opened")
+        const openAdapter = { pairable: true }
+        Bluetooth._armPairable(openAdapter)
+        Bluetooth._restorePairable()
+        root._check(openAdapter.pairable,
+            "pairing preserves an adapter another owner already made pairable")
+
+        root._check(Bluetooth._attemptOutcome("pair", true, false, true, false, 0) === "ok",
+            "a paired device settles a pair attempt as success")
+        root._check(Bluetooth._attemptOutcome("pair", true, false, false, true, 0) === "",
+            "a pair attempt still pairing stays in progress")
+        root._check(Bluetooth._attemptOutcome("pair", true, false, false, false, 0) === "failed",
+            "a started pair attempt that dropped back to idle reports failure")
+        root._check(Bluetooth._attemptOutcome("pair", false, false, false, false, 0) === "",
+            "a pair attempt BlueZ has not moved yet is not called a failure")
+        root._check(Bluetooth._attemptOutcome("connect", true, true, false, false, 0) === "ok",
+            "a connected device settles a connect attempt as success")
+
+        const retiredNotification = {
+            transient: false, tracked: true,
+            appName: "Probe", appIcon: "", desktopEntry: "",
+            summary: "Retire me", body: "", urgency: 1
+        }
+        Notifications._times = { "61": 3000 }
+        Notifications.list = [{
+            notification: retiredNotification, id: 61, time: 3000
+        }]
+        Notifications._retireActiveNotifications()
+        root._check(Notifications.activeCount === 0 && !retiredNotification.tracked,
+            "disabling popups retires cards instead of leaving timerless notifications")
+        root._check(Notifications.historyCount === 1,
+            "a notification retired with the popup window remains in history")
+        Notifications.clearHistory()
 
         root._startAnchorTeardown()
     }

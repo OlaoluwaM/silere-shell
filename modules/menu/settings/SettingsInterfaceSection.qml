@@ -7,8 +7,14 @@ import "../../../services"
 import "../controls"
 
 Column {
+    id: root
+
     width: parent ? parent.width : 0
     spacing: 0
+
+    readonly property bool _hasBrightnessChoice: Brightness.devices.length > 1
+    readonly property bool _hasMultiScreen: Quickshell.screens.length > 1
+    readonly property bool _hasRouting: _hasBrightnessChoice || _hasMultiScreen
 
     SectionLabel { label: "TEXT & ACCESSIBILITY"; first: true }
     SettingsCard {
@@ -83,6 +89,18 @@ Column {
             ]
             onChosen: (v) => ShellSettings.uiScale = v
         }
+        SelectRow {
+            glyph: "󰀻"; label: "Icon size"
+            description: "Tray and workspace app icons"
+            currentValue: ShellSettings.barIconSize
+            fallbackLabel: ShellSettings.barIconSize + "px"
+            model: [
+                { value: 12, label: "Normal" },
+                { value: 15, label: "Large"  },
+                { value: 18, label: "XL"     }
+            ]
+            onChosen: (v) => ShellSettings.barIconSize = v
+        }
         ToggleRow {
             glyph: "󰆖"; label: "High contrast"
             key: "highContrast"
@@ -110,13 +128,13 @@ Column {
 
     SectionLabel {
         label: "DISPLAY ROUTING"
-        visible: Brightness.devices.length > 1 || Quickshell.screens.length > 1
+        visible: root._hasRouting
     }
     SettingsCard {
-        visible: Brightness.devices.length > 1 || Quickshell.screens.length > 1
+        visible: root._hasRouting
 
         SelectRow {
-            visible: Brightness.devices.length > 1
+            visible: root._hasBrightnessChoice
             glyph: "󰃟"; label: "Brightness display"
             currentValue: Brightness.deviceChoice
             model: Brightness.deviceChoices
@@ -124,7 +142,7 @@ Column {
         }
 
         SelectRow {
-            visible: Quickshell.screens.length > 1
+            visible: root._hasMultiScreen
             glyph: "󰍹"; label: "Overlay display"
             description: "Follow focus or choose a display"
             currentValue: ShellSettings.overlayMonitor
@@ -143,14 +161,13 @@ Column {
         }
 
         Repeater {
-            model: Quickshell.screens.length > 1 ? Quickshell.screens : []
+            model: root._hasMultiScreen ? Quickshell.screens : []
             delegate: ToggleRow {
                 required property var modelData
                 glyph: "󰍺"
                 label: "Bar on " + modelData.name
                 checked: Monitors.barEnabled(modelData)
-                // turning off the last one is refused, and a switch that springs back
-                // with no reason reads as a broken toggle
+                // turning off the last one is refused, and a switch that springs back with no reason reads as a broken toggle
                 enabled: !checked || Monitors.liveBarCount > 1
                 dependsNote: "Keeps the menu reachable"
                 onToggled: nextChecked => Monitors.setBarEnabled(

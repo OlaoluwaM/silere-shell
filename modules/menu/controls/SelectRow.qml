@@ -27,8 +27,7 @@ Item {
     readonly property int _controlH: Metrics.rowHeightFor(28)
     readonly property int _optionH: Metrics.rowHeightFor(32)
     readonly property int _optionsCapH: Math.min(224, root._optionH * 7)
-    // 44/56 are the shared single-line and two-line row heights; a select row that
-    // sits between toggles must not be the one that breaks the rhythm
+    // 44/56 are the shared single-line and two-line row heights; a select row that sits between toggles must not be the one that breaks the rhythm
     readonly property int _headerH: 4 * Math.ceil(Math.max(
         root._hasDesc ? 56 : 44,
         _headerText.implicitHeight + 12,
@@ -105,8 +104,16 @@ Item {
     width:  parent ? parent.width : 0
     height: _headerH + _options.height
     implicitHeight: height
-    opacity: enabled ? 1.0 : 0.45
+    opacity: enabled ? 1.0 : Theme.disabledOpacity
     MotionBehavior on opacity {NumberAnimation { duration: Motion.medium } }
+
+    Accessible.role: Accessible.ComboBox
+    Accessible.name: root.label
+    Accessible.description: root.description.length > 0
+        ? root.description + " · Current: " + root._activeLabel
+        : "Current: " + root._activeLabel
+    Accessible.focusable: root.enabled && root._optionCount > 0
+    Accessible.onPressAction: root._toggleOpen()
 
     Item {
         id: _headerHitArea
@@ -133,6 +140,7 @@ Item {
         cardInset:    root.cardInset
         leftBleed:    root.cardLeftBleed
         active:       (_hov.hovered) && root.enabled
+        pressed:      _headerTap.pressed && root.enabled
     }
 
     ShellText {
@@ -229,11 +237,8 @@ Item {
             antialiasing: true
             color: root._open
                 ? Theme.withAlpha(root.accentColor, 0.055)
-                : _headerTap.pressed
-                    ? Theme.withAlpha(Theme.text, 0.065)
-                    : _hov.hovered
-                        ? Theme.withAlpha(Theme.text, 0.030)
-                        : "transparent"
+                : Theme.buttonFill(root.accentColor,
+                    _hov.hovered, _headerTap.pressed)
             ColorFade on color {}
 
             OutlineBorder {
@@ -241,9 +246,8 @@ Item {
                 outlineWidth: 1
                 outlineColor: root._open
                         ? Theme.controlLineActive(root.accentColor)
-                        : _hov.hovered
-                            ? Theme.menuControlLineHot
-                            : Theme.menuControlLine
+                        : Theme.buttonLine(root.accentColor,
+                            _hov.hovered, _headerTap.pressed)
                 ColorFade on outlineColor {}
             }
         }
@@ -323,7 +327,6 @@ Item {
                 delegate: InlineOptionRow {
                     id: _opt
                     required property var modelData
-                    required property int index
                     readonly property bool active: root.currentValue === modelData.value
                     readonly property string optionFont:
                         (modelData.fontFamily !== undefined && modelData.fontFamily !== null

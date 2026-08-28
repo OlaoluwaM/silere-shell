@@ -17,21 +17,38 @@ Item {
     readonly property int minVisible: ShellSettings.wsMinVisible
     readonly property int btnH:       Metrics.barRowHeight
     readonly property int btnW:       btnH + 2
-    readonly property int _iconSz:    Settings.iconSize + 2
+    readonly property int _iconSz:    Math.round(ShellSettings.barIconSize * ShellSettings.uiScale) + 2
     readonly property int gap:        3
-    // Updated imperatively because mapToItem() does not expose ancestor geometry
-    // dependencies to the QML binding engine.
+    // updated imperatively because mapToItem() does not expose ancestor geometry dependencies to the QML binding engine
     property real menuAnchorX: 0
+
+    // a keybind opens with no trigger widget, so the states' fallback x has to stay fresh
+    readonly property bool _anchorFallbackBar: !!root.screen && root.screen.name === Monitors.overlayBarName
 
     function _syncMenuAnchor(): void {
         const pt = root.mapToItem(null, marker.centerX, 0)
-        if (isFinite(pt.x)) root.menuAnchorX = pt.x
+        if (!isFinite(pt.x)) return
+        root.menuAnchorX = pt.x
+        root._publishFallbackAnchor()
     }
+    function _publishFallbackAnchor(): void {
+        if (!root._anchorFallbackBar) return
+        MenuState.anchorX = root.menuAnchorX
+        QuickActionsState.anchorX = root.menuAnchorX
+    }
+    on_AnchorFallbackBarChanged: root._syncMenuAnchor()
 
     readonly property bool _menuTargetsThisBar: {
         const self = root.screen
         if (!self) return false
         const target = MenuState.triggerScreen
+        return target ? target.name === self.name
+                      : Monitors.activeName === self.name
+    }
+    readonly property bool _quickActionsTargetsThisBar: {
+        const self = root.screen
+        if (!self) return false
+        const target = QuickActionsState.triggerScreen
         return target ? target.name === self.name
                       : Monitors.activeName === self.name
     }
@@ -50,29 +67,44 @@ Item {
     readonly property bool show: true
     readonly property int  rawActiveId:  Compositor.activeWorkspaceId(root.monitorName)
     readonly property int  activeId:     rawActiveId > 0 ? rawActiveId : _lastNormalActiveId
+    property int _previousActiveId: 0
+    property int _handoffFromId: 0
+    property int _handoffToId: 0
 
     readonly property bool inSpecial: Compositor.hasSpecialWorkspaces && Compositor.specialOutput === root.monitorName
 
-    readonly property var _workspaceOwners: {
+    // one pass feeds ownership, lookup, page anchoring and the per-output id cap
+    readonly property var _workspaceIndex: {
         const owners = Object.create(null)
-        if (Compositor.isNiri) return owners
+        const byId = Object.create(null)
+        const own = []
+        let first = 0
+        let last = 0
+        const perOutputIds = Compositor.perOutputWorkspaceIds
         const vals = Compositor.workspaces
         for (let i = 0; i < vals.length; i++) {
             const ws = vals[i]
+            if (!ws) continue
+            if (ws.output === root.monitorName) {
+                byId[ws.wsId] = ws
+                own.push(ws)
+                if (ws.wsId > 0) {
+                    first = first === 0 ? ws.wsId : Math.min(first, ws.wsId)
+                    last = Math.max(last, ws.wsId)
+                }
+            }
             // hyprland reports a workspace before its monitor resolves; an empty output is
             // unknown, not "elsewhere", and recording it drops the id off this bar's page
-            if (ws && ws.wsId > 0 && ws.output.length > 0) owners[ws.wsId] = ws.output
+            if (!perOutputIds && ws.wsId > 0 && ws.output.length > 0)
+                owners[ws.wsId] = ws.output
         }
-        return owners
+        return { owners: owners, byId: byId, own: own, first: first, last: last }
     }
+    readonly property var _workspaceOwners: root._workspaceIndex.owners
     readonly property int _monitorAnchorId: {
         let first = root.activeId > 0 ? root.activeId : 1
-        const vals = Compositor.workspaces
-        for (let i = 0; i < vals.length; i++) {
-            const ws = vals[i]
-            if (ws && ws.output === root.monitorName && ws.wsId > 0)
-                first = Math.min(first, ws.wsId)
-        }
+        if (root._workspaceIndex.first > 0)
+            first = Math.min(first, root._workspaceIndex.first)
         return first
     }
 
@@ -82,15 +114,7 @@ Item {
         return owner !== undefined && owner !== root.monitorName
     }
 
-    readonly property var _wsMap: {
-        const m = Object.create(null)
-        const vals = Compositor.workspaces
-        for (let i = 0; i < vals.length; i++) {
-            const ws = vals[i]
-            if (ws && ws.output === root.monitorName) m[ws.wsId] = ws
-        }
-        return m
-    }
+    readonly property var _wsMap: root._workspaceIndex.byId
 
     function wsObjFor(id: int): var { return root._wsMap[id] ?? null }
     function appsFor(id: int): var { return root._wsApps[id] ?? [] }
@@ -107,11 +131,11 @@ Item {
 
     function _syncUrgentOffPage(): void {
         let next = 0
-        const vals = Compositor.workspaces
+        const vals = root._workspaceIndex.own
         for (let i = 0; i < vals.length; i++) {
             const ws = vals[i]
-            if (ws && ws.output === root.monitorName && ws.urgent && ws.wsId > 0
-                    && root.visibleIds.indexOf(ws.wsId) < 0) {
+            if (ws.urgent && ws.wsId > 0
+                    && root._visibleIndex(ws.wsId) < 0) {
                 next = ws.wsId
                 break
             }
@@ -119,8 +143,7 @@ Item {
         if (root.urgentOffPage !== next) root.urgentOffPage = next
     }
 
-    // Window classes are compositor-supplied, so they must not inherit keys
-    // such as "constructor" from Object.prototype.
+    // Window classes are compositor-supplied, so they must not inherit keys such as "constructor" from Object.prototype
     property var _appMetaCache: Object.create(null)
     property int _appMetaCacheSize: 0
     readonly property int _appMetaCacheLimit: 256
@@ -160,6 +183,7 @@ Item {
         }
         function onWorkspaceShiftChanged() {
             if (!ShellSettings.workspaceShift) {
+                root._clearWorkspaceHandoffs()
                 _groupFadeAnim.stop()
                 root.opacity = 1
                 root._pageShift = 0
@@ -173,7 +197,14 @@ Item {
                 _groupFadeAnim.stop()
                 root.opacity = 1
                 root._pageShift = 0
+                root._clearWorkspaceHandoffs()
             }
+        }
+    }
+    Connections {
+        target: Idle
+        function onIsIdleChanged() {
+            if (Idle.isIdle) root._clearWorkspaceHandoffs()
         }
     }
 
@@ -189,7 +220,7 @@ Item {
     // niri refreshes its whole window snapshot on a title change; key off identity
     readonly property string _wsAppsKey: {
         if (!ShellSettings.wsShowAppIcons) return ""
-        const parts = [root._wsAppsTick, root.monitorName, root.visibleIds.join(",")]
+        const parts = [root._wsAppsTick, root.monitorName, root._visibleIdsKey]
         const tops = Compositor.workspaceToplevels
         for (let i = 0; i < tops.length; i++) {
             const t = tops[i]
@@ -207,14 +238,12 @@ Item {
         const map = Object.create(null)
         if (!ShellSettings.wsShowAppIcons) { root._wsApps = map; return }
         const seen = Object.create(null)
-        const shown = Object.create(null)
-        for (let i = 0; i < root.visibleIds.length; i++) shown[root.visibleIds[i]] = true
         const tops = Compositor.workspaceToplevels
         for (let i = 0; i < tops.length; i++) {
             const t = tops[i]
             if (!t || t.output !== root.monitorName) continue
             const wid = t.wsId ?? 0
-            if (shown[wid] !== true) continue
+            if (root._visibleIndex(wid) < 0) continue
             const rawCls = SafeText.singleLineText(
                 t.appId, Compositor.maxWindowIdentityChars)
             const cls = rawCls.toLowerCase()
@@ -247,25 +276,24 @@ Item {
         }
         return btnW
     }
-    function _markerX(markerW: real): real {
+    function _cellCenterX(wsId: int): real {
         let acc = 0
         const ids = visibleIds
-        for (let i = 0; i < ids.length && ids[i] !== activeId; i++)
+        for (let i = 0; i < ids.length; i++) {
+            if (ids[i] === wsId) return acc + _btnW(ids[i]) / 2
             acc += _btnW(ids[i]) + gap
-        return acc + (_btnW(activeId) - markerW) / 2
+        }
+        return 0
+    }
+    function _markerX(markerW: real): real {
+        return root._cellCenterX(root.activeId) - markerW / 2
     }
 
-    // niri indices are per-output and dynamic, and it always keeps one trailing empty workspace;
-    // padding past the last one renders slots focus-workspace cannot resolve. 0 = hyprland, no cap
+    // per-output ids are dynamic and always keep one trailing empty workspace;
+    // padding past the last one renders slots focus-workspace cannot resolve. 0 = no cap
     readonly property int _idCap: {
-        if (!Compositor.isNiri) return 0
-        let last = 0
-        const vals = Compositor.workspaces
-        for (let i = 0; i < vals.length; i++) {
-            const ws = vals[i]
-            if (ws && ws.output === root.monitorName && ws.wsId > last) last = ws.wsId
-        }
-        return last
+        if (!Compositor.perOutputWorkspaceIds) return 0
+        return root._workspaceIndex.last
     }
 
     // highest id on this monitor the compositor reports as occupied -- the ground
@@ -345,8 +373,19 @@ Item {
         }
         return ids
     }
+    // events arrive by id; Repeater.itemAt is index-based
+    readonly property var _visibleIndexById: {
+        const indexes = Object.create(null)
+        const ids = root.visibleIds
+        for (let i = 0; i < ids.length; i++) indexes[ids[i]] = i
+        return indexes
+    }
+    function _visibleIndex(wsId: int): int {
+        const index = root._visibleIndexById[wsId]
+        return index === undefined ? -1 : index
+    }
 
-    readonly property int activeIndex: visibleIds.indexOf(activeId)
+    readonly property int activeIndex: root._visibleIndex(root.activeId)
     readonly property int pageKey: visibleIds.length > 0 ? visibleIds[0] : _monitorAnchorId
 
     onVisibleIdsChanged: root._syncUrgentOffPage()
@@ -359,34 +398,112 @@ Item {
     // reordering bar widgets rebuilds this instance under the open menu; every live copy
     // offers itself each time the anchor goes vacant, so a rebuild that outlives its
     // replacement still ends up held by whichever one survives
-    function _reclaimMenuAnchor(): void {
-        if (MenuState.open && MenuState.anchorSource === null && root._menuTargetsThisBar)
-            MenuState.adoptAnchor(root)
+    function _reclaimPopupAnchors(): void {
+        if (root._menuTargetsThisBar) MenuState.adoptAnchor(root)
+        if (root._quickActionsTargetsThisBar) QuickActionsState.adoptAnchor(root)
     }
     Connections {
         target: MenuState
-        function onAnchorSourceChanged() { root._reclaimMenuAnchor() }
+        function onAnchorSourceChanged() { root._reclaimPopupAnchors() }
+        // mapToItem sees no ancestor geometry, so the cached x is a stale layout pass by now
+        function onOpenChanged() {
+            if (MenuState.open && MenuState.anchorSource === null) root._syncMenuAnchor()
+        }
+    }
+    Connections {
+        target: QuickActionsState
+        function onAnchorSourceChanged() { root._reclaimPopupAnchors() }
+        function onOpenChanged() {
+            if (QuickActionsState.open && QuickActionsState.anchorSource === null) root._syncMenuAnchor()
+        }
     }
 
     Component.onCompleted: {
         _lastNormalActiveId = activeId
+        _previousActiveId = activeId
         _prevPageKey = pageKey
         _initialized = monitorReady
         root._syncUrgentOffPage()
         root._rebuildWsApps()
-        root._reclaimMenuAnchor()
+        root._reclaimPopupAnchors()
     }
 
     onRawActiveIdChanged: {
         if (rawActiveId > 0) _lastNormalActiveId = rawActiveId
     }
 
-    onMonitorReadyChanged: {
-        if (monitorReady) {
-            _lastNormalActiveId = activeId
-            _initialized = true
+    // one input event can emit several compositor updates; coalesce to one hand-off
+    onActiveIdChanged: {
+        const previous = root._previousActiveId
+        root._previousActiveId = root.activeId
+        if (previous < 1 || previous === root.activeId) return
+        if (!_handoffDispatch.running) root._handoffFromId = previous
+        root._handoffToId = root.activeId
+        _handoffDispatch.restart()
+    }
+
+    function _intermediateIndexes(fromIndex: int, toIndex: int): var {
+        const out = []
+        if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return out
+        const direction = toIndex > fromIndex ? 1 : -1
+        for (let i = fromIndex + direction; i !== toIndex; i += direction)
+            out.push(i)
+        return out
+    }
+
+    // app icons make cells different widths; an index fraction fades a wide cell before the marker reaches it
+    function _handoffDelayAt(fromX: real, toX: real, crossedX: real): int {
+        const span = toX - fromX
+        if (Math.abs(span) < 0.5) return 0
+        const progress = Math.min(1, Math.max(0, (crossedX - fromX) / span))
+        // invert the marker's OutQuart travel; a fixed stagger drifts behind on long jumps
+        const crossingMs = marker.travelDuration
+            * (1 - Math.pow(1 - progress, 0.25))
+        return Math.max(0, Math.round(crossingMs - 30))
+    }
+
+    function _playWorkspaceHandoff(fromId: int, toId: int): void {
+        if (!root._initialized || !root.monitorReady || root._paging
+                || !ShellSettings.workspaceShift || ShellSettings.reduceMotion
+                || Idle.isIdle) return
+        const fromIndex = root._visibleIndex(fromId)
+        const toIndex = root._visibleIndex(toId)
+        const crossed = root._intermediateIndexes(fromIndex, toIndex)
+        const fromX = root._cellCenterX(fromId)
+        const toX = root._cellCenterX(toId)
+        for (let i = 0; i < crossed.length; i++) {
+            const button = _wsRepeater.itemAt(crossed[i])
+            if (!button) continue
+            button.playMarkerPass(root._handoffDelayAt(
+                fromX, toX, root._cellCenterX(root.visibleIds[crossed[i]])))
         }
     }
+
+    function _clearWorkspaceHandoffs(): void {
+        _handoffDispatch.stop()
+        for (let i = 0; i < _wsRepeater.count; i++) {
+            const button = _wsRepeater.itemAt(i)
+            if (button) button.clearMarkerPass()
+        }
+    }
+
+    Timer {
+        id: _handoffDispatch
+        interval: 0
+        onTriggered: root._playWorkspaceHandoff(root._handoffFromId, root._handoffToId)
+    }
+
+    onMonitorReadyChanged: {
+        if (!monitorReady) {
+            root._clearWorkspaceHandoffs()
+            return
+        }
+        _lastNormalActiveId = activeId
+        _previousActiveId = activeId
+        root._clearWorkspaceHandoffs()
+        _initialized = true
+    }
+    onBarActiveChanged: if (!root.barActive) root._clearWorkspaceHandoffs()
 
     property bool _paging: false
     Timer { id: _pagingReset; interval: Motion.fast + Motion.width; onTriggered: root._paging = false }
@@ -413,8 +530,7 @@ Item {
         else { root.opacity = 1; root._pageShift = 0 }
     }
 
-    // reflow only: the marker slide and the page shift are animations, and following
-    // them retargets an open popup's x every frame
+    // reflow only: the marker slide and the page shift are animations, and following them retargets an open popup's x every frame
     onXChanged: root._syncMenuAnchor()
     onYChanged: root._syncMenuAnchor()
     onImplicitWidthChanged: root._syncMenuAnchor()
@@ -473,14 +589,13 @@ Item {
 
     property int _hoveredWsId: 0
 
-    // One listener routes pulses to the matching button. Previously every
-    // visible workspace kept its own listener and renderer alive while idle.
+    // one listener routes pulses to the matching button. Previously every visible workspace kept its own listener and renderer alive while idle
     Connections {
         target: Notifications
         enabled: root.barActive && ShellSettings.wsNotifPulse
             && !ShellSettings.reduceMotion && !Idle.isIdle
         function onSourcePulse(wsId, critical) {
-            const index = root.visibleIds.indexOf(wsId)
+            const index = root._visibleIndex(wsId)
             if (index < 0) return
             const button = _wsRepeater.itemAt(index)
             if (button) button.playNotificationPulse(critical)
@@ -528,7 +643,6 @@ Item {
                 required property int modelData
 
                 wsId:         modelData
-                siblingCount: _wsRepeater.count
                 monitorReady: root.monitorReady
                 active:       root.monitorReady && root.activeId === wsId
                 occupied:     root.occupied(wsId)

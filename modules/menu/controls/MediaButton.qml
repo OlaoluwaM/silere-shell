@@ -6,6 +6,7 @@ Item {
     id: root
 
     property string glyph:     ""
+    property string accessibleName: ""
     property bool   available: false
     readonly property bool interactive: root.enabled && root.available
 
@@ -17,10 +18,15 @@ Item {
     height: implicitHeight
     anchors.verticalCenter: parent ? parent.verticalCenter : undefined
 
-    opacity: root.interactive ? 1.0 : 0.25
+    opacity: root.interactive ? 1.0 : Theme.disabledOpacity
     MotionBehavior on opacity {
         NumberAnimation { duration: Motion.fast }
     }
+
+    Accessible.role: Accessible.Button
+    Accessible.name: root.accessibleName
+    Accessible.focusable: root.interactive
+    Accessible.onPressAction: if (root.interactive) root.triggered()
 
     HoverHandler { id: _hover; enabled: root.interactive; cursorShape: Qt.PointingHandCursor }
     TapHandler {
@@ -50,26 +56,16 @@ Item {
                 easing.type: Easing.OutCubic
             }
         }
-        color: _tap.pressed
-            ? Theme.withAlpha(Theme.accent, 0.13)
-            : _hover.hovered
-                ? Theme.withAlpha(
-                    Theme.mix(Theme.text, Theme.accent, 0.24), 0.075)
-                : Theme.withAlpha(Theme.text, 0.05)
-        opacity: (_hover.hovered || _tap.pressed) ? 1.0 : 0.0
+        color: Theme.buttonFill(Theme.accent, _hover.hovered, _tap.pressed)
 
         OutlineBorder {
             radius: _fill.radius
             outlineWidth: 1
-            outlineColor: _hover.hovered
-                    ? Theme.withAlpha(Theme.accent, 0.22)
-                    : "transparent"
+            outlineColor: Theme.buttonLine(
+                Theme.accent, _hover.hovered, _tap.pressed)
             ColorFade on outlineColor {}
         }
 
-        MotionBehavior on opacity {
-            NumberAnimation { duration: Motion.fast }
-        }
         ColorFade on color {}
     }
     // same ink-centering doctrine as Pill: symbol glyphs sit low in their line box

@@ -9,7 +9,9 @@ import "../../common"
 ClippingRectangle {
     id: root
     width: parent ? parent.width : 0
-    readonly property int _seekBlock: Media.hasPosition ? 26 : 0
+    // the labels inside are fontMicro, so a fixed row keeps the elapsed/total pair cramped while every neighbour grows with the type
+    readonly property int _seekH: Math.max(14, Settings.fontMicro + 4)
+    readonly property int _seekBlock: Media.hasPosition ? _seekH + 12 : 0
     // A2 -- Dissolve: no separate footer surface anymore, so the old "16 top gap" constant
     // is gone. What's left is eyebrow-topMargin + eyebrow + the art's breathing room +
     // the text block + the seek gap + the transport row + its own bottom margin, each
@@ -120,7 +122,7 @@ ClippingRectangle {
         outlineColor: Theme.menuCardBorder
     }
 
-    // fade only: a scale leg ran as a third competing animation and resampled NativeRendering text off-pixel
+    // fade only: a scale leg ran as a third competing animation over the card
     Disclosure on opacity { expanded: Media.shown; enterEasing: Easing.OutCubic }
 
     // on reappear, text may be stranded at opacity 0 by a crossfade interrupted while hidden
@@ -287,10 +289,7 @@ ClippingRectangle {
     // transport sit below _seek.top and were never part of this target.
     MouseArea {
         id: _playerTarget
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: _seek.top
+        anchors.fill: parent
         cursorShape: Qt.PointingHandCursor
         onClicked: root._focusPlayer()
     }
@@ -457,11 +456,13 @@ ClippingRectangle {
             bottom: _controlsRow.top
             bottomMargin: visible ? 12 : 0
         }
-        height: visible ? 14 : 0
+        height: visible ? root._seekH : 0
 
         ShellText {
             id: _elapsedLabel
-            width: _totalLabel.implicitWidth
+            // matches the total so the bar sits centred, but never below its own text: an
+            // unknown length pairs a placeholder total with an elapsed time that outgrows it
+            width: Math.max(implicitWidth, _totalLabel.implicitWidth)
             horizontalAlignment: Text.AlignRight
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
@@ -473,7 +474,8 @@ ClippingRectangle {
             id: _totalLabel
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            text:           Media.lengthKnown ? Media.formatTime(Media.length) : "LIVE"
+            text:           Media.lengthKnown ? Media.formatTime(Media.length)
+                            : Media.endless ? "LIVE" : "--:--"
             color:          Theme.withAlpha(Theme.text, 0.55)
             font.pixelSize: Settings.fontMicro
         }
@@ -487,6 +489,8 @@ ClippingRectangle {
             height: 12
 
             interactive: Media.canSeek && Media.lengthKnown
+            accessibleName: "Playback position"
+            accessibleValueText: _elapsedLabel.text + " of " + _totalLabel.text
             showThumb:   Media.canSeek && Media.lengthKnown
             hoverGrow:   false
             animate:     false
@@ -512,6 +516,7 @@ ClippingRectangle {
 
         MediaButton {
             glyph: "󰒮"
+            accessibleName: "Previous track"
             glyphAlignReference: "󰒮"
             available: Media.canGoPrevious
             onTriggered: Media.previous()
@@ -522,7 +527,11 @@ ClippingRectangle {
             readonly property bool _on: Media.canTogglePlaying
             width: 56; height: 40
             anchors.verticalCenter: parent.verticalCenter
-            opacity: _playBtn._on ? 1.0 : 0.25
+            opacity: _playBtn._on ? 1.0 : Theme.disabledOpacity
+            Accessible.role: Accessible.Button
+            Accessible.name: Media.playing ? "Pause" : "Play"
+            Accessible.focusable: _playBtn._on
+            Accessible.onPressAction: if (_playBtn._on) Media.togglePlay()
             MotionBehavior on opacity {
                 NumberAnimation { duration: Motion.fast }
             }
@@ -538,7 +547,8 @@ ClippingRectangle {
                 // press-only feedback by request: the hover tint read as a flash against
                 // the button's already-visible idle fill (the skip buttons hover fine --
                 // they start from nothing). The cursor and the glyph brightening still
-                // say "hoverable"; only a real press changes the surface now.
+                // say "hoverable"; only a real press changes the surface now, so the
+                // shared emphasisButtonFill (hover-tinting by design) stays out on purpose.
                 color: _playT.pressed ? Theme.controlFill(Theme.accent, 0.18)
                     : Theme.menuControl
                 ColorFade on color {}
@@ -546,7 +556,9 @@ ClippingRectangle {
                 OutlineBorder {
                     radius: _playFill.radius
                     outlineWidth: 1
-                    outlineColor: Theme.menuControlLine
+                    outlineColor: Theme.withAlpha(Theme.accent,
+                        Theme.lineAlpha(_playT.pressed ? 0.52
+                            : _playH.hovered ? 0.38 : 0.24))
                     ColorFade on outlineColor {}
                 }
             }
@@ -602,6 +614,7 @@ ClippingRectangle {
 
         MediaButton {
             glyph: "󰒭"
+            accessibleName: "Next track"
             glyphAlignReference: "󰒭"
             available: Media.canGoNext
             onTriggered: Media.next()

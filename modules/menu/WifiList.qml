@@ -69,6 +69,8 @@ Item {
         }
         function onWifiEnabledChanged() { root._syncScanState() }
         function onToolAvailableChanged() { root._syncScanState() }
+        // a rescan that lands while the device is re-enumerating disarms the scanner for good
+        function onHasWifiDeviceChanged() { root._syncScanState() }
         // a disconnect (name goes empty) or a switch to a different network both change
         // this; either way any details panel left open belongs to a network that is no
         // longer the connected one, and the row's own tap (disconnect) never routes
@@ -153,7 +155,7 @@ Item {
                         : "Open"
                     selected: _entry.modelData.active
                     highlighted: _entry._sel
-                    warning: _entry._failed
+                    failed: _entry._failed
                     // the body tap already means disconnect for the connected entry, so
                     // its details live behind the chevron's separate hit zone instead
                     expandable: _entry.modelData.active

@@ -52,6 +52,18 @@ Singleton {
     readonly property color warning:    _n ? _warnAnchor : tintKeepingChroma(_warnAnchor, MatugenTheme.warning, 0.30)
     readonly property color success:    _n ? _okAnchor   : tintKeepingChroma(_okAnchor,   MatugenTheme.success, 0.30)
 
+    // solved at L* 70.8, C* 20-36: equal visual weight on all three dark bases
+    readonly property var neutralAccentPresets: [
+        { color: "#8db2d0", name: "Glacier" },
+        { color: "#52b8e8", name: "Sky"     },
+        { color: "#9babe9", name: "Iris"    },
+        { color: "#c99fd3", name: "Orchid"  },
+        { color: "#56bdb6", name: "Aqua"    },
+        { color: "#86ba8b", name: "Leaf"    },
+        { color: "#eb979a", name: "Coral"   },
+        { color: "#cca870", name: "Gold"    }
+    ]
+
     function _lin(c: real): real {
         return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
     }
@@ -74,8 +86,10 @@ Singleton {
     readonly property color barSeparator: withAlpha(_n ? _lineBase : mix(_lineBase, accent, 0.10),
                                                     ShellSettings.dotOpacity)
 
-    readonly property color panel: withAlpha(background,
-        _hc ? Math.max(0.90, ShellSettings.barOpacity) : ShellSettings.barOpacity)
+    // high contrast floors this, so the readout has to report the effective value, not the setting
+    readonly property real panelOpacity: _hc ? Math.max(0.90, ShellSettings.barOpacity)
+                                             : ShellSettings.barOpacity
+    readonly property color panel: withAlpha(background, panelOpacity)
     // glass mirrors the bar's own trick (background tinted, then cut with alpha) so popups
     // read as the same pane of glass, not a different material stacked on top of it; outside
     // glass mode the popup layers carry no compositor blur, so opacity-matching the bar stays
@@ -139,6 +153,9 @@ Singleton {
     readonly property color menuTrack:       _hc ? withAlpha(text, 0.22)
                                                 : _n ? withAlpha(_lineBase, 0.14)
                                                      : withAlpha(_lineBase, 0.16)
+    // not lineAlpha: the base swatches sit within 1 L* of their card, so this edge is what
+    // makes them countable at all and must survive outline strength being turned down
+    readonly property color swatchEdge:      withAlpha(text, _hc ? 0.34 : 0.20)
     readonly property color menuTextMuted:   mix(subtext, text, _hc ? 0.45 : (_n ? 0.30 : 0.24))
     readonly property color menuTextFaint:   mix(subtext, text, _hc ? 0.25 : (_n ? 0.15 : 0.10))
     // row descriptions and hints: 10px type against a near-black card, so the sink that
@@ -149,6 +166,53 @@ Singleton {
     // high contrast re-bases every other line onto white text; the ring keeps its accent, so it buys the contrast in alpha
     readonly property real focusRingAlpha:     _hc ? 0.92 : 0.72
     readonly property real focusRingSoftAlpha: _hc ? 0.72 : 0.42
+
+    // one disabled depth for every control; high contrast lifts it so a dimmed row stays readable
+    readonly property real disabledOpacity: _hc ? 0.62 : 0.45
+
+    function buttonFill(c: color, hovered: bool, pressed: bool): color {
+        if (pressed) return withAlpha(c, _hc ? 0.20 : 0.13)
+        if (hovered) return withAlpha(mix(text, c, 0.24), _hc ? 0.12 : 0.075)
+        return withAlpha(text, _hc ? 0.060 : 0.035)
+    }
+    function buttonLine(c: color, hovered: bool, pressed: bool): color {
+        if (pressed) return withAlpha(c, lineAlpha(_hc ? 0.54 : 0.34))
+        if (hovered) return withAlpha(c, lineAlpha(_hc ? 0.42 : 0.24))
+        return menuControlLine
+    }
+    // mixes from _controlSolid, not menuControl: on glass an emphasis button must stay
+    // legible over the frost (see _controlSolid above); outside glass the two are equal
+    function emphasisButtonFill(c: color, hovered: bool, pressed: bool): color {
+        return mix(_controlSolid, c, pressed ? 0.54 : hovered ? 0.48 : 0.42)
+    }
+
+    function controlTrackFill(c: color, active: bool,
+                              hovered: bool, pressed: bool): color {
+        // _controlSolid, not menuControl, for the same glass reason as emphasisButtonFill;
+        // the two are equal outside glass
+        if (active) {
+            const k = _n
+                ? (pressed ? 0.80 : hovered ? 0.74 : 0.68)
+                : (pressed ? 0.85 : hovered ? 0.79 : 0.73)
+            return mix(_controlSolid, c, k)
+        }
+        return mix(_controlSolid, text,
+            pressed ? 0.14 : hovered ? 0.085 : 0.035)
+    }
+    function controlTrackLine(c: color, active: bool,
+                              hovered: bool, pressed: bool): color {
+        if (active) return withAlpha(c, lineAlpha(
+            pressed ? (_hc ? 0.72 : 0.52)
+                : hovered ? (_hc ? 0.60 : 0.40)
+                : (_hc ? 0.44 : 0.26)))
+        if (pressed) return withAlpha(c, lineAlpha(_hc ? 0.50 : 0.30))
+        return hovered ? menuControlLineHot : menuControlLine
+    }
+    function controlKnobFill(c: color, active: bool,
+                             hovered: bool, pressed: bool): color {
+        if (active) return mix(text, c, pressed ? 0.13 : hovered ? 0.09 : 0.055)
+        return mix(subtext, text, pressed ? 0.28 : hovered ? 0.23 : 0.18)
+    }
 
     readonly property int radiusPanel:   14
     readonly property int radiusCard:    12
@@ -242,10 +306,13 @@ Singleton {
         return _labColor(m.L, m.a * k, m.b * k)
     }
 
-    function rowFill(hovered: bool): color {
+    function rowFill(hovered: bool, pressed: bool): color {
         // mix() always returns alpha 1.0 (see above), which would opaque out the frost the
-        // moment a row is hovered; a straight alpha bump keeps the same glass instead
-        if (_glass) return hovered ? withAlpha(text, 0.07 * _elevK) : menuCard
-        return hovered ? mix(menuCard, text, 0.045 * _elevK) : menuCard
+        // moment a row is hovered or pressed; a straight alpha bump keeps the same glass,
+        // with upstream's accent press tint carried over as an alpha instead of a mix
+        if (_glass) return pressed ? withAlpha(accent, 0.085 * _elevK)
+            : hovered ? withAlpha(text, 0.07 * _elevK) : menuCard
+        return pressed ? mix(menuCard, accent, 0.085 * _elevK)
+            : hovered ? mix(menuCard, text, 0.045 * _elevK) : menuCard
     }
 }

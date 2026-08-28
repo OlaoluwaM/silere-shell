@@ -23,9 +23,10 @@ PanelWindow {
     readonly property bool _active: !ShellSettings.osdBarIntegrated || OsdBarState.barConcealed
 
     // bar at the bottom: clear its full footprint plus a bit of air; otherwise a
-    // comfortable lift off the screen edge rather than sitting flush
+    // comfortable lift off the screen edge rather than sitting flush. Per-screen
+    // clearance so an output without the bar doesn't reserve its footprint
     readonly property real _edgeY: Metrics.barAtBottom
-        ? Metrics.popupClearance(18)
+        ? Metrics.popupClearanceOn(osd.targetScreen, 18)
         : Math.max(24, Metrics.barEdgeInset + 16)
 
     anchors {

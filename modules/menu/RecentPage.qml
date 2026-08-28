@@ -183,6 +183,11 @@ PageShell {
                 MotionBehavior on width {NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic } }
                 ColorFade on color {}
                 MotionBehavior on opacity {NumberAnimation { duration: Motion.fast } }
+                Accessible.role: Accessible.Button
+                Accessible.name: "Clear all notifications"
+                Accessible.focusable: !root._clearing
+                Accessible.onPressAction: root.requestClearAll()
+
                 HoverHandler { id: _clearHover; enabled: !root._clearing; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor }
                 TapHandler { id: _clearTap; enabled: !root._clearing; onTapped: root.requestClearAll() }
 
@@ -313,8 +318,7 @@ PageShell {
                     height: _fullHeight
                     clip: true
 
-                    // text lays out a frame after the delegate completes, so an ungated
-                    // behaviour animates every row as it scrolls into view
+                    // text lays out a frame after the delegate completes, so an ungated behaviour animates every row as it scrolls into view
                     property bool _heightReady: false
                     Timer { id: _heightArm; interval: 0; onTriggered: _entry._heightReady = true }
                     Component.onCompleted: _heightArm.start()
@@ -327,8 +331,7 @@ PageShell {
                     function removeSelf(): void {
                         if (_removing || root._clearing) return
                         const rowIndex = index
-                        // Persist immediately. A delegate-owned delay is lost if
-                        // the user changes pages before its timer fires.
+                        // persist immediately. A delegate-owned delay is lost if the user changes pages before its timer fires
                         _removing = true
                         Notifications.removeFromHistory(rowIndex)
                     }
@@ -371,7 +374,7 @@ PageShell {
                         radius: Theme.radiusControl
                         antialiasing: true
                         clip: true
-                        color: Theme.rowFill(_entryHover.hovered)
+                        color: Theme.rowFill(_entryHover.hovered, _entryTap.pressed)
 
                         OutlineBorder {
                             radius: _card.radius
@@ -387,6 +390,7 @@ PageShell {
                             cursorShape: (_body.truncated || _entry._expanded) ? Qt.PointingHandCursor : Qt.ArrowCursor
                         }
                         TapHandler {
+                            id: _entryTap
                             enabled: !root._clearing && !_entry._removing
                             onTapped: eventPoint => {
                                 const p = _removeButton.mapFromItem(_card, eventPoint.position.x, eventPoint.position.y)

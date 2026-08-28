@@ -58,6 +58,38 @@ else
   ok "rail labels" "every settings nav label fits the rail without eliding"
 fi
 
+section "settings row description width"
+# A row description gets 286px next to its control, not the 358px a HintText spans, and
+# the UI font is monospace: past 47 characters it wraps and silently doubles the row's
+# height. No probe catches that, and both offenders found this way were shipped defaults.
+# 47 is the budget at 100%; raising uiScale shrinks it to ~39 and some descriptions do
+# reflow there. That is the accepted cost of larger type, not a second budget to enforce.
+# Every branch of the binding counts, so this scans literals, not just `description: "…"`.
+# A binding continues onto the next line only when that line opens with an operator;
+# anything else ends it, or the scan swallows the `key:` below and reports it as a
+# description.
+desc_over="$(find modules -name '*.qml' -exec awk '
+  function flush(   lit) {
+    while (match(buf, /"[^"]*"/)) {
+      lit = substr(buf, RSTART + 1, RLENGTH - 2)
+      if (length(lit) > 47) printf "  %s:%d  (%d chars) %s\n", file, line, length(lit), lit
+      buf = substr(buf, RSTART + RLENGTH)
+    }
+    buf = ""
+  }
+  FNR == 1 { if (collecting) flush(); collecting = 0 }
+  collecting && $0 ~ /^[[:space:]]*[+?:]/ { buf = buf $0; next }
+  collecting { flush(); collecting = 0 }
+  /description:/ { collecting = 1; buf = $0; line = FNR; file = FILENAME }
+  END { if (collecting) flush() }
+' {} + || true)"
+if [ -n "$desc_over" ]; then
+  fail "these row descriptions exceed the 47-character budget and will wrap:"
+  printf '%s\n' "$desc_over"
+else
+  ok "row descriptions" "every settings row description fits on one line"
+fi
+
 section "invisible characters in source"
 # Silere strips bidi controls out of every string another program hands it. The same
 # characters in Silere's own source are the Trojan Source problem: they reorder how a
@@ -385,6 +417,13 @@ else
   ok "motion" "every animation duration routes through Motion"
 fi
 
+section "multi-window animation pacing"
+if grep -qF '//@ pragma DefaultEnv QSG_USE_SIMPLE_ANIMATION_DRIVER = 1' shell.qml; then
+  ok "motion driver" "elapsed-time pacing is the overrideable default"
+else
+  fail "shell.qml must default QSG_USE_SIMPLE_ANIMATION_DRIVER=1 so popups do not fall back to the 16 ms multi-window timer"
+fi
+
 section "underscore property handlers"
 # Qt strips leading underscores before capitalising a handler name, so property
 # `_foo` is served by on_FooChanged. on_fooChanged type-checks, loads, and never
@@ -399,6 +438,22 @@ if [ -n "$lower_underscore_handlers" ]; then
   printf '%s\n' "$lower_underscore_handlers"
 else
   ok "handlers" "underscore property handlers are spelled so they fire"
+fi
+
+# A Connections handler naming a signal its target does not have is the same
+# silence one step further out: no type error, no runtime warning, and the
+# effect the handler was written for simply never happens. Only targets whose
+# whole chain is local files ending at Singleton are checked; anything rooted
+# in an external type inherits members this cannot see.
+if command -v python3 >/dev/null 2>&1 && [ -f scripts/check-connections.py ]; then
+  if orphan_handlers="$(python3 scripts/check-connections.py)"; then
+    ok "handlers" "every Connections handler matches a signal on its target"
+  else
+    fail "these Connections handlers will never fire:"
+    printf '%s\n' "$orphan_handlers"
+  fi
+else
+  warn "handlers" "python3 or scripts/check-connections.py missing; Connections check skipped"
 fi
 
 section "installer environment defaults"
@@ -450,6 +505,7 @@ else
   ok "qmldir" "all referenced files exist"
 fi
 
+
 # The other direction, which only fails at runtime as "X is not a type": a component
 # that exists but is not packaged. Tracked files only — Matugen's legacy generated
 # theme still sits untracked in config/ on upgraded checkouts.
@@ -458,7 +514,8 @@ while IFS= read -r f; do
   dir="$(dirname "$f")"
   case "$dir" in .|./scripts|scripts) continue ;; esac
   [ -f "$dir/qmldir" ] || { unpackaged="$unpackaged $f(no-qmldir)"; continue; }
-  grep -qF "$(basename "$f")" "$dir/qmldir" || unpackaged="$unpackaged $f"
+  awk -v n="$(basename "$f")" 'NF>=2 && $NF == n { found=1 } END { exit !found }' \
+    "$dir/qmldir" || unpackaged="$unpackaged $f"
 done < <(git ls-files '*.qml' 2>/dev/null)
 if [ -n "$unpackaged" ]; then
   fail "these components are not packaged in their qmldir, so they resolve only at runtime:"
@@ -659,11 +716,23 @@ widget_meta="$(awk '/barWidgetMeta:[[:space:]]*\(\{/{take=1; next} \
 widget_components="$(awk '/_widgetComponents:[[:space:]]*\(\{/{take=1; next} \
   take && /^[[:space:]]*\}\)/{exit} take{print}' modules/bar/BarContent.qml \
   | grep -oE '[A-Za-z][A-Za-z0-9]*[[:space:]]*:' | tr -d ': ' | sort)"
+# a renamed toggle leaves the row bound to a key the schema no longer has, which reads
+# as a widget that cannot be hidden rather than as an error
+widget_orphan=""
+while IFS= read -r wsetting; do
+  [ -n "$wsetting" ] || continue
+  grep -qE "\{ k: \"$wsetting\"," services/ShellSettings.qml \
+    || widget_orphan="$widget_orphan $wsetting"
+done <<< "$(awk '/barWidgetMeta:[[:space:]]*\(\{/{take=1; next} \
+  take && /^[[:space:]]*\}\)/{exit} take{print}' services/ShellSettings.qml \
+  | sed -nE 's/.*setting: "([A-Za-z][A-Za-z0-9]*)".*/\1/p')"
 if [ -z "$widget_keys" ] || [ "$widget_keys" != "$widget_meta" ] \
         || [ "$widget_keys" != "$widget_components" ]; then
     fail "barWidgetKeys, barWidgetMeta, and _widgetComponents must be nonempty and identical"
     printf 'keys:\n%s\nmeta:\n%s\ncomponents:\n%s\n' \
       "$widget_keys" "$widget_meta" "$widget_components"
+elif [ -n "$widget_orphan" ]; then
+    fail "bar widget metadata names settings the schema does not have:$widget_orphan"
 else
     ok "bar widgets" "keys, metadata, and components agree"
 fi
@@ -802,17 +871,17 @@ else
 fi
 
 # The accent picker marks a swatch active by string-matching neutralAccent against
-# its own preset list, so a default with no matching swatch opens with nothing
+# the shared Theme preset list, so a default with no matching swatch opens with nothing
 # selected on a fresh config.
 section "accent preset coverage"
-accent_section="modules/menu/settings/SettingsThemeSection.qml"
+accent_section="config/Theme.qml"
 accent_default="$(sed -n 's/^[[:space:]]*property string neutralAccent:[[:space:]]*"\(#[0-9a-fA-F]\{3,8\}\)".*/\1/p' services/ShellSettings.qml)"
 if [ -z "$accent_default" ]; then
   fail "could not read the neutralAccent default from services/ShellSettings.qml"
 elif grep -qiF "\"$accent_default\"" "$accent_section"; then
   ok "accent" "default $accent_default has a preset swatch"
 else
-  fail "neutralAccent default $accent_default has no swatch in $accent_section"
+  fail "neutralAccent default $accent_default has no shared preset in $accent_section"
 fi
 
 # With no palette written, the fallback accent is what the shell actually paints,
@@ -923,6 +992,48 @@ if [ -n "$missing_inert" ]; then
   fail "these compositor events must stay denylisted in Compositor.qml:$missing_inert"
 else
   ok "inert events" "the event denylist still covers every measured no-op"
+fi
+
+# Quickshell's Hyprland bindings do not always mirror the compositor: hyprland reports
+# unfocus as an empty activewindowv2 address, quickshell's parser bails on it, and
+# Hyprland.activeToplevel then keeps the last focused window forever. The Compositor
+# facade is the only place that compensates, so a direct read from any other file
+# silently gets stale focus back. HyprDispatch only writes (dispatch calls), never
+# reads focus, so it stays on the allowlist.
+facade_leaks="$(grep -rln 'import Quickshell\.Hyprland' --include='*.qml' \
+  modules config services shell.qml 2>/dev/null \
+  | grep -v -e '^services/Compositor\.qml$' -e '^services/HyprDispatch\.qml$' || true)"
+if [ -n "$facade_leaks" ]; then
+  fail "only services/Compositor.qml and services/HyprDispatch.qml may import Quickshell.Hyprland:"
+  while IFS= read -r m; do printf '  %s\n' "$m"; done <<< "$facade_leaks"
+else
+  ok "compositor facade" "Quickshell.Hyprland stays behind the Compositor facade"
+fi
+
+section "control surface gating"
+# The power profile row shipped stuck on "..." inside quick actions because PowerProfiles
+# gated its reads on the menu alone. ControlSurfaces is the one place that enumerates the
+# panels hosting shared rows, so a service naming two of them is that regression returning.
+surface_state_singletons="MenuState QuickActionsState TrayMenuState"
+multi_surface_services=""
+for f in services/*.qml; do
+  case "$f" in
+    services/ControlSurfaces.qml|services/OverlayCoordinator.qml) continue ;;
+  esac
+  surfaces_named=0
+  for st in $surface_state_singletons; do
+    if grep -qE "(^|[^A-Za-z0-9_])${st}\." "$f"; then
+      surfaces_named=$((surfaces_named + 1))
+    fi
+  done
+  if [ "$surfaces_named" -gt 1 ]; then
+    multi_surface_services="$multi_surface_services $(basename "$f")"
+  fi
+done
+if [ -n "$multi_surface_services" ]; then
+  fail "these services enumerate panels instead of gating on ControlSurfaces:$multi_surface_services"
+else
+  ok "surfaces" "no service enumerates panel state singletons"
 fi
 
 section "pointer-only interaction"

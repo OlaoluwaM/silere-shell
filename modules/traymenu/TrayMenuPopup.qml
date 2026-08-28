@@ -248,6 +248,19 @@ PanelWindow {
                 cursorShape: Qt.PointingHandCursor
                 onHoveredChanged: if (hovered && _entry.sub) _entry._openFlyout(false)
             }
+            Accessible.role: _entry.sep ? Accessible.Separator
+                : _entry.checkable ? Accessible.CheckBox : Accessible.MenuItem
+            Accessible.name: _entry.label
+            Accessible.checked: _entry.checked
+            Accessible.focusable: _entry.on
+            Accessible.onPressAction: {
+                if (!_entry.on) return
+                // branch, not sub, for the same depth-cap reason as the leaf TapHandler below
+                if (_entry.branch) { if (_entry.sub) _entry._toggleFlyout(); return }
+                win._emitMenuSignal(_entry.modelData, "triggered", "sendTriggered")
+                TrayMenuState.close()
+            }
+
             // default DragThreshold, not ReleaseWithinBounds: the tap grab must stay passive
             // so an overflowing menu can still press-drag scroll from on top of a row
             TapHandler {
@@ -292,8 +305,11 @@ PanelWindow {
                         width: 8; height: 8; radius: 4
                         antialiasing: true
                         color: _entry.checked ? Theme.accent : "transparent"
-                        border.width: _entry.checked ? 0 : 1
-                        border.color: Theme.withAlpha(Theme.subtext, 0.5)
+                        OutlineBorder {
+                            radius: parent.radius
+                            outlineColor: _entry.checked
+                                ? "transparent" : Theme.withAlpha(Theme.subtext, 0.5)
+                        }
                     }
                 }
 

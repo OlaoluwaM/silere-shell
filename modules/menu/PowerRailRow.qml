@@ -24,7 +24,19 @@ Rectangle {
 
     readonly property bool _hot: root.enabled && root.interactive && (_hover.hovered)
     readonly property bool _showValue: root.value.length > 0 && !root.armed
-    readonly property int _valueMaxW: Math.max(42, Math.min(86, Math.round(root.width * 0.52)))
+    // the rail's width is fixed while its text grows, so at raised uiScale the value crowded
+    // the label out; a clipped "Mod…" loses the row's identity where a clipped value still
+    // reads, so the value yields first. 62 = the label's left offset plus the gap before it
+    TextMetrics {
+        id: _labelInk
+        font.family:    Settings.font
+        font.pixelSize: Settings.fontLabel
+        font.weight:    root.armed ? Font.DemiBold : Font.Normal
+        text:           root.armed ? root.confirmLabel : root.label
+    }
+    readonly property int _valueMaxW: Math.max(42, Math.min(86,
+        Math.round(root.width * 0.52),
+        root.width - 62 - Math.ceil(_labelInk.advanceWidth) - 1))
     property real _shift: root._hot || root.armed ? 0.5 : 0.0
     readonly property color _fg: root.armed
         ? Theme.text
@@ -43,11 +55,19 @@ Rectangle {
     height: Metrics.rowHeightFor(30)
     radius: Theme.radiusInline
     antialiasing: true
-    opacity: root.enabled ? 1.0 : 0.38
+    opacity: root.enabled ? 1.0 : Theme.disabledOpacity
     MotionBehavior on opacity {NumberAnimation { duration: Motion.medium } }
     color: root.armed
         ? Theme.withAlpha(Theme.error, 0.105)
+        : _tap.pressed
+            ? Theme.withAlpha(root.dangerous ? Theme.error : root.accentColor, 0.13)
         : root._hot ? Theme.withAlpha(Theme.text, 0.045) : "transparent"
+
+    Accessible.role: root.interactive ? Accessible.Button : Accessible.StaticText
+    Accessible.name: root.armed ? root.confirmLabel : root.label
+    Accessible.description: root.value
+    Accessible.focusable: root.enabled && root.interactive
+    Accessible.onPressAction: root.activate()
 
     OutlineBorder {
         radius: root.radius
@@ -122,6 +142,7 @@ Rectangle {
     }
 
     TapHandler {
+        id: _tap
         enabled: root.enabled && root.interactive
         onTapped: root.activate()
     }
