@@ -56,9 +56,11 @@ PanelWindow {
     readonly property real visualSurfaceInset: ShellSettings.barGap * floatingProgress
 
     readonly property bool shadowOn: shadowProgress > 0.001
-    // constant, not scaled by shadowProgress: this feeds implicitHeight, so animating it
-    // resized the layer-shell window in 4px steps and the bar juddered on every toggle
-    readonly property real effectPad: 24
+    // gated on shadowOn, never scaled by shadowProgress: this feeds implicitHeight, so
+    // animating it resized the layer-shell window in 4px steps and the bar juddered on
+    // every toggle. The boolean flips only at the fade's edges — one resize per toggle,
+    // and with the shadow off the window stops carrying 24px of empty ARGB per monitor
+    readonly property real effectPad: shadowOn ? 24 : 0
     // the surface sits barGap from the edge, so the window budgets the gap at both ends or it clips the bar
     readonly property int insetPad: Math.max(8, Metrics.barEdgeInset * 2)
 
