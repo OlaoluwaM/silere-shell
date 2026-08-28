@@ -21,9 +21,12 @@ conflict.
 The fork is distributed by nixos-config and never publishes releases, so
 the release and distribution machinery is gone whole, and the package-
 updates/self-update stack went the same way (upstream still ships and
-iterates it — the v0.8.0 merge re-deleted all six files). Resolve
-delete/modify conflicts under these paths as ours, and re-delete anything
-a merge brings back under them:
+iterates it — the v0.8.0 merge re-deleted all six files). The stack's
+consumers are pruned wherever upstream grows new ones: Hooks.qml carries
+no "update-available" event, probe-logic has no updater suite, and
+SystemTools has no packageFamily. Resolve delete/modify conflicts under
+these paths as ours, re-delete anything a merge brings back under them,
+and re-prune any new consumer a merge wires up:
 
 <!-- keep-deleted:begin -->
 packaging/aur
