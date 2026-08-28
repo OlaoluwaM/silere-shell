@@ -356,38 +356,58 @@ Singleton {
         }
     }
 
+    // shared by the edge watchers below and the wake replay: the watchers sit on a
+    // null target while the session is idle, so a threshold crossed during idle is
+    // never delivered — each guard re-checks its own state, so a replay only shows
+    // what is still true
+    function _alertBatteryLow(): void {
+        if (!Battery.low || !ShellSettings.osdBatteryWarn) return
+        const label = "Low Battery · " + Math.round(Battery.pct) + "%"
+            + (Battery.timeLabel ? "  " + Battery.timeLabel : "")
+        root.showAlert("battery", Battery.icon, Battery.pct / 100, label, Theme.warning)
+    }
+    function _alertBatteryCritical(): void {
+        if (!Battery.critical || !ShellSettings.osdBatteryWarn) return
+        const label = "Critical Battery · " + Math.round(Battery.pct) + "%"
+            + (Battery.timeLabel ? "  " + Battery.timeLabel : "")
+        root.showAlert("battery", Battery.icon, Battery.pct / 100, label, Theme.error)
+    }
+    function _alertBatteryFull(): void {
+        if (!Battery.full || !Battery.charging || !ShellSettings.osdChargedNotify) return
+        root.showAlert("battery", Battery.icon, 1.0, "Fully charged · 100%", Theme.success)
+    }
+    function _alertTempHot(): void {
+        if (!CpuTemp.hot || !ShellSettings.osdTempWarn) return
+        root.showAlert("temp", "󰔏", Math.min(1.0, (CpuTemp.temp - 50) / 65),
+            "CPU Hot · " + Math.round(CpuTemp.temp) + "°", Theme.warning)
+    }
+    function _alertTempCritical(): void {
+        if (!CpuTemp.critical || !ShellSettings.osdTempWarn) return
+        root.showAlert("temp", "󰔏", Math.min(1.0, (CpuTemp.temp - 50) / 65),
+            "CPU Critical · " + Math.round(CpuTemp.temp) + "°", Theme.error)
+    }
+    function _replayAlerts(): void {
+        // the watchers' osdEnabled gate lives in their target binding, so the
+        // replay has to carry it itself
+        if (!ShellSettings.osdEnabled) return
+        if (Battery.critical) _alertBatteryCritical()
+        else _alertBatteryLow()
+        _alertBatteryFull()
+        if (CpuTemp.critical) _alertTempCritical()
+        else _alertTempHot()
+    }
+
     Connections {
         target: root._batteryWatcherWanted ? Battery : null
-        function onLowChanged() {
-            if (!Battery.low || !ShellSettings.osdBatteryWarn) return
-            const label = "Low Battery · " + Math.round(Battery.pct) + "%"
-                + (Battery.timeLabel ? "  " + Battery.timeLabel : "")
-            root.showAlert("battery", Battery.icon, Battery.pct / 100, label, Theme.warning)
-        }
-        function onCriticalChanged() {
-            if (!Battery.critical || !ShellSettings.osdBatteryWarn) return
-            const label = "Critical Battery · " + Math.round(Battery.pct) + "%"
-                + (Battery.timeLabel ? "  " + Battery.timeLabel : "")
-            root.showAlert("battery", Battery.icon, Battery.pct / 100, label, Theme.error)
-        }
-        function onFullChanged() {
-            if (!Battery.full || !Battery.charging || !ShellSettings.osdChargedNotify) return
-            root.showAlert("battery", Battery.icon, 1.0, "Fully charged · 100%", Theme.success)
-        }
+        function onLowChanged() { root._alertBatteryLow() }
+        function onCriticalChanged() { root._alertBatteryCritical() }
+        function onFullChanged() { root._alertBatteryFull() }
     }
 
     Connections {
         target: root._tempWatcherWanted ? CpuTemp : null
-        function onHotChanged() {
-            if (!CpuTemp.hot || !ShellSettings.osdTempWarn) return
-            root.showAlert("temp", "󰔏", Math.min(1.0, (CpuTemp.temp - 50) / 65),
-                "CPU Hot · " + Math.round(CpuTemp.temp) + "°", Theme.warning)
-        }
-        function onCriticalChanged() {
-            if (!CpuTemp.critical || !ShellSettings.osdTempWarn) return
-            root.showAlert("temp", "󰔏", Math.min(1.0, (CpuTemp.temp - 50) / 65),
-                "CPU Critical · " + Math.round(CpuTemp.temp) + "°", Theme.error)
-        }
+        function onHotChanged() { root._alertTempHot() }
+        function onCriticalChanged() { root._alertTempCritical() }
     }
 
     Connections {
@@ -401,7 +421,8 @@ Singleton {
     Connections {
         target: Idle
         function onIsIdleChanged() {
-            if (Idle.isIdle) root._clearEntries()
+            if (Idle.isIdle) { root._clearEntries(); return }
+            root._replayAlerts()
         }
     }
 
