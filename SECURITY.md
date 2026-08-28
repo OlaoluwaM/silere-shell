@@ -17,7 +17,7 @@ no network listener, and no privileged helper. What's in scope:
 - Notification content reaching the shell over D-Bus, including icon and image paths.
 - Anything the shell passes to a process it spawns.
 - Files the shell reads or writes under `$XDG_CONFIG_HOME` and `$XDG_STATE_HOME`.
-- The installer and updater scripts under `scripts/`.
+- The installer script under `scripts/`.
 
 Out of scope: Quickshell, the compositor, and anything requiring an attacker who
 already runs code as the user.
