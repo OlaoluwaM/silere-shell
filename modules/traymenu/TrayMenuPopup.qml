@@ -15,6 +15,7 @@ PanelWindow {
 
     readonly property string _output: Compositor.monitorName(win.screen)
     readonly property int menuWidth: 220
+    readonly property int menuRowHeight: Metrics.rowHeightFor(32)
 
     property var _activeMenu: null
     property bool _rootOpenedSent: false
@@ -70,6 +71,25 @@ PanelWindow {
             const k = kids[i]
             if (k && k.opened === true) k.opened = false
         }
+    }
+    function _drillIntoFlyout(flyout, menu): void {
+        flyout["_drillInto"](menu)
+    }
+    function _flyoutLaneFits(flyout, laneX: real): bool {
+        if (laneX < 0 || laneX + flyout._w > win.width) return false
+
+        // A cascade may share vertical space, but never the horizontal lane of an ancestor.
+        if (laneX < card.x + card.width && laneX + flyout._w > card.x) return false
+
+        let ancestor = flyout._parentFlyout
+        while (ancestor !== null) {
+            if (ancestor.opened
+                && laneX < ancestor.x + ancestor.width
+                && laneX + flyout._w > ancestor.x)
+                return false
+            ancestor = ancestor._parentFlyout
+        }
+        return true
     }
 
     onVisibleChanged: if (!visible) win._setActiveMenu(null)
@@ -174,7 +194,7 @@ PanelWindow {
             readonly property string iconSrc: IconResolver.iconSource(modelData?.icon)
 
             width: win.menuWidth
-            height: sep ? 11 : 32
+            height: sep ? 11 : win.menuRowHeight
 
             function closeFlyout(): void {
                 if (_flyout.opened) _flyout.opened = false
@@ -188,17 +208,18 @@ PanelWindow {
                     if (c !== _entry && c && typeof c.closeFlyout === "function")
                         c.closeFlyout()
                 }
+                _flyout._syncOrigin()
+                if (_flyout._needsDrillIn) {
+                    win._drillIntoFlyout(_entry.ownerFlyout, _entry.modelData)
+                    return
+                }
+                _flyout._prepareToOpen()
                 _flyout.opened = true
             }
             function _toggleFlyout(): void {
                 if (_flyout.opened) _entry.closeFlyout()
                 else _entry._openFlyout()
             }
-            QsMenuOpener {
-                id: _subOpener
-                menu: _entry.sub ? _entry.modelData : null
-            }
-
             Hairline {
                 visible: _entry.sep
                 anchors.left: parent.left
@@ -227,6 +248,7 @@ PanelWindow {
             }
             TapHandler {
                 enabled: _entry.on && !_entry.sub
+                gesturePolicy: TapHandler.ReleaseWithinBounds
                 onTapped: {
                     win._emitMenuSignal(_entry.modelData, "triggered", "sendTriggered")
                     TrayMenuState.close()
@@ -234,6 +256,7 @@ PanelWindow {
             }
             TapHandler {
                 enabled: _entry.on && _entry.sub
+                gesturePolicy: TapHandler.ReleaseWithinBounds
                 onTapped: _entry._toggleFlyout()
             }
 
@@ -309,7 +332,8 @@ PanelWindow {
                 // reparented to the window root: inside the clipped row Flickable the submenu would be scissored away
                 parent: win.contentItem
                 property bool opened: false
-                property real _shift: opened ? 0 : (_flip ? 5 : -5)
+                property real _shift: opened ? 0 : (_rootLaneOverlay ? 0 : (_flip ? 5 : -5))
+                property var _menuStack: []
 
                 visible: opened || opacity > 0.001
                 enabled: opened
@@ -317,6 +341,12 @@ PanelWindow {
                 z: 10
                 readonly property real _w: win.menuWidth + pad * 2
                 readonly property int  pad: 6
+                // The 5px entrance translation leaves a 4px gap at its closest point.
+                readonly property int _cascadeGap: 9
+                readonly property var _parentFlyout: _entry.ownerFlyout
+                readonly property var _currentMenu: _menuStack.length > 0
+                    ? _menuStack[_menuStack.length - 1] : null
+                readonly property bool _canGoBack: _menuStack.length > 1 || _rootLaneOverlay
                 // mapToItem() captures no dependencies, so a binding freezes at the pre-layout position; re-snap off everything that moves the row
                 property point _origin: Qt.point(0, 0)
                 readonly property real _originTick: card.x + card.y + _entry.y
@@ -326,11 +356,22 @@ PanelWindow {
                 function _syncOrigin(): void {
                     _flyout._origin = _entry.mapToItem(null, 0, 0)
                 }
-                readonly property bool  _flip: _origin.x + _entry.width + 4 + _w > win.width
+                readonly property var _ownerMenu: _entry.ownerFlyout
+                    ? _entry.ownerFlyout : card
+                readonly property real _rightX: _ownerMenu.x + _ownerMenu.width + _cascadeGap
+                readonly property real _leftX: _ownerMenu.x - _w - _cascadeGap
+                readonly property bool _rightFits: win._flyoutLaneFits(_flyout, _rightX)
+                readonly property bool _leftFits: win._flyoutLaneFits(_flyout, _leftX)
+                readonly property bool _needsDrillIn: !_rightFits && !_leftFits
+                    && _entry.ownerFlyout !== null
+                readonly property bool _rootLaneOverlay: !_rightFits && !_leftFits
+                    && _entry.ownerFlyout === null
+                readonly property bool _flip: !_rightFits && _leftFits
                 readonly property real _panelH: Math.min(_subCol.implicitHeight + pad * 2, Math.max(48, win.height - 8))
                 readonly property real _targetY: Math.max(4 - _origin.y, Math.min(-pad, win.height - 4 - _origin.y - _panelH))
-                x: _origin.x + (_flip ? -(_w + 4) : (_entry.width + 4))
-                y: _origin.y + _targetY
+                readonly property real _rootOverlayY: Math.max(4, Math.min(card.y, win.height - 4 - _panelH))
+                x: _rootLaneOverlay ? card.x : (_flip ? _leftX : _rightX)
+                y: _rootLaneOverlay ? _rootOverlayY : _origin.y + _targetY
                 width:  _w
                 height: _panelH
                 radius: Math.min(Theme.surfaceRadius, height / 2)
@@ -346,18 +387,48 @@ PanelWindow {
                 Disclosure on opacity { expanded: _flyout.opened; enterEasing: Easing.OutCubic }
                 Disclosure on _shift { expanded: _flyout.opened }
 
+                function _prepareToOpen(): void {
+                    _menuStack = [_entry.modelData]
+                    _subScroll.contentY = 0
+                }
+                function _drillInto(menu): void {
+                    if (!opened || menu === null || menu === undefined) return
+                    _menuStack = _menuStack.concat([menu])
+                    _subScroll.contentY = 0
+                    win._emitMenuSignal(menu, "opened", "sendOpened")
+                }
+                function _goBack(): void {
+                    if (_menuStack.length === 1 && _rootLaneOverlay) {
+                        _flyout.opened = false
+                        return
+                    }
+                    if (!_canGoBack) return
+                    const menu = _currentMenu
+                    win._emitMenuSignal(menu, "closed", "sendClosed")
+                    _menuStack = _menuStack.slice(0, -1)
+                    _subScroll.contentY = 0
+                }
+                function _closeDrillMenus(): void {
+                    for (let i = _menuStack.length - 1; i >= 0; i--)
+                        win._emitMenuSignal(_menuStack[i], "closed", "sendClosed")
+                }
+
                 onOpenedChanged: {
                     if (!_entry.sub) return
                     if (opened) {
                         _flyout._syncOrigin()
-                        win._emitMenuSignal(_entry.modelData, "opened", "sendOpened")
+                        win._emitMenuSignal(_flyout._currentMenu, "opened", "sendOpened")
                     } else {
-                        win._emitMenuSignal(_entry.modelData, "closed", "sendClosed")
+                        _flyout._closeDrillMenus()
                     }
                 }
-                Component.onDestruction: if (_entry.sub && _flyout.opened) win._emitMenuSignal(_entry.modelData, "closed", "sendClosed")
+                onVisibleChanged: if (!visible && !opened) _menuStack = []
+                Component.onDestruction: if (_entry.sub && _flyout.opened) _flyout._closeDrillMenus()
 
-                HoverHandler { id: _flyHover }
+                HoverHandler {
+                    id: _flyHover
+                    blocking: _flyout._rootLaneOverlay
+                }
 
                 Timer {
                     id: _flyClose
@@ -386,15 +457,65 @@ PanelWindow {
                         id: _subCol
                         width: win.menuWidth
                         spacing: 1
+
+                        Item {
+                            visible: _flyout._canGoBack
+                            width: win.menuWidth
+                            height: visible ? win.menuRowHeight : 0
+
+                            Rectangle {
+                                anchors.fill: parent
+                                radius: Theme.radiusControl
+                                antialiasing: true
+                                color: _backHover.hovered
+                                    ? Theme.withAlpha(Theme.menuHover, 0.08) : "transparent"
+                                ColorFade on color {}
+                            }
+
+                            ShellText {
+                                anchors.left: parent.left
+                                anchors.leftMargin: 10
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "󰅁"
+                                color: Theme.withAlpha(Theme.subtext, 0.7)
+                                font.pixelSize: Settings.fontSize
+                            }
+                            ShellText {
+                                anchors.left: parent.left
+                                anchors.leftMargin: 28
+                                anchors.right: parent.right
+                                anchors.rightMargin: 10
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: qsTr("Back")
+                                color: Theme.text
+                                font.pixelSize: Settings.fontSize
+                                elide: Text.ElideRight
+                            }
+
+                            HoverHandler {
+                                id: _backHover
+                                cursorShape: Qt.PointingHandCursor
+                            }
+                            TapHandler {
+                                gesturePolicy: TapHandler.ReleaseWithinBounds
+                                onTapped: _flyout._goBack()
+                            }
+                        }
+
+                        QsMenuOpener {
+                            id: _laneOpener
+                            menu: _flyout._currentMenu
+                        }
+
                         Repeater {
                             // hold the delegates through the close fade, then release the nested branch while the flyout is hidden
                             model: _flyout.opened || _flyout.opacity > 0.001
-                                ? _subOpener.children : []
+                                ? _laneOpener.children : []
                             delegate: _rowDelegate
                             onItemAdded: (index, item) => {
                                 item.ownerFlyout = _flyout
                                 item.ownerScroll = _subScroll
-                                item.menuDepth = _entry.menuDepth + 1
+                                item.menuDepth = _entry.menuDepth + _flyout._menuStack.length
                             }
                         }
                     }
