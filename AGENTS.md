@@ -64,5 +64,7 @@ one of the three files, so follow the pointers instead of restating.
 - Every new QML file needs a line in its folder's `qmldir`.
 - Keep the `silere-*` layer-shell namespaces. The compositor's blur and
   animation rules match those exact strings.
-- Work to keep code consistent with existing architectures and patterns. If you must deviate
-  explicitly note why
+- New code is cohesive with the codebase around it: it follows the existing
+  patterns, style, idioms, and architecture, and reaches for an existing
+  abstraction before inventing a bespoke one. Any deviation carries a
+  comment explaining why it was necessary.
