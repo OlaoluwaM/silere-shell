@@ -30,8 +30,8 @@ Process {
         _stableTimer.stop()
         _gaveUp = false
         _restartCount = 0
+        // the on_CooldownChanged hook below re-syncs on this write; a second explicit call would be a no-op
         _cooldown = false
-        _syncRunning()
     }
 
     Component.onCompleted: _syncRunning()
