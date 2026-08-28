@@ -159,7 +159,9 @@ Item {
                 InlineOptionRow {
                     id: _row
                     width: parent.width
-                    glyph: Network.signalGlyph(_entry.modelData.signal)
+                    // the list entries carry a precomputed tier glyph, not the raw signal --
+                    // republishing the percentage would dirty every entry a few times a minute
+                    glyph: _entry.modelData.glyph
                     label: _entry.modelData.label
                     status: _entry._armed ? "Disconnect?"
                         : _entry.modelData.active ? "Connected"
