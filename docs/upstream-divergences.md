@@ -59,8 +59,12 @@ re-delete the two adapter files and their `services/qmldir` lines; the
 ci-lint sections that referenced the adapters (niri event stream, inert
 events, the Quickshell.Hyprland import allowlist) point at Compositor.qml
 — and HyprDispatch.qml stays on that allowlist. Upstream's
-adapter-contract lint section stays deleted. Adopting the split later is
-a cold, deliberate port that retires this entry.
+adapter-contract lint section stays deleted. After resolving, sweep every
+`Compositor.*` reference in the tree against the facade: auto-merged
+consumers happily reference members that only exist in upstream's split
+(v0.8.0 shipped two such — `perOutputWorkspaceIds` and `overviewIsLive` —
+which had to be restored to the monolith after the fact). Adopting the
+split later is a cold, deliberate port that retires this entry.
 
 ## Shared files — union, with contracts
 
