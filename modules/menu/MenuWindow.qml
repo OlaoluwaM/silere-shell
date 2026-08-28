@@ -157,15 +157,17 @@ PanelWindow {
                 Math.floor(win.height - _edgeY - _minX),
                 Math.floor(win.height * _maxPanelHFrac)))
             : contentPane.targetH
-        // grows with what the list actually holds: a flat 360 cap scrolled hard on a tall
-        // output, but sizing off the screen alone left an empty history as a tall blank box.
-        // 70 is NotificationCard's own minimum height, so this under-counts tall cards on purpose
+        // the 44%/55% bounds are the maintainer's own call, not a derived value: the panel
+        // opens at 44% of the screen even with an empty history, an accepted tradeoff so the
+        // page doesn't open collapsed to nothing. 70 is NotificationCard's own minimum height,
+        // carried over from upstream, so this under-counts tall cards on purpose. availH is the
+        // hard ceiling regardless of either bound - the panel's own room always wins.
         readonly property int recentViewportH: {
-            const floorH = panel.idealMinH - panel.pageTopInset - panel.pageBottomInset
             const availH = panel._availablePanelH - panel.pageTopInset - panel.pageBottomInset
-            const wantH = Metrics.rowHeightFor(38) + 18 + Notifications.historyCount * 70
-            return Math.max(1, Math.min(availH, Math.max(floorH,
-                Math.min(Metrics.snap4(panel._availablePanelH * 0.6), Metrics.snap4(wantH)))))
+            const floorH = Metrics.snap4(win.height * 0.44)
+            const capH   = Math.min(Metrics.snap4(win.height * 0.55), availH)
+            const wantH  = Metrics.rowHeightFor(38) + 18 + Notifications.historyCount * 70
+            return Math.max(1, Math.min(capH, Math.max(floorH, Metrics.snap4(wantH))))
         }
         readonly property int targetPanelH: Math.max(1,
             Math.min(contentPane.targetH, _availablePanelH))
