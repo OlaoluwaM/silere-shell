@@ -17,7 +17,7 @@ Item {
     readonly property int minVisible: ShellSettings.wsMinVisible
     readonly property int btnH:       Metrics.barRowHeight
     readonly property int btnW:       btnH + 2
-    readonly property int _iconSz:    Math.round(ShellSettings.barIconSize * ShellSettings.uiScale) + 2
+    readonly property int _iconSz:    Settings.barIconSize + 2
     readonly property int gap:        3
     // updated imperatively because mapToItem() does not expose ancestor geometry dependencies to the QML binding engine
     property real menuAnchorX: 0
@@ -464,8 +464,8 @@ Item {
 
     function _playWorkspaceHandoff(fromId: int, toId: int): void {
         if (!root._initialized || !root.monitorReady || root._paging
-                || !ShellSettings.workspaceShift || ShellSettings.reduceMotion
-                || Idle.isIdle) return
+                || !ShellSettings.workspaceShift
+                || !Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)) return
         const fromIndex = root._visibleIndex(fromId)
         const toIndex = root._visibleIndex(toId)
         const crossed = root._intermediateIndexes(fromIndex, toIndex)
@@ -593,7 +593,7 @@ Item {
     Connections {
         target: Notifications
         enabled: root.barActive && ShellSettings.wsNotifPulse
-            && !ShellSettings.reduceMotion && !Idle.isIdle
+            && Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)
         function onSourcePulse(wsId, critical) {
             const index = root._visibleIndex(wsId)
             if (index < 0) return

@@ -19,7 +19,7 @@ Item {
     // entirely, so tray icons were the one thing that could not follow the interface scale
     readonly property int iconSize: Math.max(12,
         Math.min(Math.round(ShellSettings.barHeight * 0.62),
-            Math.round(ShellSettings.barIconSize * ShellSettings.uiScale) + 4))
+            Settings.barIconSize + 4))
     readonly property int _pillPad: Metrics.pillPadFor(compact)
 
     // only appearing/leaving eases; hover growth is already eased by the label, and a second ease on top lags the slot behind its own content

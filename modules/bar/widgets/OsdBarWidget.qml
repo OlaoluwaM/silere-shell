@@ -42,8 +42,8 @@ Item {
         }
         function onNextIconChanged() {
             if (OsdBarState.nextIcon === OsdBarState.icon) return
-            if (Idle.isIdle || root.state !== "visible"
-                    || ShellSettings.reduceMotion || OsdBarState.rapid) {
+            if (!Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)
+                    || root.state !== "visible" || OsdBarState.rapid) {
                 OsdBarState.icon = OsdBarState.nextIcon
                 return
             }
@@ -72,7 +72,7 @@ Item {
     transitions: [
         Transition {
             to: "visible"
-            enabled: !Idle.isIdle && !ShellSettings.reduceMotion
+            enabled: Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)
             ParallelAnimation {
                 NumberAnimation { target: root; property: "_op"; duration: Motion.ms(105); easing.type: Easing.OutCubic }
                 NumberAnimation { target: root; property: "_y";  duration: Motion.ms(165); easing.type: Easing.OutQuart }
@@ -80,7 +80,7 @@ Item {
         },
         Transition {
             to: "hidden"
-            enabled: !Idle.isIdle && !ShellSettings.reduceMotion
+            enabled: Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)
             ParallelAnimation {
                 NumberAnimation { target: root; property: "_y";  duration: Motion.ms(100); easing.type: Easing.InCubic }
                 NumberAnimation { target: root; property: "_op"; duration: Motion.ms(115); easing.type: Easing.InCubic }

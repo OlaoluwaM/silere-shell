@@ -120,8 +120,8 @@ Item {
 
     function playMarkerPass(delayMs: int): void {
         if (!root.barActive || root.active || root.paging || !root.markerCovers
-                || !ShellSettings.workspaceShift || ShellSettings.reduceMotion
-                || Idle.isIdle) return
+                || !ShellSettings.workspaceShift
+                || !Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)) return
         // restart from full opacity; a second jump must not resume the first one's fade
         _markerPassAnim.stop()
         root._markerPassCover = 0
@@ -137,7 +137,7 @@ Item {
 
     function playNotificationPulse(critical: bool): void {
         if (!root.barActive || !ShellSettings.wsNotifPulse
-                || ShellSettings.reduceMotion || Idle.isIdle) return
+                || !Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)) return
         _pulseUnload.stop()
         root._notifPulseCritical = critical
         if (_notifPulse.item) _notifPulse.item.play(critical)

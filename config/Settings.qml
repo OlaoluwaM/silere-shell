@@ -28,6 +28,9 @@ Singleton {
     readonly property real fontScale: Math.max(0.85, Math.min(1.2, 0.55 / Math.max(0.3, _fm.xHeight / 100)))
     readonly property int fontSize: Math.round(12 * ShellSettings.uiScale * fontScale)
     readonly property int iconSize: Math.round(12 * ShellSettings.uiScale)
+    // barIconSize's scaled value, derived once: the image-icon widgets (tray, workspace
+    // app icons) size from the setting, while glyph ink stays on iconSize above
+    readonly property int barIconSize: Math.round(ShellSettings.barIconSize * ShellSettings.uiScale)
 
     FontMetrics { id: _fm; font.family: root.font; font.pixelSize: 100 }
 
