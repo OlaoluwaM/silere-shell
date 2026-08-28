@@ -139,7 +139,7 @@ Singleton {
     property bool   barCompact:          false
     property bool   barHoverHighlight:   false
     property int    barHeight:           GeneratedDefaults.barHeight
-    property int    barIconSize:         12
+    property int    barIconSize:         GeneratedDefaults.barIconSize
     property bool   barFloating:         GeneratedDefaults.barFloating
     property int    barGap:              GeneratedDefaults.barGap
     property real   barWidth:            GeneratedDefaults.barWidth
@@ -275,7 +275,9 @@ Singleton {
         // both pills are self-set session modes, so they cluster as one "modes" run.
         dnd:         { glyph: "󰂛", label: "Do Not Disturb",  group: "network", setting: "" },
         // no setting: it exists only while airplane mode holds the radios down, same
-        // rationale as dnd above; group "network" seats it beside the radios it cuts
+        // rationale as dnd above. Group "network" keeps it in the session-modes family;
+        // where it actually sits is the deployed zone order's call (silere.nix seats it
+        // right of the clock), and a group divider marks it off there either way
         airplane:    { glyph: "󰀝", label: "Airplane Mode",   group: "network", setting: "" },
         volume:      { glyph: "󰕾", label: "Volume",          group: "levels", setting: "barShowVolume" },
         brightness:  { glyph: "󰃟", label: "Brightness",      group: "levels", setting: "barShowBrightness" },

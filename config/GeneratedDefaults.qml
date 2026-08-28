@@ -19,6 +19,7 @@ Singleton {
     readonly property real   barWidth:            0.90
     readonly property bool   barFitGaps:          false
     readonly property int    barHeight:           36
+    readonly property int    barIconSize:         12
     readonly property bool   barShadow:           false
     readonly property bool   barBorderVisible:    false
     readonly property bool   barShowMedia:        true
