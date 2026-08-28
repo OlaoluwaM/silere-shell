@@ -24,6 +24,11 @@ Singleton {
     readonly property bool isHyprland: !isNiri
 
     readonly property bool hasSpecialWorkspaces: isHyprland
+    // capability flags, not backend names: consumers ask what the compositor does
+    // (per-output workspace numbering, a live overview property) rather than which
+    // backend it is, so this facade stays the only place that reads isNiri
+    readonly property bool perOutputWorkspaceIds: isNiri
+    readonly property bool overviewIsLive: isNiri
 
     // effective horizontal gap in px, read from the compositor so a floating bar can
     // align to real tiled edges instead of guessing from a width fraction; -1 until
