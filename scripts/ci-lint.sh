@@ -395,6 +395,137 @@ else
   ok "mapping" "coordinate mapping stays out of bindings"
 fi
 
+section "pooled delegate motion"
+# A recycled delegate keeps the previous row's values, so an ungated animation plays the
+# new subject in from them as the row scrolls into view. Scan every file that pools rows,
+# plus the component each pooling list names as its delegate: turning reuseItems on for a
+# list whose delegate lives in another file is exactly how this regressed.
+_pooled_file_list() {
+  local f type cand
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    printf '%s\n' "$f"
+    grep -qE 'reuseItems:[[:space:]]*true' "$f" || continue
+    while IFS= read -r type; do
+      [ -n "$type" ] || continue
+      while IFS= read -r cand; do
+        [ -n "$cand" ] && printf '%s\n' "$cand"
+      done <<EOF
+$(find modules config services -name "$type.qml" 2>/dev/null)
+EOF
+    done <<EOF
+$(sed -n 's/^[[:space:]]*delegate:[[:space:]]*\([A-Z][A-Za-z0-9_]*\).*/\1/p' "$f")
+EOF
+  done <<EOF
+$(grep -rlE 'reuseItems:[[:space:]]*true|ListView\.on(Pooled|Reused)' \
+  --include='*.qml' shell.qml modules config services 2>/dev/null)
+EOF
+}
+
+pooled_ungated=""
+pooled_unhooked=""
+while IFS= read -r _f; do
+  [ -n "$_f" ] && [ -f "$_f" ] || continue
+  # buffered, not getline: a getline here consumes the following line and would skip
+  # a second animation declared directly beneath the first
+  _hits="$(awk '
+    { raw[FNR] = $0; n = FNR }
+    END {
+      for (i = 1; i <= n; i++) {
+        line = raw[i]; sub(/\/\/.*/, "", line)
+        if (line !~ /(ColorFade|MotionBehavior)[[:space:]]+on[[:space:]]/) continue
+        if (line ~ /gate:/) continue
+        nxt = (i < n) ? raw[i + 1] : ""
+        if (nxt ~ /gate:/) continue
+        print FILENAME ":" i ":" line
+      }
+    }
+  ' "$_f" || true)"
+  [ -n "$_hits" ] && pooled_ungated="$pooled_ungated$_hits"$'\n'
+  # a gate that no pool or reuse ever closes is not a gate
+  if grep -qE '(ColorFade|MotionBehavior)[[:space:]]+on[[:space:]]' "$_f" \
+     && ! grep -qE 'ListView\.on(Pooled|Reused)' "$_f"; then
+    pooled_unhooked="$pooled_unhooked  $_f"$'\n'
+  fi
+done <<EOF
+$(_pooled_file_list | sort -u)
+EOF
+
+if [ -n "$pooled_ungated" ] || [ -n "$pooled_unhooked" ]; then
+  if [ -n "$pooled_ungated" ]; then
+    fail "animations in a pooled delegate must carry a gate closed by onPooled/onReused:"
+    printf '%s' "$pooled_ungated"
+  fi
+  if [ -n "$pooled_unhooked" ]; then
+    fail "these pooled files animate but never close a gate on ListView.onPooled/onReused:"
+    printf '%s' "$pooled_unhooked"
+  fi
+else
+  ok "pooling" "every animation in a pooled delegate is gated"
+fi
+
+section "pooled view transitions"
+# A view transition animates the delegate item itself, so it leaves the item holding
+# whatever value it ended on. Where the list also pools rows that item comes back for a
+# different subject still carrying it, and the row renders faded out or offset. Every
+# property a transition writes has to be put back in onReused; the view owns y itself.
+transition_residue=""
+while IFS= read -r _f; do
+  [ -n "$_f" ] && [ -f "$_f" ] || continue
+  _miss="$(awk '
+    { raw[FNR] = $0; n = FNR }
+    END {
+      for (i = 1; i <= n; i++) {
+        line = raw[i]; sub(/\/\/.*/, "", line)
+        if (line !~ /^[[:space:]]*(add|remove|move|populate)[[:space:]]*:[[:space:]]*Transition/)
+          continue
+        depth = 0; opened = 0
+        for (j = i; j <= n; j++) {
+          l = raw[j]; sub(/\/\/.*/, "", l)
+          rest = l
+          while (match(rest, /property[[:space:]]*:[[:space:]]*"[^"]+"/)) {
+            s = substr(rest, RSTART, RLENGTH)
+            rest = substr(rest, RSTART + RLENGTH)
+            sub(/^property[[:space:]]*:[[:space:]]*"/, "", s)
+            sub(/"$/, "", s)
+            if (s != "y") animated[s] = 1
+          }
+          o = gsub(/\{/, "{", l); depth += o - gsub(/\}/, "}", l)
+          if (o > 0) opened = 1
+          if (opened && depth <= 0) break
+        }
+      }
+      body = ""
+      for (i = 1; i <= n; i++) {
+        line = raw[i]; sub(/\/\/.*/, "", line)
+        if (line !~ /ListView\.onReused[[:space:]]*:/) continue
+        depth = 0; opened = 0
+        for (j = i; j <= n; j++) {
+          l = raw[j]; sub(/\/\/.*/, "", l)
+          body = body " " l
+          o = gsub(/\{/, "{", l); depth += o - gsub(/\}/, "}", l)
+          if (o > 0) opened = 1
+          if (opened && depth <= 0) break
+        }
+      }
+      for (p in animated)
+        if (body !~ ("[^A-Za-z0-9_]" p "[[:space:]]*=[^=]"))
+          print "  " FILENAME ": " p
+    }
+  ' "$_f" || true)"
+  [ -n "$_miss" ] && transition_residue="$transition_residue$_miss"$'\n'
+done <<EOF
+$(grep -rlE 'reuseItems:[[:space:]]*true' --include='*.qml' \
+  shell.qml modules config services 2>/dev/null)
+EOF
+
+if [ -n "$transition_residue" ]; then
+  fail "a pooled delegate must restore what a view transition animated, in ListView.onReused:"
+  printf '%s' "$transition_residue"
+else
+  ok "transitions" "pooled rows come back with their transition values reset"
+fi
+
 section "reduce-motion gating"
 # MotionBehavior carries the reduce-motion gate. A bare Behavior silently
 # animates for users who asked for no motion, so route every one through it
