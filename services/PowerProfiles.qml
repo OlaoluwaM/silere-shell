@@ -38,7 +38,6 @@ Singleton {
 
     readonly property var _cycleOrder: root.cycleOrder(
         root.available, root.performanceAvailable)
-    readonly property var profiles: root._cycleOrder
 
     function degradationActive(profileName: string, reason): bool {
         return profileName === "performance"
@@ -55,11 +54,6 @@ Singleton {
                                   : ""
     readonly property string glyph: profile === "performance" ? "󰓅"
                                   : profile === "power-saver" ? "󰾆" : "󰾅"
-
-    function refresh(): void {
-        // the service is subscribed continuously; touching it only forces instantiation
-        void UPower.PowerProfiles.profile
-    }
 
     function cycle(): void {
         if (!root.available || root.profile.length === 0 || _set.running) return

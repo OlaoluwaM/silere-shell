@@ -11,14 +11,4 @@ Singleton {
     readonly property bool anyAnchoredOpen: anyOpen
         || CalendarState.open || TrayMenuState.open
 
-    signal opened()
-
-    Connections {
-        target: MenuState
-        function onOpenChanged() { if (MenuState.open) root.opened() }
-    }
-    Connections {
-        target: QuickActionsState
-        function onOpenChanged() { if (QuickActionsState.open) root.opened() }
-    }
 }
