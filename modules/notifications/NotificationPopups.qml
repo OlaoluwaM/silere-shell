@@ -235,8 +235,7 @@ PanelWindow {
         const items = win._pendingDismissItems
         win._pendingDismissItems = []
         win._batchExits = 0
-        for (let i = 0; i < items.length; i++)
-            Notifications.dismissObject(items[i].id, items[i].notification, false)
+        Notifications.dismissObjects(items, false)
     }
 
     property var _cascadeItems: []

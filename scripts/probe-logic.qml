@@ -1411,6 +1411,60 @@ ShellRoot {
                 && Notifications._updateTimes["52"] === undefined,
             "state for ids neither history nor the server holds is pruned")
 
+        const liveNotification = { id: 53, tracked: true }
+        Notifications.list = [{
+            notification: liveNotification, id: 53, time: 2300
+        }]
+        const liveList = Notifications.list
+        const updateTimes = Notifications._updateTimes
+        Notifications._recordUpdateTime(53, 2400)
+        const sameObjectIsNew = Notifications._upsertActiveNotification(
+            liveNotification, 2400)
+        root._check(!sameObjectIsNew && Notifications.list === liveList,
+            "an in-place notification update keeps the active list stable")
+        root._check(Notifications._updateTimes === updateTimes
+                && Notifications.updateTimeFor(53) === 2400,
+            "a notification update records its card timestamp without cloning the map")
+
+        const replacementNotification = { id: 53, tracked: true }
+        const replacementIsNew = Notifications._upsertActiveNotification(
+            replacementNotification, 2500)
+        root._check(replacementIsNew
+                && Notifications.list !== liveList
+                && Notifications.list[0].notification === replacementNotification
+                && Notifications.list[0].time === 2300
+                && !liveNotification.tracked,
+            "a replacement notification still retires the old object and keeps its age")
+        Notifications.list = []
+
+        let batchDismissed = 0
+        const batchOne = {
+            transient: false, tracked: true,
+            appName: "Probe", appIcon: "", desktopEntry: "",
+            summary: "Batch one", body: "", urgency: 1,
+            dismiss: function() { batchDismissed++ }, expire: function() {}
+        }
+        const batchTwo = {
+            transient: false, tracked: true,
+            appName: "Probe", appIcon: "", desktopEntry: "",
+            summary: "Batch two", body: "", urgency: 1,
+            dismiss: function() { batchDismissed++ }, expire: function() {}
+        }
+        Notifications._times = { "54": 2600, "55": 2700 }
+        Notifications.list = [
+            { notification: batchOne, id: 54, time: 2600 },
+            { notification: batchTwo, id: 55, time: 2700 }
+        ]
+        Notifications.dismissObjects([
+            { notification: batchOne, id: 54 },
+            { notification: batchTwo, id: 55 }
+        ], false)
+        root._check(batchDismissed === 2 && Notifications.activeCount === 0,
+            "a batched popup clear dismisses every live notification")
+        root._check(Notifications.historyCount === 2,
+            "a batched popup clear archives every notification")
+        Notifications.clearHistory()
+
         const closedAdapter = { pairable: false, pairableTimeout: 0 }
         Bluetooth._armPairable(closedAdapter)
         root._check(closedAdapter.pairable

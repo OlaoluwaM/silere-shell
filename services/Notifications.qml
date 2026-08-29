@@ -267,6 +267,13 @@ Singleton {
         return v !== undefined ? v : root.timeFor(id)
     }
 
+    // update timestamps are read only at explicit card lifecycle points, so changing
+    // one does not need a fresh map (and a change signal) for every progress update
+    function _recordUpdateTime(id: int, time: real): void {
+        root._ensurePersistentState()
+        root._updateTimes[String(id)] = time
+    }
+
     // pure read; stamping here loops (createdAt binding reads _times then writes it), so the write lives in the arrival path
     function timeFor(id: int): real {
         const times = root._times
@@ -329,11 +336,14 @@ Singleton {
     function clearHistory(): void {
         root._ensurePersistentState()
         if (_history.count === 0) return
+        const ids = []
         for (let i = 0; i < _history.count; i++) {
             const id = _history.get(i).id
-            if (id !== undefined) root._forgetState(id)
+            if (id !== undefined) ids.push(String(id))
         }
         _history.clear()
+        // one map copy per state kind, not one set of copies per history row
+        root._forgetTrimmed(ids)
         root._saveHistory()
     }
 
@@ -356,7 +366,8 @@ Singleton {
         return root._notificationHistoryEntry(e.notification, e.id, root._times[e.id] ?? e.time)
     }
 
-    function _archiveNotification(notification, id: int, time: real): bool {
+    function _archiveNotification(notification, id: int, time: real,
+            saveHistory): bool {
         const entry = root._notificationHistoryEntry(notification, id, time)
         if (!entry) return false
         let replaced = false
@@ -364,7 +375,7 @@ Singleton {
             if (_history.get(i).id === id) { _history.remove(i); replaced = true }
         }
         root._prependHistory(entry)
-        root._saveHistory()
+        if (saveHistory !== false) root._saveHistory()
         return !replaced
     }
 
@@ -378,16 +389,21 @@ Singleton {
         // clear first: changing tracked may synchronously emit closed, and the close handler must not archive the same object a second time
         root.list = []
         root.lastCritical = false
+        const retiredIds = []
         for (let i = 0; i < active.length; i++) {
             const e = active[i]
             if (!e) continue
             if (e.notification) {
                 root._archiveNotification(e.notification, e.id,
-                    root._times[e.id] ?? e.time ?? Date.now())
+                    root._times[e.id] ?? e.time ?? Date.now(), false)
                 e.notification.tracked = false
             }
-            root._forgetState(e.id)
+            retiredIds.push(String(e.id))
         }
+        root._forgetTrimmed(retiredIds)
+        // _archiveNotification normally persists immediately; this synchronous
+        // batch reaches the same final history with one serialization
+        root._saveHistory()
     }
 
     function _markClosing(id: int, notification): void {
@@ -412,15 +428,18 @@ Singleton {
 
     function _forget(id: int): void {
         root._forgetState(id)
+        root._dropFromList([id])
+    }
+
+    function _dropFromList(ids): void {
+        const drop = Object.create(null)
+        for (let i = 0; i < ids.length; i++) drop[String(ids[i])] = true
         const next = []
         let changed = false
         for (let i = 0; i < list.length; i++) {
             const e = list[i]
-            if (e.id === id) {
-                changed = true
-            } else {
-                next.push(e)
-            }
+            if (drop[String(e.id)] === true) changed = true
+            else next.push(e)
         }
         if (changed) list = next
         if (list.length === 0 && lastCritical) lastCritical = false
@@ -490,16 +509,43 @@ Singleton {
         if (id !== undefined) root._forgetState(id)
     }
 
-    function dismissObject(notifId: int, notification, expired): void {
+    // _onClosed bails on a notification already marked closing, so the retirement below
+    // is the only one that runs and a batch can safely defer it to one pass
+    function _dismissObject(notifId: int, notification, expired,
+            immediate): bool {
         const n = list.find(e => e.id === notifId && e.notification === notification)
-        if (!n) return
+        if (!n) return false
         const entry = root._historyEntry(n)
         root._markClosing(notifId, n.notification)
         // expire = timed out, dismiss = user closed
         if (expired === true) n.notification.expire()
         else                  n.notification.dismiss()
-        if (entry) { root._prependHistory(entry); root._saveHistory() }
-        root._forget(notifId)
+        if (entry) root._prependHistory(entry)
+        if (immediate !== false) {
+            if (entry) root._saveHistory()
+            root._forget(notifId)
+        }
+        return true
+    }
+
+    function dismissObject(notifId: int, notification, expired): void {
+        root._dismissObject(notifId, notification, expired, true)
+    }
+
+    function dismissObjects(items, expired): void {
+        const pending = Array.isArray(items) ? items : []
+        const retired = []
+        for (let i = 0; i < pending.length; i++) {
+            const item = pending[i]
+            if (item && root._dismissObject(
+                    item.id, item.notification, expired, false))
+                retired.push(String(item.id))
+        }
+        if (retired.length === 0) return
+        // drop first: _forgetTrimmed keeps the state of anything still listed
+        root._dropFromList(retired)
+        root._forgetTrimmed(retired)
+        root._saveHistory()
     }
 
     // Closed by someone else: the sender withdrew it, or it answered our own
@@ -514,6 +560,33 @@ Singleton {
             if (entry) { root._prependHistory(entry); root._saveHistory() }
         }
         root._forget(id)
+    }
+
+    // quickshell mutates a tracked notification in place, so only a replaces_id object
+    // needs a new list entry
+    function _upsertActiveNotification(notification, arrivalTime: real): bool {
+        const existing = root.list.findIndex(e => e.id === notification.id)
+        if (existing < 0) {
+            root.list = [...root.list, {
+                notification: notification, id: notification.id, time: arrivalTime
+            }]
+            return true
+        }
+
+        const old = root.list[existing].notification
+        if (old === notification) return false
+        if (old) {
+            root._markClosing(notification.id, old)
+            old.tracked = false
+        }
+        const next = [...root.list]
+        next[existing] = {
+            notification: notification,
+            id: notification.id,
+            time: root.list[existing].time
+        }
+        root.list = next
+        return true
     }
 
     Component.onCompleted: {
@@ -587,29 +660,12 @@ Singleton {
             const arrivalTime = root._ensureTime(n.id)
             root.lastCritical = n.urgency === NotificationUrgency.Critical
 
-            const updates = root._cloneMap(root._updateTimes)
-            updates[String(n.id)] = Date.now()
-            root._updateTimes = updates
-
-            const existing = root.list.findIndex(e => e.id === n.id)
-            let isNewObject = true
-            if (existing >= 0) {
-                const old = root.list[existing].notification
-                isNewObject = old !== n
-                if (old && isNewObject) {
-                    root._markClosing(n.id, old)
-                    old.tracked = false
-                }
-                const next = [...root.list]
-                next[existing] = { notification: n, id: n.id, time: root.list[existing].time }
-                root.list = next
-            } else {
-                root.list = [...root.list, { notification: n, id: n.id, time: arrivalTime }]
-            }
+            root._recordUpdateTime(n.id, Date.now())
+            const isNewObject = root._upsertActiveNotification(n, arrivalTime)
             // connect once per object — stacked handlers fire _onClosed twice
             if (isNewObject) n.closed.connect(() => root._onClosed(n.id, n))
             n.tracked = true
-            if (existing >= 0 && !isNewObject) root.contentUpdated(n.id)
+            if (!isNewObject) root.contentUpdated(n.id)
             else root.notificationShown(String(n.appName || ""), String(n.summary || ""),
                 n.urgency === NotificationUrgency.Critical)
 
