@@ -22,9 +22,8 @@ Singleton {
         const value = String(raw ?? "").trim()
         if (value.length === 0 || value.length > root.maxArtSourceChars) return ""
         if (/[\u0000-\u001F\u007F]/.test(value)) return ""
-        if (value.startsWith("/")) return IconResolver.localSource(value)
         if (/^https?:\/\//i.test(value)) return value
-        return IconResolver.localSource(value)
+        return IconResolver.safeLocalSource(value)
     }
 
     // ephemeral by design: players come and go, so a pinned choice is dropped the moment its player leaves the bus

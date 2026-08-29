@@ -708,9 +708,18 @@ ShellRoot {
         root._check(IconResolver.senderImageSource("/tmp/fifo.png") === ""
                 && IconResolver.senderImageSource("file:///tmp/fifo.png") === "",
             "notification images never open sender-provided filesystem nodes")
-        root._check(IconResolver.senderImageSource("image://notification/1")
-                === "image://notification/1",
+        root._check(IconResolver.senderImageSource("image://qsimage/1")
+                === "image://qsimage/1",
             "notification image providers remain available")
+        root._check(IconResolver.senderImageSource("image://icon/x?path=/etc/passwd") === ""
+                && IconResolver.senderIconSource("image://icon/x?path=/etc/passwd") === "",
+            "notification images and icons cannot reach the filesystem-backed icon provider")
+        root._check(IconResolver.senderIconSource("IMAGE://icon/x?path=/etc/passwd") === ""
+                && IconResolver.iconSource("Image://Icon/x?path=/etc/passwd") === "",
+            "the icon provider guard holds when the sender varies the scheme's case")
+        root._check(IconResolver.senderImageSource("image://QsImage/1")
+                === "image://QsImage/1",
+            "a mixed-case in-memory provider stays available")
         root._check(IconResolver.senderIconSource("/tmp/fifo.png") === ""
                 && IconResolver.senderIconSource("file:///tmp/fifo.png") === "",
             "notification icons never open sender-provided filesystem nodes")
@@ -763,6 +772,11 @@ ShellRoot {
             "media service rejects remote file artwork")
         root._check(Media.artSource("https://example.invalid/bad\ncover.jpg") === "",
             "media service rejects control characters in artwork URLs")
+        root._check(Media.artSource("image://icon/x?path=/etc/passwd") === ""
+                && Media.artSource("IMAGE://icon/x?path=/etc/passwd") === "",
+            "media artwork cannot reach the filesystem-backed icon provider")
+        root._check(Media.artSource("image://qsimage/1") === "image://qsimage/1",
+            "media artwork keeps the in-memory image provider")
         root._check(Media.privacyPlaceholderSource("Zen is playing media") === "Zen"
                 && Media.privacyPlaceholderSource("Song is playing") === "",
             "media recognises a browser's generic playback placeholder")
