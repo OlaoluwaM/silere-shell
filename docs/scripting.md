@@ -34,6 +34,7 @@ directly, without the optional filesystem watcher.
 qs ipc -p "$SILERE_DIR/shell.qml" call settings set osdTimeout 3000
 qs ipc -p "$SILERE_DIR/shell.qml" call settings toggle reduceMotion
 qs ipc -p "$SILERE_DIR/shell.qml" call settings list clock
+qs ipc -p "$SILERE_DIR/shell.qml" call settings list ""
 ```
 
 | call | does |
@@ -41,11 +42,12 @@ qs ipc -p "$SILERE_DIR/shell.qml" call settings list clock
 | `get <key>` | prints one value |
 | `set <key> <value>` | writes it, and echoes the value that landed |
 | `toggle <key>` | flips a boolean |
-| `list [filter]` | prints each key with its own range or vocabulary |
+| `list <filter>` | prints each key with its own range or vocabulary |
 | `modified` | prints only what differs from the defaults |
 
 A rejected write names the values the key accepts. The `list` filter matches a section name
-as well as a key, so `list clock` reaches `showSeconds`.
+as well as a key, so `list clock` reaches `showSeconds`. The filter is required; pass `""` to
+list every key at once.
 
 ### Settings section names
 

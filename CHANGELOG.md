@@ -14,6 +14,9 @@ settings file carries its own `__version` and migrates separately.
 ### Added
 
 - Widgets › Workspaces turns off the marker pulse that plays when the menu opens.
+- Theme › Balance accent brings a wallpaper accent to the same strength as the custom presets.
+- Hovering an actionable bar widget shows its click, alternate-button and wheel controls.
+- Notification popups accept inline replies from applications that offer them.
 
 ### Changed
 
@@ -24,9 +27,13 @@ settings file carries its own `__version` and migrates separately.
 - Dragging a bar widget outlines the slot it will drop into.
 - Hovering the active workspace prepares the menu between frames, then releases it if no click follows.
 - The low-battery and hot-CPU glows settle on the same four-minute mark.
+- A running update check settles its pill animation on that mark too.
 - The window title takes the alignment and padding of the zone it sits in.
 - A divider separates the window title from the workspaces strip.
 - The window title drops a track name the media widget in its zone already shows.
+- Titles from background windows are sampled on a slower pass than the focused one.
+- The clock and media progress pause periodic updates while the overview conceals the bar.
+- Temperature polling stops there for the underline glow, and carries on for the alerts.
 - The clock eases in and out as it is switched on and off.
 
 #### Menu and settings
@@ -35,12 +42,22 @@ settings file carries its own `__version` and migrates separately.
 - Opening a settings dropdown folds the one already open.
 - Reset in Widgets › Show & order uses the same confirm button as the rest of the menu.
 - Settings explains when Reduce motion pauses animated effects such as the audio visualiser.
+- The power mode control follows the daemon as it changes, including a profile set from outside Silere.
 - Widgets › Window title › App name says where the name appears.
+- Theme says when the loaded palette carries no accent colour of its own.
+- Wi-Fi rows hold still while the signal drifts inside the tier their icon shows.
+- Long Bluetooth, package, and shell-change lists recycle rows after they leave the viewport.
 
 #### Notifications
 
 - Clear all in a notification popup uses the same button as the notification list.
+- Runs of notifications from one app share a single header, and each card sizes to its own text.
+- Hovering a notification in the menu swaps its timestamp for the remove button; removing one slides it out.
+- A notification with more text than it shows carries a chevron.
+- Notifications older than today show a clock time.
 - Notification history reuses off-screen rows and shares one time snapshot per refresh while scrolling.
+- A notification that updates in place, such as a progress bar, leaves the rest of the popup stack alone.
+- Clearing a stack of popups, or turning popups off, writes notification history once for the whole batch.
 
 #### Media
 
@@ -79,6 +96,9 @@ settings file carries its own `__version` and migrates separately.
 - The window title updates in place while a window keeps its identity, and crossfades when the window changes.
 - Widgets › Window title › App name off keeps the app name hidden for a window that reports no title.
 - The window title reaches a screen reader.
+- A long window title no longer stretches a narrowed bar.
+- The window title appears when a title arrives for a window that reported none.
+- A divider no longer sits beside a window title that has faded out.
 - The underline sweep centres on a widget placed in the centre zone.
 
 #### Menu and settings fixes
@@ -91,6 +111,7 @@ settings file carries its own `__version` and migrates separately.
 - System › Maintenance points at a package to install only when one is missing.
 - Settings sliders line up with their row label.
 - Accent and Base swatches say which setting they belong to.
+- A row scrolled back into a long Bluetooth or update list no longer fades in from the row it replaced.
 
 #### Notification fixes
 
@@ -98,6 +119,8 @@ settings file carries its own `__version` and migrates separately.
 - A notification body with no spaces, such as a long path or URL, wraps and expands.
 - Notification icons fall back to the app's own icon, including on the first notification of a session.
 - A notification popup older than an hour stamps its time in the chosen clock format.
+- Scrolling notification history no longer carries one entry's urgency colour onto another.
+- Notification history restamps its times when the clock format changes.
 
 #### System fixes
 
@@ -123,6 +146,7 @@ settings file carries its own `__version` and migrates separately.
 ### Security
 
 - Notification images and icons no longer open filesystem paths supplied by a sender. Inline images and installed application icons still work.
+- Album art and notification icons no longer follow an image reference a sender can aim at any file. Local art files, web covers and installed application icons still work.
 
 ## Releases
 
