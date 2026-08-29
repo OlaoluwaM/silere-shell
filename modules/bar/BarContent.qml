@@ -21,9 +21,12 @@ Item {
     readonly property int gap: Metrics.titleGapFor(effectiveCompact)
     readonly property bool centerHasWidgets: centerZone.implicitWidth > 0.5
     readonly property real _widgetLayoutWidth: centerHasWidgets
-        ? centerZone.implicitWidth
-            + 2 * Math.max(leftZone.implicitWidth, rightZone.implicitWidth)
-            + gap * 2
+        ? ShellSettings.barCenterInGap
+            ? leftZone.implicitWidth + centerZone.implicitWidth
+                + rightZone.implicitWidth + gap * 2
+            : centerZone.implicitWidth
+                + 2 * Math.max(leftZone.implicitWidth, rightZone.implicitWidth)
+                + gap * 2
         : leftZone.implicitWidth + rightZone.implicitWidth + gap
     readonly property real _osdLayoutWidth: _osdBarShowing && _osdLoader.item
         ? _osdLoader.item.implicitWidth
@@ -35,6 +38,14 @@ Item {
     readonly property real titleFreeLeft:  leftZone.implicitWidth + gap
     readonly property real titleFreeRight: width - rightZone.implicitWidth - gap
     readonly property real titleAvailableWidth: Math.max(0, titleFreeRight - titleFreeLeft)
+
+    // animate the axis, not the zone's x: a title resize recentres at once while a
+    // side-widget change still carries the whole middle group
+    property real centerAxis: ShellSettings.barCenterInGap
+        ? (titleFreeLeft + titleFreeRight) / 2 : width / 2
+    MotionBehavior on centerAxis {
+        NumberAnimation { duration: Motion.width; easing.type: Easing.OutCubic }
+    }
 
     readonly property bool _compact: effectiveCompact
 
@@ -107,6 +118,7 @@ Item {
         target: ShellSettings
         function onBarAutoCompactChanged() { root._queueAutoCompact() }
         function onBarCompactChanged() { root._queueAutoCompact() }
+        function onBarCenterInGapChanged() { root._queueAutoCompact() }
         function onShowWindowTitleChanged() { root._queueAutoCompact() }
     }
 
@@ -161,18 +173,17 @@ Item {
     readonly property int _centerVizWidth: 8 * Math.round(Math.max(48, Math.min(560,
         titleAvailableWidth * 0.68
     )) / 8)
-    // centre widgets anchor to the bar's centre, so the visualiser sitting behind them has to use
-    // that same axis; with the slot free it centres in the span the zones leave
+    // shares the widgets' axis when the slot is filled; centres in the free span when it is not
     readonly property real _centerVizAnchor: root.centerHasWidgets
-        ? width / 2 : (titleFreeLeft + titleFreeRight) / 2
+        ? root.centerAxis : (titleFreeLeft + titleFreeRight) / 2
     readonly property int _centerVizX: Math.round(Math.max(titleFreeLeft,
         Math.min(_centerVizAnchor - _centerVizWidth / 2,
                  titleFreeRight - _centerVizWidth)))
 
     BarZone {
         id: centerZone
-        anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
+        x: Math.round(root.centerAxis - width / 2)
         height: parent.height
         orderKeys: ShellSettings.barWidgetOrderCenterKeys
         widgetComponents: root._widgetComponents
@@ -215,9 +226,6 @@ Item {
         // behind the widgets and the title, still above the bar surface painted by Bar.qml
         z: root._centerVizBehind ? -1 : 1
 
-        MotionBehavior on x {
-            NumberAnimation { duration: Motion.width; easing.type: Easing.OutCubic }
-        }
         MotionBehavior on opacity {
             NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic }
         }

@@ -34,6 +34,11 @@ Column {
                 key: "barAutoCompact"
             }
         }
+        ToggleRow {
+            glyph: "󰉠"; label: "Center between widgets"
+            description: "Balance the middle zone between both sides"
+            key: "barCenterInGap"
+        }
         SliderRow {
             glyph: "󰤼"; label: "Spacing"
             key: "barSpacing"

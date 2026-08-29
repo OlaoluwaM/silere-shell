@@ -101,6 +101,7 @@ Singleton {
     property int    barSpacing:          11
     property bool   barAutoCompact:      true
     property bool   barCompact:          false
+    property bool   barCenterInGap:      false
     property bool   barHoverHighlight:   false
     property bool   barTooltips:         true
     property int    barHeight:           36
@@ -356,6 +357,7 @@ Singleton {
         { k: "barSpacing",          t: "int",  min: 4, max: 24, sec: "separators" },
         { k: "barAutoCompact",      t: "bool", sec: "separators" },
         { k: "barCompact",          t: "bool", sec: "separators" },
+        { k: "barCenterInGap",      t: "bool", sec: "separators" },
         { k: "barHoverHighlight",   t: "bool", sec: "indicators" },
         { k: "barTooltips",         t: "bool", sec: "indicators" },
         { k: "barHeight",           t: "int",  min: 24,   max: 60, sec: "surface" },
@@ -751,6 +753,11 @@ Singleton {
                 const s = _schema[i]
                 if (parsed[s.k] !== undefined) _coerce(s, parsed[s.k])
             }
+            // the same choice, back when it only placed the window title
+            if (parsed.barCenterInGap === undefined
+                    && parsed.windowTitleCenterGap !== undefined)
+                root._coerce(root.schemaFor("barCenterInGap"),
+                    parsed.windowTitleCenterGap)
             // The two legacy booleans represent one mode. Prefer reactive if
             // hand-edited JSON enables both, and seed the persisted restore mode
             // for settings files written before underlineLastStyle existed.

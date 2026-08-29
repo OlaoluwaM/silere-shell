@@ -16,6 +16,7 @@ settings file carries its own `__version` and migrates separately.
 - Widgets › Workspaces turns off the marker pulse that plays when the menu opens.
 - Theme › Balance accent brings a wallpaper accent to the same strength as the custom presets.
 - Hovering an actionable bar widget shows its click, alternate-button and wheel controls.
+- Bar › Spacing centres the middle widget zone in the free span between both sides.
 - Bar action tooltips can be switched off under Widgets › Indicators.
 - Notification popups accept inline replies from applications that offer them.
 
@@ -139,10 +140,6 @@ settings file carries its own `__version` and migrates separately.
 - Setting a bar widget order over IPC keeps each widget in one zone.
 - A stalled update check or install cannot leave the update lock held after it exits.
 - Installing an update refuses a newer release than the one shown on the confirmation screen.
-
-### Removed
-
-- The "Center between widgets" setting. The window title takes its place from the zone it sits in.
 
 ### Security
 
