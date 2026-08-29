@@ -13,61 +13,54 @@ settings file carries its own `__version` and migrates separately.
 
 ### Added
 
-- Widgets › Workspaces turns off the marker pulse that plays when the menu opens.
-- Theme › Balance accent brings a wallpaper accent to the same strength as the custom presets.
-- Hovering an actionable bar widget shows its click, alternate-button and wheel controls.
-- Bar › Spacing centres the middle widget zone in the free span between both sides.
-- Bar tooltips can be switched off under Widgets › Indicators.
+- Hovering a bar widget shows its click, alternate-button and wheel controls, and the full
+  text of a window title too long to fit. Widgets › Indicators › Bar tooltips turns it off.
 - Notification popups accept inline replies from applications that offer them.
+- Bar › Spacing › Center between widgets balances the middle zone against both sides.
+- Theme › Balance accent gives a wallpaper accent the strength of a hand-picked one.
+- Widgets › Workspaces turns off the marker pulse that plays when the menu opens.
 
 ### Changed
 
 #### Bar
 
-- The bar underline takes the accent colour instead of a flat grey.
-- The window title is a bar widget: place it in any zone and reorder it like the rest.
+- The window title is a bar widget: put it in any zone, where it takes that zone's alignment,
+  padding and dividers, and reorder it like the rest.
+- The window title drops a track name the media widget in its zone already shows, and app
+  branding its own app name repeats.
+- The window title stops widening past a readable span on a wide screen.
+- Titles from background windows update on a slower pass than the focused one.
 - Dragging a bar widget outlines the slot it will drop into.
-- Hovering the active workspace prepares the menu between frames, then releases it if no click follows.
-- The low-battery and hot-CPU glows settle on the same four-minute mark.
-- A running update check settles its pill animation on that mark too.
-- The window title takes the alignment and padding of the zone it sits in.
-- A divider separates the window title from the workspaces strip.
-- The window title drops a track name the media widget in its zone already shows.
-- Showing an app name drops the same app branding from the end of its window title.
-- A window title too long to fit reveals its full text on hover.
-- The window title stops widening past a readable span on an ultrawide screen.
-- Titles from background windows are sampled on a slower pass than the focused one.
-- The clock and media progress pause periodic updates while the overview conceals the bar.
-- Temperature polling stops there for the underline glow, and carries on for the alerts.
+- The bar underline takes the accent colour.
+- Bar effects stop animating after four minutes without input.
 - The clock eases in and out as it is switched on and off.
+- Hovering the active workspace before clicking it opens the menu without a first-time pause.
 
 #### Menu and settings
 
-- Maintenance leads with one clear health summary, separates real attention items from optional add-ons, and keeps settings recovery last.
+- System › Maintenance opens with a health summary and keeps settings recovery at the end.
 - Opening a settings dropdown folds the one already open.
 - Reset in Widgets › Show & order uses the same confirm button as the rest of the menu.
-- Settings explains when Reduce motion pauses animated effects such as the audio visualiser.
-- The power mode control follows the daemon as it changes, including a profile set from outside Silere.
-- Widgets › Window title › App name says where the name appears.
+- Settings says what Reduce motion pauses, the audio visualiser included.
+- The power mode control follows a profile set from outside Silere.
 - Theme says when the loaded palette carries no accent colour of its own.
+- Widgets › Indicators › App name says where the name appears.
 - Wi-Fi rows hold still while the signal drifts inside the tier their icon shows.
-- Long Bluetooth, package, and shell-change lists recycle rows after they leave the viewport.
+- Long Bluetooth, package and release-note lists scroll without hitching.
 
 #### Notifications
 
-- Clear all in a notification popup uses the same button as the notification list.
 - Runs of notifications from one app share a single header, and each card sizes to its own text.
 - Hovering a notification in the menu swaps its timestamp for the remove button; removing one slides it out.
 - A notification with more text than it shows carries a chevron.
 - Notifications older than today show a clock time.
-- Notification history reuses off-screen rows and shares one time snapshot per refresh while scrolling.
 - A notification that updates in place, such as a progress bar, leaves the rest of the popup stack alone.
-- Clearing a stack of popups, or turning popups off, writes notification history once for the whole batch.
+- Clear all in a notification popup uses the same button as the notification list.
+- A long notification history scrolls smoothly.
 
 #### Media
 
 - A track playing from a private browser tab shows the browser instead of the hidden details.
-- The visualiser and the scrolling title settle after four minutes without input rather than ten.
 
 #### Scripting and hooks
 
@@ -77,34 +70,31 @@ settings file carries its own `__version` and migrates separately.
 
 #### Install and updates
 
-- Silere requires Quickshell 0.3.1 or newer.
-- `bash scripts/check.sh` fails when the installed Quickshell is older than the version Silere requires.
+- Silere requires Quickshell 0.3.1 or newer, and `bash scripts/check.sh` fails on anything older.
 - `bash scripts/check.sh` reports whether Silere is set to start on login, from the compositor config or a systemd user unit.
 - Removing the AUR package names the autostart line and Matugen block it cannot clean up itself.
-- The README keeps to what a first run needs; optional tools, scripting, hooks, performance and troubleshooting each moved to a page under `docs/`.
+- The README covers a first run; optional tools, scripting, hooks, performance and troubleshooting each moved to a page under `docs/`.
 
 ### Fixed
 
 #### Bar fixes
 
-- Bar widgets ease instead of twitching when the window title changes length.
-- Bar › Layout keeps the roundness slider reachable while the bar is docked.
-- Bar › Layout roundness ends where the bar stops rounding.
+- The window title updates in place while a window keeps its identity, and crossfades when the window changes.
+- The window title appears when a title arrives for a window that reported none.
+- The window title shows on the focused monitor when the compositor names no output for a window.
+- A long window title no longer stretches a narrowed bar, and the widgets beside it ease rather than twitch as it changes length.
+- Widgets › Indicators › App name off keeps the app name hidden for a window that reports no title.
+- A divider no longer sits beside a window title that has faded out.
+- The underline sweep centres on a widget placed in the centre zone.
+- Bar › Layout keeps the roundness slider reachable while the bar is docked, and stops it where the bar stops rounding.
 - Turning off Widgets › Workspaces › Urgent window pulse also stops the off-page urgent dot pulsing.
 - Workspace marker and page effects settle when their bar sleeps, the session goes idle, or their setting is turned off.
 - The workspace marker keeps its place when a compositor event arrives while the bar is rebuilding.
 - Clock digits and the bar's readouts hold still behind the overview and through an idle screen.
-- On niri, a workspace counts as occupied whenever it holds windows.
-- Bar readings reach a screen reader even when the bar holds values back until hover, and volume says when it is muted.
 - The 12h clock counts one to twelve, with midnight and noon both reading twelve.
-- The window title shows on the focused monitor when the compositor names no output for a window.
-- The window title updates in place while a window keeps its identity, and crossfades when the window changes.
-- Widgets › Window title › App name off keeps the app name hidden for a window that reports no title.
+- On niri, a workspace counts as occupied whenever it holds windows.
+- Bar readings reach a screen reader even where the bar holds values back until hover, and volume says when it is muted.
 - The window title reaches a screen reader.
-- A long window title no longer stretches a narrowed bar.
-- The window title appears when a title arrives for a window that reported none.
-- A divider no longer sits beside a window title that has faded out.
-- The underline sweep centres on a widget placed in the centre zone.
 
 #### Menu and settings fixes
 
@@ -124,8 +114,8 @@ settings file carries its own `__version` and migrates separately.
 - A notification body with no spaces, such as a long path or URL, wraps and expands.
 - Notification icons fall back to the app's own icon, including on the first notification of a session.
 - A notification popup older than an hour stamps its time in the chosen clock format.
-- Scrolling notification history no longer carries one entry's urgency colour onto another.
 - Notification history restamps its times when the clock format changes.
+- Scrolling notification history no longer carries one entry's urgency colour onto another.
 
 #### System fixes
 
@@ -146,8 +136,8 @@ settings file carries its own `__version` and migrates separately.
 
 ### Security
 
-- Notification images and icons no longer open filesystem paths supplied by a sender. Inline images and installed application icons still work.
-- Album art and notification icons no longer follow an image reference a sender can aim at any file. Local art files, web covers and installed application icons still work.
+- Notification icons, images and album art no longer follow a filesystem path chosen by the
+  sender. Inline images, local art files, web covers and installed application icons still work.
 
 ## Releases
 
