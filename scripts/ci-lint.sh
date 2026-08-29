@@ -821,6 +821,18 @@ else
     ok "solid fills" "structural surfaces contain no gradients"
 fi
 
+section "notification body disclosure"
+if ! grep -qF 'ExpandableBody {' modules/notifications/NotificationCard.qml \
+    || ! grep -qF 'collapsedLineCount: 3' modules/notifications/NotificationCard.qml \
+    || ! grep -qF 'ExpandableBody {' modules/menu/RecentPage.qml \
+    || ! grep -qF 'collapsedLineCount: 2' modules/menu/RecentPage.qml \
+    || grep -qF 'maximumLineCount:' modules/notifications/NotificationCard.qml \
+    || grep -qF 'maximumLineCount:' modules/menu/RecentPage.qml; then
+  fail "popup and history bodies must share disclosure behavior with their own density"
+else
+  ok "notification body" "popup and history share disclosure with 3-line and 2-line previews"
+fi
+
 section "settings navigation coverage"
 settings_nav="services/MenuState.qml"
 settings_page="modules/menu/settings/SettingsPage.qml"

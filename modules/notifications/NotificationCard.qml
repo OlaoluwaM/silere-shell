@@ -80,10 +80,7 @@ Item {
     readonly property string appNameText: Notifications.identityText(notification.appName)
     readonly property string fallbackInitial: SafeText.initial(
         card.appNameText || card.summaryText, "N")
-    readonly property bool hasBody:       bodyText.length > 0
     readonly property bool isCritical: notification.urgency === NotificationUrgency.Critical
-    property bool _bodyExpanded: false
-
     readonly property real _cardRadius: Theme.surfaceRadius
 
     function dismiss(expired): void {
@@ -128,7 +125,7 @@ Item {
     }
 
     function _resetBodyExpansion(): void {
-        card._bodyExpanded = false
+        if (_body) _body.expanded = false
     }
 
     // not on bodyText: an in-place update (progress, chat) would collapse the body
@@ -192,7 +189,7 @@ Item {
     // an expanded body is the same explicit read-me, even after the pointer wanders off the card
     property bool stackHovered: false
     readonly property bool _paused: _cardHover.hovered || card.stackHovered
-        || card._bodyExpanded
+        || _body.expanded
 
     property real _hoverPausedMs: 0
     property real _hoverStartMs:  0
@@ -396,75 +393,12 @@ Item {
                 }
             }
 
-            ShellText {
+            ExpandableBody {
                 id: _body
-                visible:          card.hasBody
-                width:            parent.width
-                text:             card.bodyText
-                color:            Theme.withAlpha(Theme.menuTextMuted, 0.82)
-                font.pixelSize:   Settings.fontLabel
-                wrapMode:         Text.WordWrap
-                maximumLineCount: card._bodyExpanded ? 12 : 3
-                elide:            Text.ElideRight
-            }
-
-            Item {
-                id: _bodyDisclosure
-                visible: card.hasBody && (card._bodyExpanded || _body.truncated)
-                width:   parent.width
-                height:  Math.max(16, _bodyDisclosureLabel.implicitHeight)
-
-                // the hit target hugs the label: a full-width strip took the clicks aimed
-                // at the notification itself, in the empty run right of the chevron
-                Item {
-                    id: _bodyDisclosureTap
-                    width:  _bodyDisclosureLabel.implicitWidth + 2 + _bodyDisclosureChevron.width
-                    height: parent.height
-
-                    ShellText {
-                        id: _bodyDisclosureLabel
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: card._bodyExpanded ? qsTr("Less") : qsTr("More")
-                        color: _bodyDisclosureHover.hovered
-                            ? Theme.accent : Theme.withAlpha(Theme.accent, 0.78)
-                        font.pixelSize: Settings.fontLabel
-                        font.weight:    Font.Medium
-                        ColorFade on color {}
-                    }
-
-                    Item {
-                        id: _bodyDisclosureChevron
-                        width:  16
-                        height: 16
-                        anchors.left: _bodyDisclosureLabel.right
-                        anchors.leftMargin: 2
-                        anchors.verticalCenter: parent.verticalCenter
-
-                        ShellText {
-                            anchors.centerIn: parent
-                            text: "󰅀"
-                            color: _bodyDisclosureHover.hovered
-                                ? Theme.accent : Theme.withAlpha(Theme.accent, 0.78)
-                            font.pixelSize: Settings.fontCaption
-                            rotation: card._bodyExpanded ? 180 : 0
-                            transformOrigin: Item.Center
-                            MotionBehavior on rotation {
-                                NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic }
-                            }
-                            ColorFade on color {}
-                        }
-                    }
-
-                    HoverHandler {
-                        id: _bodyDisclosureHover
-                        cursorShape: Qt.PointingHandCursor
-                    }
-
-                    TapHandler {
-                        gesturePolicy: TapHandler.ReleaseWithinBounds
-                        onTapped: card._bodyExpanded = !card._bodyExpanded
-                    }
-                }
+                width: parent.width
+                bodyText: card.bodyText
+                bodyColor: Theme.withAlpha(Theme.menuTextMuted, 0.82)
+                collapsedLineCount: 3
             }
 
             Item {

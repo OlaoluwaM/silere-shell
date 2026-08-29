@@ -300,12 +300,6 @@ PageShell {
                     readonly property int _cardHeight: Math.max(70, _entryContent.implicitHeight + 20)
                     readonly property int _fullHeight: _sectionHeight + _cardHeight
                     property bool _removing: false
-                    property bool _expanded: false
-
-                    function _toggleExpand(): void {
-                        if (_expanded) _expanded = false
-                        else if (_body.truncated) _expanded = true
-                    }
 
                     width: _historyList.width
                     height: _fullHeight
@@ -367,7 +361,7 @@ PageShell {
                         radius: Theme.radiusControl
                         antialiasing: true
                         clip: true
-                        color: Theme.rowFill(_entryHover.hovered, _entryTap.pressed)
+                        color: Theme.rowFill(_entryHover.hovered, false)
 
                         OutlineBorder {
                             radius: _card.radius
@@ -378,20 +372,7 @@ PageShell {
                         }
 
                         ColorFade on color {}
-                        HoverHandler {
-                            id: _entryHover
-                            cursorShape: (_body.truncated || _entry._expanded) ? Qt.PointingHandCursor : Qt.ArrowCursor
-                        }
-                        TapHandler {
-                            id: _entryTap
-                            enabled: !root._clearing && !_entry._removing
-                            onTapped: eventPoint => {
-                                const p = _removeButton.mapFromItem(_card, eventPoint.position.x, eventPoint.position.y)
-                                if (p.x >= -4 && p.x <= _removeButton.width + 4 &&
-                                    p.y >= -4 && p.y <= _removeButton.height + 4) return
-                                _entry._toggleExpand()
-                            }
-                        }
+                        HoverHandler { id: _entryHover }
 
                         Column {
                             id: _entryContent
@@ -467,16 +448,14 @@ PageShell {
                                 elide: Text.ElideRight
                             }
 
-                            ShellText {
+                            ExpandableBody {
                                 id: _body
                                 width: parent.width
-                                visible: text.length > 0
-                                text: _entry.modelData.body || ""
-                                color: Theme.withAlpha(Theme.text, 0.58)
-                                font.pixelSize: Settings.fontLabel
-                                wrapMode: Text.WordWrap
-                                maximumLineCount: _entry._expanded ? 12 : 2
-                                elide: Text.ElideRight
+                                enabled: !root._clearing && !_entry._removing
+                                bodyText: _entry.modelData.body || ""
+                                bodyColor: Theme.withAlpha(Theme.text, 0.58)
+                                collapsedLineCount: 2
+                                spacing: 3
                             }
                         }
 

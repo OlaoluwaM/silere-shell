@@ -1,6 +1,7 @@
 Pill 1.0 Pill.qml
 BarDivider 1.0 BarDivider.qml
 Hairline 1.0 Hairline.qml
+ExpandableBody 1.0 ExpandableBody.qml
 CollapsingText 1.0 CollapsingText.qml
 RollingText 1.0 RollingText.qml
 ListEdgeLines 1.0 ListEdgeLines.qml
