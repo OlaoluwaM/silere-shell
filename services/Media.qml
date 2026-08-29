@@ -126,8 +126,13 @@ Singleton {
     property real  _anchorMs:   0
     property real  positionNow: 0
     readonly property real positionRatio: length > 0 ? Math.max(0, Math.min(1, positionNow / length)) : 0
-    readonly property bool positionVisible: MenuState.homeActive
-        || (ShellSettings.barShowMedia && root.shown && ShellSettings.mediaWidgetHelper)
+    function positionDemand(homeActive: bool, barVisible: bool, overview: bool): bool {
+        return homeActive || (barVisible && !overview)
+    }
+    readonly property bool positionVisible: root.positionDemand(
+        MenuState.homeActive,
+        ShellSettings.barShowMedia && root.shown && ShellSettings.mediaWidgetHelper,
+        OverviewState.active)
 
     function _reanchor(): void {
         root._anchorPos = (player && player.positionSupported)

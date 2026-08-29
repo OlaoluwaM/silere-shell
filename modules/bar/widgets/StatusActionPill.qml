@@ -1,5 +1,6 @@
 import QtQuick
 import "../../../config"
+import "../../../services"
 import "../../common"
 
 Pill {
@@ -24,12 +25,14 @@ Pill {
     animateGlyph:   false
     shrinkDelay:    0
 
-    contentScanEnabled: root.busy
+    // an update check or apply outlasts the quiet stage, and this loop is per-frame work
+    readonly property bool _scanning: root.busy && !Idle.isQuiet
+    contentScanEnabled: root._scanning
     contentScanColor:   Theme.withAlpha(Theme.accent, 0.35)
     contentScanWidth:   20
 
     SequentialAnimation {
-        running: root.busy && root.motionActive
+        running: root._scanning && root.motionActive
         loops:   Animation.Infinite
         onRunningChanged: if (!running) root.contentScanProgress = 0
         NumberAnimation { target: root; property: "contentScanProgress"; from: 0; to: 1; duration: Motion.ms(900); easing.type: Easing.InOutSine }

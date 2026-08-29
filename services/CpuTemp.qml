@@ -15,8 +15,14 @@ Singleton {
         || (MenuState.settingsActive
             && (MenuState.settingsSection === "warnings"
                 || MenuState.settingsSection === "underline"))
-    readonly property bool _persistentNeed: ShellSettings.osdTempWarn
-        || (ShellSettings.underlineGlow && ShellSettings.underlineTempGlow)
+    function temperatureDemand(backgroundAlert: bool, underlineAlert: bool,
+            overview: bool, surfaceNeed: bool): bool {
+        return backgroundAlert || surfaceNeed || (underlineAlert && !overview)
+    }
+    readonly property bool _persistentNeed: root.temperatureDemand(
+        ShellSettings.osdTempWarn,
+        ShellSettings.underlineGlow && ShellSettings.underlineTempGlow,
+        OverviewState.active, false)
     readonly property bool _wanted: _started && (_persistentNeed || needed) && !Idle.isIdle
     property string _sensorPath: ""
     property bool _reading: false

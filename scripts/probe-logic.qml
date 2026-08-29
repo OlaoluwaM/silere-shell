@@ -787,10 +787,19 @@ ShellRoot {
                 && Media.finiteNonnegative(Infinity) === 0
                 && Media.finiteNonnegative(12.5) === 12.5,
             "media service normalizes non-finite timing metadata")
+        root._check(Media.positionDemand(false, true, false)
+                && !Media.positionDemand(false, true, true)
+                && Media.positionDemand(true, false, true),
+            "media progress pauses with a concealed bar but stays live for the menu")
         root._check(Audio._clampVolume(NaN) === 0
                 && Audio._clampVolume(Infinity) === 0
                 && Audio._clampVolume(1.5) === 1,
             "audio service normalizes non-finite backend volume")
+        root._check(CpuTemp.temperatureDemand(false, true, false, false)
+                && !CpuTemp.temperatureDemand(false, true, true, false)
+                && CpuTemp.temperatureDemand(true, false, true, false)
+                && CpuTemp.temperatureDemand(false, false, true, true),
+            "temperature polling sleeps for a hidden underline without silencing alerts")
         root._check(Audio.sinkLabel({ description: "s".repeat(300) }).length === 256,
             "audio service bounds PipeWire sink labels")
 
@@ -1090,6 +1099,11 @@ ShellRoot {
             "midnight and noon share an hour and split on the suffix")
         root._check(DateTime.clockText(onePm).indexOf(DateTime.clockSuffix(onePm)) > 0,
             "the composed clock text carries the suffix")
+        root._check(DateTime.clockNeeded(true, false, false, false, false)
+                && !DateTime.clockNeeded(true, true, false, false, false)
+                && DateTime.clockNeeded(true, true, true, false, false)
+                && DateTime.clockNeeded(false, true, false, false, true),
+            "the clock sleeps behind overview unless a background consumer needs it")
         ShellSettings.clock12h = clock12Was
 
         // auto is a mode, not a value: it must never consume the hand-picked temperature

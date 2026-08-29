@@ -6,15 +6,20 @@ import Quickshell
 Singleton {
     id: root
 
-    readonly property bool _clockNeeded: ShellSettings.barShowClock
-        || ShellSettings.dndSchedule
-        || MenuState.homeActive
-        || CalendarState.open
+    function clockNeeded(barClock: bool, overview: bool, dndSchedule: bool,
+            homeActive: bool, calendarOpen: bool): bool {
+        return (barClock && !overview) || dndSchedule || homeActive || calendarOpen
+    }
+
+    readonly property bool _clockNeeded: root.clockNeeded(
+        ShellSettings.barShowClock, OverviewState.active,
+        ShellSettings.dndSchedule, MenuState.homeActive, CalendarState.open)
 
     SystemClock {
         id: clock
         enabled: root._clockNeeded
-        precision: ShellSettings.barShowClock && ShellSettings.showSeconds && !Idle.isIdle
+        precision: ShellSettings.barShowClock && ShellSettings.showSeconds
+            && !Idle.isIdle && !OverviewState.active
             ? SystemClock.Seconds : SystemClock.Minutes
     }
 
@@ -88,6 +93,11 @@ Singleton {
     Connections {
         target: Idle
         function onIsIdleChanged() { root._update() }
+    }
+
+    Connections {
+        target: OverviewState
+        function onActiveChanged() { if (!OverviewState.active) root._update() }
     }
 
     function _refreshMinute(): void {
