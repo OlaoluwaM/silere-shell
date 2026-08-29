@@ -19,6 +19,7 @@ ShellRoot {
 
     property int _failures: 0
     property int _checks: 0
+    property string _sentInlineReply: ""
 
     QtObject {
         id: probeAnchor
@@ -70,7 +71,10 @@ ShellRoot {
                 actions: [], hints: ({}), appIcon: "", image: "",
                 appName: "Probe", desktopEntry: "", summary: "Probe",
                 body: "", urgency: 1, expireTimeout: 5000,
-                resident: false, transient: false
+                resident: false, transient: false,
+                hasInlineReply: true,
+                inlineReplyPlaceholder: "Write a reply",
+                sendInlineReply: function(text) { root._sentInlineReply = text }
             })
             notifId: 2147483646
             createdAt: Date.now()
@@ -289,6 +293,15 @@ ShellRoot {
 
         const notificationCard = notificationCardFactory.createObject(root)
         root._check(notificationCard !== null, "a notification card builds")
+        root._sentInlineReply = ""
+        root._check(notificationCard.hasInlineReply
+                && notificationCard._sendInlineReply("  hello  ")
+                && root._sentInlineReply === "hello",
+            "an inline notification reply is trimmed and sent through its live object")
+        root._sentInlineReply = ""
+        root._check(!notificationCard._sendInlineReply("   ")
+                && root._sentInlineReply.length === 0,
+            "an empty inline notification reply is not sent")
         notificationCard.destroy()
 
         root._check(OsdBarState._presentationAllowed(false, true)

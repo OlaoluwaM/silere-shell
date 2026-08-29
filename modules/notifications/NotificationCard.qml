@@ -17,6 +17,7 @@ Item {
 
     signal dismissRequested(int notifId, var notification, bool expired)
     signal leaving()
+    signal replyFocusRequested(var owner, bool active)
 
     // the countdown rings are the frame budget, and a ring that stops ticking for one collapse is invisible
     property bool quietPaint: false
@@ -88,11 +89,14 @@ Item {
         card.appNameText || card.summaryText, "N")
     readonly property bool hasBody:       bodyText.length > 0
     readonly property bool isCritical: notification.urgency === NotificationUrgency.Critical
+    readonly property bool hasInlineReply: notification.hasInlineReply === true
+    property bool _replyOpen: false
 
     readonly property real _cardRadius: Theme.surfaceRadius
 
     function dismiss(expired): void {
         if (!card.enabled) return
+        card.cancelReply()
         card._expired = expired === true
         card._leaving = true
         card.leaving()
@@ -129,6 +133,47 @@ Item {
     function _actionText(action): string {
         return Notifications.plainText(action?.text, 256).trim()
     }
+
+    function beginReply(): void {
+        if (!card.enabled || !card.hasInlineReply || card._replyOpen) return
+        card._replyOpen = true
+        card._expanded = true
+        card.replyFocusRequested(card, true)
+    }
+
+    function focusReplyInput(): void {
+        if (!card._replyOpen) return
+        _replyInput.forceActiveFocus()
+    }
+
+    function cancelReply(): void {
+        if (!card._replyOpen) return
+        card._replyOpen = false
+        _replyInput.text = ""
+        card.replyFocusRequested(card, false)
+    }
+
+    function _sendInlineReply(text): bool {
+        const reply = String(text || "").trim()
+        if (!card.enabled || !card.hasInlineReply || reply.length === 0
+                || typeof card.notification.sendInlineReply !== "function") return false
+        card.notification.sendInlineReply(reply)
+        return true
+    }
+
+    function submitReply(): void {
+        if (!card._sendInlineReply(_replyInput.text)) return
+        card._replyOpen = false
+        _replyInput.text = ""
+        card.replyFocusRequested(card, false)
+    }
+
+    onHasInlineReplyChanged: if (!hasInlineReply) card.cancelReply()
+    onNotificationChanged: {
+        if (card._replyOpen) card.cancelReply()
+        else _replyInput.text = ""
+    }
+    Component.onDestruction: card.replyFocusRequested(card, false)
 
     NumberAnimation {
         id: _collapseAnim
@@ -184,6 +229,7 @@ Item {
     // reading one card holds the whole stack: cards expiring out from under the pointer reflow what is being read
     property bool stackHovered: false
     readonly property bool _paused: _cardHover.hovered || card.stackHovered
+        || card._replyOpen
 
     property real _hoverPausedMs: 0
     property real _hoverStartMs:  0
@@ -249,7 +295,7 @@ Item {
     // that reading shrinks straight back under the cursor and the card oscillates. Plain
     // ms, not a Motion token: those return 0 under reduce motion and re-open the trap.
     property bool _expanded: false
-    Timer { id: _collapseHold; interval: 260; onTriggered: card._expanded = false }
+    Timer { id: _collapseHold; interval: 260; onTriggered: if (!card._replyOpen) card._expanded = false }
     Connections {
         target: _cardHover
         function onHoveredChanged() {
@@ -257,6 +303,8 @@ Item {
             else _collapseHold.restart()
         }
     }
+    // closing the reply from the keyboard leaves no hover edge to collapse the card on
+    on_ReplyOpenChanged: if (!card._replyOpen && !_cardHover.hovered) _collapseHold.restart()
 
     onTimeoutStartedAtChanged: {
         card._hoverPausedMs = 0
@@ -267,10 +315,13 @@ Item {
     Connections {
         target: Idle
         function onIsIdleChanged() {
-            if (!Idle.isIdle) {
-                card._updateTime()
-                card._syncCountdown()
+            // an open reply holds the countdown, so nothing else would ever retire this card
+            if (Idle.isIdle) {
+                card.cancelReply()
+                return
             }
+            card._updateTime()
+            card._syncCountdown()
         }
     }
 
@@ -533,6 +584,91 @@ Item {
                             onClicked: card.invokeAction(_actBtn.modelData)
                         }
                     }
+                }
+            }
+
+            ActionButton {
+                visible: card.hasInlineReply && !card._replyOpen
+                width: parent.width
+                label: "Reply"
+                accessibleName: "Reply to " + (card.appNameText || "notification")
+                accentColor: card.isCritical ? Theme.error : Theme.accent
+                onTriggered: card.beginReply()
+            }
+
+            Rectangle {
+                id: _replyField
+                visible: card.hasInlineReply && card._replyOpen
+                width: parent.width
+                height: Metrics.rowHeightFor(36)
+                radius: Theme.radiusField
+                antialiasing: true
+                color: Theme.menuControl
+
+                OutlineBorder {
+                    radius: _replyField.radius
+                    outlineColor: _replyInput.activeFocus
+                        ? Theme.withAlpha(card.isCritical ? Theme.error : Theme.accent,
+                            Theme.focusRingSoftAlpha)
+                        : Theme.menuControlLine
+                    ColorFade on outlineColor {}
+                }
+
+                TextInput {
+                    id: _replyInput
+                    anchors.left: parent.left
+                    anchors.leftMargin: 11
+                    anchors.right: _replyCancel.left
+                    anchors.rightMargin: 7
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: Theme.text
+                    selectionColor: Theme.withAlpha(Theme.accent, 0.4)
+                    font.family: Settings.font
+                    font.pixelSize: Settings.fontSize
+                    clip: true
+                    maximumLength: 2048
+                    onAccepted: card.submitReply()
+                    Keys.onEscapePressed: event => {
+                        card.cancelReply()
+                        event.accepted = true
+                    }
+
+                    Accessible.name: "Reply to " + (card.appNameText || "notification")
+
+                    ShellText {
+                        anchors.fill: parent
+                        verticalAlignment: Text.AlignVCenter
+                        visible: _replyInput.text.length === 0
+                        text: Notifications.plainText(
+                            card.notification.inlineReplyPlaceholder, 128).trim() || "Reply"
+                        color: Theme.withAlpha(Theme.subtext, 0.48)
+                        font.pixelSize: Settings.fontSize
+                        elide: Text.ElideRight
+                    }
+                }
+
+                IconButton {
+                    id: _replyCancel
+                    anchors.right: _replySend.left
+                    anchors.rightMargin: 2
+                    anchors.verticalCenter: parent.verticalCenter
+                    buttonSize: 28
+                    glyph: "󰅖"
+                    accessibleName: "Cancel reply"
+                    onTriggered: card.cancelReply()
+                }
+
+                IconButton {
+                    id: _replySend
+                    anchors.right: parent.right
+                    anchors.rightMargin: 4
+                    anchors.verticalCenter: parent.verticalCenter
+                    buttonSize: 28
+                    glyph: "󰒊"
+                    accessibleName: "Send reply"
+                    enabled: _replyInput.text.trim().length > 0
+                    accentColor: card.isCritical ? Theme.error : Theme.accent
+                    onTriggered: card.submitReply()
                 }
             }
 

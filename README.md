@@ -83,7 +83,7 @@ bar widget to see its click, alternate-button and wheel controls.
 | volume | **scroll** changes volume · **click** mutes |
 | brightness | **scroll** changes brightness |
 | tray | **click** jumps to the app · **right-click** opens its menu · **middle-click** runs the app's secondary action · **scroll** is passed through to the app |
-| notifications | **click** runs the default action · **right-click** dismisses · **middle-click** jumps to the app that sent it |
+| notifications | **click** runs the default action · **right-click** dismisses · **middle-click** jumps to the app that sent it · a reply action opens an inline text field when the sender supports one |
 | menu | **Escape** steps back, then closes · **click** anywhere outside to close |
 | history | **click** an entry to read it in full |
 

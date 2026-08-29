@@ -636,6 +636,7 @@ Singleton {
         bodyMarkupSupported: false
         actionsSupported:    true
         imageSupported:       true
+        inlineReplySupported: true
         persistenceSupported: true
 
         onNotification: (n) => {
