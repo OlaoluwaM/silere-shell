@@ -17,7 +17,7 @@ Singleton {
     property string _pendingText: ""
 
     function _blocked(): bool {
-        return Idle.isIdle || OverviewState.active
+        return !ShellSettings.barTooltips || Idle.isIdle || OverviewState.active
             || ControlSurfaces.anyAnchoredOpen
     }
 
@@ -87,6 +87,12 @@ Singleton {
         onTriggered: root.close()
     }
 
+    Connections {
+        target: ShellSettings
+        function onBarTooltipsChanged() {
+            if (!ShellSettings.barTooltips) root.close()
+        }
+    }
     Connections {
         target: Idle
         function onIsIdleChanged() { if (Idle.isIdle) root.close() }

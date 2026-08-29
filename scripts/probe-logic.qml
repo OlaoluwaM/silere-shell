@@ -321,6 +321,8 @@ ShellRoot {
 
         const hintScreen = Quickshell.screens[0] ?? null
         if (hintScreen) {
+            const barTooltipsWas = ShellSettings.barTooltips
+            ShellSettings.barTooltips = true
             BarHintState.request(probeAnchor, hintScreen, 42, "First hint")
             BarHintState._showPending()
             root._check(BarHintState.open && BarHintState.triggerScreen === hintScreen
@@ -332,6 +334,12 @@ ShellRoot {
                     && BarHintState.text === "Second hint",
                 "a stale bar widget cannot close the hint that replaced its own")
             BarHintState.close()
+            ShellSettings.barTooltips = false
+            BarHintState.request(probeAnchor, hintScreen, 42, "Blocked hint")
+            BarHintState._showPending()
+            root._check(!BarHintState.open && BarHintState.triggerScreen === null,
+                "turning off bar tooltips blocks and clears the shared hint surface")
+            ShellSettings.barTooltips = barTooltipsWas
         }
 
         const settingsNavComponent = Qt.createComponent("file://"
