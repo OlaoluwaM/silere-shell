@@ -81,9 +81,7 @@ Item {
     Accessible.focusable: true
     Accessible.onPressAction: root._activate()
 
-    HoverHandler { id: _hover; cursorShape: Qt.PointingHandCursor }
-    onHoveredChanged: {
-        root.hoverReported(root.wsId, root.hovered)
+    function _syncHint(): void {
         if (!root.hovered) {
             BarHintState.release(root)
             return
@@ -95,6 +93,15 @@ Item {
             : "Click switch · middle-click move window" + scroll
         BarHintState.request(root, root.screen, point.x, actions)
     }
+
+    HoverHandler { id: _hover; cursorShape: Qt.PointingHandCursor }
+    onHoveredChanged: {
+        root.hoverReported(root.wsId, root.hovered)
+        root._syncHint()
+    }
+    // the cell eases to a new width when it takes the marker, and the row shifts around it
+    onWidthChanged: if (root.hovered) root._syncHint()
+    onXChanged:     if (root.hovered) root._syncHint()
 
     TapHandler {
         acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton

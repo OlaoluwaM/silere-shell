@@ -21,6 +21,12 @@ Singleton {
             || ControlSurfaces.anyAnchoredOpen
     }
 
+    // a widget that resizes under the pointer re-requests with a fresh anchor; restarting the
+    // dwell there holds the hint back for as long as it moves. Arguments, not live state, so it is testable
+    function _dwellSurvives(sameOwner: bool, sameText: bool, dwelling: bool): bool {
+        return sameOwner && sameText && dwelling
+    }
+
     function request(owner, screen, x: real, label: string): void {
         const next = String(label || "").trim()
         if (!owner || !screen || !isFinite(x) || next.length === 0 || root._blocked()) {
@@ -28,13 +34,15 @@ Singleton {
             return
         }
 
+        const settling = root._dwellSurvives(root._owner === owner,
+            root._pendingText === next, _showDelay.running)
         _closeDelay.stop()
         root._owner = owner
         root._pendingScreen = screen
         root._pendingAnchorX = x
         root._pendingText = next
         if (root.open) root._showPending()
-        else _showDelay.restart()
+        else if (!settling) _showDelay.restart()
     }
 
     function release(owner): void {

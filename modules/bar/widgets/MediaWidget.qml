@@ -233,19 +233,23 @@ Item {
     Accessible.focusable: root.show
     Accessible.onPressAction: Media.togglePlay()
 
+    function _syncHint(): void {
+        if (!_rootHover.hovered) {
+            BarHintState.release(root)
+            return
+        }
+        const point = root.mapToItem(null, root.width / 2, 0)
+        BarHintState.request(root, root.screen, point.x,
+            "Click play or pause · scroll tracks · middle-click player")
+    }
+
     HoverHandler {
         id: _rootHover
         cursorShape: Qt.PointingHandCursor
-        onHoveredChanged: {
-            if (!hovered) {
-                BarHintState.release(root)
-                return
-            }
-            const point = root.mapToItem(null, root.width / 2, 0)
-            BarHintState.request(root, root.screen, point.x,
-                "Click play or pause · scroll tracks · middle-click player")
-        }
+        onHoveredChanged: root._syncHint()
     }
+    // the widget takes its width from the track title, which changes as tracks do
+    onWidthChanged: if (_rootHover.hovered) root._syncHint()
     Component.onDestruction: BarHintState.release(root)
 
     TapHandler {

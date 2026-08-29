@@ -346,6 +346,11 @@ ShellRoot {
             BarHintState._showPending()
             root._check(!BarHintState.open && BarHintState.triggerScreen === null,
                 "turning off bar tooltips blocks and clears the shared hint surface")
+            root._check(BarHintState._dwellSurvives(true, true, true)
+                    && !BarHintState._dwellSurvives(false, true, true)
+                    && !BarHintState._dwellSurvives(true, false, true)
+                    && !BarHintState._dwellSurvives(true, true, false),
+                "only a moving anchor from the same widget keeps a pending hint's dwell")
             ShellSettings.barTooltips = barTooltipsWas
         }
 
