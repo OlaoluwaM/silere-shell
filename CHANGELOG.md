@@ -17,7 +17,7 @@ settings file carries its own `__version` and migrates separately.
 - Theme › Balance accent brings a wallpaper accent to the same strength as the custom presets.
 - Hovering an actionable bar widget shows its click, alternate-button and wheel controls.
 - Bar › Spacing centres the middle widget zone in the free span between both sides.
-- Bar action tooltips can be switched off under Widgets › Indicators.
+- Bar tooltips can be switched off under Widgets › Indicators.
 - Notification popups accept inline replies from applications that offer them.
 
 ### Changed
@@ -34,6 +34,7 @@ settings file carries its own `__version` and migrates separately.
 - A divider separates the window title from the workspaces strip.
 - The window title drops a track name the media widget in its zone already shows.
 - Showing an app name drops the same app branding from the end of its window title.
+- A window title too long to fit reveals its full text on hover.
 - The window title stops widening past a readable span on an ultrawide screen.
 - Titles from background windows are sampled on a slower pass than the focused one.
 - The clock and media progress pause periodic updates while the overview conceals the bar.

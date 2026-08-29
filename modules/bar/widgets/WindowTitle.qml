@@ -323,7 +323,10 @@ Item {
     onBarActiveChanged: {
         if (!root._ready) return
         if (root.barActive) root._queueTransition()
-        else root._settleCurrent()
+        else {
+            BarHintState.release(root)
+            root._settleCurrent()
+        }
     }
     Connections {
         target: ShellSettings
@@ -421,6 +424,24 @@ Item {
     readonly property real _naturalWidth: root._displayText.length > 0
         ? root._measuredContentWidth + root._horizontalPadding * 2
         : 0
+    readonly property bool _titleElided: content.truncated
+
+    function _syncTitleHint(): void {
+        if (!_titleHover.hovered || !root._titleElided
+                || !root.barActive || root._displayText.length === 0) {
+            BarHintState.release(root)
+            return
+        }
+        const point = root.mapToItem(null, root.width / 2, 0)
+        BarHintState.request(root, root.screen, point.x, root._displayText)
+    }
+
+    on_TitleElidedChanged: root._syncTitleHint()
+    on_DisplayTextChanged: root._syncTitleHint()
+    onWidthChanged: if (_titleHover.hovered) root._syncTitleHint()
+    onVisibleChanged: if (!visible) BarHintState.release(root)
+    Component.onDestruction: BarHintState.release(root)
+
     implicitWidth: root._naturalWidth
     // a zone widget shoves its neighbours when it resizes, and titles change on every
     // navigation; ease the box so the rest of the bar does not twitch with the text
@@ -454,5 +475,10 @@ Item {
                 root.width - root._horizontalPadding * 2,
                 root._measuredContentWidth))
         }
+    }
+
+    HoverHandler {
+        id: _titleHover
+        onHoveredChanged: root._syncTitleHint()
     }
 }

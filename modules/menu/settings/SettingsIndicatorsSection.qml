@@ -25,8 +25,8 @@ Column {
     SectionLabel { label: "INTERACTION" }
     SettingsCard {
         ToggleRow {
-            glyph: "󰌶"; label: "Action tooltips"
-            description: "Show controls when a bar widget is hovered"
+            glyph: "󰌶"; label: "Bar tooltips"
+            description: "Show controls and clipped titles on hover"
             key: "barTooltips"
         }
         ToggleRow {
