@@ -1056,45 +1056,19 @@ ShellRoot {
         ShellUpdate._flagMalformed = flagMalformedWas
         ShellUpdate._checkedReadError = checkedReadErrorWas
 
-        root._check(PowerProfiles._parseProfile("balanced\n") === "balanced",
-            "power mode accepts a known daemon profile")
-        root._check(PowerProfiles._parseProfile("balanced\nspoof") === "",
-            "power mode rejects malformed daemon output")
-
-        root._check(PowerProfiles._parseDegraded('s ""\n') === "",
-            "power mode reads an undegraded profile as not throttled")
-        root._check(PowerProfiles._parseDegraded('s "lap-detected"\n') === "lap-detected",
-            "power mode reads the throttle reason the daemon reports")
-        root._check(PowerProfiles._parseDegraded("") === ""
-                && PowerProfiles._parseDegraded("Failed to get property") === "",
-            "power mode fails closed to not throttled on unreadable output")
-
-        const ppdList = "  performance:\n    CpuDriver:\tamd_pstate\n"
-            + "    Degraded:   no\n\n* balanced:\n    CpuDriver:\tamd_pstate\n\n  power-saver:\n"
-        root._check(JSON.stringify(PowerProfiles._parseProfileList(ppdList))
-                === JSON.stringify(["performance", "balanced", "power-saver"]),
-            "power mode reads every profile the daemon lists")
-        root._check(PowerProfiles._parseProfileList(
-                "  balanced:\n    CpuDriver:\tamd_pstate\n").length === 1,
-            "power mode does not mistake a profile's detail lines for profiles")
-
-        const profilesWas = PowerProfiles.profiles
-        PowerProfiles.profiles = []
-        root._check(JSON.stringify(PowerProfiles._cycleOrder)
-                === JSON.stringify(PowerProfiles._knownProfiles),
-            "power mode falls back to the built-in profiles before the daemon answers")
-        // the machine that has no platform_profile: cycling must not offer performance
-        PowerProfiles.profiles = ["power-saver", "balanced"]
-        root._check(JSON.stringify(PowerProfiles._cycleOrder)
+        root._check(PowerProfiles.profileName(0) === "power-saver"
+                && PowerProfiles.profileName(1) === "balanced"
+                && PowerProfiles.profileName(2) === "performance"
+                && PowerProfiles.profileName(99) === "",
+            "power mode maps the native profile enum without parsing command output")
+        root._check(JSON.stringify(PowerProfiles.cycleOrder(true, true))
+                === JSON.stringify(["balanced", "performance", "power-saver"]),
+            "power mode keeps the full native profile cycle when performance is available")
+        root._check(JSON.stringify(PowerProfiles.cycleOrder(true, false))
                 === JSON.stringify(["balanced", "power-saver"]),
-            "power mode cycles only the profiles this machine supports")
-        root._check(PowerProfiles._parseProfile("performance") === "",
-            "power mode rejects a profile this machine does not offer")
-        PowerProfiles.profiles = ["balanced", "quiet"]
-        root._check(PowerProfiles._cycleOrder.indexOf("quiet") === 1
-                && PowerProfiles._parseProfile("quiet") === "quiet",
-            "power mode keeps a profile name it does not know built in")
-        PowerProfiles.profiles = profilesWas
+            "power mode omits performance when the native service says it is unavailable")
+        root._check(PowerProfiles.cycleOrder(false, true).length === 0,
+            "power mode exposes no cycle before its service is available")
 
         // qt reads the 12-hour clock off the whole format string: an hour formatted on its
         // own still comes back 0-23 and lands beside a PM that contradicts it
@@ -1353,16 +1327,6 @@ ShellRoot {
         const nothingHeld = QuickActionsState._airplaneRestore(false, false, false)
         root._check(nothingHeld.wifi && nothingHeld.bt,
             "leaving airplane mode with nothing latched restores both radios")
-
-        PowerProfiles._getRetries = 3
-        QuickActionsState.open = true
-        root._check(PowerProfiles._watched,
-            "quick actions keeps the power profile readable without the menu")
-        root._check(PowerProfiles._getRetries === 0,
-            "a control surface opening restarts the power profile read")
-        QuickActionsState.open = false
-        root._check(!PowerProfiles._watched,
-            "closing every panel releases the power profile read")
 
         CalendarState.anchorSource = null
         CalendarState.anchorX = 640
