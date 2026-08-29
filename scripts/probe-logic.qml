@@ -1380,6 +1380,37 @@ ShellRoot {
                 "LCh gamut mapping preserves hue " + expected)
         }
 
+        let presetLSum = 0
+        for (let i = 0; i < Theme.neutralAccentPresets.length; i++)
+            presetLSum += Theme.lchOf(Theme.neutralAccentPresets[i].color).L
+        root._check(Math.abs(Theme._accentPresetL
+                - presetLSum / Theme.neutralAccentPresets.length) < 0.5,
+            "the balance target tracks the lightness the accent presets are solved at")
+
+        const balanceCases = ["#b9c3ff", "#ff5c1a", "#1b2a6b", "#39ff14", "#ffd6e7"]
+        for (let i = 0; i < balanceCases.length; i++) {
+            const source = Theme.lchOf(balanceCases[i])
+            const balanced = Theme.lchOf(Theme.balancedAccent(balanceCases[i]))
+            root._check(Math.abs(balanced.L - Theme._accentPresetL) < 0.5,
+                "a balanced accent lands on the preset lightness: " + balanceCases[i])
+            root._check(root._hueDistance(balanced.h, source.h) < 1.0,
+                "balancing an accent keeps its hue: " + balanceCases[i])
+            root._check(balanced.C <= 38.5 && balanced.C >= 19.5,
+                "a balanced accent carries preset chroma: " + balanceCases[i])
+        }
+
+        const balancedOnce = Theme.balancedAccent("#ff5c1a")
+        const balancedTwice = Theme.balancedAccent(balancedOnce)
+        root._check(Math.abs(Theme.lchOf(balancedOnce).L - Theme.lchOf(balancedTwice).L) < 0.05
+                && Math.abs(Theme.lchOf(balancedOnce).C - Theme.lchOf(balancedTwice).C) < 0.05,
+            "balancing an already balanced accent changes nothing")
+
+        const greyAccent = Theme.lchOf("#8a8a8a")
+        const greyBalanced = Theme.lchOf(Theme.balancedAccent("#8a8a8a"))
+        root._check(greyAccent.C < 4 && greyBalanced.C < 4
+                && Math.abs(greyBalanced.L - greyAccent.L) < 0.001,
+            "a palette with no accent hue is left alone rather than invented")
+
         root._check(Network._linkPriority(true, true) > Network._linkPriority(false, undefined)
                 && Network._linkPriority(true, undefined) > Network._linkPriority(false, undefined),
             "a wired link outranks Wi-Fi, and an unreported link counts as up")

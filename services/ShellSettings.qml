@@ -19,6 +19,7 @@ Singleton {
     property bool   neutralAccentAuto:   false
     property string neutralAccent:       "#9babe9"
     property string matugenAccentRole:   "primary"
+    property bool   matugenAccentBalance: false
     property string matugenDepth:        "deeper"
     property string baseTone:            "black"
     property bool   networkTrafficStats: false
@@ -280,6 +281,7 @@ Singleton {
         { k: "neutralAccentAuto",   t: "bool", sec: "theme" },
         { k: "neutralAccent",       t: "re",   re: /^#[0-9a-fA-F]{6}$/, sec: "theme" },
         { k: "matugenAccentRole",   t: "enum", vals: ["primary", "secondary", "tertiary"], sec: "theme" },
+        { k: "matugenAccentBalance", t: "bool", sec: "theme" },
         { k: "matugenDepth",        t: "enum", vals: ["none", "deep", "deeper"], sec: "theme" },
         { k: "baseTone",            t: "enum", vals: ["black", "charcoal", "graphite"], sec: "theme" },
         { k: "networkTrafficStats", t: "bool", sec: "indicators" },
