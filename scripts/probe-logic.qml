@@ -872,6 +872,14 @@ ShellRoot {
         root._check(Network._linkPriority(false, undefined) > Network._linkPriority(true, false),
             "Wi-Fi outranks a wired device with no carrier")
 
+        const wifiKeyBase = {
+            ssid: "probe", secured: true, active: false, known: true, label: "Probe"
+        }
+        const wifiLowKey = Network._wifiListKey([Object.assign({}, wifiKeyBase, { glyph: "low" })])
+        const wifiHighKey = Network._wifiListKey([Object.assign({}, wifiKeyBase, { glyph: "high" })])
+        root._check(wifiLowKey !== wifiHighKey,
+            "wifi snapshot key changes when the rendered signal tier changes")
+
         const keptOff = QuickActionsState._airplaneRestore(true, true, false)
         root._check(keptOff.wifi && !keptOff.bt,
             "leaving airplane mode restores only the radios that were on")

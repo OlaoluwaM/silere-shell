@@ -242,11 +242,11 @@ Singleton {
         })
     }
 
-    // the row only ever draws a tier's icon, never the raw percentage, so keying
-    // on tier instead of the exact number means a sample that wobbles a couple
-    // points without crossing a tier boundary produces an identical key
+    // the row only ever draws a tier's glyph, never the raw percentage, so keying
+    // on that glyph means a sample that wobbles a couple points without crossing
+    // a tier boundary produces an identical key
     function _wifiListKey(list: var): string {
-        return list.map(e => [e.ssid, e.secured, e.active, e.known, e.label, signalTier(e.signal)]
+        return list.map(e => [e.ssid, e.secured, e.active, e.known, e.label, e.glyph]
             .join("\u0001")).join("\u0002")
     }
 
