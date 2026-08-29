@@ -30,6 +30,11 @@ PageShell {
 
     Component.onCompleted: root._touchNow()
 
+    Connections {
+        target: ShellSettings
+        function onClock12hChanged() { root._touchNow() }
+    }
+
     Timer {
         interval: 60000
         repeat: true
@@ -45,7 +50,7 @@ PageShell {
         const nowMs = root._nowMs > 0 ? root._nowMs : Date.now()
         const value = Number(ms || nowMs)
         const diff = Math.max(0, nowMs - value)
-        if (diff < 60000)   return "just now"
+        if (diff < 60000)   return "now"
         if (diff < 3600000) return Math.floor(diff / 60000) + "m"
 
         const d = new Date(value)
@@ -55,9 +60,9 @@ PageShell {
         // gap then lands one bucket early — two sections both headed Yesterday
         const days = Math.round((today - day) / 86400000)
         if (days <= 0 && diff < 86400000) return Math.floor(diff / 3600000) + "h"
-        if (days === 1) return "Yesterday"
-        if (days < 7) return Qt.formatDateTime(d, "ddd")
-        return Qt.formatDateTime(d, "MMM d")
+        // the section header already carries the day, so an older entry only owes a clock
+        // qt only counts 12-hour when AP shares the format string
+        return Qt.formatDateTime(d, ShellSettings.clock12h ? "h:mm ap" : "HH:mm")
     }
 
     function dayKey(ms): string {
@@ -225,9 +230,10 @@ PageShell {
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 10
             width: parent.width
-            spacing: 8
+            // runs of one app close up and days pull apart, so every gap is carried by the delegate
+            spacing: 0
             visible: Notifications.hasHistory
-            cacheBuffer: 120
+            cacheBuffer: 240
             reuseItems: true
             model: Notifications.historyModel
 
@@ -241,6 +247,17 @@ PageShell {
                 enabled: !root._clearing
                 NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Motion.fast }
             }
+            remove: Transition {
+                enabled: !root._clearing
+                ParallelAnimation {
+                    NumberAnimation { property: "opacity"; to: 0; duration: Motion.fast; easing.type: Easing.InCubic }
+                    NumberAnimation { property: "x"; to: 20; duration: Motion.fast; easing.type: Easing.InCubic }
+                }
+            }
+            removeDisplaced: Transition {
+                enabled: !root._clearing
+                NumberAnimation { property: "y"; duration: Motion.normal; easing.type: Easing.OutCubic }
+            }
 
             delegate: Item {
                     id: _entry
@@ -249,22 +266,36 @@ PageShell {
                     readonly property var modelData: model
                     required property int index
 
+                    readonly property var _prev: index > 0
+                        ? Notifications.historyModel.get(index - 1) : null
                     readonly property bool _critical: Number(modelData.urgency) === 2
+                    readonly property bool _showSection: !_prev
+                        || root.dayKey(modelData.time) !== root.dayKey(_prev.time)
+                    // a run of one app carries its name once; the rest of the run is just the messages
+                    readonly property bool _showHeader: _showSection
+                        || String(_prev.appName) !== String(modelData.appName)
+
                     readonly property string _appIconSource: {
                         Notifications.entriesTick
-                        return Notifications.appIconSource(
-                            modelData.appIcon, modelData.desktopEntry, modelData.appName)
+                        return _entry._showHeader ? Notifications.appIconSource(
+                            modelData.appIcon, modelData.desktopEntry, modelData.appName) : ""
                     }
                     readonly property string _appIconFallback: {
                         Notifications.entriesTick
-                        return Notifications.entryIconSource(
-                            modelData.desktopEntry, modelData.appName)
+                        return _entry._showHeader ? Notifications.entryIconSource(
+                            modelData.desktopEntry, modelData.appName) : ""
                     }
-                    readonly property bool _showSection: index === 0
-                        || root.dayKey(modelData.time) !== root.dayKey(Notifications.historyModel.get(index - 1)?.time)
-                    readonly property int _sectionHeight: _showSection ? 26 : 0
-                    readonly property int _cardHeight: Math.max(70, _entryContent.implicitHeight + 20)
-                    readonly property int _fullHeight: _sectionHeight + _cardHeight
+
+                    readonly property int _topPad: 11
+                    readonly property int _sidePad: 14
+                    readonly property int _rightGutter: _rightSlot.width + 10
+                    readonly property int _firstLineHeight: _showHeader ? _metaRow.height : _summary.height
+                    readonly property int _sectionHeight: _showSection ? 24 : 0
+                    readonly property int _gapAbove: index === 0 ? 0
+                        : _showSection ? 14 : _showHeader ? 8 : 3
+                    readonly property int _cardHeight: Metrics.snap4Up(
+                        _entryContent.implicitHeight + 2 * _entry._topPad)
+                    readonly property int _fullHeight: _gapAbove + _sectionHeight + _cardHeight
                     property bool _removing: false
                     property bool _expanded: false
 
@@ -289,6 +320,9 @@ PageShell {
                         _entry._removing = false
                     }
                     ListView.onReused: {
+                        // the remove transition pools the row at its faded-out x and opacity
+                        _entry.x = 0
+                        _entry.opacity = 1
                         _entry._expanded = false
                         _entry._removing = false
                         _entry._heightReady = false
@@ -311,7 +345,7 @@ PageShell {
                         visible: _entry._showSection
                         anchors.left:  parent.left
                         anchors.right: parent.right
-                        anchors.top:   parent.top
+                        y: _entry._gapAbove
                         height: _entry._sectionHeight
 
                         ShellText {
@@ -339,12 +373,11 @@ PageShell {
                     Rectangle {
                         id: _card
                         x: 0
-                        y: _entry._sectionHeight
+                        y: _entry._gapAbove + _entry._sectionHeight
                         width: parent.width
                         height: _entry._cardHeight
                         radius: Theme.radiusControl
                         antialiasing: true
-                        clip: true
                         color: Theme.rowFill(_entryHover.hovered, _entryTap.pressed)
 
                         OutlineBorder {
@@ -352,10 +385,12 @@ PageShell {
                             outlineWidth: 1
                             outlineColor: _entry._critical ? Theme.withAlpha(Theme.error, 0.50)
                                 : Theme.menuCardBorder
-                            ColorFade on outlineColor {}
+                            // same gate as the height above: a recycled row would otherwise
+                            // cross-fade the previous notification's urgency colour into view
+                            ColorFade on outlineColor { gate: _entry._heightReady }
                         }
 
-                        ColorFade on color {}
+                        ColorFade on color { gate: _entry._heightReady }
                         HoverHandler {
                             id: _entryHover
                             cursorShape: (_body.truncated || _entry._expanded) ? Qt.PointingHandCursor : Qt.ArrowCursor
@@ -364,9 +399,8 @@ PageShell {
                             id: _entryTap
                             enabled: !root._clearing && !_entry._removing
                             onTapped: eventPoint => {
-                                const p = _removeButton.mapFromItem(_card, eventPoint.position.x, eventPoint.position.y)
-                                if (p.x >= -4 && p.x <= _removeButton.width + 4 &&
-                                    p.y >= -4 && p.y <= _removeButton.height + 4) return
+                                const p = _rightSlot.mapFromItem(_card, eventPoint.position.x, eventPoint.position.y)
+                                if (_rightSlot.contains(p)) return
                                 _entry._toggleExpand()
                             }
                         }
@@ -374,14 +408,18 @@ PageShell {
                         Column {
                             id: _entryContent
                             anchors.left: parent.left
-                            anchors.leftMargin: 14
+                            anchors.leftMargin: _entry._sidePad
                             anchors.right: parent.right
-                            anchors.rightMargin: 12
-                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.rightMargin: _entry._sidePad
+                            anchors.top: parent.top
+                            anchors.topMargin: _entry._topPad
                             spacing: 3
 
                             Row {
+                                id: _metaRow
                                 width: parent.width
+                                height: visible ? Math.max(16, _appName.implicitHeight) : 0
+                                visible: _entry._showHeader
                                 spacing: 7
 
                                 Item {
@@ -424,28 +462,20 @@ PageShell {
                                 ShellText {
                                     id: _appName
                                     anchors.verticalCenter: parent.verticalCenter
-                                    width: Math.max(0, parent.width - _entryTime.implicitWidth
-                                        - parent.spacing - 28
-                                        - _appIconSlot.width - parent.spacing)
+                                    width: Math.max(0, parent.width - _appIconSlot.width
+                                        - parent.spacing - _entry._rightGutter)
                                     text: _entry.modelData.appName || "Notification"
                                     color: _entry._critical ? Theme.error : Theme.withAlpha(Theme.subtext, 0.70)
                                     font.pixelSize: Settings.fontCaption
                                     font.weight: Font.Medium
                                     elide: Text.ElideRight
                                 }
-
-                                ShellText {
-                                    id: _entryTime
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: { root._timeTick; return root.formatTime(_entry.modelData.time) }
-                                    color: Theme.withAlpha(Theme.subtext, 0.42)
-                                    font.pixelSize: Settings.fontMicro
-                                }
                             }
 
                             ShellText {
-                                width: parent.width
-                                rightPadding: 28
+                                id: _summary
+                                width: Math.max(0, parent.width
+                                    - (_metaRow.visible ? 0 : _entry._rightGutter))
                                 text: _entry.modelData.summary || "Notification"
                                 color: Theme.text
                                 font.pixelSize: Settings.fontSize
@@ -456,6 +486,7 @@ PageShell {
                             ShellText {
                                 id: _body
                                 width: parent.width
+                                rightPadding: 16
                                 visible: text.length > 0
                                 text: _entry.modelData.body || ""
                                 color: Theme.withAlpha(Theme.text, 0.58)
@@ -466,43 +497,82 @@ PageShell {
                             }
                         }
 
-                        Rectangle {
-                            id: _removeButton
-                            anchors.top: parent.top
-                            anchors.topMargin: 7
+                        // one right column for both states: the timestamp rests there and the
+                        // remove button takes its place under the pointer, so nothing reflows on hover
+                        Item {
+                            id: _rightSlot
                             anchors.right: parent.right
-                            anchors.rightMargin: 7
-                            width: 24
+                            anchors.rightMargin: _entry._sidePad
+                            anchors.top: parent.top
+                            anchors.topMargin: _entry._topPad
+                                + Math.round((_entry._firstLineHeight - height) / 2)
+                            width: Math.max(24, _entryTime.implicitWidth)
                             height: 24
-                            radius: 12
-                            antialiasing: true
                             z: 2
 
-                            color: _removeTap.pressed
-                                ? Theme.withAlpha(Theme.error, 0.24)
-                                : _removeHover.hovered ? Theme.withAlpha(Theme.error, 0.17) : Theme.withAlpha(Theme.subtext, 0.08)
-                            opacity: _entryHover.hovered ? 1.0 : 0.62
-                            scale: _removeTap.pressed ? 0.94 : 1.0
-
-                            ColorFade on color {}
-                            MotionBehavior on opacity {NumberAnimation { duration: Motion.fast } }
-
-                            OutlineBorder {
-                                radius: _removeButton.radius
-                                outlineWidth: 1
-                                outlineColor: _removeHover.hovered ? Theme.withAlpha(Theme.error, 0.36) : Theme.menuControlLine
-                                ColorFade on outlineColor {}
-                            }
-                            MotionBehavior on scale {NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic } }
-                            HoverHandler { id: _removeHover; cursorShape: Qt.PointingHandCursor }
-                            TapHandler { id: _removeTap; enabled: !root._clearing && !_entry._removing; onTapped: _entry.removeSelf() }
-
                             ShellText {
-                                anchors.centerIn: parent
-                                text: "󰅖"
-                                color: _removeHover.hovered ? Theme.error : Theme.withAlpha(Theme.subtext, 0.56)
-                                font.pixelSize: Settings.fontCaption
+                                id: _entryTime
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: { root._timeTick; return root.formatTime(_entry.modelData.time) }
+                                color: Theme.withAlpha(Theme.subtext, 0.42)
+                                font.pixelSize: Settings.fontMicro
+                                opacity: _entryHover.hovered ? 0 : 1
+                                MotionBehavior on opacity { gate: _entry._heightReady; NumberAnimation { duration: Motion.fast } }
                             }
+
+                            Rectangle {
+                                id: _removeButton
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 24
+                                height: 24
+                                radius: 12
+                                antialiasing: true
+
+                                color: _removeTap.pressed
+                                    ? Theme.withAlpha(Theme.error, 0.24)
+                                    : _removeHover.hovered ? Theme.withAlpha(Theme.error, 0.17) : Theme.withAlpha(Theme.subtext, 0.08)
+                                opacity: _entryHover.hovered ? 1.0 : 0.0
+                                visible: opacity > 0.001
+                                scale: _removeTap.pressed ? 0.94 : 1.0
+
+                                ColorFade on color { gate: _entry._heightReady }
+                                MotionBehavior on opacity { gate: _entry._heightReady; NumberAnimation { duration: Motion.fast } }
+
+                                OutlineBorder {
+                                    radius: _removeButton.radius
+                                    outlineWidth: 1
+                                    outlineColor: _removeHover.hovered ? Theme.withAlpha(Theme.error, 0.36) : Theme.menuControlLine
+                                    ColorFade on outlineColor { gate: _entry._heightReady }
+                                }
+                                MotionBehavior on scale { gate: _entry._heightReady; NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic } }
+                                HoverHandler { id: _removeHover; cursorShape: Qt.PointingHandCursor }
+                                TapHandler { id: _removeTap; enabled: !root._clearing && !_entry._removing; onTapped: _entry.removeSelf() }
+
+                                ShellText {
+                                    anchors.centerIn: parent
+                                    text: "󰅖"
+                                    color: _removeHover.hovered ? Theme.error : Theme.withAlpha(Theme.subtext, 0.56)
+                                    font.pixelSize: Settings.fontCaption
+                                }
+                            }
+                        }
+
+                        ShellText {
+                            anchors.right: parent.right
+                            anchors.rightMargin: _entry._sidePad - 2
+                            anchors.bottom: parent.bottom
+                            anchors.bottomMargin: _entry._topPad - 4
+                            visible: _entry._expanded || _body.truncated
+                            text: "󰅀"
+                            color: Theme.withAlpha(Theme.subtext,
+                                _entryHover.hovered ? 0.80 : 0.38)
+                            font.pixelSize: Settings.fontMicro
+                            rotation: _entry._expanded ? 180 : 0
+                            transformOrigin: Item.Center
+                            ColorFade on color { gate: _entry._heightReady }
+                            MotionBehavior on rotation { gate: _entry._heightReady; NumberAnimation { duration: Motion.medium; easing.type: Easing.OutCubic } }
                         }
                     }
             }
