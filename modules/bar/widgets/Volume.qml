@@ -22,6 +22,7 @@ Pill {
     glyphColor: Audio.muted ? Theme.subtext : Theme.text
     textColor:  Theme.subtext
     interactive: Audio.ready
+    hintText: Audio.ready ? "Click mute · scroll volume" : ""
     reserveText: "100%"
     text: !Audio.ready ? ""
         : (ShellSettings.valuesOnHover && !expanded) ? ""

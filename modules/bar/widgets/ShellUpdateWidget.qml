@@ -9,6 +9,7 @@ StatusActionPill {
     show: ShellSettings.barShowShellUpdate
         && (ShellUpdate.pending || ShellUpdate.checking || ShellUpdate.applying)
     busy: ShellUpdate.checking || ShellUpdate.applying
+    hintText: show && !busy ? "Click update details" : ""
 
     glyph: "󰚰"
     accessibleName: ShellUpdate.statusText.length > 0

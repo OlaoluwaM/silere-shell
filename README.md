@@ -71,7 +71,8 @@ Fonts, optional tools, unattended installs, Matugen wiring and removal:
 
 ## Controls
 
-Silere is pointer-driven: Escape and the Wi-Fi password field are the only keyboard paths.
+Silere is pointer-driven: Escape and text fields are its keyboard paths. Hover an actionable
+bar widget to see its click, alternate-button and wheel controls.
 
 | area | pointer |
 |---|---|

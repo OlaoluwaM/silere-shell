@@ -233,7 +233,20 @@ Item {
     Accessible.focusable: root.show
     Accessible.onPressAction: Media.togglePlay()
 
-    HoverHandler { id: _rootHover; cursorShape: Qt.PointingHandCursor }
+    HoverHandler {
+        id: _rootHover
+        cursorShape: Qt.PointingHandCursor
+        onHoveredChanged: {
+            if (!hovered) {
+                BarHintState.release(root)
+                return
+            }
+            const point = root.mapToItem(null, root.width / 2, 0)
+            BarHintState.request(root, root.screen, point.x,
+                "Click play or pause · scroll tracks · middle-click player")
+        }
+    }
+    Component.onDestruction: BarHintState.release(root)
 
     TapHandler {
         acceptedButtons: Qt.LeftButton | Qt.MiddleButton

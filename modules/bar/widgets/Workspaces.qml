@@ -650,6 +650,7 @@ Item {
                 initialized:  root._initialized
                 paging:       root._paging
                 markerCovers: root.markerCovers
+                screen:       root.screen
 
                 onActivateRequested:      root.activate(wsId)
                 onAnchorMenuRequested:     root.openAnchorMenu()

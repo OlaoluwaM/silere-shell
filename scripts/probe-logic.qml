@@ -306,6 +306,21 @@ ShellRoot {
                 && OverlayCoordinator._environmentBlocksControls(false, true),
             "screen blanking and overview activation retire open control surfaces")
 
+        const hintScreen = Quickshell.screens[0] ?? null
+        if (hintScreen) {
+            BarHintState.request(probeAnchor, hintScreen, 42, "First hint")
+            BarHintState._showPending()
+            root._check(BarHintState.open && BarHintState.triggerScreen === hintScreen
+                    && BarHintState.anchorX === 42 && BarHintState.text === "First hint",
+                "a delayed bar hint publishes its screen, anchor and actions together")
+            BarHintState.request(root, hintScreen, 84, "Second hint")
+            BarHintState.release(probeAnchor)
+            root._check(BarHintState.open && BarHintState.anchorX === 84
+                    && BarHintState.text === "Second hint",
+                "a stale bar widget cannot close the hint that replaced its own")
+            BarHintState.close()
+        }
+
         const settingsNavComponent = Qt.createComponent("file://"
             + Quickshell.shellDir + "/modules/menu/SettingsNav.qml")
         const settingsNav = settingsNavComponent.status === Component.Ready
@@ -378,7 +393,8 @@ ShellRoot {
             wsId: 2, monitorReady: true, active: false, occupied: false,
             urgent: false, apps: [], compact: false, iconSize: 12,
             cellWidth: 26, rowHeight: 24, barActive: true,
-            initialized: true, paging: false, markerCovers: true
+            initialized: true, paging: false, markerCovers: true,
+            screen: Quickshell.screens[0] ?? null
         })
         crossingCell.playMarkerPass(0)
         root._check(crossingCell && crossingCell.markerPassActive,

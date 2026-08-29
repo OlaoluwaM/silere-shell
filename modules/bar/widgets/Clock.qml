@@ -60,7 +60,20 @@ Item {
     readonly property color _cSec:   _hov ? Theme.mix(Theme.accent, Theme.text, 0.22)
                                           : Theme.withAlpha(Theme.accent, 0.82)
 
-    HoverHandler { id: _hover; cursorShape: Qt.PointingHandCursor }
+    HoverHandler {
+        id: _hover
+        cursorShape: Qt.PointingHandCursor
+        onHoveredChanged: {
+            if (!hovered) {
+                BarHintState.release(root)
+                return
+            }
+            const point = root.mapToItem(null, root.width / 2, 0)
+            BarHintState.request(root, root.screen, point.x,
+                "Click calendar · middle-click date and seconds")
+        }
+    }
+    Component.onDestruction: BarHintState.release(root)
 
     function _openCalendar(): void {
         root._syncMenuAnchor()

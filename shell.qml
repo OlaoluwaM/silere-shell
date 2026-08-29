@@ -176,6 +176,16 @@ ShellRoot {
     }
 
     PopupLoader {
+        id: _barHintPopup
+        wantOpen: BarHintState.open
+        requestedScreen: BarHintState.triggerScreen
+        unloadDelay: 80
+        surface: Component {
+            BarHintPopup { targetScreen: _barHintPopup.latchedScreen }
+        }
+    }
+
+    PopupLoader {
         id: _notificationPopup
         wantOpen: ShellSettings.notifPopupEnabled
             && Notifications.activeCount > 0

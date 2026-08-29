@@ -22,6 +22,7 @@ Item {
     required property bool initialized
     required property bool paging
     required property bool markerCovers
+    required property var screen
 
     signal activateRequested()
     signal anchorMenuRequested()
@@ -48,7 +49,10 @@ Item {
         scale = 0
         _enterAnim.start()
     }
-    Component.onDestruction: if (root.hovered) root.hoverReported(root.wsId, false)
+    Component.onDestruction: {
+        if (root.hovered) root.hoverReported(root.wsId, false)
+        BarHintState.release(root)
+    }
 
     SequentialAnimation {
         id: _enterAnim
@@ -78,7 +82,19 @@ Item {
     Accessible.onPressAction: root._activate()
 
     HoverHandler { id: _hover; cursorShape: Qt.PointingHandCursor }
-    onHoveredChanged: root.hoverReported(root.wsId, root.hovered)
+    onHoveredChanged: {
+        root.hoverReported(root.wsId, root.hovered)
+        if (!root.hovered) {
+            BarHintState.release(root)
+            return
+        }
+        const point = root.mapToItem(null, root.width / 2, 0)
+        const scroll = ShellSettings.wsScrollSwitch ? " · scroll workspaces" : ""
+        const actions = root.active
+            ? "Click menu · right-click quick actions" + scroll
+            : "Click switch · middle-click move window" + scroll
+        BarHintState.request(root, root.screen, point.x, actions)
+    }
 
     TapHandler {
         acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
