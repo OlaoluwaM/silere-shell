@@ -305,13 +305,18 @@ PanelWindow {
                         anchors.fill: parent
                         radius: Theme.radiusControl
                         antialiasing: true
-                        color: Theme.buttonFill(Theme.accent, _mH.hovered, _mT.pressed)
+                        // bare at rest for the same reason as IconButton: a resting
+                        // pill between two resting rings overcrowds this header row
+                        color: _mH.hovered || _mT.pressed
+                            ? Theme.buttonFill(Theme.accent, _mH.hovered, _mT.pressed)
+                            : "transparent"
                         ColorFade on color {}
 
                         OutlineBorder {
                             radius: _monthFill.radius
-                            outlineColor: Theme.buttonLine(
-                                Theme.accent, _mH.hovered, _mT.pressed)
+                            outlineColor: _mH.hovered || _mT.pressed
+                                ? Theme.buttonLine(Theme.accent, _mH.hovered, _mT.pressed)
+                                : "transparent"
                             ColorFade on outlineColor {}
                         }
                     }

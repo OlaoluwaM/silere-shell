@@ -52,13 +52,18 @@ Item {
         scale: root.pressed ? Motion.pressScale
             : _hover.hovered ? Motion.hoverScale : 1.0
         transformOrigin: Item.Center
-        color: Theme.buttonFill(root.accentColor, _hover.hovered, root.pressed)
+        // bare at rest, unlike the shared buttonFill treatment: these sit in
+        // compact rows (calendar header) where three resting rings read as clutter
+        color: _hover.hovered || root.pressed
+            ? Theme.buttonFill(root.accentColor, _hover.hovered, root.pressed)
+            : "transparent"
 
         OutlineBorder {
             radius: width / 2
             outlineWidth: 1
-            outlineColor: Theme.buttonLine(
-                root.accentColor, _hover.hovered, root.pressed)
+            outlineColor: _hover.hovered || root.pressed
+                ? Theme.buttonLine(root.accentColor, _hover.hovered, root.pressed)
+                : "transparent"
             ColorFade on outlineColor {}
         }
 
