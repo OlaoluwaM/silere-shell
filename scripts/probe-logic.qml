@@ -1049,6 +1049,28 @@ ShellRoot {
         root._check(nmEmpty.length === 3 && nmEmpty[1] === "",
             "an empty nmcli field is kept in place")
 
+        const publishedWifiWas = Network._publishedWifiNetworks
+        Network._publishedWifiNetworks = [{
+            ssid: "probe", label: "Probe", glyph: "tier-2",
+            secured: true, active: false, known: true
+        }]
+        const stableWifiModel = Network.wifiNetworks
+        const equivalentWifiPublished = Network._publishWifiNetworks([{
+            ssid: "probe", label: "Probe", glyph: "tier-2",
+            secured: true, active: false, known: true
+        }])
+        root._check(!equivalentWifiPublished
+                && Network.wifiNetworks === stableWifiModel,
+            "unchanged visible Wi-Fi roles keep the published model identity")
+        const changedWifiPublished = Network._publishWifiNetworks([{
+            ssid: "probe", label: "Probe", glyph: "tier-3",
+            secured: true, active: false, known: true
+        }])
+        root._check(changedWifiPublished
+                && Network.wifiNetworks !== stableWifiModel,
+            "a visible Wi-Fi tier change publishes a fresh model")
+        Network._publishedWifiNetworks = publishedWifiWas
+
         const wheelKey = "probe-scroll"
         root._check(Scroll._processDelta(60, wheelKey, 120, 2, 0) === 0,
             "a half-notch wheel step emits nothing on its own")

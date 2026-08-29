@@ -69,7 +69,10 @@ Singleton {
         interval: 2500
         onTriggered: root.available = root._rawAvailable
     }
-    Component.onCompleted: root.available = root._rawAvailable
+    Component.onCompleted: {
+        root.available = root._rawAvailable
+        root._publishWifiNetworks(root._wifiCandidate)
+    }
     readonly property bool connected: _linkState.best !== null
     readonly property bool isWifi: connected && _linkState.best.wifi
     readonly property bool hasWifiDevice: _linkState.hasWifi
@@ -238,8 +241,38 @@ Singleton {
         })
     }
 
-    readonly property var wifiNetworks: _wifiList()
+    // signal percentages drift far more often than the glyph tiers the menu shows;
+    // holding the array stops ListView rebuilding every row for an invisible change
+    property var _publishedWifiNetworks: []
+    readonly property var wifiNetworks: _publishedWifiNetworks
+    readonly property var _wifiCandidate: _wifiList()
 
+    function _sameWifiNetworks(a, b): bool {
+        if (a === b) return true
+        if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length)
+            return false
+        for (let i = 0; i < a.length; i++) {
+            const A = a[i]
+            const B = b[i]
+            if (!A || !B
+                    || A.ssid !== B.ssid
+                    || A.label !== B.label
+                    || A.glyph !== B.glyph
+                    || A.secured !== B.secured
+                    || A.active !== B.active
+                    || A.known !== B.known) return false
+        }
+        return true
+    }
+
+    function _publishWifiNetworks(candidate): bool {
+        const next = Array.isArray(candidate) ? candidate : []
+        if (root._sameWifiNetworks(root._publishedWifiNetworks, next)) return false
+        root._publishedWifiNetworks = next
+        return true
+    }
+
+    on_WifiCandidateChanged: root._publishWifiNetworks(root._wifiCandidate)
     function _findWifiNetwork(ssid: string): var {
         const devices = root._devices
         let best = null
