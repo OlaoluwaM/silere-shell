@@ -20,7 +20,7 @@ PanelWindow {
     readonly property bool _bottom: Metrics.barAtBottom
     readonly property real _edgeY: Metrics.popupClearanceOn(targetScreen, 4)
 
-    implicitHeight: Metrics.rowHeightFor(36)
+    implicitHeight: Math.max(Metrics.rowHeightFor(36), _hint.height + 8)
     anchors {
         top: !win._bottom
         bottom: win._bottom
@@ -36,9 +36,12 @@ PanelWindow {
         id: _hint
 
         readonly property real _edge: 8
-        readonly property real _maxW: Math.max(1, win.width - _edge * 2)
-        width: Math.min(_maxW, Math.ceil(_label.implicitWidth) + 20)
-        height: Metrics.rowHeightFor(28)
+        readonly property real _maxW: Metrics.barHintWidthFor(
+            Math.max(1, win.width - _edge * 2))
+        // measured, not the label's own implicitWidth: that reads back the width set from it
+        width: Math.min(_maxW, Math.ceil(_metrics.advanceWidth) + 20)
+        height: Metrics.snap4Up(Math.max(Metrics.rowHeightFor(28),
+            Math.ceil(_label.contentHeight) + 14))
         x: Math.round(Math.max(_edge, Math.min(
             BarHintState.anchorX - width / 2,
             win.width - width - _edge)))
@@ -52,14 +55,23 @@ PanelWindow {
             outlineColor: Theme.menuCardBorder
         }
 
+        TextMetrics {
+            id: _metrics
+            font.family:    Settings.font
+            font.pixelSize: Settings.fontCaption
+            text:           BarHintState.text
+        }
+
         ShellText {
             id: _label
             anchors.centerIn: parent
-            width: Math.min(implicitWidth, _hint.width - 16)
+            width: _hint.width - 16
             text: BarHintState.text
             color: Theme.withAlpha(Theme.text, 0.82)
             font.pixelSize: Settings.fontCaption
             horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+            maximumLineCount: 3
             elide: Text.ElideRight
         }
     }
