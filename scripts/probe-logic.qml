@@ -984,6 +984,30 @@ ShellRoot {
             "a niri workspace holding an unfocused window reads as occupied")
         root._check(niriById[1] !== undefined && niriById[1].occupied === false,
             "a niri workspace holding no window reads as empty")
+        const titleSettingWas = ShellSettings.showWindowTitle
+        ShellSettings.showWindowTitle = true
+        niri._titleSyncTimer.stop()
+        niri._backgroundTitleSyncTimer.stop()
+        niri._onLine(JSON.stringify({ WindowOpenedOrChanged: { window:
+            { id: 90, workspace_id: 22, app_id: "probe.app", title: "background", pid: 1 }
+        }}))
+        root._check(niri._backgroundTitleSyncTimer.running
+                && !niri._titleSyncTimer.running,
+            "a background niri title waits for the batched title snapshot")
+        niri._backgroundTitleSyncTimer.stop()
+        niri._onLine(JSON.stringify({ WindowOpenedOrChanged: { window:
+            { id: 90, workspace_id: 22, app_id: "probe.app", title: "focused", pid: 1,
+              is_focused: true }
+        }}))
+        niri._titleSyncTimer.stop()
+        niri._onLine(JSON.stringify({ WindowOpenedOrChanged: { window:
+            { id: 90, workspace_id: 22, app_id: "probe.app", title: "focused again", pid: 1,
+              is_focused: true }
+        }}))
+        root._check(niri._titleSyncTimer.running
+                && !niri._backgroundTitleSyncTimer.running,
+            "the focused niri title keeps the responsive title path")
+        ShellSettings.showWindowTitle = titleSettingWas
         niri.destroy()
 
         // nmcli -t escapes a colon inside a name; the VPN row is the only reader left
