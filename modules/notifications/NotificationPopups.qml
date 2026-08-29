@@ -24,10 +24,10 @@ PanelWindow {
         Metrics.snap4(320 * Settings.fontSize / 12),
         targetScreen ? targetScreen.width - 24 - _shadowPad : 320))
     readonly property bool _hasBar: Metrics.barPresent(targetScreen)
-    // Compositor.barSideGap is the one place this math lives (fraction or fit-gaps),
+    // Metrics.barSideGap is the one place this math lives (fraction or fit-gaps),
     // shared with Bar.qml's configuredSurfaceWidth so popups can't fall out of step with the bar edge
     readonly property real _barSideGap: ShellSettings.barFloating && _hasBar && targetScreen
-        ? Compositor.barSideGap(targetScreen.width)
+        ? Metrics.barSideGap(targetScreen.width)
         : 0
     readonly property real _edgeMargin: ShellSettings.barFloating && _hasBar ? Math.max(0, _barSideGap) : 10
     readonly property int _barClearance: Metrics.popupClearanceOn(targetScreen, 6)

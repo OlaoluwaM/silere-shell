@@ -781,6 +781,21 @@ ShellRoot {
             "compact widget gap never decreases as spacing increases")
         ShellSettings.barSpacing = spacingWas
 
+        const barFloatingWas = ShellSettings.barFloating
+        const barFitGapsWas = ShellSettings.barFitGaps
+        const barWidthWas = ShellSettings.barWidth
+        ShellSettings.barFloating = true
+        ShellSettings.barFitGaps = false
+        ShellSettings.barWidth = 0.75
+        root._check(Metrics.barSideGap(1000) === 124,
+            "floating bar fraction snaps its side gap to the 4px grid")
+        ShellSettings.barFloating = false
+        root._check(Metrics.barSideGap(1000) === 0,
+            "non-floating bars have no side gap")
+        ShellSettings.barFloating = barFloatingWas
+        ShellSettings.barFitGaps = barFitGapsWas
+        ShellSettings.barWidth = barWidthWas
+
         const originalLimit = ShellSettings.notifHistoryLimit
         ShellSettings._coerce({ k: "notifHistoryLimit", t: "int", min: 5, max: 100 }, 999)
         root._check(ShellSettings.notifHistoryLimit === 100,

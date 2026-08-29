@@ -60,6 +60,15 @@ Singleton {
     readonly property int barEdgeInset: ShellSettings.barFloating ? ShellSettings.barGap : 0
     readonly property bool barAtBottom: ShellSettings.barPosition === "bottom"
 
+    // one side gap keeps bars and surfaces that align to them on the same grid. An
+    // asymmetric compositor gap uses its normalized horizontal value from Compositor.
+    function barSideGap(screenWidth: real): real {
+        if (!ShellSettings.barFloating) return 0
+        if (ShellSettings.barFitGaps && Compositor.windowGapX >= 0)
+            return root.snap4(Compositor.windowGapX)
+        return root.snap4(screenWidth * (1.0 - ShellSettings.barWidth) / 2)
+    }
+
     function popupClearance(extraGap: real): real {
         return root.barEdgeInset + ShellSettings.barHeight + Math.max(0, extraGap)
     }

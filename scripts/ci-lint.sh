@@ -292,13 +292,51 @@ if ! awk '
     /write\("\\"EventStream\\"\\n"\)/ { line = NR }
     line && NR <= line + 2 && /flush\(\)/ { flushed = 1 }
     END { exit !flushed }
-' services/Compositor.qml; then
+' services/CompositorNiri.qml; then
   fail "Niri EventStream request must flush the socket write"
-elif ! grep -qF 'id: _niriReconnect' services/Compositor.qml \
-    || ! grep -qF 'running: root.isNiri && !_niriSocket.connected' services/Compositor.qml; then
+elif ! grep -qF 'id: _reconnect' services/CompositorNiri.qml \
+    || ! grep -qF 'running: !_socket.connected' services/CompositorNiri.qml; then
   fail "Niri socket must retry after a dropped connection"
 else
   ok "niri socket" "event stream flushes and reconnects"
+fi
+
+section "compositor backend contract"
+# Loader.item returns undefined for a missing member, so keep every adapter in
+# lockstep with the facade before a backend silently renders an empty model.
+compositor_contract_missing=""
+for member in workspaces toplevels workspaceToplevels activeToplevel focusedMonitor \
+              focusedWorkspaceRef overviewActive specialOutput windowGapX monitorName focusWorkspace \
+              moveActiveToWorkspace focusToplevel refreshToplevels; do
+  grep -qE "^[[:space:]]*(readonly[[:space:]]+)?(property[[:space:]]+[A-Za-z<>]+[[:space:]]+|function[[:space:]]+)${member}\\b" \
+    services/Compositor.qml || continue
+  for adapter in services/CompositorHyprland.qml services/CompositorNiri.qml; do
+    grep -qE "^[[:space:]]*(readonly[[:space:]]+)?(property[[:space:]]+[A-Za-z<>]+[[:space:]]+|function[[:space:]]+)${member}\\b" \
+      "$adapter" || compositor_contract_missing="$compositor_contract_missing $adapter:$member"
+  done
+done
+for sig in workspaceActivated overviewRaw; do
+  for adapter in services/CompositorHyprland.qml services/CompositorNiri.qml; do
+    grep -qE "^[[:space:]]*signal[[:space:]]+${sig}\\b" "$adapter" \
+      || compositor_contract_missing="$compositor_contract_missing $adapter:$sig"
+  done
+done
+if [ -n "$compositor_contract_missing" ]; then
+  fail "compositor adapter does not implement the facade contract:$compositor_contract_missing"
+else
+  ok "compositor" "both backend adapters implement the facade contract"
+fi
+
+section "bar gap ownership"
+if ! grep -qF 'function barSideGap' config/Metrics.qml \
+    || ! grep -qF 'Compositor.windowGapX' config/Metrics.qml \
+    || ! grep -qF 'function onScanRevisionChanged() { root._queryWindowGap() }' services/CompositorHyprland.qml \
+    || grep -qF 'function barSideGap' services/Compositor.qml \
+    || ! grep -qF 'Metrics.barSideGap(width)' modules/bar/Bar.qml \
+    || ! grep -qF 'Metrics.barSideGap(targetScreen.width)' modules/notifications/NotificationPopups.qml; then
+  fail "Metrics must own the grid-snapped bar gap from Compositor.windowGapX"
+else
+  ok "bar gap" "Metrics derives bar geometry from normalized compositor facts"
 fi
 
 section "loader lifetime bindings"
@@ -986,28 +1024,28 @@ section "inert compositor events"
 inert_events="openlayer closelayer submap activelayout screencast changefloatingmode"
 missing_inert=""
 for ev in $inert_events; do
-  grep -q "\"$ev\"" services/Compositor.qml || missing_inert="$missing_inert $ev"
+  grep -q "\"$ev\"" services/CompositorHyprland.qml || missing_inert="$missing_inert $ev"
 done
 if [ -n "$missing_inert" ]; then
-  fail "these compositor events must stay denylisted in Compositor.qml:$missing_inert"
+  fail "these compositor events must stay denylisted in CompositorHyprland.qml:$missing_inert"
 else
   ok "inert events" "the event denylist still covers every measured no-op"
 fi
 
 # Quickshell's Hyprland bindings do not always mirror the compositor: hyprland reports
 # unfocus as an empty activewindowv2 address, quickshell's parser bails on it, and
-# Hyprland.activeToplevel then keeps the last focused window forever. The Compositor
-# facade is the only place that compensates, so a direct read from any other file
+# Hyprland.activeToplevel then keeps the last focused window forever. The Hyprland
+# adapter is the only place that compensates, so a direct read from any other file
 # silently gets stale focus back. HyprDispatch only writes (dispatch calls), never
 # reads focus, so it stays on the allowlist.
 facade_leaks="$(grep -rln 'import Quickshell\.Hyprland' --include='*.qml' \
   modules config services shell.qml 2>/dev/null \
-  | grep -v -e '^services/Compositor\.qml$' -e '^services/HyprDispatch\.qml$' || true)"
+  | grep -v -e '^services/CompositorHyprland\.qml$' -e '^services/HyprDispatch\.qml$' || true)"
 if [ -n "$facade_leaks" ]; then
-  fail "only services/Compositor.qml and services/HyprDispatch.qml may import Quickshell.Hyprland:"
+  fail "only services/CompositorHyprland.qml and services/HyprDispatch.qml may import Quickshell.Hyprland:"
   while IFS= read -r m; do printf '  %s\n' "$m"; done <<< "$facade_leaks"
 else
-  ok "compositor facade" "Quickshell.Hyprland stays behind the Compositor facade"
+  ok "compositor facade" "Quickshell.Hyprland stays behind the Hyprland adapter"
 fi
 
 section "control surface gating"
