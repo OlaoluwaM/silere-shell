@@ -38,11 +38,13 @@ Item {
             height: root._entryH
 
             ShellText {
-                anchors.left: parent.left
-                anchors.leftMargin: 42
-                anchors.right: _trailing.left
-                anchors.rightMargin: 8
-                anchors.verticalCenter: parent.verticalCenter
+                anchors {
+                    left: parent.left
+                    leftMargin: 42
+                    right: _trailing.left
+                    rightMargin: 8
+                    verticalCenter: parent.verticalCenter
+                }
                 text: String(_entry.modelData[root.textRole] ?? "")
                 elide: Text.ElideRight
                 color: Theme.withAlpha(Theme.text, 0.80)
@@ -51,9 +53,11 @@ Item {
 
             ShellText {
                 id: _trailing
-                anchors.right: parent.right
-                anchors.rightMargin: 12
-                anchors.verticalCenter: parent.verticalCenter
+                anchors {
+                    right: parent.right
+                    rightMargin: 12
+                    verticalCenter: parent.verticalCenter
+                }
                 text: String(_entry.modelData[root.trailingRole] ?? "")
                     + (_entry.emphasised ? "  " + root.trailingSuffix : "")
                 color: Theme.withAlpha(Theme.subtext, _entry.emphasised ? 0.75 : 0.55)

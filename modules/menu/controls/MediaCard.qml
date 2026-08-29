@@ -453,14 +453,13 @@ ClippingRectangle {
     Item {
         id: _seek
         visible: Media.hasPosition
+        height: visible ? root._seekH : 0
         anchors {
             left:  parent.left;  leftMargin:  16
             right: parent.right; rightMargin: 16
             bottom: _controlsRow.top
             bottomMargin: visible ? 12 : 0
         }
-        height: visible ? root._seekH : 0
-
         ShellText {
             id: _elapsedLabel
             // matches the total so the bar sits centred, but never below its own text: an

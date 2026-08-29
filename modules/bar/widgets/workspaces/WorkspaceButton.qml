@@ -38,6 +38,12 @@ Item {
     width:  cellWidth
     height: rowHeight
 
+    Accessible.role: Accessible.Button
+    Accessible.name: "Workspace " + root.wsId
+    Accessible.selected: root.active
+    Accessible.focusable: true
+    Accessible.onPressAction: root._activate()
+
     MotionBehavior on width {
         NumberAnimation { duration: Motion.width; easing.type: Easing.OutCubic }
     }
@@ -70,12 +76,6 @@ Item {
             root.activateRequested()
         }
     }
-
-    Accessible.role: Accessible.Button
-    Accessible.name: "Workspace " + root.wsId
-    Accessible.selected: root.active
-    Accessible.focusable: true
-    Accessible.onPressAction: root._activate()
 
     HoverHandler { id: _hover; cursorShape: Qt.PointingHandCursor }
     onHoveredChanged: root.hoverReported(root.wsId, root.hovered)

@@ -40,6 +40,14 @@ MenuRow {
         anchors.verticalCenter: parent.verticalCenter
         width: 18; height: 18
 
+        Accessible.role: root.glyphClickable
+            ? Accessible.Button : Accessible.StaticText
+        Accessible.name: root.glyphClickable
+            ? "Mute " + root.accessibleName.toLowerCase() : ""
+        Accessible.focusable: root.enabled && root.glyphClickable
+        Accessible.onPressAction: if (root.enabled && root.glyphClickable)
+            root.glyphClicked()
+
         ShellText {
             anchors.centerIn: parent
             text: root.glyph
@@ -59,13 +67,6 @@ MenuRow {
             }
         }
 
-        Accessible.role: root.glyphClickable
-            ? Accessible.Button : Accessible.StaticText
-        Accessible.name: root.glyphClickable
-            ? "Mute " + root.accessibleName.toLowerCase() : ""
-        Accessible.focusable: root.enabled && root.glyphClickable
-        Accessible.onPressAction: if (root.enabled && root.glyphClickable)
-            root.glyphClicked()
     }
 
     TextMetrics { id: _vm; font.family: Settings.font; font.pixelSize: Settings.fontLabel; text: "100%" }

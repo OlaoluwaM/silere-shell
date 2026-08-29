@@ -90,6 +90,11 @@ PanelWindow {
             color: chip.pressed ? Theme.controlFill(chip.tint, 0.26)
                 : _hover.hovered ? Theme.controlFill(chip.tint, 0.15) : Theme.menuControl
 
+            Accessible.role: Accessible.Button
+            Accessible.name: chip.label
+            Accessible.focusable: chip.shown
+            Accessible.onPressAction: chip.triggered()
+
             ColorFade on color {}
 
             OutlineBorder {
@@ -99,11 +104,6 @@ PanelWindow {
                     ? Theme.withAlpha(chip.tint, 0.42) : Theme.menuControlLine
                 ColorFade on outlineColor {}
             }
-
-            Accessible.role: Accessible.Button
-            Accessible.name: chip.label
-            Accessible.focusable: chip.shown
-            Accessible.onPressAction: chip.triggered()
 
             HoverHandler { id: _hover; cursorShape: Qt.PointingHandCursor }
             TapHandler   { id: _tap; onTapped: chip.triggered() }

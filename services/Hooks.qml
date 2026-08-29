@@ -33,6 +33,8 @@ Singleton {
     property bool _throttled: false
     readonly property bool armed: true
 
+    Component.onCompleted: if (ConfigStore.ready) root.rescan()
+
     function has(event: string): bool {
         return root._present[event] === true
     }
@@ -141,8 +143,6 @@ Singleton {
                 [Compositor.activeWorkspaceId(Compositor.focusedMonitor)])
         }
     }
-
-    Component.onCompleted: if (ConfigStore.ready) root.rescan()
 
     IpcHandler {
         target: "hooks"

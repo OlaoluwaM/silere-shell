@@ -34,10 +34,12 @@ Rectangle {
     // reads, so the value yields first. 62 = the label's left offset plus the gap before it
     TextMetrics {
         id: _labelInk
-        font.family:    Settings.font
-        font.pixelSize: Settings.fontLabel
-        font.weight:    root.armed ? Font.DemiBold : Font.Normal
-        text:           root.armed ? root.confirmLabel : root.label
+        text: root.armed ? root.confirmLabel : root.label
+        font {
+            family:    Settings.font
+            pixelSize: Settings.fontLabel
+            weight:    root.armed ? Font.DemiBold : Font.Normal
+        }
     }
     readonly property int _valueMaxW: Math.max(42, Math.min(86,
         Math.round(root.width * 0.52),

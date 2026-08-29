@@ -722,6 +722,8 @@ PanelWindow {
 
                 Item {
                     id: tabContent
+                    // a build shorter than this reads as a flicker, not as feedback
+                    property bool _pageSlow: false
                     x: panel.contentPad
                     y: 0
                     width: panel.innerW
@@ -735,8 +737,6 @@ PanelWindow {
                       : panel.activeTab === 2 ? recentLoader.status === Loader.Error
                       : panel.activeTab === 3 ? systemLoader.status === Loader.Error
                       : false
-                    // a build shorter than this reads as a flicker, not as feedback
-                    property bool _pageSlow: false
                     on_PagePendingChanged: {
                         if (tabContent._pagePending) {
                             _pageSlowDefer.restart()
