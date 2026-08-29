@@ -33,6 +33,8 @@ settings file carries its own `__version` and migrates separately.
 - The window title takes the alignment and padding of the zone it sits in.
 - A divider separates the window title from the workspaces strip.
 - The window title drops a track name the media widget in its zone already shows.
+- Showing an app name drops the same app branding from the end of its window title.
+- The window title stops widening past a readable span on an ultrawide screen.
 - Titles from background windows are sampled on a slower pass than the focused one.
 - The clock and media progress pause periodic updates while the overview conceals the bar.
 - Temperature polling stops there for the underline glow, and carries on for the alerts.

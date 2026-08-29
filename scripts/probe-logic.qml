@@ -46,6 +46,13 @@ ShellRoot {
     Component { id: workspaceButtonFactory; WorkspaceButton {} }
     Component { id: pillFactory; Pill { visible: true; glyph: "a" } }
     Component { id: rollingTextFactory; RollingText { visible: true; text: "one" } }
+    Component {
+        id: windowTitleFactory
+        WindowTitle {
+            screen: Quickshell.screens[0] ?? null
+            barActive: false
+        }
+    }
     Component { id: workspaceStripFactory; Workspaces { screen: null } }
     Component {
         id: workspaceMarkerFactory
@@ -779,6 +786,53 @@ ShellRoot {
         root._check(SafeText.singleLineText("Editor\nspoof\u202E", 64)
                 === "Editor spoof",
             "compositor sanitizes client-controlled window text")
+
+        const titleWidget = windowTitleFactory.createObject(root, {
+            widthBudget: 10000
+        })
+        root._check(titleWidget !== null,
+            "the window-title widget builds for formatting checks")
+        if (titleWidget) {
+            root._check(titleWidget._labelKey("notes.md") === "notes md"
+                    && titleWidget._labelKey("md") === "md",
+                "window-title comparison keeps a dotted document name intact")
+            root._check(titleWidget._withoutAppSuffix(
+                    "Silere settings — Mozilla Firefox", "Firefox")
+                    === "Silere settings",
+                "a separately shown app is removed from branded title suffixes")
+            root._check(titleWidget._withoutAppSuffix(
+                    "Learn Firefox internals — Documentation", "Firefox")
+                    === "Learn Firefox internals — Documentation",
+                "ordinary title words that mention an app are left untouched")
+            root._check(titleWidget._withoutAppSuffix(
+                    "Topic — All about Firefox", "Firefox")
+                    === "Topic — All about Firefox",
+                "a descriptive suffix ending in an app name is not mistaken for branding")
+            titleWidget._shownVisible = true
+            titleWidget._shownShowApp = true
+            titleWidget._shownApp = "Firefox"
+            titleWidget._shownTitle = "Silere settings — Mozilla Firefox"
+            root._check(titleWidget._displayText === "Firefox "
+                    + ShellSettings.dotTextGlyph + " Silere settings"
+                    && titleWidget._spokenText === "Firefox, Silere settings",
+                "the visual and spoken window labels share the de-duplicated title")
+            titleWidget._shownShowApp = false
+            root._check(titleWidget._displayTitle
+                    === "Silere settings — Mozilla Firefox",
+                "title-only mode preserves application branding from the client")
+            titleWidget._shownShowApp = true
+            titleWidget._shownTitle = "Mozilla Firefox"
+            root._check(!titleWidget._showAppAndTitle
+                    && titleWidget._displayText === "Mozilla Firefox",
+                "a branded app-only title is not repeated beside the app name")
+            root._check(titleWidget._widthCap === Metrics.windowTitleWidthFor(false),
+                "an ultrawide window title stops at the shared readable-width cap")
+            titleWidget.compact = true
+            root._check(titleWidget._widthCap === Metrics.windowTitleWidthFor(true)
+                    && titleWidget._widthCap < Metrics.windowTitleWidthFor(false),
+                "compact mode gives the window title a smaller readable-width cap")
+            titleWidget.destroy()
+        }
 
         const longMediaText = "m".repeat(Media.maxMetadataChars + 20)
         root._check(SafeText.singleLineText(longMediaText, Media.maxMetadataChars).length

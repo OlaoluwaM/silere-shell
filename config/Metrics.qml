@@ -37,6 +37,9 @@ Singleton {
 
     function clockDateGapFor(compact: bool): int { return compact ? 4 : 8 }
 
+    // a proportional cap alone lets one client own an ultrawide bar
+    function windowTitleWidthFor(compact: bool): int { return compact ? 280 : 420 }
+
     // 4px multiples land on whole physical px at 1.25/1.5/1.75/2, not at 1.6; grows only with the font
     function rowHeightFor(design: real): int {
         return 4 * Math.ceil((design

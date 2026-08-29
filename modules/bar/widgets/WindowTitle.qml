@@ -26,9 +26,8 @@ Item {
     readonly property bool contentVisible: root._op > 0.001 && root._displayText.length > 0
 
     Accessible.role: Accessible.StaticText
-    Accessible.name: !root.layoutVisible || root._displayText.length === 0 ? ""
-        : root._shownTitle.length > 0 ? "Active window, " + root._shownTitle
-        : root._shownApp.length > 0 ? "Active window, " + root._shownApp : ""
+    Accessible.name: root._spokenText.length > 0
+        ? "Active window, " + root._spokenText : ""
 
     // a zone widget displaces its neighbours, so the cap tightens with the rest of the bar
     property real widthBudget: -1
@@ -36,7 +35,8 @@ Item {
         const span = root.widthBudget > 0 ? root.widthBudget
             : (root.screen ? root.screen.width : 0)
         if (span <= 0) return Infinity
-        return Math.round(span * (root.compact ? 0.18 : 0.25))
+        return Math.min(Metrics.windowTitleWidthFor(root.compact),
+            Math.round(span * (root.compact ? 0.18 : 0.25)))
     }
 
     readonly property string monitorName: Compositor.monitorName(root.screen)
@@ -128,8 +128,44 @@ Item {
         return leaf
     }
 
-    function _norm(s: string): string {
-        return root._clean(s).toLowerCase().replace(/\s+/g, " ").trim()
+    // visible labels, not reverse-domain ids: _clean() would leave "notes.md" as "MD"
+    function _labelKey(s: string): string {
+        return String(s || "").toLowerCase()
+            .replace(/[‐‑‒–—―]/g, "-")
+            .replace(/[._-]+/g, " ").replace(/\s+/g, " ").trim()
+    }
+
+    function _looksLikeAppLabel(label: string, app: string): bool {
+        const labelKey = root._labelKey(label)
+        const appKey = root._labelKey(app)
+        if (labelKey.length === 0 || appKey.length === 0) return false
+        if (labelKey === appKey) return true
+        if (appKey.length < 5 || !labelKey.endsWith(" " + appKey)) return false
+        return labelKey.split(" ").length <= appKey.split(" ").length + 1
+    }
+
+    function _withoutAppSuffix(title: string, app: string): string {
+        const raw = String(title || "").trim()
+        const appKey = root._labelKey(app)
+        if (raw.length === 0 || appKey.length === 0) return raw
+
+        // "document — App" is the common shape; the app half is already drawn
+        const separators = [" — ", " – ", " - ", " | ", " · "]
+        let cut = -1
+        let separatorLength = 0
+        for (let i = 0; i < separators.length; i++) {
+            const at = raw.lastIndexOf(separators[i])
+            if (at > cut) {
+                cut = at
+                separatorLength = separators[i].length
+            }
+        }
+        if (cut <= 0) return raw
+
+        const suffix = raw.slice(cut + separatorLength)
+        if (!root._looksLikeAppLabel(suffix, app)) return raw
+        const useful = raw.slice(0, cut).trim()
+        return useful.length > 0 ? useful : raw
     }
 
     property bool _ready: false
@@ -209,9 +245,7 @@ Item {
     }
 
     readonly property bool _titleMatchesApp: {
-        const title = root._norm(_shownTitle)
-        const app = root._norm(_shownApp)
-        return title.length > 0 && title === app
+        return root._looksLikeAppLabel(root._displayTitle, root._shownApp)
     }
 
     // HTML-escape dynamic text before StyledText markup; titles routinely contain &, <, >
@@ -227,13 +261,21 @@ Item {
         return "#" + _h2(a * 255) + _h2(c.r * 255) + _h2(c.g * 255) + _h2(c.b * 255)
     }
 
+    readonly property string _displayTitle: root._shownShowApp
+        ? root._withoutAppSuffix(root._shownTitle, root._shownApp)
+        : root._shownTitle
     readonly property bool _showAppAndTitle: root._shownShowApp
-        && root._shownApp.length > 0 && root._shownTitle.length > 0
+        && root._shownApp.length > 0 && root._displayTitle.length > 0
         && !root._titleMatchesApp
     readonly property string _displayText: !root._shownVisible ? ""
         : root._showAppAndTitle
-            ? root._shownApp + " " + ShellSettings.dotTextGlyph + " " + root._shownTitle
-            : root._shownTitle.length > 0 ? root._shownTitle
+            ? root._shownApp + " " + ShellSettings.dotTextGlyph + " " + root._displayTitle
+            : root._displayTitle.length > 0 ? root._displayTitle
+            : root._shownShowApp ? root._shownApp : ""
+    readonly property string _spokenText: !root._shownVisible ? ""
+        : root._showAppAndTitle
+            ? root._shownApp + ", " + root._displayTitle
+            : root._displayTitle.length > 0 ? root._displayTitle
             : root._shownShowApp ? root._shownApp : ""
     readonly property string _formatted: {
         if (root._displayText.length === 0) return ""
@@ -243,10 +285,10 @@ Item {
             const dotCol = _hex(Theme.barSeparator, Theme.barSeparator.a)
             return '<font color="' + appCol   + '">' + _esc(_shownApp) + '</font> '
                  + '<font color="' + dotCol   + '">' + _esc(ShellSettings.dotTextGlyph) + '</font> '
-                 + '<font color="' + titleCol + '">' + _esc(_shownTitle) + '</font>'
+                 + '<font color="' + titleCol + '">' + _esc(_displayTitle) + '</font>'
         }
-        if (_shownTitle.length > 0)
-            return '<font color="' + titleCol + '">' + _esc(_shownTitle) + '</font>'
+        if (_displayTitle.length > 0)
+            return '<font color="' + titleCol + '">' + _esc(_displayTitle) + '</font>'
         if (_shownApp.length > 0)
             return '<font color="' + appCol + '">' + _esc(_shownApp) + '</font>'
         return ""
