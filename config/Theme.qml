@@ -196,8 +196,11 @@ Singleton {
                 : (pressed ? 0.85 : hovered ? 0.79 : 0.73)
             return mix(_controlSolid, c, k)
         }
+        // ladder lifted one step from upstream's 0.035/0.085/0.14 (2026-08-28
+        // design pass): over glass frost the resting track read near-black, so
+        // rest takes the old hover value and the steps above shift with it
         return mix(_controlSolid, text,
-            pressed ? 0.14 : hovered ? 0.085 : 0.035)
+            pressed ? 0.19 : hovered ? 0.135 : 0.085)
     }
     function controlTrackLine(c: color, active: bool,
                               hovered: bool, pressed: bool): color {
