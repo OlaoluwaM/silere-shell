@@ -21,6 +21,9 @@ Item {
 
     readonly property bool layoutVisible: root._titleVisible || root._op > 0.001
         || root.implicitWidth > 0.5 || _debounce.running || _seq.running
+    // the width takes longer to collapse than the fade-out, and it leads the fade-in;
+    // a divider keyed off either one marks a slot with nothing painted in it
+    readonly property bool contentVisible: root._op > 0.001 && root._displayText.length > 0
 
     Accessible.role: Accessible.StaticText
     Accessible.name: !root.layoutVisible || root._displayText.length === 0 ? ""
@@ -28,10 +31,12 @@ Item {
         : root._shownApp.length > 0 ? "Active window, " + root._shownApp : ""
 
     // a zone widget displaces its neighbours, so the cap tightens with the rest of the bar
+    property real widthBudget: -1
     readonly property real   _widthCap: {
-        const self = root.screen
-        if (!self) return Infinity
-        return Math.round(self.width * (root.compact ? 0.18 : 0.25))
+        const span = root.widthBudget > 0 ? root.widthBudget
+            : (root.screen ? root.screen.width : 0)
+        if (span <= 0) return Infinity
+        return Math.round(span * (root.compact ? 0.18 : 0.25))
     }
 
     readonly property string monitorName: Compositor.monitorName(root.screen)
@@ -270,6 +275,9 @@ Item {
     }
     onCurrentAppChanged: root._queueTransition()
     onCurrentTitleChanged: root._queueTransition()
+    // the handlers above run before this binding is recomputed, so a queue driven only by
+    // them settles on a stale invisible state and never hears that a title arrived
+    on_TitleVisibleChanged: root._queueTransition()
     onBarActiveChanged: {
         if (!root._ready) return
         if (root.barActive) root._queueTransition()

@@ -39,6 +39,8 @@ Item {
     readonly property bool _compact: effectiveCompact
 
     readonly property int mediaTextBudget: _compact ? 120 : Metrics.mediaTrackWidth
+    // the configured span, not the grown one: the title feeds the width it would measure against
+    readonly property real titleWidthBudget: fitWidth > 0 ? fitWidth : 0
 
     function _queueAutoCompact(): void {
         _compactSync.restart()
@@ -120,7 +122,7 @@ Item {
     Component { id: _cMedia;       MediaWidget      { anchors.verticalCenter: parent.verticalCenter; height: root.height; screen: root.screen; textBudget: root.mediaTextBudget; compact: root.effectiveCompact; barActive: root.barActive } }
     Component { id: _cClock;       Clock            { anchors.verticalCenter: parent.verticalCenter; screen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
 
-    Component { id: _cWindowTitle; WindowTitle { anchors.verticalCenter: parent.verticalCenter; screen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
+    Component { id: _cWindowTitle; WindowTitle { anchors.verticalCenter: parent.verticalCenter; screen: root.screen; widthBudget: root.titleWidthBudget; compact: root.effectiveCompact; barActive: root.barActive } }
 
     readonly property var _widgetComponents: ({
         workspaces: _cWorkspaces, windowTitle: _cWindowTitle,
