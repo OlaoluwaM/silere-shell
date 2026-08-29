@@ -43,7 +43,9 @@ Item {
     // side-widget change still carries the whole middle group
     property real centerAxis: ShellSettings.barCenterInGap
         ? (titleFreeLeft + titleFreeRight) / 2 : width / 2
+    // only the gap axis needs easing; width/2 rides the surface's own morph
     MotionBehavior on centerAxis {
+        gate: ShellSettings.barCenterInGap
         NumberAnimation { duration: Motion.width; easing.type: Easing.OutCubic }
     }
 
