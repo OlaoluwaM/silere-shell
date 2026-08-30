@@ -3,18 +3,15 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "../services"
 
 // The singleton itself is shipped and immutable. Matugen writes only the small
 // per-user JSON palette below, which also works when Silere lives in /usr/share.
 Singleton {
     id: root
 
-    readonly property string palettePath: {
-        const configured = String(Quickshell.env("XDG_CONFIG_HOME") || "").trim()
-        if (configured.startsWith("/")) return configured + "/matugen/silere-shell.json"
-        const home = String(Quickshell.env("HOME") || "").trim()
-        return home.startsWith("/") ? home + "/.config/matugen/silere-shell.json" : ""
-    }
+    readonly property string palettePath: XdgPaths.configHome.length > 0
+        ? XdgPaths.configHome + "/matugen/silere-shell.json" : ""
 
     property var _palette: ({})
     property bool _everLoaded: false

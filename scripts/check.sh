@@ -178,6 +178,7 @@ _cfg_home="$(_silere_xdg_home "${XDG_CONFIG_HOME:-}" .config)" || {
   fail "XDG config" "HOME must be an absolute path"
   _cfg_home=""
 }
+_data_home="$(_silere_xdg_home "${XDG_DATA_HOME:-}" .local/share)" || _data_home=""
 _wayland_socket() {
   [ -n "${WAYLAND_DISPLAY:-}" ] || return 1
   case "$WAYLAND_DISPLAY" in
@@ -257,9 +258,11 @@ done
 # unwritten path reports as "it will not start on login" on a working install.
 _autostart_unit=""
 if [ -z "$_autostart_hit" ] && command -v systemctl >/dev/null 2>&1; then
-  for _udir in "$_cfg_home/systemd/user" "${XDG_DATA_HOME:-$HOME/.local/share}/systemd/user" \
-               /etc/systemd/user /usr/lib/systemd/user; do
-    [ -n "$_udir" ] && [ -d "$_udir" ] || continue
+  _unit_dirs=(/etc/systemd/user /usr/lib/systemd/user)
+  [ -z "$_data_home" ] || _unit_dirs=("$_data_home/systemd/user" "${_unit_dirs[@]}")
+  [ -z "$_cfg_home" ] || _unit_dirs=("$_cfg_home/systemd/user" "${_unit_dirs[@]}")
+  for _udir in "${_unit_dirs[@]}"; do
+    [ -d "$_udir" ] || continue
     # the launcher binary or the checkout's shell.qml, never a path that merely lives
     # under silere-shell/ — the update timer's ExecStart does too, and sorts first
     _autostart_unit="$(grep -rlE \
@@ -268,6 +271,7 @@ if [ -z "$_autostart_hit" ] && command -v systemctl >/dev/null 2>&1; then
     [ -n "$_autostart_unit" ] && break
   done
 fi
+unset _unit_dirs
 _autostart_unit_live=false
 if [ -n "$_autostart_unit" ]; then
   _unit_name="${_autostart_unit##*/}"

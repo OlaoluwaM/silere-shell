@@ -123,6 +123,8 @@ settings file carries its own `__version` and migrates separately.
 
 - A background command stopped at its time limit takes its own child processes with it.
 - Every background command Silere runs has a time limit, and the optional tool scan reports when it gives up.
+- Configuration, palette, update and visualiser paths keep significant whitespace in an
+  absolute XDG directory.
 - The night light temperature set by hand is kept while Follow sun position is on, and returns when it is turned off.
 - The power mode control offers only the profiles the machine supports.
 - The battery percentage recovers on hardware that reports charge ambiguously, instead of staying wrong for the session.
@@ -132,6 +134,7 @@ settings file carries its own `__version` and migrates separately.
 
 - A fresh install finishes on the latest signed release.
 - `bash scripts/check.sh` stops reporting failure on an install that is not a Git checkout.
+- `bash scripts/check.sh` finds user services through the same XDG data fallback as the updater.
 - Setting a bar widget order over IPC keeps each widget in one zone.
 - A stalled update check or install cannot leave the update lock held after it exits.
 - Installing an update refuses a newer release than the one shown on the confirmation screen.

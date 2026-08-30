@@ -372,12 +372,9 @@ Singleton {
         "\n[smoothing]\n" +
         "noise_reduction = " + _cavaNoiseReduction + "\n"
     // runtime-owned path avoids symlink attacks through /tmp
-    readonly property string _cavaConfigPath: {
-        const runtime = String(Quickshell.env("XDG_RUNTIME_DIR") || "").trim()
-        return runtime.startsWith("/")
-            ? runtime + "/silere-shell-cava-" + Quickshell.processId + ".conf"
-            : ""
-    }
+    readonly property string _cavaConfigPath: XdgPaths.runtimeDir.length > 0
+        ? XdgPaths.runtimeDir + "/silere-shell-cava-" + Quickshell.processId + ".conf"
+        : ""
     property bool _cavaConfigReady: false
     property string _writtenCavaProfileKey: ""
     readonly property int _cavaReloadSignal: 10
@@ -385,8 +382,8 @@ Singleton {
 
     // quickshell exits hard on SIGTERM, so the profile outlives the process that wrote it
     function _sweepStaleCavaProfiles(): void {
-        const runtime = String(Quickshell.env("XDG_RUNTIME_DIR") || "").trim()
-        if (root._sweptStaleProfiles || !runtime.startsWith("/")) return
+        const runtime = XdgPaths.runtimeDir
+        if (root._sweptStaleProfiles || runtime.length === 0) return
         root._sweptStaleProfiles = true
         Quickshell.execDetached(["bash", "-c",
             'for f in "$1"/silere-shell-cava-*.conf; do ' +

@@ -143,6 +143,19 @@ ShellRoot {
         MatugenTheme._everLoaded = paletteEverWas
         MatugenTheme.paletteStale = paletteStaleWas
 
+        root._check(XdgPaths.resolveHome("/tmp/config ", "/home/probe", ".config")
+                === "/tmp/config ",
+            "an absolute XDG path keeps significant trailing whitespace")
+        root._check(XdgPaths.resolveHome("relative", "/home/probe user", ".config")
+                === "/home/probe user/.config",
+            "a relative XDG path falls back to the absolute home without rewriting it")
+        root._check(XdgPaths.resolveHome("relative", "relative-home", ".config") === "",
+            "XDG path resolution rejects two relative roots")
+        root._check(XdgPaths.resolveAbsolute("/run/user/probe ") === "/run/user/probe ",
+            "an absolute XDG runtime path keeps significant trailing whitespace")
+        root._check(XdgPaths.resolveAbsolute("relative-runtime") === "",
+            "XDG runtime path resolution rejects a relative directory")
+
         const buttonIdle = Theme.buttonFill(Theme.accent, false, false)
         const buttonHover = Theme.buttonFill(Theme.accent, true, false)
         const buttonPress = Theme.buttonFill(Theme.accent, true, true)

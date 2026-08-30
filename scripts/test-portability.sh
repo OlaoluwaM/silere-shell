@@ -68,6 +68,10 @@ test_xdg_paths_and_timer_default() (
     assert_eq "$home/.cache/silere-shell|$home/.config/systemd/user" "$actual" \
         "updater relative XDG fallbacks"
 
+    actual="$(HOME="$home" bash -c 'source "$1"; _silere_xdg_home relative/data .local/share' \
+        _ "$ROOT/scripts/lib/xdg.sh")"
+    assert_eq "$home/.local/share" "$actual" "diagnostic relative XDG data fallback"
+
     HOME="$home" XDG_CONFIG_HOME=relative/config SILERE_SCRIPT_LIB_ONLY=1 \
         source "$ROOT/scripts/install.sh"
     _answered_yes y || fail "lowercase yes was rejected"

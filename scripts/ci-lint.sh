@@ -253,6 +253,12 @@ section "locale-stable parsers"
 for f in scripts/check.sh scripts/install.sh scripts/update.sh scripts/uninstall.sh; do
   if grep -q '^export LC_ALL=C$' "$f"; then ok "$f"; else fail "$f must set LC_ALL=C"; fi
 done
+if grep -qF '_silere_xdg_home "${XDG_DATA_HOME:-}" .local/share' scripts/check.sh \
+    && ! grep -qF '${XDG_DATA_HOME:-$HOME' scripts/check.sh; then
+  ok "scripts/check.sh" "XDG data path uses the shared absolute-path fallback"
+else
+  fail "scripts/check.sh must resolve XDG_DATA_HOME through scripts/lib/xdg.sh"
+fi
 check_qml_locale_count() {
   local file="$1" expected="$2" actual
   actual="$(grep -c 'environment: ({ "LC_ALL": "C" })' "$file" || true)"
@@ -1109,6 +1115,17 @@ if [ -n "$private_config_access" ]; then
     printf '%s\n' "$private_config_access"
 else
     ok "config store" "paths and directory readiness have one owner"
+fi
+
+xdg_path_bypass="$(grep -RInE --include='*.qml' \
+  'Quickshell\.env\("(XDG_(CONFIG|CACHE|STATE)_HOME|XDG_RUNTIME_DIR)"\)' \
+  shell.qml modules services config \
+  | grep -v '^services/XdgPaths.qml:' || true)"
+if [ -n "$xdg_path_bypass" ]; then
+    fail "QML consumers must resolve XDG homes through XdgPaths:"
+    printf '%s\n' "$xdg_path_bypass"
+else
+    ok "XDG paths" "all shipped QML uses the shared absolute-path resolver"
 fi
 
 section "solid structural surfaces"

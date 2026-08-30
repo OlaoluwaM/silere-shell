@@ -126,12 +126,8 @@ Singleton {
         return root.statusText
     }
 
-    readonly property string _cacheDir: {
-        const configured = String(Quickshell.env("XDG_CACHE_HOME") || "").trim()
-        if (configured.startsWith("/")) return configured + "/silere-shell"
-        const home = String(Quickshell.env("HOME") || "").trim()
-        return home.startsWith("/") ? home + "/.cache/silere-shell" : ""
-    }
+    readonly property string _cacheDir: XdgPaths.cacheHome.length > 0
+        ? XdgPaths.cacheHome + "/silere-shell" : ""
     readonly property string _script: Quickshell.shellDir + "/scripts/update.sh"
 
     function check(): void {
