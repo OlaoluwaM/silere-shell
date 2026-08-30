@@ -125,6 +125,7 @@ settings file carries its own `__version` and migrates separately.
 - Every background command Silere runs has a time limit, and the optional tool scan reports when it gives up.
 - Configuration, palette, update and visualiser paths keep significant whitespace in an
   absolute XDG directory.
+- CPU temperature warnings clear if their sensor disappears or starts returning invalid data.
 - The disk tile reads filesystems with long or whitespace-containing device names.
 - Malformed timezone coordinates no longer corrupt the night light's solar estimate.
 - The night light temperature set by hand is kept while Follow sun position is on, and returns when it is turned off.

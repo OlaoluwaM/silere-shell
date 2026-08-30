@@ -79,13 +79,34 @@ Singleton {
         return (t >= 5 && t <= 125) ? t : 0
     }
 
-    function _resetState(): void {
-        root._reading = false
+    function _clearSampleState(): void {
         root.temp = 0
         root._hotCount = 0
         root._criticalCount = 0
         root.hot = false
         root.critical = false
+    }
+
+    function _resetState(): void {
+        root._reading = false
+        root._clearSampleState()
+    }
+
+    function _applySensorText(raw: string): bool {
+        const t = root._normalizedTemp(parseFloat((raw || "").trim()))
+        if (t <= 0) {
+            // a removed hwmon node still completes one read; its last sample would keep a warning lit
+            root._clearSampleState()
+            return false
+        }
+        root._sample(t)
+        return true
+    }
+
+    function _retrySensorDetection(): void {
+        root._probeComplete = false
+        root._sensorPath = ""
+        if (root._wanted && !_detectProc.running) _detectProc.running = true
     }
 
     on_WantedChanged: {
@@ -175,8 +196,10 @@ Singleton {
         if (!root._reading) return
         root._reading = false
         if (!root._wanted) return
-        const t = root._normalizedTemp(parseFloat((raw || "").trim()))
-        if (t > 0) root._sample(t)
+        if (!root._applySensorText(raw)) {
+            root._retrySensorDetection()
+            return
+        }
         root._probeComplete = true
     }
 
@@ -184,9 +207,8 @@ Singleton {
         if (!root._reading) return
         root._reading = false
         if (!root._wanted) return
-        root._probeComplete = false
-        root._sensorPath = ""
-        if (!_detectProc.running) _detectProc.running = true
+        root._clearSampleState()
+        root._retrySensorDetection()
     }
 
     Timer {

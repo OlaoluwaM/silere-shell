@@ -1305,6 +1305,26 @@ ShellRoot {
         NightLight._autoLat = autoLatWas
         NightLight._autoLon = autoLonWas
 
+        const cpuTempWas = CpuTemp.temp
+        const cpuHotWas = CpuTemp.hot
+        const cpuCriticalWas = CpuTemp.critical
+        const cpuHotCountWas = CpuTemp._hotCount
+        const cpuCriticalCountWas = CpuTemp._criticalCount
+        CpuTemp.temp = 104
+        CpuTemp.hot = true
+        CpuTemp.critical = true
+        CpuTemp._hotCount = 3
+        CpuTemp._criticalCount = 3
+        root._check(!CpuTemp._applySensorText("not-a-temperature")
+                && CpuTemp.temp === 0 && !CpuTemp.hot && !CpuTemp.critical
+                && CpuTemp._hotCount === 0 && CpuTemp._criticalCount === 0,
+            "an invalid CPU sensor read retires its stale warning state")
+        CpuTemp.temp = cpuTempWas
+        CpuTemp.hot = cpuHotWas
+        CpuTemp.critical = cpuCriticalWas
+        CpuTemp._hotCount = cpuHotCountWas
+        CpuTemp._criticalCount = cpuCriticalCountWas
+
         // the probe budget belongs to one ambiguous spell, or a reading that leaves and
         // re-enters ambiguity reuses a spent budget and the percentage the last spell resolved
         const scaleWas = Battery._scale100
