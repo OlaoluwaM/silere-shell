@@ -152,16 +152,16 @@ Singleton {
     function _refreshSlow(): void {
         if (_slowProc.running) return
         _slowProc.exec(["bash", "-c",
-            "df -k / 2>/dev/null | { " +
-            "  read -r _; " +
-            "  read -r _ total used _; " +
-            "  [ -n \"$total\" ] && printf 'd%s %s\\n' \"$used\" \"$total\"; " +
-            "}"])
+            // -P keeps a long device name on one line; read from the right so its spaces cannot shift the columns
+            "df -Pk / 2>/dev/null | awk '" +
+            "NF >= 6 && $(NF-4) ~ /^[0-9]+$/ && $(NF-3) ~ /^[0-9]+$/ { " +
+            "printf \"d%s %s\\n\", $(NF-3), $(NF-4); exit }'"])
     }
 
     BoundedProcess {
         id: _slowProc
         timeoutMs: 5000
+        environment: ({ "LC_ALL": "C" })
         stdout: SplitParser {
             onRead: (line) => {
                 if (!root._active) return
