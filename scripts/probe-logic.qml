@@ -1160,6 +1160,17 @@ ShellRoot {
             "a visible Wi-Fi tier change publishes a fresh model")
         Network._publishedWifiNetworks = publishedWifiWas
 
+        const vpnStateWas = Network._vpnState
+        Network._vpnState = ({ active: true, name: "stale probe VPN" })
+        Network._vpnCandidateActive = true
+        Network._vpnCandidateName = "stale probe VPN"
+        Network._clearVpnState()
+        root._check(!Network.hasVpn && Network.vpnName.length === 0
+                && !Network._vpnCandidateActive
+                && Network._vpnCandidateName.length === 0,
+            "losing VPN detection clears both published and in-flight state")
+        Network._vpnState = vpnStateWas
+
         const wheelKey = "probe-scroll"
         root._check(Scroll._processDelta(60, wheelKey, 120, 2, 0) === 0,
             "a half-notch wheel step emits nothing on its own")
