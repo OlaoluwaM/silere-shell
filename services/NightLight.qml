@@ -105,14 +105,25 @@ Singleton {
         return ""
     }
 
-    function _parseCoord(s: string): void {
+    function _parseCoord(s: string): bool {
         const m = /^([+-]\d{2})(\d{2})(\d{2})?([+-]\d{3})(\d{2})(\d{2})?$/.exec((s || "").trim())
-        if (!m) return
+        if (!m) return false
+        const latDeg = Math.abs(Number(m[1]))
+        const latMin = Number(m[2])
+        const latSec = m[3] ? Number(m[3]) : 0
+        const lonDeg = Math.abs(Number(m[4]))
+        const lonMin = Number(m[5])
+        const lonSec = m[6] ? Number(m[6]) : 0
+        if (latMin >= 60 || lonMin >= 60 || latSec >= 60 || lonSec >= 60
+                || latDeg > 90 || lonDeg > 180
+                || (latDeg === 90 && (latMin > 0 || latSec > 0))
+                || (lonDeg === 180 && (lonMin > 0 || lonSec > 0))) return false
         const latSign = m[1].charAt(0) === "-" ? -1 : 1
         const lonSign = m[4].charAt(0) === "-" ? -1 : 1
-        root._autoLat = latSign * (Math.abs(Number(m[1])) + Number(m[2]) / 60 + (m[3] ? Number(m[3]) : 0) / 3600)
-        root._autoLon = lonSign * (Math.abs(Number(m[4])) + Number(m[5]) / 60 + (m[6] ? Number(m[6]) : 0) / 3600)
+        root._autoLat = latSign * (latDeg + latMin / 60 + latSec / 3600)
+        root._autoLon = lonSign * (lonDeg + lonMin / 60 + lonSec / 3600)
         root._geoResolved = true
+        return true
     }
 
     BoundedProcess {

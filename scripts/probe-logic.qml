@@ -1286,6 +1286,25 @@ ShellRoot {
         ShellSettings.nightLightTemp = tempWas
         ShellSettings.nightLightAuto = autoWas
 
+        const geoResolvedWas = NightLight._geoResolved
+        const autoLatWas = NightLight._autoLat
+        const autoLonWas = NightLight._autoLon
+        root._check(NightLight._parseCoord("+5657+02406")
+                && Math.abs(NightLight._autoLat - 56.95) < 0.0001
+                && Math.abs(NightLight._autoLon - 24.1) < 0.0001,
+            "night light parses a valid zone-table coordinate")
+        const validLat = NightLight._autoLat
+        const validLon = NightLight._autoLon
+        root._check(!NightLight._parseCoord("+9060+02406")
+                && NightLight._autoLat === validLat && NightLight._autoLon === validLon,
+            "night light rejects invalid coordinate minutes without replacing its location")
+        root._check(!NightLight._parseCoord("+9001+18000")
+                && !NightLight._parseCoord("+9000+18001"),
+            "night light rejects coordinates beyond the latitude and longitude poles")
+        NightLight._geoResolved = geoResolvedWas
+        NightLight._autoLat = autoLatWas
+        NightLight._autoLon = autoLonWas
+
         // the probe budget belongs to one ambiguous spell, or a reading that leaves and
         // re-enters ambiguity reuses a spent budget and the percentage the last spell resolved
         const scaleWas = Battery._scale100
