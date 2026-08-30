@@ -17,6 +17,7 @@ settings file carries its own `__version` and migrates separately.
   text of a window title too long to fit. Widgets › Indicators › Bar tooltips turns it off.
 - Notification popups accept inline replies from applications that offer them.
 - Bar › Spacing › Center between widgets balances the middle zone against both sides.
+- A Bluetooth widget shows the connected device and its battery. Widgets › Show & order turns it on.
 - Theme › Balance accent gives a wallpaper accent the strength of a hand-picked one.
 - Widgets › Workspaces turns off the marker pulse that plays when the menu opens.
 

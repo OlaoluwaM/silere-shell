@@ -39,6 +39,7 @@ Singleton {
     property bool   batteryAutoHide:     true
     property bool   barShowBattery:      true
     property bool   barShowNetwork:      true
+    property bool   barShowBluetooth:   false
     property bool   barShowClock:        true
     property bool   barShowShellUpdate:  true
     property bool   barShowVolume:       true
@@ -118,11 +119,11 @@ Singleton {
     property string barDisabledMonitors: ""
     property string overlayMonitor:      ""
 
-    readonly property var barWidgetKeys: ["workspaces", "windowTitle", "shellUpdate", "tray", "updates", "network", "volume", "brightness", "battery", "media", "clock"]
+    readonly property var barWidgetKeys: ["workspaces", "windowTitle", "shellUpdate", "tray", "updates", "network", "bluetooth", "volume", "brightness", "battery", "media", "clock"]
 
     property string barWidgetOrderLeft:  "workspaces,media"
     property string barWidgetOrderCenter: "windowTitle"
-    property string barWidgetOrderRight: "shellUpdate,tray,updates,network,volume,brightness,battery,clock"
+    property string barWidgetOrderRight: "shellUpdate,tray,updates,network,bluetooth,volume,brightness,battery,clock"
 
     function _widgetKeyList(value): var {
         const raw = Array.isArray(value) ? value : String(value || "").split(",")
@@ -221,6 +222,7 @@ Singleton {
         tray:        { glyph: "󰇘", label: "System tray",     group: "tray",    setting: "trayWidget" },
         updates:     { glyph: "󰚰", label: "Package updates", group: "updates", setting: "updatesWidget" },
         network:     { glyph: "󰛳", label: "Network",         group: "network", setting: "barShowNetwork" },
+        bluetooth:   { glyph: "󰂯", label: "Bluetooth",       group: "network", setting: "barShowBluetooth" },
         volume:      { glyph: "󰕾", label: "Volume",          group: "levels", setting: "barShowVolume" },
         brightness:  { glyph: "󰃟", label: "Brightness",      group: "levels", setting: "barShowBrightness" },
         battery:     { glyph: "󰂄", label: "Battery",         group: "power",  setting: "barShowBattery" },
@@ -303,6 +305,7 @@ Singleton {
         { k: "batteryAutoHide",     t: "bool", sec: "indicators" },
         { k: "barShowBattery",      t: "bool", sec: "widgets" },
         { k: "barShowNetwork",      t: "bool", sec: "widgets" },
+        { k: "barShowBluetooth",    t: "bool", sec: "widgets" },
         { k: "barShowClock",        t: "bool", sec: "widgets" },
         { k: "barShowShellUpdate",  t: "bool", sec: "widgets" },
         { k: "barShowVolume",       t: "bool", sec: "widgets" },

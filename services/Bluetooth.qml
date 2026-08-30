@@ -54,6 +54,25 @@ Singleton {
         return -1
     }
 
+    function deviceGlyph(icon): string {
+        const s = (icon || "").toLowerCase()
+        if (s.indexOf("headset") >= 0 || s.indexOf("headphone") >= 0 || s.indexOf("audio") >= 0) return "󰋋"
+        if (s.indexOf("mouse") >= 0)    return "󰍽"
+        if (s.indexOf("keyboard") >= 0) return "󰌌"
+        if (s.indexOf("phone") >= 0)    return "󰏳"
+        if (s.indexOf("speaker") >= 0)  return "󰓃"
+        if (s.indexOf("watch") >= 0)    return "󰖉"
+        return "󰂱"
+    }
+
+    readonly property string connectedGlyph: {
+        for (let i = 0; i < _devices.length; i++) {
+            const d = _devices[i]
+            if (d && d.connected) return root.deviceGlyph(d.icon)
+        }
+        return ""
+    }
+
     readonly property var devices: {
         const list = _devices.slice()
         list.sort((a, b) => {

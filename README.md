@@ -56,7 +56,7 @@ Fonts, optional tools, unattended installs, Matugen wiring and removal:
 
 ## What you get
 
-- **Bar** — workspaces, media, network, volume, brightness, battery, clock, tray, updates.
+- **Bar** — workspaces, media, network, bluetooth, volume, brightness, battery, clock, tray, updates.
   Drag them between left, centre and right, per monitor.
 - **Menu** — live controls, every setting, and notification history in one panel.
 - **Notifications** — actions, images, history, quiet hours, source-window jumping.
