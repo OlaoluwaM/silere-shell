@@ -726,6 +726,15 @@ ShellRoot {
         root._check(topPopupY + bottomPopupY + 200 === 1000,
             "top and bottom popup placement is symmetric")
 
+        root._check(Metrics.centeredSpanX(500, 200, 100, 900) === 400,
+            "a span that fits the free gap centres on its axis")
+        root._check(Metrics.centeredSpanX(500, 200, 450, 900) === 450,
+            "a wide left zone pushes the centred span clear of it")
+        root._check(Metrics.centeredSpanX(500, 200, 100, 550) === 350,
+            "a wide right zone pulls the centred span back inside the gap")
+        root._check(Metrics.centeredSpanX(500, 400, 400, 600) === 400,
+            "a span wider than the free gap still starts at the gap")
+
         root._check(IconResolver.localSource("https://example.invalid/icon.png") === "",
             "icon resolver rejects remote URLs")
         root._check(IconResolver.localSource("data:image/png;base64,AAAA") === "",

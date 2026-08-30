@@ -86,6 +86,12 @@ Singleton {
         return Math.round(atBottom ? windowHeight - edge - popupHeight : edge)
     }
 
+    // the middle of a bar is the span left free by its side zones, not the bar's own centre:
+    // an uneven pair of sides otherwise pulls a centred item underneath the wider one
+    function centeredSpanX(axis: real, span: real, freeLeft: real, freeRight: real): int {
+        return Math.round(Math.max(freeLeft, Math.min(axis - span / 2, freeRight - span)))
+    }
+
     // the track title sizes to its text and marquees past this; a reserved slot left the pill
     // padded out on short titles and dragged the visualiser along with it
     readonly property int mediaTrackWidth: 160

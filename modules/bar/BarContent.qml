@@ -178,14 +178,14 @@ Item {
     // shares the widgets' axis when the slot is filled; centres in the free span when it is not
     readonly property real _centerVizAnchor: root.centerHasWidgets
         ? root.centerAxis : (titleFreeLeft + titleFreeRight) / 2
-    readonly property int _centerVizX: Math.round(Math.max(titleFreeLeft,
-        Math.min(_centerVizAnchor - _centerVizWidth / 2,
-                 titleFreeRight - _centerVizWidth)))
+    readonly property int _centerVizX: Metrics.centeredSpanX(
+        _centerVizAnchor, _centerVizWidth, titleFreeLeft, titleFreeRight)
 
     BarZone {
         id: centerZone
         anchors.verticalCenter: parent.verticalCenter
-        x: Math.round(root.centerAxis - width / 2)
+        x: Metrics.centeredSpanX(root.centerAxis, width,
+            root.titleFreeLeft, root.titleFreeRight)
         height: parent.height
         orderKeys: ShellSettings.barWidgetOrderCenterKeys
         widgetComponents: root._widgetComponents

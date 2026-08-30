@@ -86,6 +86,7 @@ settings file carries its own `__version` and migrates separately.
 - Widgets › Indicators › App name off keeps the app name hidden for a window that reports no title.
 - A divider no longer sits beside a window title that has faded out.
 - The underline sweep centres on a widget placed in the centre zone.
+- Centre-zone widgets keep clear of a crowded side of the bar.
 - Bar › Layout keeps the roundness slider reachable while the bar is docked, and stops it where the bar stops rounding.
 - Turning off Widgets › Workspaces › Urgent window pulse also stops the off-page urgent dot pulsing.
 - Workspace marker and page effects settle when their bar sleeps, the session goes idle, or their setting is turned off.
