@@ -37,10 +37,8 @@ PanelWindow {
         _availableH - 12 - _shadowPad)
 
     implicitWidth:  _cardW + 24 + _shadowPad
-    // quantized: every implicitHeight change reconfigures the layer surface, and arrival/dismiss animates height for ~160ms
-    readonly property int _contentH: Math.max(1, outerCol.implicitHeight + 12 + _shadowPad)
-    implicitHeight: Math.min(_availableH,
-        Math.max(64, Math.ceil(win._contentH / 64) * 64))
+    // constant: every implicitHeight change reconfigures the layer surface and drops the pointer mid-hover; the mask keeps input on the column
+    implicitHeight: _availableH
 
     readonly property string _pos:     ShellSettings.notifPosition
     readonly property bool   _left:     _pos === "top-left"
