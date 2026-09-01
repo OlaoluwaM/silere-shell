@@ -14,8 +14,7 @@ Singleton {
     property string mediaVisualizerPreset: "balanced"
     property string mediaVisualizerStyle:  "wave"
     property string mediaVisualizerPosition: "media"
-    // the configured half of BarContent's centre-visualiser decision, shared with the
-    // settings disclosure that reveals the centre-gap row so the two cannot drift
+    // configuration only; BarContent adds playback, space and lifecycle gates
     readonly property bool centerVizConfigured: mediaProgress
         && mediaVisualizerPosition === "center"
     property bool   workspaceShift:      true
@@ -35,8 +34,7 @@ Singleton {
     property bool   clock12h:            GeneratedDefaults.clock12h
     property bool   showWindowTitle:     false
     property bool   showWindowTitleApp:  false
-    // the configured half of WindowTitle's app-dot decision, shared with the settings
-    // disclosure that reveals the dot rows for the same no-drift reason as centerViz
+    // configuration only; the separators page uses it to reveal the dot controls
     readonly property bool titleAppDotConfigured: showWindowTitle && showWindowTitleApp
     property bool   trayWidget:          GeneratedDefaults.trayWidget
     property bool   valuesOnHover:       true
