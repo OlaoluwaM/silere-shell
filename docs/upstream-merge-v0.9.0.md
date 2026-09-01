@@ -51,3 +51,7 @@ power backend's probes and surface-open refreshes (`6e5a6c4`), recorded the
 quiet-hours replacement (`ff375f8`), completed bar hints and spoken vitals
 (`77b6327`), and removed stale Bluetooth and forking leftovers (`3b53427`,
 `11760ea`).
+
+A second cleanup removed stale centre-visualiser state (`4cde806`) and, after
+checking a real long-body history card, removed the redundant row chevron
+while keeping whole-row expansion and the explicit disclosure (`d91c431`).
