@@ -66,6 +66,13 @@ The merge does not start until that tag exists on the remote. It makes the
 pre-merge tip easy to recover without changing the rule above: reset only
 while the merge is still at the tip, and revert once later commits exist.
 
+Once the merge, its resolution record, all merge-specific follow-up commits,
+and the repository gates are complete, the maintainer creates and publishes a
+second annotated tag on that final validated HEAD. Its name is
+`post-upstream-<release-tag>`. The pre-merge and post-merge tags bracket the
+complete integration. Create the post-merge tag before unrelated work resumes,
+and never move either tag.
+
 Before the first conflict pass, enable rerere once per clone
 (`git config rerere.enabled true`): an aborted or repeated attempt then
 replays the hunks already resolved instead of presenting them again.
