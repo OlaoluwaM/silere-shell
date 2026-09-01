@@ -65,6 +65,10 @@ replays the hunks already resolved instead of presenting them again.
 After every merge, the same gates as any feature apply. They live in
 [AGENTS.md](AGENTS.md).
 
+The v0.9.0 merge commit omitted its usual conflict narrative. Its
+[resolution record](docs/upstream-merge-v0.9.0.md) preserves those decisions
+without rewriting published branch history.
+
 ## Pinning from nixos-config
 
 `nixos-config` pins this fork by commit in its `flake.lock`. Re-locking
