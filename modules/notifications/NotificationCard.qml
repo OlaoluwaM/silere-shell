@@ -136,11 +136,10 @@ Item {
         if (_body) _body.expanded = false
     }
 
-    // not on bodyText: an in-place update (progress, chat) would collapse the body
-    // under the reader on every tick; only a different notification resets it
     function beginReply(): void {
         if (!card.enabled || !card.hasInlineReply || card._replyOpen) return
         card._replyOpen = true
+        _body.expanded = true
         card.replyFocusRequested(card, true)
     }
 
@@ -172,6 +171,8 @@ Item {
     }
 
     onHasInlineReplyChanged: if (!hasInlineReply) card.cancelReply()
+    // not on bodyText: an in-place update (progress, chat) would collapse the body
+    // under the reader on every tick; only a different notification resets it
     onNotificationChanged: {
         card._resetBodyExpansion()
         if (card._replyOpen) card.cancelReply()

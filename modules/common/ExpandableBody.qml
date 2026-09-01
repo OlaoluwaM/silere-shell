@@ -28,7 +28,7 @@ Column {
         text: root.bodyText
         color: root.bodyColor
         font.pixelSize: root.fontPixelSize
-        wrapMode: Text.WordWrap
+        wrapMode: Text.Wrap
         maximumLineCount: root.expanded
             ? root.expandedLineCount : root.collapsedLineCount
         elide: Text.ElideRight
