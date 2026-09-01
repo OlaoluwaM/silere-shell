@@ -18,6 +18,8 @@ StatusActionPill {
     // only ever synthesized for a Repeater/ListView bound to it), so read length off
     // values, the one property it does publish with a change signal
     show: SystemTray.items.values.length > 0
+    hintScreen: root.screen
+    hintText: root.show ? "Click tray menu" : ""
 
     glyph: "󰀻"
     // single-state widget, so the reference is the glyph itself

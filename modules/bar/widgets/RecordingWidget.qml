@@ -49,6 +49,7 @@ StatusActionPill {
     // recording alone is not enough to be clickable: on a packaging without a stop
     // command this pill is a plain indicator, same dormancy as Recording itself
     interactive: show && !busy && Recording.canStop
+    hintText: root.interactive ? "Click stop recording" : ""
     onActivated: {
         root._stopping = true
         _stopSettle.restart()

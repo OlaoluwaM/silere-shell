@@ -128,17 +128,17 @@ Item {
     Component { id: _cWorkspaces;  Workspaces       { anchors.verticalCenter: parent.verticalCenter; screen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
     Component { id: _cTray;        TrayWidget       { anchors.verticalCenter: parent.verticalCenter; height: root.height; screen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
     Component { id: _cTrayPopup;   TrayPopupWidget  { anchors.verticalCenter: parent.verticalCenter; height: root.height; screen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
-    Component { id: _cNetwork;     NetworkWidget    { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact; barActive: root.barActive } }
+    Component { id: _cNetwork;     NetworkWidget    { anchors.verticalCenter: parent.verticalCenter; height: root.height; hintScreen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
     Component { id: _cBluetooth;   BluetoothWidget  { anchors.verticalCenter: parent.verticalCenter; height: root.height; hintScreen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
     Component { id: _cVolume;      Volume           { anchors.verticalCenter: parent.verticalCenter; height: root.height; hintScreen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
     Component { id: _cBrightness;  BrightnessWidget { anchors.verticalCenter: parent.verticalCenter; height: root.height; hintScreen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
     Component { id: _cBattery;     BatteryWidget    { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact; barActive: root.barActive } }
-    Component { id: _cCaffeine;    CaffeineWidget   { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact; barActive: root.barActive } }
-    Component { id: _cDnd;         DndWidget        { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact; barActive: root.barActive } }
-    Component { id: _cAirplane;    AirplaneWidget   { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact; barActive: root.barActive } }
-    Component { id: _cVitals;      VitalsWidget     { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact; barActive: root.barActive } }
+    Component { id: _cCaffeine;    CaffeineWidget   { anchors.verticalCenter: parent.verticalCenter; height: root.height; hintScreen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
+    Component { id: _cDnd;         DndWidget        { anchors.verticalCenter: parent.verticalCenter; height: root.height; hintScreen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
+    Component { id: _cAirplane;    AirplaneWidget   { anchors.verticalCenter: parent.verticalCenter; height: root.height; hintScreen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
+    Component { id: _cVitals;      VitalsWidget     { anchors.verticalCenter: parent.verticalCenter; height: root.height; hintScreen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
     Component { id: _cPrivacy;     PrivacyWidget    { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact; barActive: root.barActive } }
-    Component { id: _cRecording;   RecordingWidget  { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact; barActive: root.barActive } }
+    Component { id: _cRecording;   RecordingWidget  { anchors.verticalCenter: parent.verticalCenter; height: root.height; hintScreen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
     Component { id: _cMedia;       MediaWidget      { anchors.verticalCenter: parent.verticalCenter; height: root.height; screen: root.screen; textBudget: root.mediaTextBudget; compact: root.effectiveCompact; barActive: root.barActive } }
     Component { id: _cClock;       Clock            { anchors.verticalCenter: parent.verticalCenter; screen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
 

@@ -17,6 +17,7 @@ StatusActionPill {
     // offers no change signal to push that instead.
     show: ShellSettings.barShowCaffeine && Caffeine.available
         && (Caffeine.inhibited || Caffeine.manualActive)
+    hintText: root.interactive ? "Click toggle caffeine" : ""
 
     // the pill's own text is empty until hover-expanded, which a screen reader never
     // does; mirrors the hover label's ladder below

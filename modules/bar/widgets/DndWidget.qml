@@ -11,6 +11,7 @@ StatusActionPill {
     id: root
 
     show: Notifications.dnd
+    hintText: root.interactive ? "Click turn off Do Not Disturb" : ""
 
     // the pill's own text is empty until hover-expanded, which a screen reader never does
     accessibleName: Notifications.dndRemainingMinutes >= 0

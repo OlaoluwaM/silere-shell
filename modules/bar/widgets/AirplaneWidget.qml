@@ -11,6 +11,7 @@ StatusActionPill {
     id: root
 
     show: QuickActionsState.airplaneAvailable && !QuickActionsState.radiosOn
+    hintText: root.interactive ? "Click turn off airplane mode" : ""
 
     // the pill's own text is empty until hover-expanded, which a screen reader never does
     accessibleName: "Airplane mode on"

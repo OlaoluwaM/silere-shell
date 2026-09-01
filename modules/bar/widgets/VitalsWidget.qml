@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import "../../../config"
 import "../../../services"
 import "../../common"
@@ -16,6 +17,7 @@ Item {
 
     property bool compact: ShellSettings.barCompact
     property bool barActive: true
+    property ShellScreen hintScreen: null
     readonly property int _hysteresis: 5
 
     readonly property real _cpuValue: SysInfo.cpuPct * 100
@@ -59,11 +61,14 @@ Item {
             barActive: root.barActive
             show: root._cpuHot
             interactive: show && SystemMonitor.available
+            hintScreen: root.hintScreen
+            hintText: _cpuChip.interactive ? "Click open CPU monitor" : ""
             glyph: "󰻠"
             glyphAlignReference: "󰻠"
             glyphColor: Theme.warning
             textColor: Theme.warning
             text: Math.round(root._cpuValue) + "%"
+            accessibleName: "CPU usage " + Math.round(root._cpuValue) + "%"
             onActivated: SystemMonitor.launch("cpu")
         }
 
@@ -75,11 +80,14 @@ Item {
             barActive: root.barActive
             show: root._memHot
             interactive: show && SystemMonitor.available
+            hintScreen: root.hintScreen
+            hintText: _memChip.interactive ? "Click open memory monitor" : ""
             glyph: "󰘚"
             glyphAlignReference: "󰘚"
             glyphColor: Theme.warning
             textColor: Theme.warning
             text: Math.round(root._memValue) + "%"
+            accessibleName: "Memory usage " + Math.round(root._memValue) + "%"
             onActivated: SystemMonitor.launch("mem")
         }
 
@@ -91,11 +99,14 @@ Item {
             barActive: root.barActive
             show: root._tempHot
             interactive: show && SystemMonitor.available
+            hintScreen: root.hintScreen
+            hintText: _tempChip.interactive ? "Click open temperature monitor" : ""
             glyph: "󰔏"
             glyphAlignReference: "󰔏"
             glyphColor: CpuTemp.critical ? Theme.error : Theme.warning
             textColor: CpuTemp.critical ? Theme.error : Theme.warning
             text: Math.round(CpuTemp.temp) + "°"
+            accessibleName: "CPU temperature " + Math.round(CpuTemp.temp) + " degrees"
             onActivated: SystemMonitor.launch("temp")
         }
     }

@@ -80,6 +80,7 @@ StatusActionPill {
     shrinkDelay:    2400
     // a click only does something once the configured wifi-editor command is reachable
     interactive:    show && WifiProfile.editorAvailable
+    hintText: root.interactive ? "Open connection editor" : ""
 
     // overrides StatusActionPill's own ungated Behavior on this same property; without a
     // local override here, the inherited one would still smooth every raw pulse-loop tick
