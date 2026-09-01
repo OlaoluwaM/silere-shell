@@ -96,8 +96,29 @@ Column {
     }
 
     SectionLabel {
+        label: "BAR VITALS"
+        first: !Battery.available && CpuTemp.sensorMissing
+    }
+    SettingsCard {
+        SliderRow {
+            glyph: "󰻠"; label: "CPU above"
+            key: "cpuHotPercent"
+            step: 5
+            displayValue: ShellSettings.cpuHotPercent + "%"
+            glyphColor: Theme.warning
+        }
+        SliderRow {
+            glyph: "󰘚"; label: "Memory above"
+            key: "memHotPercent"
+            step: 5
+            displayValue: ShellSettings.memHotPercent + "%"
+            glyphColor: Theme.warning
+        }
+        HintText { text: "Chips clear 5% below their selected threshold." }
+    }
+
+    SectionLabel {
         label: "HARDWARE"
-        first: true
         visible: root._hardwareStatusVisible
     }
     SettingsCard {
