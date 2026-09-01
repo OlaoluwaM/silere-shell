@@ -72,7 +72,9 @@ so resurrecting one on purpose means removing its line in the same commit.
 - Notifications keep the fork's `ExpandableBody` interaction and the popup
   layer's constant screen-sized height. Take upstream delivery features such
   as grouping, inline replies, batch retirement, and sender-image hardening
-  around those two constraints.
+  around those two constraints. The fork's duration-picker DND replaces
+  upstream's scheduled quiet hours; keep `dndSchedule`, `dndFrom`, `dndTo`,
+  their settings rows, and their service logic removed.
 - The Bluetooth bar widget stays an actionable `StatusActionPill` that opens
   the configured manager. Take compatible upstream service, accessibility,
   hint, and lifecycle improvements without replacing it with a passive pill.
