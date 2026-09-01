@@ -52,13 +52,13 @@ Column {
 
         // a dead font tofus the bar AND the menu that would fix it, so it leads
         if (!SystemTools.hasFcList)
-            out.push({ g: "󰈵", n: "Font check", s: "Cannot verify the interface font", v: "fontconfig" })
+            out.push({ g: "󰈵", n: "Font check", s: "Cannot verify the interface font", v: "fontconfig", p: true })
         else if (FontScan.lastError.length > 0)
             out.push({ g: "󰈵", n: "Font check", s: FontScan.lastError, v: "fc-list" })
         // hasIconFont, not the family lists: Symbols Nerd Font alone keeps
         // icons rendering (glyph fallback) yet appears in neither list
         else if (FontScan.scanned && !FontScan.hasIconFont)
-            out.push({ g: "󰈵", n: "Icon font", s: "No Nerd Font installed — bar icons cannot render", v: "nerd-fonts" })
+            out.push({ g: "󰈵", n: "Icon font", s: "No Nerd Font installed — bar icons cannot render", v: "nerd-fonts", p: true })
         else if (FontScan.scanned && ShellSettings.fontFamily.length > 0
                  && FontScan.families.indexOf(ShellSettings.fontFamily) < 0)
             out.push({ g: "󰈵", n: "Chosen font", s: "“" + ShellSettings.fontFamily + "” is gone; using " + Settings.font, v: "fallback" })
@@ -68,7 +68,7 @@ Column {
             out.push({ g: "󰉦", n: "Wallpaper theming",
                 s: MatugenTheme.usingFallback ? "Wallpaper colors are unavailable"
                     : "Last palette stays; sync stops",
-                v: "matugen" })
+                v: "matugen", p: true })
         else if (MatugenTheme.paletteStale)
             out.push({ g: "󰉦", n: "Wallpaper palette", s: "Unreadable; showing the last colors that loaded", v: "template" })
         else if (MatugenTheme.usingFallback)
@@ -80,7 +80,7 @@ Column {
                 v: SystemTools.matugenRepairState === "working" ? "" : "Repair",
                 a: SystemTools.matugenRepairState === "working" ? "" : "matugen" })
 
-        const tool = (g, n, v) => out.push({ g: g, n: n, s: "Hidden until this is installed", v: v })
+        const tool = (g, n, v) => out.push({ g: g, n: n, s: "Hidden until this is installed", v: v, p: true })
         if (!SystemTools.hasBrightnessctl)     tool("󰃟", "Brightness control", "brightnessctl")
         if (!SystemTools.hasHyprsunset)        tool("󰖙", "Night light", "hyprsunset")
         if (!SystemTools.hasCava)              tool("󰝚", "Audio visualizer", "cava")
@@ -88,7 +88,7 @@ Column {
         if (!SystemTools.hasHyprlock)          tool("󰌾", "Screen lock", "hyprlock")
         // the warnings page stays visible and settable without notify-send, so this one is inert rather than hidden
         if (!SystemTools.hasNotifySend)
-            out.push({ g: "󰂚", n: "System alerts", s: "Battery and temperature warnings cannot be sent", v: "libnotify" })
+            out.push({ g: "󰂚", n: "System alerts", s: "Battery and temperature warnings cannot be sent", v: "libnotify", p: true })
         return out
     }
 
@@ -128,7 +128,8 @@ Column {
             }
         }
         HintText {
-            visible: root._issues.length > 0
+            // A repair action or a vanished font is not something to install.
+            visible: root._issues.some(i => i.p === true)
             text: "Install the listed package to enable its feature."
         }
         ControlRow {
