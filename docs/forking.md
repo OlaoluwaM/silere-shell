@@ -60,7 +60,7 @@ The name appears a few hundred times, nearly all of it cosmetic. Three matter:
 - the **config directory** `"/silere-shell"` in `services/ConfigStore.qml` —
   changing it leaves the old `settings.json` behind
 
-`grep -rIl silere .` finds the rest, and the systemd units are in there.
+`grep -rIl silere .` finds the rest.
 
 ## Before you push
 
