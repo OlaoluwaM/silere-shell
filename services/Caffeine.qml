@@ -240,10 +240,11 @@ Singleton {
 
     // catches drift from outside the shell (a manual systemctl call, the unit
     // failing on its own) since only systemd — not this singleton — decides
-    // when the unit actually starts or stops
+    // when the unit actually starts or stops. The state is invisible while idle,
+    // so sleep there and reconcile as soon as the session returns below.
     Timer {
         interval: 60000; repeat: true
-        running: root.available
+        running: root.available && !Idle.isIdle
         onTriggered: root._checkActive()
     }
 
@@ -321,7 +322,10 @@ Singleton {
     Connections {
         target: Idle
         function onIsIdleChanged() {
-            if (!Idle.isIdle && root.available) root._checkInhibitors()
+            if (!Idle.isIdle && root.available) {
+                root._checkActive()
+                root._checkInhibitors()
+            }
         }
     }
 
