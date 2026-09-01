@@ -65,14 +65,6 @@ Singleton {
         return "󰂱"
     }
 
-    readonly property string connectedGlyph: {
-        for (let i = 0; i < _devices.length; i++) {
-            const d = _devices[i]
-            if (d && d.connected) return root.deviceGlyph(d.icon)
-        }
-        return ""
-    }
-
     function _sortedDevices(): var {
         const list = root._devices.slice()
         list.sort((a, b) => {
