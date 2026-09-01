@@ -493,7 +493,7 @@ PanelWindow {
                             height: Math.round(parent.height * 0.44)
                             gradient: Gradient {
                                 GradientStop { position: 0.0; color: "transparent" }
-                                GradientStop { position: 1.0; color: Theme.withAlpha("#000000", 0.58) }
+                                GradientStop { position: 1.0; color: Theme.withAlpha(Theme.thumbnailScrim, 0.58) }
                             }
                         }
 
@@ -504,7 +504,7 @@ PanelWindow {
                             anchors.margins: 6
                             elide: Text.ElideRight
                             text: _tile.modelData.name
-                            color: "#ffffff"
+                            color: Theme.thumbnailText
                             font.pixelSize: Settings.fontMicro
                             font.weight: Font.DemiBold
                         }
