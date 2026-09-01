@@ -1146,6 +1146,13 @@ ShellRoot {
         root._check(PowerProfiles._parseProfile("balanced\n") === "balanced"
                 && PowerProfiles._parseProfile("balanced\nspoof") === "",
             "power-profiles-daemon output accepts exactly one profile")
+        root._check(PowerProfiles._parseDegraded('s ""\n') === "",
+            "power mode reads an undegraded profile as not throttled")
+        root._check(PowerProfiles._parseDegraded('s "lap-detected"\n') === "lap-detected",
+            "power mode reads the throttle reason the daemon reports")
+        root._check(PowerProfiles._parseDegraded("") === ""
+                && PowerProfiles._parseDegraded("Failed to get property") === "",
+            "power mode fails closed to not throttled on unreadable output")
         SystemTools._tools = { asusctl: true }
         root._check(PowerProfiles.backend === "asusctl"
                 && JSON.stringify(PowerProfiles._getCommand())
@@ -1521,6 +1528,16 @@ ShellRoot {
         const nothingHeld = QuickActionsState._airplaneRestore(false, false, false)
         root._check(nothingHeld.wifi && nothingHeld.bt,
             "leaving airplane mode with nothing latched restores both radios")
+
+        PowerProfiles._getRetries = 3
+        QuickActionsState.open = true
+        root._check(PowerProfiles._watched,
+            "quick actions keeps the power profile readable without the menu")
+        root._check(PowerProfiles._getRetries === 0,
+            "a control surface opening restarts the power profile read")
+        QuickActionsState.open = false
+        root._check(!PowerProfiles._watched,
+            "closing every panel releases the power profile read")
 
         CalendarState.anchorSource = null
         CalendarState.anchorX = 640

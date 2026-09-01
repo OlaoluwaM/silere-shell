@@ -206,10 +206,7 @@ Singleton {
     onBackendChanged: { root.profiles = []; if (root.available) root._listProfiles() }
 
     readonly property bool _watched: ControlSurfaces.anyOpen
-    on_WatchedChanged: {
-        if (root._watched) root._surfaceOpened()
-        else if (!root._correctiveRefreshPending) _getRetry.stop()
-    }
+    on_WatchedChanged: if (!root._watched && !root._correctiveRefreshPending) _getRetry.stop()
 
     function _surfaceOpened(): void {
         root._getRetries = 0
@@ -237,6 +234,10 @@ Singleton {
         root.lastError = ""
     }
 
+    Connections {
+        target: ControlSurfaces
+        function onOpened() { root._surfaceOpened() }
+    }
     Connections {
         target: SystemTools
         function onReadyChanged() { root._syncToolAvailability() }
