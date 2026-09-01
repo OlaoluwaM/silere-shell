@@ -549,22 +549,6 @@ PageShell {
                                 }
                             }
                         }
-
-                        ShellText {
-                            anchors.right: parent.right
-                            anchors.rightMargin: _entry._sidePad - 2
-                            anchors.bottom: parent.bottom
-                            anchors.bottomMargin: _entry._topPad - 4
-                            visible: _body.expanded || _body.truncated
-                            text: "󰅀"
-                            color: Theme.withAlpha(Theme.subtext,
-                                _entryHover.hovered ? 0.80 : 0.38)
-                            font.pixelSize: Settings.fontMicro
-                            rotation: _body.expanded ? 180 : 0
-                            transformOrigin: Item.Center
-                            ColorFade on color { gate: _entry._heightReady }
-                            MotionBehavior on rotation { gate: _entry._heightReady; NumberAnimation { duration: Motion.medium; easing.type: Easing.OutCubic } }
-                        }
                     }
             }
         }
