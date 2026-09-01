@@ -39,35 +39,53 @@ else
 fi
 
 if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && command -v hyprctl >/dev/null 2>&1; then
-  info "compositor" "$(hyprctl version 2>/dev/null | _first_line)"
+  if compositor_ver="$(hyprctl version 2>/dev/null)"; then
+    info "compositor" "$(printf '%s\n' "$compositor_ver" | _first_line)"
+  else
+    info "compositor" "Hyprland session unavailable"
+  fi
 elif [ -n "${NIRI_SOCKET:-}" ] && command -v niri >/dev/null 2>&1; then
-  info "compositor" "$(niri --version 2>&1 | _first_line)"
+  if compositor_ver="$(niri --version 2>&1)"; then
+    info "compositor" "$(printf '%s\n' "$compositor_ver" | _first_line)"
+  else
+    info "compositor" "niri session unavailable"
+  fi
 else
   info "compositor" "no live Hyprland or niri session (${XDG_CURRENT_DESKTOP:-${DESKTOP_SESSION:-unknown}})"
 fi
 
 section "git diff --check"
-if git diff --check; then
-  ok "worktree" "no whitespace errors"
+# a packaged or tarball install is not a checkout; without this the whole run reports
+# failure on a healthy shell and buries every check below it in git usage text
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  if git diff --check; then
+    ok "worktree" "no whitespace errors"
+  else
+    status=1
+  fi
+  if git diff --cached --check; then
+    ok "index" "no staged whitespace errors"
+  else
+    status=1
+  fi
 else
-  status=1
-fi
-if git diff --cached --check; then
-  ok "index" "no staged whitespace errors"
-else
-  status=1
+  info "git" "not a checkout, skipped"
 fi
 
 section "structural lint"
-lint_log="$(mktemp "${TMPDIR:-/tmp}/silere-ci-lint.XXXXXX.log")"
-if bash scripts/ci-lint.sh >"$lint_log" 2>&1; then
-  ok "ci-lint" "structural checks passed"
+if [ -f scripts/ci-lint.sh ]; then
+  lint_log="$(mktemp "${TMPDIR:-/tmp}/silere-ci-lint.XXXXXX.log")"
+  if bash scripts/ci-lint.sh >"$lint_log" 2>&1; then
+    ok "ci-lint" "structural checks passed"
+  else
+    status=1
+    fail "ci-lint" "structural checks failed"
+    cat "$lint_log"
+  fi
+  rm -f "$lint_log"
 else
-  status=1
-  fail "ci-lint" "structural checks failed"
-  cat "$lint_log"
+  info "ci-lint" "developer tooling, not in this install"
 fi
-rm -f "$lint_log"
 
 section "dependencies"
 require_tool() {
@@ -136,7 +154,7 @@ optional_tool hyprlock "lock screen"
 optional_any_tool "power actions" "power menu actions" systemctl loginctl
 optional_tool notify-send "system alert notifications"
 optional_tool busctl "notification daemon conflict check"
-optional_tool timeout "bounded update checks and smoke launch"
+optional_tool timeout "bounded helper checks and smoke launch"
 optional_tool fc-list "font detection"
 optional_tool fc-cache "font install refresh"
 
@@ -155,6 +173,7 @@ _cfg_home="$(_silere_xdg_home "${XDG_CONFIG_HOME:-}" .config)" || {
   fail "XDG config" "HOME must be an absolute path"
   _cfg_home=""
 }
+_data_home="$(_silere_xdg_home "${XDG_DATA_HOME:-}" .local/share)" || _data_home=""
 _wayland_socket() {
   [ -n "${WAYLAND_DISPLAY:-}" ] || return 1
   case "$WAYLAND_DISPLAY" in
@@ -218,11 +237,78 @@ if command -v pipewire >/dev/null 2>&1; then
   fi
 fi
 
+_autostart_hit=""
+for _cdir in "$_cfg_home/hypr" "$_cfg_home/niri"; do
+  [ -n "$_cfg_home" ] && [ -d "$_cdir" ] || continue
+  # A theme rule or comment may mention Silere without launching it. Accept the
+  # installer's marker or a real Hyprland/niri/Lua startup directive whose command
+  # names the launcher (packaged install) or the shell.qml path (checkout install).
+  _autostart_hit="$(grep -rliE \
+    '^[[:space:]]*(#|//|--)[[:space:]]*silere-shell begin[[:space:]]*$|^[[:space:]]*(exec-once[[:space:]]*=|spawn-at-startup([[:space:]]|")|hl\.exec_cmd\().*(silere-shell|silere-shell/shell\.qml)' \
+    "$_cdir" 2>/dev/null | head -n 1 || true)"
+  [ -n "$_autostart_hit" ] && break
+done
+# A compositor directive is what install.sh writes, but a session can just as well
+# start the shell from a systemd user unit. Without this the whole supported-but-
+# unwritten path reports as "it will not start on login" on a working install.
+_autostart_unit=""
+if [ -z "$_autostart_hit" ] && command -v systemctl >/dev/null 2>&1; then
+  _unit_dirs=(/etc/systemd/user /usr/lib/systemd/user)
+  [ -z "$_data_home" ] || _unit_dirs=("$_data_home/systemd/user" "${_unit_dirs[@]}")
+  [ -z "$_cfg_home" ] || _unit_dirs=("$_cfg_home/systemd/user" "${_unit_dirs[@]}")
+  for _udir in "${_unit_dirs[@]}"; do
+    [ -d "$_udir" ] || continue
+    # the launcher binary or the checkout's shell.qml, never a path that merely lives
+    # under silere-shell/ — unrelated helper units can sort first too
+    _autostart_unit="$(grep -rlE \
+      "^[[:space:]]*ExecStart=.*(shell\\.qml|silere-shell([[:space:]\"']|\$))" \
+      "$_udir" 2>/dev/null | head -n 1 || true)"
+    [ -n "$_autostart_unit" ] && break
+  done
+fi
+unset _unit_dirs
+_autostart_unit_live=false
+if [ -n "$_autostart_unit" ]; then
+  _unit_name="${_autostart_unit##*/}"
+  case "$(systemctl --user is-enabled "$_unit_name" 2>/dev/null || true)" in
+    enabled|enabled-runtime|indirect|generated) _autostart_unit_live=true ;;
+  esac
+  # a unit with no [Install] section is pulled in by a session target rather than
+  # enabled, so being wanted or already running is the only signal it will start
+  if ! $_autostart_unit_live \
+     && systemctl --user is-active --quiet "$_unit_name" 2>/dev/null; then
+    _autostart_unit_live=true
+  fi
+fi
+
+if [ -n "$_autostart_hit" ]; then
+  ok "autostart" "referenced in ${_autostart_hit#"${HOME:-}/"}"
+elif $_autostart_unit_live; then
+  ok "autostart" "started by ${_autostart_unit##*/}"
+elif [ -n "$_autostart_unit" ]; then
+  warn "autostart" "${_autostart_unit##*/} launches Silere but is neither enabled nor running"
+elif [ -n "$_cfg_home" ] && { [ -d "$_cfg_home/hypr" ] || [ -d "$_cfg_home/niri" ]; }; then
+  warn "autostart" "no Silere startup directive in the compositor config; it will not start on login"
+fi
+
 # These modules are imported unconditionally, so their packaging is required
 # even when the corresponding service/agent is not active in this session.
 # Shared with install.sh and CI so the module list and the import-root lookup
 # only exist in one place.
 source "$ROOT/scripts/lib/qml-modules.sh"
+
+# The shared module list owns the floor. Check the installed runtime before a missing
+# property makes the failure look like a QML problem.
+if [ "$qs_usable" -eq 1 ]; then
+  qs_version="$(_silere_quickshell_version || true)"
+  if [ -z "$qs_version" ]; then
+    warn "qs version" "cannot read a version from qs --version; Silere needs $SILERE_MIN_QUICKSHELL or newer"
+  elif _silere_version_at_least "$qs_version" "$SILERE_MIN_QUICKSHELL"; then
+    ok "qs version" "$qs_version (floor $SILERE_MIN_QUICKSHELL)"
+  else
+    fail "qs version" "$qs_version is older than the required $SILERE_MIN_QUICKSHELL"
+  fi
+fi
 
 require_qml_module() {
   local module="$1" rel found=""

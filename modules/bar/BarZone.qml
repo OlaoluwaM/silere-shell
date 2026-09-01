@@ -36,7 +36,7 @@ Row {
         const next = []
         for (let i = 0; i < widgetRepeater.count; i++) {
             const slot = widgetRepeater.itemAt(i)
-            if (slot && slot.show && slot.key.length > 0) next.push(slot.key)
+            if (slot && slot.contentShown && slot.key.length > 0) next.push(slot.key)
         }
 
         if (next.length === zone._visibleKeys.length
@@ -68,6 +68,12 @@ Row {
                 && (_loader.item.layoutVisible !== undefined
                     ? _loader.item.layoutVisible
                     : wanted && _loader.item.show)
+            // a widget can keep its reserved width while its own content already faded out;
+            // divider placement follows content, not a lingering width-collapse animation
+            readonly property bool contentShown: _loader.loadedKey === key && _loader.item
+                && (_loader.item.contentVisible !== undefined
+                    ? _loader.item.contentVisible
+                    : show)
             // per-slot primitives so a placement change invalidates one divider, not a map rebuilt for every widget
             readonly property int visibleIndex: zone.visibleKeys.indexOf(key)
             readonly property bool hasNext: visibleIndex >= 0
@@ -84,6 +90,7 @@ Row {
             // child visible cascades from this row, so use its non-cascading layout state
             visible: key.length > 0 && show
             onShowChanged: zone._queueVisibilitySync()
+            onContentShownChanged: zone._queueVisibilitySync()
             onWantedChanged: {
                 if (wanted) {
                     _unload.stop()

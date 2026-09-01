@@ -13,63 +13,74 @@ PageShell {
     required property int viewportHeight
 
     implicitHeight: viewportHeight
-    onPageShown: _timeTick++
+    onPageShown: root._touchNow()
 
     property bool _clearing: false
     property int _timeTick: 0
+    property real _nowMs: 0
+    property real _todayStartMs: 0
 
-    ArmConfirm { id: _clearConfirm }
-    readonly property bool _clearArmed: _clearConfirm.armed
+    function _touchNow(): void {
+        const nowMs = Date.now()
+        const now = new Date(nowMs)
+        root._nowMs = nowMs
+        root._todayStartMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+        root._timeTick++
+    }
+
+    Component.onCompleted: root._touchNow()
+
+    Connections {
+        target: ShellSettings
+        function onClock12hChanged() { root._touchNow() }
+    }
 
     Timer {
         interval: 60000
         repeat: true
         running: root.active && MenuState.open && !Idle.isIdle
-        onTriggered: root._timeTick++
+        onTriggered: root._touchNow()
     }
 
-    onPageHidden: _clearConfirm.disarm()
+    onPageHidden: {
+        _clearButton.disarm()
+    }
 
     function formatTime(ms): string {
-        const value = Number(ms || Date.now())
-        const diff = Math.max(0, Date.now() - value)
-        if (diff < 60000)   return "just now"
+        const nowMs = root._nowMs > 0 ? root._nowMs : Date.now()
+        const value = Number(ms || nowMs)
+        const diff = Math.max(0, nowMs - value)
+        if (diff < 60000)   return "now"
         if (diff < 3600000) return Math.floor(diff / 60000) + "m"
 
         const d = new Date(value)
-        const now = new Date()
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+        const today = root._todayStartMs > 0 ? root._todayStartMs : nowMs
         const day = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
         // whole days, not milliseconds: a DST day is 23 or 25 hours long, and the raw
         // gap then lands one bucket early — two sections both headed Yesterday
         const days = Math.round((today - day) / 86400000)
         if (days <= 0 && diff < 86400000) return Math.floor(diff / 3600000) + "h"
-        if (days === 1) return "Yesterday"
-        if (days < 7) return Qt.formatDateTime(d, "ddd")
-        return Qt.formatDateTime(d, "MMM d")
+        // the section header already carries the day, so an older entry only owes a clock
+        // qt only counts 12-hour when AP shares the format string
+        return Qt.formatDateTime(d, ShellSettings.clock12h ? "h:mm ap" : "HH:mm")
     }
 
     function dayKey(ms): string {
-        const d = new Date(Number(ms || Date.now()))
+        const d = new Date(Number(ms || root._nowMs || Date.now()))
         return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate()
     }
 
     function sectionLabel(ms): string {
-        const value = Number(ms || Date.now())
+        const nowMs = root._nowMs > 0 ? root._nowMs : Date.now()
+        const value = Number(ms || nowMs)
         const d = new Date(value)
-        const now = new Date()
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+        const today = root._todayStartMs > 0 ? root._todayStartMs : nowMs
         const day = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
         const days = Math.round((today - day) / 86400000)
         if (days <= 0) return "Today"
         if (days === 1) return "Yesterday"
         if (days < 7) return Qt.formatDateTime(d, "dddd")
         return Qt.formatDateTime(d, "MMM d, yyyy")
-    }
-
-    function requestClearAll(): void {
-        if (_clearing || Notifications.historyCount === 0) return
-        if (_clearConfirm.tryConfirm("clear")) clearAll()
     }
 
     function clearAll(): void {
@@ -146,65 +157,15 @@ PageShell {
                 }
             }
 
-            Rectangle {
+            ConfirmButton {
                 id: _clearButton
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 visible: Notifications.hasHistory
-                width: visible ? (root._clearArmed ? 92 : 68) : 0
-                height: Metrics.rowHeightFor(30)
-                radius: Theme.radiusControl
-                antialiasing: true
-                // null-guarded: visibility flips once more during page teardown, after the helper is gone
-                onVisibleChanged:     if (!visible && _clearConfirm) _clearConfirm.disarm()
-
-                color: root._clearArmed
-                    ? Theme.withAlpha(Theme.error, _clearTap.pressed ? 0.28 : 0.16)
-                    : _clearTap.pressed ? Theme.withAlpha(Theme.error, 0.20)
-                    : _clearHover.hovered ? Theme.withAlpha(Theme.subtext, 0.16) : Theme.menuControl
-                opacity: root._clearing ? 0.45 : 1.0
-
-                OutlineBorder {
-                    radius: _clearButton.radius
-                    outlineWidth: (root._clearArmed) ? 2 : 1
-                    outlineColor: root._clearArmed
-                        ? Theme.withAlpha(Theme.error, Theme.focusRingAlpha)
-                        : _clearHover.hovered ? Theme.menuControlLineHot : Theme.menuControlLine
-                    ColorFade on outlineColor {}
-                }
-
-                MotionBehavior on width {NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic } }
-                ColorFade on color {}
-                MotionBehavior on opacity {NumberAnimation { duration: Motion.fast } }
-                Accessible.role: Accessible.Button
-                Accessible.name: "Clear all notifications"
-                Accessible.focusable: !root._clearing
-                Accessible.onPressAction: root.requestClearAll()
-
-                HoverHandler { id: _clearHover; enabled: !root._clearing; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor }
-                TapHandler { id: _clearTap; enabled: !root._clearing; onTapped: root.requestClearAll() }
-
-                Row {
-                    anchors.centerIn: parent
-                    spacing: 4
-                    ShellText {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "󰆴"
-                        color: root._clearArmed ? Theme.error
-                            : _clearHover.hovered ? Theme.withAlpha(Theme.text, 0.88) : Theme.withAlpha(Theme.subtext, 0.72)
-                        font.pixelSize: Settings.fontSize
-                        ColorFade on color {}
-                    }
-                    ShellText {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: root._clearArmed ? "Confirm?" : "Clear"
-                        color: root._clearArmed ? Theme.error
-                            : _clearHover.hovered ? Theme.withAlpha(Theme.text, 0.88) : Theme.withAlpha(Theme.text, 0.76)
-                        font.pixelSize: Settings.fontCaption
-                        font.weight: root._clearArmed ? Font.DemiBold : Font.Normal
-                        ColorFade on color {}
-                    }
-                }
+                glyph: "󰆴"
+                label: "Clear"
+                busy:  root._clearing
+                onConfirmed: root.clearAll()
             }
         }
 
@@ -268,9 +229,11 @@ PageShell {
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 10
             width: parent.width
-            spacing: 8
+            // runs of one app close up and days pull apart, so every gap is carried by the delegate
+            spacing: 0
             visible: Notifications.hasHistory
-            cacheBuffer: 120
+            cacheBuffer: 240
+            reuseItems: true
             model: Notifications.historyModel
 
             // clearAll runs its own fade over the whole list, so per-row motion there
@@ -283,6 +246,17 @@ PageShell {
                 enabled: !root._clearing
                 NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Motion.fast }
             }
+            remove: Transition {
+                enabled: !root._clearing
+                ParallelAnimation {
+                    NumberAnimation { property: "opacity"; to: 0; duration: Motion.fast; easing.type: Easing.InCubic }
+                    NumberAnimation { property: "x"; to: 20; duration: Motion.fast; easing.type: Easing.InCubic }
+                }
+            }
+            removeDisplaced: Transition {
+                enabled: !root._clearing
+                NumberAnimation { property: "y"; duration: Motion.normal; easing.type: Easing.OutCubic }
+            }
 
             delegate: Item {
                     id: _entry
@@ -291,14 +265,36 @@ PageShell {
                     readonly property var modelData: model
                     required property int index
 
+                    readonly property var _prev: index > 0
+                        ? Notifications.historyModel.get(index - 1) : null
                     readonly property bool _critical: Number(modelData.urgency) === 2
-                    readonly property string _appIconSource: Notifications.appIconSource(
-                        modelData.appIcon, modelData.desktopEntry, modelData.appName)
-                    readonly property bool _showSection: index === 0
-                        || root.dayKey(modelData.time) !== root.dayKey(Notifications.historyModel.get(index - 1)?.time)
-                    readonly property int _sectionHeight: _showSection ? 26 : 0
-                    readonly property int _cardHeight: Math.max(70, _entryContent.implicitHeight + 20)
-                    readonly property int _fullHeight: _sectionHeight + _cardHeight
+                    readonly property bool _showSection: !_prev
+                        || root.dayKey(modelData.time) !== root.dayKey(_prev.time)
+                    // a run of one app carries its name once; the rest of the run is just the messages
+                    readonly property bool _showHeader: _showSection
+                        || String(_prev.appName) !== String(modelData.appName)
+
+                    readonly property string _appIconSource: {
+                        Notifications.entriesTick
+                        return _entry._showHeader ? Notifications.appIconSource(
+                            modelData.appIcon, modelData.desktopEntry, modelData.appName) : ""
+                    }
+                    readonly property string _appIconFallback: {
+                        Notifications.entriesTick
+                        return _entry._showHeader ? Notifications.entryIconSource(
+                            modelData.desktopEntry, modelData.appName) : ""
+                    }
+
+                    readonly property int _topPad: 11
+                    readonly property int _sidePad: 14
+                    readonly property int _rightGutter: _rightSlot.width + 10
+                    readonly property int _firstLineHeight: _showHeader ? _metaRow.height : _summary.height
+                    readonly property int _sectionHeight: _showSection ? 24 : 0
+                    readonly property int _gapAbove: index === 0 ? 0
+                        : _showSection ? 14 : _showHeader ? 8 : 3
+                    readonly property int _cardHeight: Metrics.snap4Up(
+                        _entryContent.implicitHeight + 2 * _entry._topPad)
+                    readonly property int _fullHeight: _gapAbove + _sectionHeight + _cardHeight
                     property bool _removing: false
 
                     width: _historyList.width
@@ -310,6 +306,21 @@ PageShell {
                     Timer { id: _heightArm; interval: 0; onTriggered: _entry._heightReady = true }
                     Component.onCompleted: _heightArm.start()
                     Component.onDestruction: _heightArm.stop()
+                    ListView.onPooled: {
+                        _heightArm.stop()
+                        _entry._heightReady = false
+                        _body.expanded = false
+                        _entry._removing = false
+                    }
+                    ListView.onReused: {
+                        // the remove transition pools the row at its faded-out x and opacity
+                        _entry.x = 0
+                        _entry.opacity = 1
+                        _body.expanded = false
+                        _entry._removing = false
+                        _entry._heightReady = false
+                        _heightArm.restart()
+                    }
                     MotionBehavior on height {
                         gate: _entry._heightReady
                         NumberAnimation { duration: Motion.normal; easing.type: Easing.OutCubic }
@@ -327,7 +338,7 @@ PageShell {
                         visible: _entry._showSection
                         anchors.left:  parent.left
                         anchors.right: parent.right
-                        anchors.top:   parent.top
+                        y: _entry._gapAbove
                         height: _entry._sectionHeight
 
                         ShellText {
@@ -355,36 +366,54 @@ PageShell {
                     Rectangle {
                         id: _card
                         x: 0
-                        y: _entry._sectionHeight
+                        y: _entry._gapAbove + _entry._sectionHeight
                         width: parent.width
                         height: _entry._cardHeight
                         radius: Theme.radiusControl
                         antialiasing: true
                         clip: true
-                        color: Theme.rowFill(_entryHover.hovered, false)
+                        color: Theme.rowFill(_entryHover.hovered, _entryTap.pressed)
 
                         OutlineBorder {
                             radius: _card.radius
                             outlineWidth: 1
                             outlineColor: _entry._critical ? Theme.withAlpha(Theme.error, 0.50)
                                 : Theme.menuCardBorder
-                            ColorFade on outlineColor {}
+                            // same gate as the height above: a recycled row would otherwise
+                            // cross-fade the previous notification's urgency colour into view
+                            ColorFade on outlineColor { gate: _entry._heightReady }
                         }
 
-                        ColorFade on color {}
-                        HoverHandler { id: _entryHover }
+                        ColorFade on color { gate: _entry._heightReady }
+                        HoverHandler {
+                            id: _entryHover
+                            cursorShape: (_body.truncated || _body.expanded) ? Qt.PointingHandCursor : Qt.ArrowCursor
+                        }
+                        TapHandler {
+                            id: _entryTap
+                            enabled: !root._clearing && !_entry._removing
+                            onTapped: eventPoint => {
+                                const p = _rightSlot.mapFromItem(_card, eventPoint.position.x, eventPoint.position.y)
+                                if (_rightSlot.contains(p)) return
+                                _body.toggle()
+                            }
+                        }
 
                         Column {
                             id: _entryContent
                             anchors.left: parent.left
-                            anchors.leftMargin: 14
+                            anchors.leftMargin: _entry._sidePad
                             anchors.right: parent.right
-                            anchors.rightMargin: 12
-                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.rightMargin: _entry._sidePad
+                            anchors.top: parent.top
+                            anchors.topMargin: _entry._topPad
                             spacing: 3
 
                             Row {
+                                id: _metaRow
                                 width: parent.width
+                                height: visible ? Math.max(16, _appName.implicitHeight) : 0
+                                visible: _entry._showHeader
                                 spacing: 7
 
                                 Item {
@@ -411,7 +440,15 @@ PageShell {
                                         visible: status === Image.Ready
                                         // without this the themed icon decodes at its native size (often 256px+) to paint 16px
                                         implicitSize: 16
-                                        source: _entry._appIconSource
+                                        // a deleted temp icon is still a valid path, so only the load failing reveals it
+                                        property bool _fellBack: false
+                                        readonly property string _primary: _entry._appIconSource
+                                        on_PrimaryChanged: _fellBack = false
+                                        source: _fellBack ? _entry._appIconFallback : _primary
+                                        onStatusChanged: if (status === Image.Error
+                                                && _entry._appIconFallback.length > 0
+                                                && _entry._appIconFallback !== _primary)
+                                            _fellBack = true
                                         asynchronous: true
                                     }
                                 }
@@ -419,28 +456,20 @@ PageShell {
                                 ShellText {
                                     id: _appName
                                     anchors.verticalCenter: parent.verticalCenter
-                                    width: Math.max(0, parent.width - _entryTime.implicitWidth
-                                        - parent.spacing - 28
-                                        - _appIconSlot.width - parent.spacing)
+                                    width: Math.max(0, parent.width - _appIconSlot.width
+                                        - parent.spacing - _entry._rightGutter)
                                     text: _entry.modelData.appName || "Notification"
                                     color: _entry._critical ? Theme.error : Theme.withAlpha(Theme.subtext, 0.70)
                                     font.pixelSize: Settings.fontCaption
                                     font.weight: Font.Medium
                                     elide: Text.ElideRight
                                 }
-
-                                ShellText {
-                                    id: _entryTime
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: { root._timeTick; return root.formatTime(_entry.modelData.time) }
-                                    color: Theme.withAlpha(Theme.subtext, 0.42)
-                                    font.pixelSize: Settings.fontMicro
-                                }
                             }
 
                             ShellText {
-                                width: parent.width
-                                rightPadding: 28
+                                id: _summary
+                                width: Math.max(0, parent.width
+                                    - (_metaRow.visible ? 0 : _entry._rightGutter))
                                 text: _entry.modelData.summary || "Notification"
                                 color: Theme.text
                                 font.pixelSize: Settings.fontSize
@@ -459,43 +488,82 @@ PageShell {
                             }
                         }
 
-                        Rectangle {
-                            id: _removeButton
-                            anchors.top: parent.top
-                            anchors.topMargin: 7
+                        // one right column for both states: the timestamp rests there and the
+                        // remove button takes its place under the pointer, so nothing reflows on hover
+                        Item {
+                            id: _rightSlot
                             anchors.right: parent.right
-                            anchors.rightMargin: 7
-                            width: 24
+                            anchors.rightMargin: _entry._sidePad
+                            anchors.top: parent.top
+                            anchors.topMargin: _entry._topPad
+                                + Math.round((_entry._firstLineHeight - height) / 2)
+                            width: Math.max(24, _entryTime.implicitWidth)
                             height: 24
-                            radius: 12
-                            antialiasing: true
                             z: 2
 
-                            color: _removeTap.pressed
-                                ? Theme.withAlpha(Theme.error, 0.24)
-                                : _removeHover.hovered ? Theme.withAlpha(Theme.error, 0.17) : Theme.withAlpha(Theme.subtext, 0.08)
-                            opacity: _entryHover.hovered ? 1.0 : 0.62
-                            scale: _removeTap.pressed ? 0.94 : 1.0
-
-                            ColorFade on color {}
-                            MotionBehavior on opacity {NumberAnimation { duration: Motion.fast } }
-
-                            OutlineBorder {
-                                radius: _removeButton.radius
-                                outlineWidth: 1
-                                outlineColor: _removeHover.hovered ? Theme.withAlpha(Theme.error, 0.36) : Theme.menuControlLine
-                                ColorFade on outlineColor {}
-                            }
-                            MotionBehavior on scale {NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic } }
-                            HoverHandler { id: _removeHover; cursorShape: Qt.PointingHandCursor }
-                            TapHandler { id: _removeTap; enabled: !root._clearing && !_entry._removing; onTapped: _entry.removeSelf() }
-
                             ShellText {
-                                anchors.centerIn: parent
-                                text: "󰅖"
-                                color: _removeHover.hovered ? Theme.error : Theme.withAlpha(Theme.subtext, 0.56)
-                                font.pixelSize: Settings.fontCaption
+                                id: _entryTime
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: { root._timeTick; return root.formatTime(_entry.modelData.time) }
+                                color: Theme.withAlpha(Theme.subtext, 0.42)
+                                font.pixelSize: Settings.fontMicro
+                                opacity: _entryHover.hovered ? 0 : 1
+                                MotionBehavior on opacity { gate: _entry._heightReady; NumberAnimation { duration: Motion.fast } }
                             }
+
+                            Rectangle {
+                                id: _removeButton
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 24
+                                height: 24
+                                radius: 12
+                                antialiasing: true
+
+                                color: _removeTap.pressed
+                                    ? Theme.withAlpha(Theme.error, 0.24)
+                                    : _removeHover.hovered ? Theme.withAlpha(Theme.error, 0.17) : Theme.withAlpha(Theme.subtext, 0.08)
+                                opacity: _entryHover.hovered ? 1.0 : 0.0
+                                visible: opacity > 0.001
+                                scale: _removeTap.pressed ? 0.94 : 1.0
+
+                                ColorFade on color { gate: _entry._heightReady }
+                                MotionBehavior on opacity { gate: _entry._heightReady; NumberAnimation { duration: Motion.fast } }
+
+                                OutlineBorder {
+                                    radius: _removeButton.radius
+                                    outlineWidth: 1
+                                    outlineColor: _removeHover.hovered ? Theme.withAlpha(Theme.error, 0.36) : Theme.menuControlLine
+                                    ColorFade on outlineColor { gate: _entry._heightReady }
+                                }
+                                MotionBehavior on scale { gate: _entry._heightReady; NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic } }
+                                HoverHandler { id: _removeHover; cursorShape: Qt.PointingHandCursor }
+                                TapHandler { id: _removeTap; enabled: !root._clearing && !_entry._removing; onTapped: _entry.removeSelf() }
+
+                                ShellText {
+                                    anchors.centerIn: parent
+                                    text: "󰅖"
+                                    color: _removeHover.hovered ? Theme.error : Theme.withAlpha(Theme.subtext, 0.56)
+                                    font.pixelSize: Settings.fontCaption
+                                }
+                            }
+                        }
+
+                        ShellText {
+                            anchors.right: parent.right
+                            anchors.rightMargin: _entry._sidePad - 2
+                            anchors.bottom: parent.bottom
+                            anchors.bottomMargin: _entry._topPad - 4
+                            visible: _body.expanded || _body.truncated
+                            text: "󰅀"
+                            color: Theme.withAlpha(Theme.subtext,
+                                _entryHover.hovered ? 0.80 : 0.38)
+                            font.pixelSize: Settings.fontMicro
+                            rotation: _body.expanded ? 180 : 0
+                            transformOrigin: Item.Center
+                            ColorFade on color { gate: _entry._heightReady }
+                            MotionBehavior on rotation { gate: _entry._heightReady; NumberAnimation { duration: Motion.medium; easing.type: Easing.OutCubic } }
                         }
                     }
             }

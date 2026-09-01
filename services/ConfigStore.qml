@@ -2,27 +2,18 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
-import Quickshell.Io
 
 Singleton {
     id: root
 
-    readonly property string directory: {
-        const configured = String(Quickshell.env("XDG_CONFIG_HOME") || "").trim()
-        if (configured.startsWith("/")) return configured + "/silere-shell"
-        const home = String(Quickshell.env("HOME") || "").trim()
-        return home.startsWith("/") ? home + "/.config/silere-shell" : ""
-    }
+    readonly property string directory: XdgPaths.configHome.length > 0
+        ? XdgPaths.configHome + "/silere-shell" : ""
     readonly property string settingsPath: directory.length > 0
         ? directory + "/settings.json" : ""
     readonly property string calendarMarksPath: directory.length > 0
         ? directory + "/calendar-marks.json" : ""
-    readonly property string quickshellStatePath: {
-        const configured = String(Quickshell.env("XDG_STATE_HOME") || "").trim()
-        if (configured.startsWith("/")) return configured + "/quickshell/states.json"
-        const home = String(Quickshell.env("HOME") || "").trim()
-        return home.startsWith("/") ? home + "/.local/state/quickshell/states.json" : ""
-    }
+    readonly property string quickshellStatePath: XdgPaths.stateHome.length > 0
+        ? XdgPaths.stateHome + "/quickshell/states.json" : ""
 
     property bool ready: false
     property string _error: ""
@@ -79,8 +70,9 @@ Singleton {
             "bash", path])
     }
 
-    Process {
+    BoundedProcess {
         id: _mkdir
+        timeoutMs: 10000
         command: ["bash", "-c",
             "umask 077; mkdir -m 0700 -p -- \"$1\" && chmod 0700 -- \"$1\"; " +
             "for f in \"$2\" \"$3\"; do " +

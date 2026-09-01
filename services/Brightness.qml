@@ -189,8 +189,9 @@ Singleton {
         if (next.length > 0) root.refresh()
     }
 
-    Process {
+    BoundedProcess {
         id: _listProc
+        timeoutMs: 5000
         command: ["bash", "-c",
             "for d in /sys/class/backlight/*; do " +
             "  [ -d \"$d\" ] || continue; " +

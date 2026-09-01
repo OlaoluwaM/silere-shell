@@ -25,12 +25,12 @@ Singleton {
     readonly property bool   barShowMedia:        true
     readonly property bool   barShowClock:        true
     readonly property bool   barShowNetwork:      true
-    readonly property bool   barShowBluetooth:    true
+    readonly property bool   barShowBluetooth:    false
     readonly property bool   barShowBattery:      true
     readonly property bool   barShowVolume:       true
     readonly property bool   barShowBrightness:   true
     readonly property string barWidgetOrderLeft:  "workspaces,media"
-    readonly property string barWidgetOrderCenter: ""
+    readonly property string barWidgetOrderCenter: "windowTitle"
     readonly property string barWidgetOrderRight: "tray,network,bluetooth,caffeine,volume,brightness,battery,clock"
     readonly property bool   barWidgetOrderLocked: false
     readonly property string caffeineUnit:        ""

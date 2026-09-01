@@ -6,14 +6,20 @@ import Quickshell
 Singleton {
     id: root
 
-    readonly property bool _clockNeeded: ShellSettings.barShowClock
-        || MenuState.homeActive
-        || CalendarState.open
+    function clockNeeded(barClock: bool, overview: bool, homeActive: bool,
+            calendarOpen: bool): bool {
+        return (barClock && !overview) || homeActive || calendarOpen
+    }
+
+    readonly property bool _clockNeeded: root.clockNeeded(
+        ShellSettings.barShowClock, OverviewState.active,
+        MenuState.homeActive, CalendarState.open)
 
     SystemClock {
         id: clock
         enabled: root._clockNeeded
-        precision: ShellSettings.barShowClock && ShellSettings.showSeconds && !Idle.isIdle
+        precision: ShellSettings.barShowClock && ShellSettings.showSeconds
+            && !Idle.isIdle && !OverviewState.active
             ? SystemClock.Seconds : SystemClock.Minutes
     }
 
@@ -31,6 +37,37 @@ Singleton {
     property string cachedSeconds:  ""
 
     Component.onCompleted: _update()
+
+    // relative "ago" text for surfaces that report when something last ran; the caller
+    // owns its own now, so nothing here ticks for a readout that is not on screen
+    function agoText(thenMs: real, nowMs: real): string {
+        if (thenMs <= 0) return ""
+        const secs = Math.max(0, Math.round((nowMs - thenMs) / 1000))
+        if (secs < 90) return "just now"
+        // floor, not round: 90 min is "1 h ago", never "2 h ago"
+        if (secs < 3600) return Math.floor(secs / 60) + " min ago"
+        if (secs < 86400) return Math.floor(secs / 3600) + " h ago"
+        const days = Math.floor(secs / 86400)
+        return days <= 1 ? "yesterday" : days + " days ago"
+    }
+
+    // qt only counts 12-hour when AP shares the format string; "h" alone still reads 0-23
+    function clockHour(d): string {
+        if (!ShellSettings.clock12h) return Qt.formatDateTime(d, "HH")
+        const text = Qt.formatDateTime(d, "h'|'AP")
+        const at = text.indexOf("|")
+        return at < 0 ? text : text.slice(0, at)
+    }
+
+    function clockSuffix(d): string {
+        return ShellSettings.clock12h ? Qt.formatDateTime(d, "AP") : ""
+    }
+
+    function clockText(d): string {
+        const suffix = root.clockSuffix(d)
+        return root.clockHour(d) + ":" + Qt.formatDateTime(d, "mm")
+            + (suffix.length > 0 ? " " + suffix : "")
+    }
 
     function isoWeek(d): int {
         const t = new Date(d.getFullYear(), d.getMonth(), d.getDate())
@@ -57,6 +94,11 @@ Singleton {
         function onIsIdleChanged() { root._update() }
     }
 
+    Connections {
+        target: OverviewState
+        function onActiveChanged() { if (!OverviewState.active) root._update() }
+    }
+
     function _refreshMinute(): void {
         root._lastMinute = ""
         root._update()
@@ -78,13 +120,8 @@ Singleton {
                 cachedWeek      = String(isoWeek(current))
             }
             cachedMinute = Qt.formatDateTime(current, "mm")
-            if (ShellSettings.clock12h) {
-                cachedHour = Qt.formatDateTime(current, "h")
-                cachedAmPm = Qt.formatDateTime(current, "AP")
-            } else {
-                cachedHour = Qt.formatDateTime(current, "HH")
-                cachedAmPm = ""
-            }
+            cachedHour = root.clockHour(current)
+            cachedAmPm = root.clockSuffix(current)
         }
         if (!ShellSettings.barShowClock || !ShellSettings.showSeconds) {
             cachedSeconds = ""

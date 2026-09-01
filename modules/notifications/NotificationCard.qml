@@ -17,6 +17,7 @@ Item {
 
     signal dismissRequested(int notifId, var notification, bool expired)
     signal leaving()
+    signal replyFocusRequested(var owner, bool active)
 
     // the countdown rings are the frame budget, and a ring that stops ticking for one collapse is invisible
     property bool quietPaint: false
@@ -50,15 +51,21 @@ Item {
         return out
     }
 
-    readonly property string appIconSource: Notifications.appIconSource(
-        notification.appIcon, notification.desktopEntry, card.appNameText)
-    readonly property string notificationImageSource: Notifications.fileUrl(notification.image)
+    readonly property string appIconSource: {
+        Notifications.entriesTick
+        return Notifications.appIconSource(
+            notification.appIcon, notification.desktopEntry, card.appNameText)
+    }
+    readonly property string entryIconSource: {
+        Notifications.entriesTick
+        return Notifications.entryIconSource(notification.desktopEntry, card.appNameText)
+    }
+    readonly property string notificationImageSource:
+        Notifications.notificationImageSource(notification.image)
     readonly property bool hasNotificationImage: notificationImageSource.length > 0
 
     readonly property string contentImageSource: notificationImageSource
     readonly property bool hasContentImage: contentImageSource.length > 0
-    readonly property string contentImageTarget: contentImageSource.startsWith("/")
-        || contentImageSource.startsWith("file:") ? contentImageSource : ""
     readonly property bool showContentImage: hasContentImage
         && _previewImg.status === Image.Ready
         && _previewImg.implicitWidth >= 200
@@ -81,10 +88,13 @@ Item {
     readonly property string fallbackInitial: SafeText.initial(
         card.appNameText || card.summaryText, "N")
     readonly property bool isCritical: notification.urgency === NotificationUrgency.Critical
+    readonly property bool hasInlineReply: notification.hasInlineReply === true
+    property bool _replyOpen: false
     readonly property real _cardRadius: Theme.surfaceRadius
 
     function dismiss(expired): void {
         if (!card.enabled) return
+        card.cancelReply()
         card._expired = expired === true
         card._leaving = true
         card.leaving()
@@ -106,8 +116,6 @@ Item {
         if (!card.enabled) return
         if (card._defaultAction)
             card._defaultAction.invoke()
-        else if (card.showContentImage && card.contentImageTarget.length > 0)
-            Qt.openUrlExternally(card.contentImageTarget)
 
         HyprActions.focusNotificationSource(card.notification)
         if (!card._defaultAction || !card.notification.resident)
@@ -130,9 +138,47 @@ Item {
 
     // not on bodyText: an in-place update (progress, chat) would collapse the body
     // under the reader on every tick; only a different notification resets it
-    onNotificationChanged: card._resetBodyExpansion()
-    onNotifIdChanged:      card._resetBodyExpansion()
+    function beginReply(): void {
+        if (!card.enabled || !card.hasInlineReply || card._replyOpen) return
+        card._replyOpen = true
+        card.replyFocusRequested(card, true)
+    }
 
+    function focusReplyInput(): void {
+        if (!card._replyOpen) return
+        _replyInput.forceActiveFocus()
+    }
+
+    function cancelReply(): void {
+        if (!card._replyOpen) return
+        card._replyOpen = false
+        _replyInput.text = ""
+        card.replyFocusRequested(card, false)
+    }
+
+    function _sendInlineReply(text): bool {
+        const reply = String(text || "").trim()
+        if (!card.enabled || !card.hasInlineReply || reply.length === 0
+                || typeof card.notification.sendInlineReply !== "function") return false
+        card.notification.sendInlineReply(reply)
+        return true
+    }
+
+    function submitReply(): void {
+        if (!card._sendInlineReply(_replyInput.text)) return
+        card._replyOpen = false
+        _replyInput.text = ""
+        card.replyFocusRequested(card, false)
+    }
+
+    onHasInlineReplyChanged: if (!hasInlineReply) card.cancelReply()
+    onNotificationChanged: {
+        card._resetBodyExpansion()
+        if (card._replyOpen) card.cancelReply()
+        else _replyInput.text = ""
+    }
+    onNotifIdChanged: card._resetBodyExpansion()
+    Component.onDestruction: card.replyFocusRequested(card, false)
     NumberAnimation {
         id: _collapseAnim
         target: card; property: "collapseRatio"
@@ -157,8 +203,7 @@ Item {
         if (secs < 60)        _timeLabel = "just now"
         else if (secs < 3600) _timeLabel = Math.floor(secs / 60) + "m ago"
         else {
-            const d = new Date(card._createdAt)
-            _timeLabel = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0")
+            _timeLabel = DateTime.clockText(new Date(card._createdAt))
             _timeLive = false
         }
     }
@@ -190,6 +235,7 @@ Item {
     property bool stackHovered: false
     readonly property bool _paused: _cardHover.hovered || card.stackHovered
         || _body.expanded
+        || card._replyOpen
 
     property real _hoverPausedMs: 0
     property real _hoverStartMs:  0
@@ -259,10 +305,13 @@ Item {
     Connections {
         target: Idle
         function onIsIdleChanged() {
-            if (!Idle.isIdle) {
-                card._updateTime()
-                card._syncCountdown()
+            // an open reply holds the countdown, so nothing else would ever retire this card
+            if (Idle.isIdle) {
+                card.cancelReply()
+                return
             }
+            card._updateTime()
+            card._syncCountdown()
         }
     }
 
@@ -343,9 +392,17 @@ Item {
                 anchors.fill: parent
                 // without this the themed icon decodes at its native size (often 256px+) to paint 24px
                 implicitSize: 24
-                source: card.hasNotificationImage && !card.showContentImage
-                    && _previewImg.status === Image.Ready
+                // a deleted temp icon is still a valid path, so only the load failing reveals it
+                property bool _fellBack: false
+                readonly property string _primary: card.hasNotificationImage
+                    && !card.showContentImage && _previewImg.status === Image.Ready
                     ? card.notificationImageSource : card.appIconSource
+                on_PrimaryChanged: _fellBack = false
+                source: _fellBack ? card.entryIconSource : _primary
+                onStatusChanged: if (status === Image.Error
+                        && card.entryIconSource.length > 0
+                        && card.entryIconSource !== _primary)
+                    _fellBack = true
                 asynchronous: true
             }
         }
@@ -515,6 +572,91 @@ Item {
                 }
             }
 
+            ActionButton {
+                visible: card.hasInlineReply && !card._replyOpen
+                width: parent.width
+                label: "Reply"
+                accessibleName: "Reply to " + (card.appNameText || "notification")
+                accentColor: card.isCritical ? Theme.error : Theme.accent
+                onTriggered: card.beginReply()
+            }
+
+            Rectangle {
+                id: _replyField
+                visible: card.hasInlineReply && card._replyOpen
+                width: parent.width
+                height: Metrics.rowHeightFor(36)
+                radius: Theme.radiusField
+                antialiasing: true
+                color: Theme.menuControl
+
+                OutlineBorder {
+                    radius: _replyField.radius
+                    outlineColor: _replyInput.activeFocus
+                        ? Theme.withAlpha(card.isCritical ? Theme.error : Theme.accent,
+                            Theme.focusRingSoftAlpha)
+                        : Theme.menuControlLine
+                    ColorFade on outlineColor {}
+                }
+
+                TextInput {
+                    id: _replyInput
+                    anchors.left: parent.left
+                    anchors.leftMargin: 11
+                    anchors.right: _replyCancel.left
+                    anchors.rightMargin: 7
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: Theme.text
+                    selectionColor: Theme.withAlpha(Theme.accent, 0.4)
+                    font.family: Settings.font
+                    font.pixelSize: Settings.fontSize
+                    clip: true
+                    maximumLength: 2048
+                    onAccepted: card.submitReply()
+                    Keys.onEscapePressed: event => {
+                        card.cancelReply()
+                        event.accepted = true
+                    }
+
+                    Accessible.name: "Reply to " + (card.appNameText || "notification")
+
+                    ShellText {
+                        anchors.fill: parent
+                        verticalAlignment: Text.AlignVCenter
+                        visible: _replyInput.text.length === 0
+                        text: Notifications.plainText(
+                            card.notification.inlineReplyPlaceholder, 128).trim() || "Reply"
+                        color: Theme.withAlpha(Theme.subtext, 0.48)
+                        font.pixelSize: Settings.fontSize
+                        elide: Text.ElideRight
+                    }
+                }
+
+                IconButton {
+                    id: _replyCancel
+                    anchors.right: _replySend.left
+                    anchors.rightMargin: 2
+                    anchors.verticalCenter: parent.verticalCenter
+                    buttonSize: 28
+                    glyph: "󰅖"
+                    accessibleName: "Cancel reply"
+                    onTriggered: card.cancelReply()
+                }
+
+                IconButton {
+                    id: _replySend
+                    anchors.right: parent.right
+                    anchors.rightMargin: 4
+                    anchors.verticalCenter: parent.verticalCenter
+                    buttonSize: 28
+                    glyph: "󰒊"
+                    accessibleName: "Send reply"
+                    enabled: _replyInput.text.trim().length > 0
+                    accentColor: card.isCritical ? Theme.error : Theme.accent
+                    onTriggered: card.submitReply()
+                }
+            }
+
             Row {
                 width: parent.width
                 spacing: 6
@@ -574,7 +716,7 @@ Item {
             width: 24; height: 24; radius: 12
             antialiasing: true
             color:        _closeHover.hovered ? Theme.withAlpha(Theme.error, 0.18) : Theme.menuControl
-            opacity: _cardHover.hovered ? 1.0 : 0.48
+            opacity: (_cardHover.hovered || _body.expanded || card._replyOpen) ? 1.0 : 0.48
 
             OutlineBorder {
                 radius: 12

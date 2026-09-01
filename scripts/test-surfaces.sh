@@ -3,11 +3,9 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+source "$ROOT/scripts/probe-lib.sh"
 
-on_interrupt() {
-    exit 130
-}
-trap on_interrupt INT TERM
+trap 'exit 130' INT TERM
 
 # Settings sections are reached through one Loader and are never built by the
 # startup smoke test, so a runtime-only error inside one stays invisible until a
@@ -24,35 +22,21 @@ trap on_interrupt INT TERM
 # to be scanned as well as the build count.
 PROBE="scripts/probe-surfaces.qml"
 
-if ! command -v qs >/dev/null 2>&1; then
-    echo "SKIP: quickshell (qs) not installed" >&2
-    exit 0
-fi
-# installed but unable to start must not skip: that would pass CI with no coverage
-if ! qs_probe="$(qs --version 2>&1)"; then
-    echo "FAIL: quickshell (qs) will not start: ${qs_probe%%$'\n'*}" >&2
-    exit 1
-fi
+_probe_require_qs
 # No display check on purpose: the offscreen QPA plugin needs neither Wayland
 # nor X, which is what lets this run in a CI container.
 if [ "$#" -gt 0 ]; then
     list="$(printf '%s\n' "$@")"
 else
     # Every settings section, plus every bar, menu and shared surface that builds
-    # standalone. A root-level required property is the one thing the probe cannot
-    # guess, so it is the filter; a delegate declares its own indented well past it,
-    # and PanelWindow roots drop out the same way since they all require a screen.
-    probeable() {
-        find "$1" -maxdepth 1 -name '*.qml' \
-            ! -exec grep -qE '^ {0,4}required property' {} \; -print
-    }
+    # standalone.
     list="$(
         find modules/menu/settings -name 'Settings*Section.qml'
-        probeable modules/menu
-        probeable modules/menu/controls
-        probeable modules/bar
-        probeable modules/bar/widgets
-        probeable modules/common
+        _probe_standalone modules/menu
+        _probe_standalone modules/menu/controls
+        _probe_standalone modules/bar
+        _probe_standalone modules/bar/widgets
+        _probe_standalone modules/common
         printf '%s\n' modules/menu/settings/SettingsPage.qml \
                       modules/menu/settings/DraggableWidgetList.qml
     )"
@@ -73,10 +57,7 @@ probe_runtime="$(mktemp -d "${TMPDIR:-/tmp}/silere-surfaces-runtime.XXXXXX")"
 chmod 0700 "$probe_runtime"
 probe_pid=""
 cleanup() {
-    if [ -n "${probe_pid:-}" ] && kill -0 "$probe_pid" 2>/dev/null; then
-        kill "$probe_pid" 2>/dev/null || true
-        wait "$probe_pid" 2>/dev/null || true
-    fi
+    _probe_stop "${probe_pid:-}"
     rm -f "$log"
     rm -rf "$default_cfg" "$a11y_cfg" "$allon_cfg" "$scale_cfg" "$probe_runtime"
 }
@@ -126,9 +107,7 @@ icon_max="$(sed -n 's/.*k: "barIconSize".*max: \([0-9]*\).*/\1/p' services/Shell
 printf '{"__version":1,"uiScale":%s,"barIconSize":%s}\n' "$ui_max" "$icon_max" \
     > "$scale_cfg/silere-shell/settings.json"
 
-# Neither Qt.exit() nor Quickshell.exit() ends a Quickshell process, so the probe
-# cannot quit itself: run it in the background, wait for its sentinel line, then
-# kill that PID. Never pkill — a name match would take down the user's shell.
+# Never pkill — a name match would take down the user's shell.
 run_probe() {  # $1 = label, $2 = XDG_CONFIG_HOME, $3 = Qt scale
     local qt_scale="${3:-1}"
     : > "$log"
@@ -138,13 +117,7 @@ run_probe() {  # $1 = label, $2 = XDG_CONFIG_HOME, $3 = Qt scale
         QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen \
         qs -p "$PROBE" --no-color >"$log" 2>&1 &
     probe_pid=$!
-    local waited=0
-    while [ "$waited" -lt 120 ]; do
-        grep -q 'PROBE-SURFACES built' "$log" 2>/dev/null && break
-        kill -0 "$probe_pid" 2>/dev/null || break
-        sleep 0.5
-        waited=$((waited + 1))
-    done
+    _probe_wait "$log" "$probe_pid" 'PROBE-SURFACES built' 120 0.5 || true
     if ! grep -q 'PROBE-SURFACES built' "$log" 2>/dev/null; then
         cat "$log" >&2
         echo "FAIL: surface probe did not finish ($1)" >&2
@@ -159,10 +132,7 @@ run_probe() {  # $1 = label, $2 = XDG_CONFIG_HOME, $3 = Qt scale
     # "Unable to assign" is the one that caught a QtObject bound to a property
     # typed Item — invisible to qmlcachegen and to a plain startup launch.
     local errs
-    # grep is line-oriented, so [^\n] here means "not backslash or n" and would
-    # truncate "Cannot assign to non-existent..." at the first n. Use .* instead.
-    errs="$(grep -oE 'Unable to assign .*|Cannot assign .*|is not a type|ReferenceError: [^,]*|TypeError: [^,]*|Binding loop detected[^,]*' "$log" \
-        | sort -u | head -10 || true)"
+    errs="$(_probe_errors "$log")"
     if [ -n "$errs" ]; then
         printf '%s\n' "$errs" | sed "s/^/  [$1] /" >&2
         failed=1
@@ -172,8 +142,7 @@ run_probe() {  # $1 = label, $2 = XDG_CONFIG_HOME, $3 = Qt scale
         exit 1
     fi
     printf '  %-12s %s\n' "$1" "$(grep -oE 'PROBE-SURFACES built [0-9]+/[0-9]+' "$log" | tail -1 | sed 's/PROBE-SURFACES built //')"
-    kill "$probe_pid" 2>/dev/null || true
-    wait "$probe_pid" 2>/dev/null || true
+    _probe_stop "$probe_pid"
     probe_pid=""
 }
 

@@ -7,6 +7,10 @@
 
 A personal fork of [s3rven/silere-shell](https://github.com/s3rven/silere-shell), a Quickshell/QML desktop shell. It serves as the only shell of a NixOS/Hyprland profile.
 
+Upstream v0.9.0 requires Quickshell 0.3.1 or newer. This repository's
+development flake pins that release; the deploying NixOS configuration must
+supply the same minimum before it re-locks the fork.
+
 It is the shell for the Hyprland profile in my [`nixos-config`](https://github.com/s3rven/silere-shell). `nixos-config` consumes
 the fork as a flake input (a source dependency pinned by commit), packages it, and writes its declared defaults into `config/GeneratedDefaults.qml` at build time.
 

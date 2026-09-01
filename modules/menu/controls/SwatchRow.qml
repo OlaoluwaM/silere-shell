@@ -15,6 +15,7 @@ Item {
     property int edgePadding: 4
     property color ringColor: "transparent"
     property int hoveredIndex: -1
+    property string accessiblePrefix: ""
 
     signal picked(int index)
 
@@ -61,6 +62,7 @@ Item {
                 required property int index
                 chipColor: root.colorAt(index)
                 name:      modelData.name ?? ""
+                accessiblePrefix: root.accessiblePrefix
                 spectrum:  modelData.spectrum === true
                 outlined:  root.outlined
                 active:    index === root.activeIndex

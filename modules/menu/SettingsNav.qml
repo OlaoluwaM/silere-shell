@@ -197,19 +197,34 @@ Item {
     }
 
     property int _settleGroup: -1
+    property int _pendingRevealGroup: -1
+
+    function _queueReveal(index: int): void {
+        // Keep an explicit group target once one is queued. Viewport resize
+        // notifications continue throughout the outer panel animation; replacing
+        // it with the selected-row fallback on every frame caused a second scroll.
+        if (index >= 0 || !_resizeSettle.running)
+            root._pendingRevealGroup = index
+        _resizeSettle.restart()
+    }
+
     Timer {
         id: _disclosureSettle
         interval: Motion.medium
-        onTriggered: {
-            if (root._settleGroup >= 0) root._scrollToGroup(root._settleGroup)
-            else root._scrollToSelection()
-        }
+        // Queue the reveal after the disclosure, then let _resizeSettle debounce
+        // any remaining outer-panel height frames.
+        onTriggered: root._queueReveal(root._settleGroup)
     }
 
     Timer {
         id: _resizeSettle
         interval: ShellSettings.reduceMotion ? 0 : 50
-        onTriggered: root._scrollToSelection()
+        onTriggered: {
+            const group = root._pendingRevealGroup
+            root._pendingRevealGroup = -1
+            if (group >= 0) root._scrollToGroup(group)
+            else root._scrollToSelection()
+        }
     }
 
     function _selectGroupAndScroll(): void {
@@ -220,7 +235,7 @@ Item {
                 root._setCollapsed(selectedGroup, false)
                 root._settleTo(selectedGroup)
             } else {
-                Qt.callLater(root._scrollToSelection)
+                root._queueReveal(-1)
             }
             return
         }
@@ -228,11 +243,11 @@ Item {
             root._expandedGroup = selectedGroup
             root._settleTo(selectedGroup)
         } else {
-            Qt.callLater(root._scrollToSelection)
+            root._queueReveal(-1)
         }
     }
 
-    Component.onCompleted: if (root.active) Qt.callLater(root._scrollToSelection)
+    Component.onCompleted: if (root.active) root._queueReveal(-1)
     onActiveChanged: {
         if (!active) {
             _disclosureSettle.stop()
@@ -263,7 +278,7 @@ Item {
         contentHeight: _content.height
         interactive: contentHeight > height + 1
 
-        onHeightChanged: if (root.active) _resizeSettle.restart()
+        onHeightChanged: if (root.active) root._queueReveal(-1)
 
         MotionBehavior on contentY {
             gate: !_navScroll.moving

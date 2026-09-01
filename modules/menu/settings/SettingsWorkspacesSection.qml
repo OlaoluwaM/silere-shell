@@ -86,6 +86,11 @@ Column {
             description: "Animate a workspace demanding attention"
             key: "wsUrgentPulse"
         }
+        ToggleRow {
+            glyph: "󰍜"; label: "Menu open pulse"
+            description: "Animate the marker when the menu opens"
+            key: "wsMenuPulse"
+        }
         HintText {
             visible: ShellSettings.reduceMotion
             text: "Reduce motion is on, so these animations stay off."

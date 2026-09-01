@@ -17,7 +17,7 @@ Canvas {
     // a parent that fades us out needs the last frame to survive the fade; painting and the cava client still stop at once
     property bool holdFrame: false
     readonly property bool _live: presentationActive && ShellSettings.mediaProgress
-        && !ShellSettings.reduceMotion && !Idle.isIdle
+        && !ShellSettings.reduceMotion && !Idle.isQuiet
         && Media.shown && Media.playing && Media.cavaReady && _onActiveBar
         && width > 0 && height > 0
 

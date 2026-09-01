@@ -10,6 +10,7 @@ Item {
     property bool   outlined:  false
     property bool   spectrum:  false
     property string name:      ""
+    property string accessiblePrefix: ""
     default property alias content: _chip.data
 
     signal picked()
@@ -23,7 +24,8 @@ Item {
     height: implicitHeight
 
     Accessible.role: Accessible.RadioButton
-    Accessible.name: root.name
+    Accessible.name: root.accessiblePrefix.length > 0
+        ? root.accessiblePrefix + ": " + root.name : root.name
     Accessible.focusable: root.enabled
     Accessible.checkable: true
     Accessible.checked: root.active

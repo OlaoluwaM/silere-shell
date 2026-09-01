@@ -2,9 +2,11 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import "config"
 import "services"
 import "modules/bar"
+import "modules/common"
 import "modules/bar/widgets"
 import "modules/bar/widgets/workspaces"
 import "modules/menu/controls"
@@ -17,6 +19,7 @@ ShellRoot {
 
     property int _failures: 0
     property int _checks: 0
+    property string _sentInlineReply: ""
 
     QtObject {
         id: probeAnchor
@@ -27,10 +30,48 @@ ShellRoot {
     Component { id: gradientSliderFactory; GradientSlider {} }
     Component { id: boundedProcessFactory; BoundedProcess {} }
     Component { id: durationPickerFactory; DurationPickerColumn {} }
+    Component { id: niriBackendFactory; CompositorNiri {} }
+    Component { id: processFactory; Process {} }
     Component { id: supervisedProcessFactory; SupervisedProcess {} }
     Component { id: barUnderlineFactory; BarUnderline {} }
+    Component {
+        id: selectRowFactory
+        SelectRow {
+            width: 320
+            label: "Probe select"
+            currentValue: "a"
+            model: [{ value: "a", label: "A" },
+                    { value: "b", label: "B" }]
+        }
+    }
     Component { id: workspaceButtonFactory; WorkspaceButton {} }
+    Component { id: pillFactory; Pill { visible: true; glyph: "a" } }
+    Component { id: rollingTextFactory; RollingText { visible: true; text: "one" } }
+    Component {
+        id: windowTitleFactory
+        WindowTitle {
+            screen: Quickshell.screens[0] ?? null
+            barActive: false
+        }
+    }
     Component { id: workspaceStripFactory; Workspaces { screen: null } }
+    Component {
+        id: workspaceMarkerFactory
+        WorkspaceMarker {
+            style: "gem"
+            rowHeight: 24
+            cellWidth: 26
+            targetX: 0
+            shown: true
+            inSpecial: false
+            urgent: false
+            menuTargets: false
+            barActive: true
+            paging: false
+            monitorReady: true
+            shiftEnabled: true
+        }
+    }
     Component {
         id: notificationCardFactory
         NotificationCard {
@@ -38,7 +79,10 @@ ShellRoot {
                 actions: [], hints: ({}), appIcon: "", image: "",
                 appName: "Probe", desktopEntry: "", summary: "Probe",
                 body: "", urgency: 1, expireTimeout: 5000,
-                resident: false, transient: false
+                resident: false, transient: false,
+                hasInlineReply: true,
+                inlineReplyPlaceholder: "Write a reply",
+                sendInlineReply: function(text) { root._sentInlineReply = text }
             })
             notifId: 2147483646
             createdAt: Date.now()
@@ -46,6 +90,11 @@ ShellRoot {
     }
 
     property var _timeoutProbe: null
+    property var _killProbe: null
+    property var _orphanCheck: null
+    readonly property string _orphanPidFile:
+        (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp")
+        + "/silere-bounded-orphan-" + Quickshell.processId
 
     function _check(condition: bool, label: string): void {
         root._checks++
@@ -94,6 +143,19 @@ ShellRoot {
             "a missing first palette remains the normal bundled fallback")
         MatugenTheme._everLoaded = paletteEverWas
         MatugenTheme.paletteStale = paletteStaleWas
+
+        root._check(XdgPaths.resolveHome("/tmp/config ", "/home/probe", ".config")
+                === "/tmp/config ",
+            "an absolute XDG path keeps significant trailing whitespace")
+        root._check(XdgPaths.resolveHome("relative", "/home/probe user", ".config")
+                === "/home/probe user/.config",
+            "a relative XDG path falls back to the absolute home without rewriting it")
+        root._check(XdgPaths.resolveHome("relative", "relative-home", ".config") === "",
+            "XDG path resolution rejects two relative roots")
+        root._check(XdgPaths.resolveAbsolute("/run/user/probe ") === "/run/user/probe ",
+            "an absolute XDG runtime path keeps significant trailing whitespace")
+        root._check(XdgPaths.resolveAbsolute("relative-runtime") === "",
+            "XDG runtime path resolution rejects a relative directory")
 
         const buttonIdle = Theme.buttonFill(Theme.accent, false, false)
         const buttonHover = Theme.buttonFill(Theme.accent, true, false)
@@ -157,6 +219,11 @@ ShellRoot {
             "widget layout drops unknown keys")
         root._check(layout.loc.media.zone === "left" && layout.loc.clock.zone === "center",
             "widget layout reports normalized locations")
+        const legacyLayout = ShellSettings._normaliseBarWidgetLayout(
+            "workspaces,media", "", "shellUpdate,tray,updates,network,volume,brightness,battery,clock")
+        root._check(legacyLayout.center.length === 1
+                && legacyLayout.center[0] === "windowTitle",
+            "an older saved widget layout migrates the new window title to its center default")
 
         const workspaceStrip = workspaceStripFactory.createObject(root)
         const forwardCrossing = workspaceStrip._intermediateIndexes(0, 2)
@@ -178,6 +245,22 @@ ShellRoot {
             "a reversed jump staggers by distance travelled, not by index")
         root._check(workspaceStrip._handoffDelayAt(50, 50, 50) === 0,
             "a hand-off with no distance to cover waits for nothing")
+        workspaceStrip.opacity = 0.4
+        workspaceStrip._pageShift = 8
+        workspaceStrip._settleGroupMotion()
+        root._check(workspaceStrip.opacity === 1 && workspaceStrip._pageShift === 0,
+            "retiring workspace page motion restores the settled layout")
+        MenuState.requestWarm(workspaceStrip, null)
+        root._check(MenuState.warmRequested
+                && MenuState.warmSource === workspaceStrip,
+            "an active workspace can request asynchronous menu preparation")
+        MenuState.requestWarm(probeAnchor, null)
+        MenuState.cancelWarm(workspaceStrip)
+        root._check(MenuState.warmSource === probeAnchor,
+            "an older bar cannot cancel a newer menu warm request")
+        MenuState.cancelWarm(probeAnchor)
+        root._check(!MenuState.warmRequested && MenuState.warmScreen === null,
+            "releasing the warm owner returns the menu loader to idle")
         workspaceStrip.destroy()
 
         root._check(Motion.allowsMotion(false, false)
@@ -185,12 +268,61 @@ ShellRoot {
                 && !Motion.allowsMotion(false, true),
             "visible motion is disabled by idle and reduce-motion states")
 
+        const workspaceMarker = workspaceMarkerFactory.createObject(root)
+        root._check(workspaceMarker !== null && workspaceMarker._motionAllowed(),
+            "the active workspace marker permits effects while visible and awake")
+        workspaceMarker.barActive = false
+        root._check(!workspaceMarker._motionAllowed(),
+            "a sleeping bar suppresses workspace marker effects")
+        workspaceMarker._tapScale = 1.12
+        workspaceMarker._moveScale = 1.08
+        workspaceMarker._specialScale = 1.05
+        workspaceMarker._glint = 0.4
+        workspaceMarker._settleMotion()
+        root._check(workspaceMarker._tapScale === 1
+                && workspaceMarker._moveScale === 1
+                && workspaceMarker._specialScale === 1
+                && workspaceMarker._glint === -1.15,
+            "retiring workspace effects restores every animated marker value")
+        workspaceMarker.destroy()
+
+        const pill = pillFactory.createObject(root)
+        pill._ready = true
+        root._check(pill !== null && pill.motionActive,
+            "an awake pill on a visible bar permits content motion")
+        pill.glyph = "b"
+        root._check(pill._shownGlyph === "a",
+            "an awake pill animates a glyph swap instead of jumping to it")
+        pill.barActive = false
+        root._check(!pill.motionActive && pill._shownGlyph === "b",
+            "a sleeping bar lands the pending glyph without animating")
+        pill.destroy()
+
+        const rolling = rollingTextFactory.createObject(root)
+        root._check(rolling !== null, "a rolling readout builds")
+        rolling._ready = true
+        rolling.text = "two"
+        root._check(rolling.clip, "an awake readout rolls between two values")
+        rolling.animate = false
+        root._check(!rolling.clip && rolling._shown === "two",
+            "a sleeping readout drops the roll and lands on the value")
+        rolling.destroy()
+
         const underline = barUnderlineFactory.createObject(root)
         root._check(underline !== null, "the reactive underline builds")
         underline.destroy()
 
         const notificationCard = notificationCardFactory.createObject(root)
         root._check(notificationCard !== null, "a notification card builds")
+        root._sentInlineReply = ""
+        root._check(notificationCard.hasInlineReply
+                && notificationCard._sendInlineReply("  hello  ")
+                && root._sentInlineReply === "hello",
+            "an inline notification reply is trimmed and sent through its live object")
+        root._sentInlineReply = ""
+        root._check(!notificationCard._sendInlineReply("   ")
+                && root._sentInlineReply.length === 0,
+            "an empty inline notification reply is not sent")
         notificationCard.destroy()
 
         root._check(OsdBarState._presentationAllowed(false, true)
@@ -208,6 +340,34 @@ ShellRoot {
                 && OverlayCoordinator._environmentBlocksControls(false, true),
             "screen blanking and overview activation retire open control surfaces")
 
+        const hintScreen = Quickshell.screens[0] ?? null
+        if (hintScreen) {
+            const barTooltipsWas = ShellSettings.barTooltips
+            ShellSettings.barTooltips = true
+            BarHintState.request(probeAnchor, hintScreen, 42, "First hint")
+            BarHintState._showPending()
+            root._check(BarHintState.open && BarHintState.triggerScreen === hintScreen
+                    && BarHintState.anchorX === 42 && BarHintState.text === "First hint",
+                "a delayed bar hint publishes its screen, anchor and actions together")
+            BarHintState.request(root, hintScreen, 84, "Second hint")
+            BarHintState.release(probeAnchor)
+            root._check(BarHintState.open && BarHintState.anchorX === 84
+                    && BarHintState.text === "Second hint",
+                "a stale bar widget cannot close the hint that replaced its own")
+            BarHintState.close()
+            ShellSettings.barTooltips = false
+            BarHintState.request(probeAnchor, hintScreen, 42, "Blocked hint")
+            BarHintState._showPending()
+            root._check(!BarHintState.open && BarHintState.triggerScreen === null,
+                "turning off bar tooltips blocks and clears the shared hint surface")
+            root._check(BarHintState._dwellSurvives(true, true, true)
+                    && !BarHintState._dwellSurvives(false, true, true)
+                    && !BarHintState._dwellSurvives(true, false, true)
+                    && !BarHintState._dwellSurvives(true, true, false),
+                "only a moving anchor from the same widget keeps a pending hint's dwell")
+            ShellSettings.barTooltips = barTooltipsWas
+        }
+
         const settingsNavComponent = Qt.createComponent("file://"
             + Quickshell.shellDir + "/modules/menu/SettingsNav.qml")
         const settingsNav = settingsNavComponent.status === Component.Ready
@@ -216,13 +376,44 @@ ShellRoot {
             "the internal settings navigation is available to the behavior probe")
         if (settingsNav !== null) {
             settingsNav._expandedGroup = 0
-            settingsNav._syncExpansionMode(false, "updates")
+            settingsNav._syncExpansionMode(false, "popups")
             root._check(settingsNav._expandedGroup
-                    === settingsNav._groupIndexForSection("updates"),
+                    === settingsNav._groupIndexForSection("popups"),
                 "leaving multi-group navigation keeps the selected settings group open")
+            settingsNav._queueReveal(3)
+            settingsNav._queueReveal(-1)
+            root._check(settingsNav._pendingRevealGroup === 3,
+                "viewport resize frames preserve an explicit settings group reveal")
             settingsNav.destroy()
         }
         settingsNavComponent.destroy()
+
+        const firstSelect = selectRowFactory.createObject(root)
+        const secondSelect = selectRowFactory.createObject(root)
+        root._check(firstSelect !== null && secondSelect !== null,
+            "shared settings selects build for coordination checks")
+        if (firstSelect && secondSelect) {
+            firstSelect._setOpen(true)
+            secondSelect._setOpen(true)
+            root._check(!firstSelect._open && secondSelect._open
+                    && MenuState._settingsSelectOwner === secondSelect,
+                "opening a settings select folds the previous dropdown")
+            secondSelect.model = []
+            root._check(!secondSelect._open
+                    && MenuState._settingsSelectOwner === null,
+                "an open settings select folds when its choices disappear")
+            const sectionBeforeSelectProbe = MenuState.settingsSection
+            const sectionAfterSelectProbe = sectionBeforeSelectProbe === "theme"
+                ? "interface" : "theme"
+            firstSelect._setOpen(true)
+            MenuState.setSettingsSection(sectionAfterSelectProbe)
+            root._check(!firstSelect._open
+                    && MenuState._settingsSelectOwner === null,
+                "leaving a settings page folds its open dropdown")
+            MenuState.setSettingsSection(sectionBeforeSelectProbe)
+        }
+        if (firstSelect) firstSelect.destroy()
+        if (secondSelect) secondSelect.destroy()
 
         // available is temp>0, which drops to 0 every time the service is
         // released; a control gated on it flickers on every menu open
@@ -249,7 +440,8 @@ ShellRoot {
             wsId: 2, monitorReady: true, active: false, occupied: false,
             urgent: false, apps: [], compact: false, iconSize: 12,
             cellWidth: 26, rowHeight: 24, barActive: true,
-            initialized: true, paging: false, markerCovers: true
+            initialized: true, paging: false, markerCovers: true,
+            screen: Quickshell.screens[0] ?? null
         })
         crossingCell.playMarkerPass(0)
         root._check(crossingCell && crossingCell.markerPassActive,
@@ -354,6 +546,10 @@ ShellRoot {
         const clean = JSON.parse(ShellSettings._serialize())
         root._check(Object.keys(clean).length === 1 && clean.__version === 1,
             "an unmodified settings file serializes to nothing but its version")
+        root._check(ShellSettings._backupSettingsText(
+                "probe-" + Date.now(), ShellSettings._serialize())
+                && ShellSettings._backupError.length === 0,
+            "a blocking settings backup reports success before recovery can continue")
 
         // the sec: on every schema entry exists only to light the nav dots, and ci-lint
         // guards the attribution but not the reader; an unrelated refactor deleted the
@@ -544,6 +740,14 @@ ShellRoot {
         MenuState.setSettingsSection("notifications")
         root._check(MenuState.settingsSection === "theme",
             "a settings page renamed since a keybind was written falls back to theme")
+        root._check(MenuState._ipcSection("Surface") === "surface"
+                && MenuState._ipcSection("INDICATORS") === "indicators",
+            "a settings page typed over ipc matches without case")
+        root._check(MenuState._ipcSection("nosuchpage") === "nosuchpage",
+            "an unknown ipc page name is left alone for the caller's message")
+        MenuState.setSettingsSection("Surface")
+        root._check(MenuState.settingsSection === "theme",
+            "setSettingsSection itself stays case-exact")
         MenuState.setSettingsSection(savedSection)
 
         root._check(CalendarState._validMarkKey("2024-2-29"),
@@ -590,6 +794,15 @@ ShellRoot {
         root._check(topPopupY + bottomPopupY + 200 === 1000,
             "top and bottom popup placement is symmetric")
 
+        root._check(Metrics.centeredSpanX(500, 200, 100, 900) === 400,
+            "a span that fits the free gap centres on its axis")
+        root._check(Metrics.centeredSpanX(500, 200, 450, 900) === 450,
+            "a wide left zone pushes the centred span clear of it")
+        root._check(Metrics.centeredSpanX(500, 200, 100, 550) === 350,
+            "a wide right zone pulls the centred span back inside the gap")
+        root._check(Metrics.centeredSpanX(500, 400, 400, 600) === 400,
+            "a span wider than the free gap still starts at the gap")
+
         root._check(IconResolver.localSource("https://example.invalid/icon.png") === "",
             "icon resolver rejects remote URLs")
         root._check(IconResolver.localSource("data:image/png;base64,AAAA") === "",
@@ -602,6 +815,24 @@ ShellRoot {
             "icon resolver keeps absolute file URLs")
         root._check(IconResolver.localSource("image://icon/test") === "image://icon/test",
             "icon resolver keeps Qt image providers")
+        root._check(IconResolver.senderImageSource("/tmp/fifo.png") === ""
+                && IconResolver.senderImageSource("file:///tmp/fifo.png") === "",
+            "notification images never open sender-provided filesystem nodes")
+        root._check(IconResolver.senderImageSource("image://qsimage/1")
+                === "image://qsimage/1",
+            "notification image providers remain available")
+        root._check(IconResolver.senderImageSource("image://icon/x?path=/etc/passwd") === ""
+                && IconResolver.senderIconSource("image://icon/x?path=/etc/passwd") === "",
+            "notification images and icons cannot reach the filesystem-backed icon provider")
+        root._check(IconResolver.senderIconSource("IMAGE://icon/x?path=/etc/passwd") === ""
+                && IconResolver.iconSource("Image://Icon/x?path=/etc/passwd") === "",
+            "the icon provider guard holds when the sender varies the scheme's case")
+        root._check(IconResolver.senderImageSource("image://QsImage/1")
+                === "image://QsImage/1",
+            "a mixed-case in-memory provider stays available")
+        root._check(IconResolver.senderIconSource("/tmp/fifo.png") === ""
+                && IconResolver.senderIconSource("file:///tmp/fifo.png") === "",
+            "notification icons never open sender-provided filesystem nodes")
         root._check(IconResolver.localSource("/tmp/icon #?.png")
                 === "file:///tmp/icon%20%23%3F.png",
             "icon resolver encodes local file paths")
@@ -638,6 +869,53 @@ ShellRoot {
                 === "Editor spoof",
             "compositor sanitizes client-controlled window text")
 
+        const titleWidget = windowTitleFactory.createObject(root, {
+            widthBudget: 10000
+        })
+        root._check(titleWidget !== null,
+            "the window-title widget builds for formatting checks")
+        if (titleWidget) {
+            root._check(titleWidget._labelKey("notes.md") === "notes md"
+                    && titleWidget._labelKey("md") === "md",
+                "window-title comparison keeps a dotted document name intact")
+            root._check(titleWidget._withoutAppSuffix(
+                    "Silere settings — Mozilla Firefox", "Firefox")
+                    === "Silere settings",
+                "a separately shown app is removed from branded title suffixes")
+            root._check(titleWidget._withoutAppSuffix(
+                    "Learn Firefox internals — Documentation", "Firefox")
+                    === "Learn Firefox internals — Documentation",
+                "ordinary title words that mention an app are left untouched")
+            root._check(titleWidget._withoutAppSuffix(
+                    "Topic — All about Firefox", "Firefox")
+                    === "Topic — All about Firefox",
+                "a descriptive suffix ending in an app name is not mistaken for branding")
+            titleWidget._shownVisible = true
+            titleWidget._shownShowApp = true
+            titleWidget._shownApp = "Firefox"
+            titleWidget._shownTitle = "Silere settings — Mozilla Firefox"
+            root._check(titleWidget._displayText === "Firefox "
+                    + ShellSettings.dotTextGlyph + " Silere settings"
+                    && titleWidget._spokenText === "Firefox, Silere settings",
+                "the visual and spoken window labels share the de-duplicated title")
+            titleWidget._shownShowApp = false
+            root._check(titleWidget._displayTitle
+                    === "Silere settings — Mozilla Firefox",
+                "title-only mode preserves application branding from the client")
+            titleWidget._shownShowApp = true
+            titleWidget._shownTitle = "Mozilla Firefox"
+            root._check(!titleWidget._showAppAndTitle
+                    && titleWidget._displayText === "Mozilla Firefox",
+                "a branded app-only title is not repeated beside the app name")
+            root._check(titleWidget._widthCap === Metrics.windowTitleWidthFor(false),
+                "an ultrawide window title stops at the shared readable-width cap")
+            titleWidget.compact = true
+            root._check(titleWidget._widthCap === Metrics.windowTitleWidthFor(true)
+                    && titleWidget._widthCap < Metrics.windowTitleWidthFor(false),
+                "compact mode gives the window title a smaller readable-width cap")
+            titleWidget.destroy()
+        }
+
         const longMediaText = "m".repeat(Media.maxMetadataChars + 20)
         root._check(SafeText.singleLineText(longMediaText, Media.maxMetadataChars).length
                 === Media.maxMetadataChars,
@@ -651,6 +929,24 @@ ShellRoot {
             "media service rejects remote file artwork")
         root._check(Media.artSource("https://example.invalid/bad\ncover.jpg") === "",
             "media service rejects control characters in artwork URLs")
+        root._check(Media.artSource("image://icon/x?path=/etc/passwd") === ""
+                && Media.artSource("IMAGE://icon/x?path=/etc/passwd") === "",
+            "media artwork cannot reach the filesystem-backed icon provider")
+        root._check(Media.artSource("image://qsimage/1") === "image://qsimage/1",
+            "media artwork keeps the in-memory image provider")
+        root._check(Media.privacyPlaceholderSource("Zen is playing media") === "Zen"
+                && Media.privacyPlaceholderSource("Song is playing") === "",
+            "media recognises a browser's generic playback placeholder")
+        root._check(Media.metadataIsPrivacyProtected(
+                "Zen is playing media", "", "", "Zen", "firefox",
+                "org.mpris.MediaPlayer2.firefox")
+                && !Media.metadataIsPrivacyProtected(
+                    "Zen is playing media", "", "https://youtube.com/watch?v=test",
+                    "Zen", "firefox", "org.mpris.MediaPlayer2.firefox")
+                && !Media.metadataIsPrivacyProtected(
+                    "A real video", "Creator", "", "Zen", "firefox",
+                    "org.mpris.MediaPlayer2.firefox"),
+            "media distinguishes privacy-redacted browser playback from real metadata")
         root._check(Media._cavaNoiseReduction >= 0
                 && Media._cavaNoiseReduction <= 1
                 && Media._cavaConfigText.includes("method = pipewire")
@@ -662,10 +958,19 @@ ShellRoot {
                 && Media.finiteNonnegative(Infinity) === 0
                 && Media.finiteNonnegative(12.5) === 12.5,
             "media service normalizes non-finite timing metadata")
+        root._check(Media.positionDemand(false, true, false)
+                && !Media.positionDemand(false, true, true)
+                && Media.positionDemand(true, false, true),
+            "media progress pauses with a concealed bar but stays live for the menu")
         root._check(Audio._clampVolume(NaN) === 0
                 && Audio._clampVolume(Infinity) === 0
                 && Audio._clampVolume(1.5) === 1,
             "audio service normalizes non-finite backend volume")
+        root._check(CpuTemp.temperatureDemand(false, true, false, false)
+                && !CpuTemp.temperatureDemand(false, true, false, true)
+                && CpuTemp.temperatureDemand(true, false, false, true)
+                && CpuTemp.temperatureDemand(false, false, true, true),
+            "temperature polling stays live for a visible underline, alert, or vitals widget")
         root._check(Audio.sinkLabel({ description: "s".repeat(300) }).length === 256,
             "audio service bounds PipeWire sink labels")
 
@@ -712,18 +1017,275 @@ ShellRoot {
             "non-interactive colour slider ignores scroll steps")
         gradient.destroy()
 
-        root._check(PowerProfiles._parseProfile("balanced\n") === "balanced",
-            "power mode accepts a known daemon profile")
-        root._check(PowerProfiles._parseProfile("balanced\nspoof") === "",
-            "power mode rejects malformed daemon output")
+        const toolsWas = SystemTools._tools
+        const readyWas = SystemTools.ready
+        const checkingWas = SystemTools.checking
+        const lastErrorWas = SystemTools.lastError
+        const revisionWas = SystemTools._scanRevision
+        SystemTools.ready = false
+        SystemTools.checking = true
+        SystemTools._tools = { hyprctl: true }
+        SystemTools._scanFailed("scan gave up")
+        root._check(SystemTools.ready && !SystemTools.checking
+                && SystemTools.lastError === "scan gave up"
+                && Object.keys(SystemTools._tools).length === 0
+                && SystemTools._scanRevision === revisionWas + 1,
+            "a capability scan that gives up still lands")
+        SystemTools._tools = toolsWas
+        SystemTools.ready = readyWas
+        SystemTools.checking = checkingWas
+        SystemTools.lastError = lastErrorWas
+        SystemTools._scanRevision = revisionWas
 
-        root._check(PowerProfiles._parseDegraded('s ""\n') === "",
-            "power mode reads an undegraded profile as not throttled")
-        root._check(PowerProfiles._parseDegraded('s "lap-detected"\n') === "lap-detected",
-            "power mode reads the throttle reason the daemon reports")
-        root._check(PowerProfiles._parseDegraded("") === ""
-                && PowerProfiles._parseDegraded("Failed to get property") === "",
-            "power mode fails closed to not throttled on unreadable output")
+        const cpuActiveWas = SysInfo._active
+        const cpuTotalWas = SysInfo._lastCpuTotal
+        const cpuIdleWas = SysInfo._lastCpuIdle
+        const cpuPctWas = SysInfo.cpuPct
+        SysInfo._active = true
+        SysInfo._lastCpuTotal = 0
+        SysInfo._lastCpuIdle = 0
+        // nonzero iowait: it counts as idle, and a sample without it proves nothing
+        SysInfo._applyCpuStat("cpu  100 0 100 800 100 0 0 0 0 0\n")
+        SysInfo._applyCpuStat("cpu  150 0 150 900 150 0 0 0 0 0\n")
+        root._check(Math.abs(SysInfo.cpuPct - 0.4) < 0.001,
+            "cpu load counts iowait as idle, not as busy")
+        // guest and guest_nice are already counted inside user and nice
+        SysInfo._lastCpuTotal = 0
+        SysInfo._lastCpuIdle = 0
+        SysInfo._applyCpuStat("cpu  100 0 100 800 0 0 0 0 500 500\n")
+        SysInfo._applyCpuStat("cpu  150 0 150 900 0 0 0 0 900 900\n")
+        root._check(Math.abs(SysInfo.cpuPct - 0.5) < 0.001,
+            "cpu load leaves out guest time already counted in user")
+        SysInfo._lastCpuTotal = cpuTotalWas
+        SysInfo._lastCpuIdle = cpuIdleWas
+        SysInfo.cpuPct = cpuPctWas
+        SysInfo._active = cpuActiveWas
+
+        const niri = niriBackendFactory.createObject(root)
+        niri._onLine(JSON.stringify({ WorkspacesChanged: { workspaces: [
+            { id: 11, idx: 1, output: "DP-1", is_active: true, is_focused: true },
+            { id: 22, idx: 2, output: "DP-1", is_active: false, is_focused: false }
+        ]}}))
+        niri._onLine(JSON.stringify({ WindowsChanged: { windows: [
+            { id: 90, workspace_id: 22, app_id: "probe.app", title: "t", pid: 1 }
+        ]}}))
+        const niriWs = niri.workspaces
+        const niriById = {}
+        for (let i = 0; i < niriWs.length; i++) niriById[niriWs[i].wsId] = niriWs[i]
+        root._check(niriById[2] !== undefined && niriById[2].occupied === true,
+            "a niri workspace holding an unfocused window reads as occupied")
+        root._check(niriById[1] !== undefined && niriById[1].occupied === false,
+            "a niri workspace holding no window reads as empty")
+        const titleSettingWas = ShellSettings.showWindowTitle
+        ShellSettings.showWindowTitle = true
+        niri._titleSyncTimer.stop()
+        niri._backgroundTitleSyncTimer.stop()
+        niri._onLine(JSON.stringify({ WindowOpenedOrChanged: { window:
+            { id: 90, workspace_id: 22, app_id: "probe.app", title: "background", pid: 1 }
+        }}))
+        root._check(niri._backgroundTitleSyncTimer.running
+                && !niri._titleSyncTimer.running,
+            "a background niri title waits for the batched title snapshot")
+        niri._backgroundTitleSyncTimer.stop()
+        niri._onLine(JSON.stringify({ WindowOpenedOrChanged: { window:
+            { id: 90, workspace_id: 22, app_id: "probe.app", title: "focused", pid: 1,
+              is_focused: true }
+        }}))
+        niri._titleSyncTimer.stop()
+        niri._onLine(JSON.stringify({ WindowOpenedOrChanged: { window:
+            { id: 90, workspace_id: 22, app_id: "probe.app", title: "focused again", pid: 1,
+              is_focused: true }
+        }}))
+        root._check(niri._titleSyncTimer.running
+                && !niri._backgroundTitleSyncTimer.running,
+            "the focused niri title keeps the responsive title path")
+        ShellSettings.showWindowTitle = titleSettingWas
+        niri.destroy()
+
+        // nmcli -t escapes a colon inside a name; the VPN row is the only reader left
+        const nmFields = Network._splitNmcliLine("home\\:vpn:vpn:activated")
+        root._check(nmFields.length === 3 && nmFields[0] === "home:vpn"
+                && nmFields[1] === "vpn" && nmFields[2] === "activated",
+            "an escaped colon stays inside one nmcli field")
+        const nmSlash = Network._splitNmcliLine("back\\\\slash:vpn")
+        root._check(nmSlash.length === 2 && nmSlash[0] === "back\\slash",
+            "an escaped backslash ends its own escape")
+        const nmEmpty = Network._splitNmcliLine("a::b")
+        root._check(nmEmpty.length === 3 && nmEmpty[1] === "",
+            "an empty nmcli field is kept in place")
+
+        const vpnStateWas = Network._vpnState
+        Network._vpnState = ({ active: true, name: "stale probe VPN" })
+        Network._vpnCandidateActive = true
+        Network._vpnCandidateName = "stale probe VPN"
+        Network._clearVpnState()
+        root._check(!Network.hasVpn && Network.vpnName.length === 0
+                && !Network._vpnCandidateActive
+                && Network._vpnCandidateName.length === 0,
+            "losing VPN detection clears both published and in-flight state")
+        Network._vpnState = vpnStateWas
+
+        const wheelKey = "probe-scroll"
+        root._check(Scroll._processDelta(60, wheelKey, 120, 2, 0) === 0,
+            "a half-notch wheel step emits nothing on its own")
+        root._check(Scroll._processDelta(60, wheelKey, 120, 2, 0) === 1,
+            "two half-notches accumulate into one step")
+        root._check(Scroll._processDelta(600, wheelKey, 120, 2, 0) === 2,
+            "one wheel burst emits at most the step ceiling")
+
+        const powerToolsWas = SystemTools._tools
+        const powerProfilesWas = PowerProfiles.profiles
+        PowerProfiles.profiles = []
+        SystemTools._tools = { powerprofilesctl: true, asusctl: true }
+        root._check(PowerProfiles.backend === "powerprofilesctl"
+                && JSON.stringify(PowerProfiles._getCommand())
+                    === JSON.stringify(["powerprofilesctl", "get"])
+                && JSON.stringify(PowerProfiles._setCommand("performance"))
+                    === JSON.stringify(["powerprofilesctl", "set", "performance"]),
+            "power mode prefers power-profiles-daemon when both backends are available")
+        root._check(PowerProfiles._parseProfile("balanced\n") === "balanced"
+                && PowerProfiles._parseProfile("balanced\nspoof") === "",
+            "power-profiles-daemon output accepts exactly one profile")
+        SystemTools._tools = { asusctl: true }
+        root._check(PowerProfiles.backend === "asusctl"
+                && JSON.stringify(PowerProfiles._getCommand())
+                    === JSON.stringify(["asusctl", "profile", "get"])
+                && JSON.stringify(PowerProfiles._setCommand("Performance"))
+                    === JSON.stringify(["asusctl", "profile", "set", "Performance"])
+                && JSON.stringify(PowerProfiles._listCommand())
+                    === JSON.stringify(["asusctl", "profile", "list"]),
+            "power mode falls back to asusctl with its profile subcommands")
+        root._check(PowerProfiles._parseAsusCurrent(
+                    "Active profile: Performance\nAC profile Performance\n")
+                    === "Performance"
+                && JSON.stringify(PowerProfiles._parseAsusList(
+                    "Quiet\nBalanced\nPerformance\n"))
+                    === JSON.stringify(["Quiet", "Balanced", "Performance"]),
+            "asusctl reports its active profile and available choices in its own format")
+        SystemTools._tools = powerToolsWas
+        PowerProfiles.profiles = powerProfilesWas
+
+
+        // qt reads the 12-hour clock off the whole format string: an hour formatted on its
+        // own still comes back 0-23 and lands beside a PM that contradicts it
+        const clock12Was = ShellSettings.clock12h
+        const oneAm    = new Date(2026, 0, 2, 1, 45)
+        const onePm    = new Date(2026, 0, 2, 13, 45)
+        const noon     = new Date(2026, 0, 2, 12, 5)
+        const midnight = new Date(2026, 0, 2, 0, 5)
+        ShellSettings.clock12h = false
+        root._check(DateTime.clockText(onePm) === Qt.formatDateTime(onePm, "HH:mm")
+                && DateTime.clockSuffix(onePm).length === 0,
+            "the 24-hour clock reads straight through with no suffix")
+        ShellSettings.clock12h = true
+        root._check(DateTime.clockHour(onePm) === DateTime.clockHour(oneAm)
+                && DateTime.clockHour(onePm) !== Qt.formatDateTime(onePm, "HH"),
+            "the 12-hour clock counts the afternoon from one, not thirteen")
+        root._check(DateTime.clockHour(midnight) === DateTime.clockHour(noon)
+                && DateTime.clockSuffix(midnight) !== DateTime.clockSuffix(noon),
+            "midnight and noon share an hour and split on the suffix")
+        root._check(DateTime.clockText(onePm).indexOf(DateTime.clockSuffix(onePm)) > 0,
+            "the composed clock text carries the suffix")
+        root._check(DateTime.clockNeeded(true, false, false, false)
+                && !DateTime.clockNeeded(true, true, false, false)
+                && DateTime.clockNeeded(true, true, true, false)
+                && DateTime.clockNeeded(false, true, false, true),
+            "the clock sleeps behind overview unless a background consumer needs it")
+        ShellSettings.clock12h = clock12Was
+
+        // auto is a mode, not a value: it must never consume the hand-picked temperature
+        const autoWas = ShellSettings.nightLightAuto
+        const tempWas = ShellSettings.nightLightTemp
+        ShellSettings.nightLightAuto = false
+        ShellSettings.nightLightTemp = 3400
+        root._check(NightLight.temperature === 3400,
+            "night light follows the manual temperature with auto off")
+        ShellSettings.nightLightAuto = true
+        root._check(NightLight.temperature === NightLight.suggestedTemp,
+            "night light follows the sun with auto on")
+        root._check(ShellSettings.nightLightTemp === 3400,
+            "night light auto does not overwrite the saved manual temperature")
+        ShellSettings.nightLightAuto = false
+        root._check(NightLight.temperature === 3400,
+            "night light restores the manual temperature when auto is turned off")
+        ShellSettings.nightLightTemp = tempWas
+        ShellSettings.nightLightAuto = autoWas
+
+        const geoResolvedWas = NightLight._geoResolved
+        const autoLatWas = NightLight._autoLat
+        const autoLonWas = NightLight._autoLon
+        root._check(NightLight._parseCoord("+5657+02406")
+                && Math.abs(NightLight._autoLat - 56.95) < 0.0001
+                && Math.abs(NightLight._autoLon - 24.1) < 0.0001,
+            "night light parses a valid zone-table coordinate")
+        const validLat = NightLight._autoLat
+        const validLon = NightLight._autoLon
+        root._check(!NightLight._parseCoord("+9060+02406")
+                && NightLight._autoLat === validLat && NightLight._autoLon === validLon,
+            "night light rejects invalid coordinate minutes without replacing its location")
+        root._check(!NightLight._parseCoord("+9001+18000")
+                && !NightLight._parseCoord("+9000+18001"),
+            "night light rejects coordinates beyond the latitude and longitude poles")
+        NightLight._geoResolved = geoResolvedWas
+        NightLight._autoLat = autoLatWas
+        NightLight._autoLon = autoLonWas
+
+        const cpuTempWas = CpuTemp.temp
+        const cpuHotWas = CpuTemp.hot
+        const cpuCriticalWas = CpuTemp.critical
+        const cpuHotCountWas = CpuTemp._hotCount
+        const cpuCriticalCountWas = CpuTemp._criticalCount
+        CpuTemp.temp = 104
+        CpuTemp.hot = true
+        CpuTemp.critical = true
+        CpuTemp._hotCount = 3
+        CpuTemp._criticalCount = 3
+        root._check(!CpuTemp._applySensorText("not-a-temperature")
+                && CpuTemp.temp === 0 && !CpuTemp.hot && !CpuTemp.critical
+                && CpuTemp._hotCount === 0 && CpuTemp._criticalCount === 0,
+            "an invalid CPU sensor read retires its stale warning state")
+        CpuTemp.temp = cpuTempWas
+        CpuTemp.hot = cpuHotWas
+        CpuTemp.critical = cpuCriticalWas
+        CpuTemp._hotCount = cpuHotCountWas
+        CpuTemp._criticalCount = cpuCriticalCountWas
+
+        // the probe budget belongs to one ambiguous spell, or a reading that leaves and
+        // re-enters ambiguity reuses a spent budget and the percentage the last spell resolved
+        const scaleWas = Battery._scale100
+        const attemptsWas = Battery._ambiguousAttempts
+        const overrideWas = Battery._pctOverride
+        Battery._ambiguousAttempts = 3
+        Battery._pctOverride = 42
+        Battery._clearAmbiguityProbe()
+        root._check(Battery._ambiguousAttempts === 0 && Battery._pctOverride === -1,
+            "battery clears both the probe budget and its answer, not just one")
+        // _raw is UPower's own reading, so the spell can only be ended here through the
+        // latch: whenever the scale is resolved the reading is no longer ambiguous
+        Battery._scale100 = true
+        root._check(!Battery._ambiguousRawOne,
+            "battery leaves ambiguity for good once the percentage scale is known")
+        Battery._scale100 = scaleWas
+        Battery._ambiguousAttempts = attemptsWas
+        Battery._pctOverride = overrideWas
+
+        // the inner shell keeps timeout alive after a hook entrypoint backgrounds work and exits
+        const hookArgv = ["/hooks/notification", "arg"]
+        const wrapped = Hooks._wrapArgv(hookArgv)
+        root._check(wrapped[0] === "timeout" && wrapped[1] === "--kill-after=2"
+                && wrapped[2] === "30" && wrapped[3] === "bash"
+                && wrapped[4] === "-c" && wrapped[5] === Hooks._groupWaitScript
+                && wrapped[6] === "silere-hook"
+                && wrapped[7] === "/hooks/notification" && wrapped[8] === "arg",
+            "a hook runs under the wrapper that signals its whole process group")
+        // SystemTools answers false until its scan lands, so the flag decides per run
+        root._check(JSON.stringify(Hooks._containedArgv(hookArgv))
+                === JSON.stringify(Hooks._contained ? wrapped : hookArgv),
+            "a hook is wrapped only where the wrapper is actually available")
+        root._check(Hooks._contained
+                ? Hooks._runner0.timeoutMs > Hooks.maxRuntimeMs + Hooks._containGraceMs
+                : Hooks._runner0.timeoutMs === Hooks.maxRuntimeMs,
+            "the in-shell hook timer backstops the wrapper instead of racing it")
 
         // the lua config framework replaces the plain dispatchers, so the two
         // dispatch forms are the difference between switching and doing nothing
@@ -748,6 +1310,8 @@ ShellRoot {
             "settings expose a row's schema by key")
         root._check(ShellSettings.schemaFor("noSuchSetting") === null,
             "settings reject an unknown schema key")
+        root._check(ShellSettings.schemaFor("barRadius").sec === "surface",
+            "roundness is attributed to the one page that carries its row")
         const spacingWas = ShellSettings.barSpacing
         ShellSettings.setValue("barSpacing", 999)
         root._check(ShellSettings.barSpacing === 24,
@@ -824,6 +1388,31 @@ ShellRoot {
         ShellSettings.baseTone = toneWas
         ShellSettings.osdTimeout = timeoutWas
 
+        root._check(ShellSettings._ipcKey("BARSPACING") === "barSpacing"
+                && ShellSettings._ipcKey("noSuchSetting") === "noSuchSetting",
+            "settings IPC folds known key capitalization without weakening schema lookup")
+        const ipcSpacingWas = ShellSettings.barSpacing
+        root._check(ShellSettings._ipcSet("BARSPACING", "999") === "24"
+                && ShellSettings.barSpacing === 24,
+            "a mixed-case IPC write resolves and reports its clamped value")
+        ShellSettings.barSpacing = ipcSpacingWas
+
+        const ipcLeftWas = ShellSettings.barWidgetOrderLeft
+        const ipcCenterWas = ShellSettings.barWidgetOrderCenter
+        const ipcRightWas = ShellSettings.barWidgetOrderRight
+        const ipcOrderResult = ShellSettings._ipcSet(
+            "BARWIDGETORDERCENTER", "clock,clock")
+        const ipcOrder = ShellSettings.barWidgetOrderLeftKeys.concat(
+            ShellSettings.barWidgetOrderCenterKeys,
+            ShellSettings.barWidgetOrderRightKeys)
+        root._check(ipcOrderResult === "clock,windowTitle"
+                && ShellSettings.barWidgetLocate("clock").zone === "center",
+            "a widget-order IPC write moves a key and restores center-default additions")
+        root._check(ipcOrder.length === ShellSettings.barWidgetKeys.length
+                && new Set(ipcOrder).size === ipcOrder.length,
+            "a widget-order IPC write restores missing keys and removes duplicates")
+        ShellSettings.setBarWidgetLayout(ipcLeftWas, ipcCenterWas, ipcRightWas)
+
         root._check(ShellSettings.constraintOf("barShowClock") === "true|false",
             "a bool key states its constraint")
         root._check(ShellSettings.constraintOf("barSpacing") === "4..24",
@@ -881,6 +1470,37 @@ ShellRoot {
                 "LCh gamut mapping preserves hue " + expected)
         }
 
+        let presetLSum = 0
+        for (let i = 0; i < Theme.neutralAccentPresets.length; i++)
+            presetLSum += Theme.lchOf(Theme.neutralAccentPresets[i].color).L
+        root._check(Math.abs(Theme._accentPresetL
+                - presetLSum / Theme.neutralAccentPresets.length) < 0.5,
+            "the balance target tracks the lightness the accent presets are solved at")
+
+        const balanceCases = ["#b9c3ff", "#ff5c1a", "#1b2a6b", "#39ff14", "#ffd6e7"]
+        for (let i = 0; i < balanceCases.length; i++) {
+            const source = Theme.lchOf(balanceCases[i])
+            const balanced = Theme.lchOf(Theme.balancedAccent(balanceCases[i]))
+            root._check(Math.abs(balanced.L - Theme._accentPresetL) < 0.5,
+                "a balanced accent lands on the preset lightness: " + balanceCases[i])
+            root._check(root._hueDistance(balanced.h, source.h) < 1.0,
+                "balancing an accent keeps its hue: " + balanceCases[i])
+            root._check(balanced.C <= 38.5 && balanced.C >= 19.5,
+                "a balanced accent carries preset chroma: " + balanceCases[i])
+        }
+
+        const balancedOnce = Theme.balancedAccent("#ff5c1a")
+        const balancedTwice = Theme.balancedAccent(balancedOnce)
+        root._check(Math.abs(Theme.lchOf(balancedOnce).L - Theme.lchOf(balancedTwice).L) < 0.05
+                && Math.abs(Theme.lchOf(balancedOnce).C - Theme.lchOf(balancedTwice).C) < 0.05,
+            "balancing an already balanced accent changes nothing")
+
+        const greyAccent = Theme.lchOf("#8a8a8a")
+        const greyBalanced = Theme.lchOf(Theme.balancedAccent("#8a8a8a"))
+        root._check(greyAccent.C < 4 && greyBalanced.C < 4
+                && Math.abs(greyBalanced.L - greyAccent.L) < 0.001,
+            "a palette with no accent hue is left alone rather than invented")
+
         root._check(Network._linkPriority(true, true) > Network._linkPriority(false, undefined)
                 && Network._linkPriority(true, undefined) > Network._linkPriority(false, undefined),
             "a wired link outranks Wi-Fi, and an unreported link counts as up")
@@ -901,16 +1521,6 @@ ShellRoot {
         const nothingHeld = QuickActionsState._airplaneRestore(false, false, false)
         root._check(nothingHeld.wifi && nothingHeld.bt,
             "leaving airplane mode with nothing latched restores both radios")
-
-        PowerProfiles._getRetries = 3
-        QuickActionsState.open = true
-        root._check(PowerProfiles._watched,
-            "quick actions keeps the power profile readable without the menu")
-        root._check(PowerProfiles._getRetries === 0,
-            "a control surface opening restarts the power profile read")
-        QuickActionsState.open = false
-        root._check(!PowerProfiles._watched,
-            "closing every panel releases the power profile read")
 
         CalendarState.anchorSource = null
         CalendarState.anchorX = 640
@@ -943,17 +1553,72 @@ ShellRoot {
                 && Notifications._updateTimes["52"] === undefined,
             "state for ids neither history nor the server holds is pruned")
 
-        const closedAdapter = { pairable: false }
+        const liveNotification = { id: 53, tracked: true }
+        Notifications.list = [{
+            notification: liveNotification, id: 53, time: 2300
+        }]
+        const liveList = Notifications.list
+        const updateTimes = Notifications._updateTimes
+        Notifications._recordUpdateTime(53, 2400)
+        const sameObjectIsNew = Notifications._upsertActiveNotification(
+            liveNotification, 2400)
+        root._check(!sameObjectIsNew && Notifications.list === liveList,
+            "an in-place notification update keeps the active list stable")
+        root._check(Notifications._updateTimes === updateTimes
+                && Notifications.updateTimeFor(53) === 2400,
+            "a notification update records its card timestamp without cloning the map")
+
+        const replacementNotification = { id: 53, tracked: true }
+        const replacementIsNew = Notifications._upsertActiveNotification(
+            replacementNotification, 2500)
+        root._check(replacementIsNew
+                && Notifications.list !== liveList
+                && Notifications.list[0].notification === replacementNotification
+                && Notifications.list[0].time === 2300
+                && !liveNotification.tracked,
+            "a replacement notification still retires the old object and keeps its age")
+        Notifications.list = []
+
+        let batchDismissed = 0
+        const batchOne = {
+            transient: false, tracked: true,
+            appName: "Probe", appIcon: "", desktopEntry: "",
+            summary: "Batch one", body: "", urgency: 1,
+            dismiss: function() { batchDismissed++ }, expire: function() {}
+        }
+        const batchTwo = {
+            transient: false, tracked: true,
+            appName: "Probe", appIcon: "", desktopEntry: "",
+            summary: "Batch two", body: "", urgency: 1,
+            dismiss: function() { batchDismissed++ }, expire: function() {}
+        }
+        Notifications._times = { "54": 2600, "55": 2700 }
+        Notifications.list = [
+            { notification: batchOne, id: 54, time: 2600 },
+            { notification: batchTwo, id: 55, time: 2700 }
+        ]
+        Notifications.dismissObjects([
+            { notification: batchOne, id: 54 },
+            { notification: batchTwo, id: 55 }
+        ], false)
+        root._check(batchDismissed === 2 && Notifications.activeCount === 0,
+            "a batched popup clear dismisses every live notification")
+        root._check(Notifications.historyCount === 2,
+            "a batched popup clear archives every notification")
+        Notifications.clearHistory()
+
+        const closedAdapter = { pairable: false, pairableTimeout: 0 }
         Bluetooth._armPairable(closedAdapter)
-        root._check(closedAdapter.pairable,
-            "a pairing attempt opens the adapter pairing window")
+        root._check(closedAdapter.pairable
+                && closedAdapter.pairableTimeout === Bluetooth._pairableTimeoutSec,
+            "a pairing attempt opens a bounded adapter pairing window")
         Bluetooth._restorePairable()
-        root._check(!closedAdapter.pairable,
-            "a completed pairing attempt closes the pairing window it opened")
-        const openAdapter = { pairable: true }
+        root._check(!closedAdapter.pairable && closedAdapter.pairableTimeout === 0,
+            "a completed pairing attempt restores the pairing window it changed")
+        const openAdapter = { pairable: true, pairableTimeout: 120 }
         Bluetooth._armPairable(openAdapter)
         Bluetooth._restorePairable()
-        root._check(openAdapter.pairable,
+        root._check(openAdapter.pairable && openAdapter.pairableTimeout === 120,
             "pairing preserves an adapter another owner already made pairable")
 
         root._check(Bluetooth._attemptOutcome("pair", true, false, true, false, 0) === "ok",
@@ -982,6 +1647,18 @@ ShellRoot {
         root._check(Notifications.historyCount === 1,
             "a notification retired with the popup window remains in history")
         Notifications.clearHistory()
+
+        Hooks._queued = ({})
+        Hooks._queueOrder = []
+        Hooks._queue("workspace-changed", ["/hooks/workspace-changed", "1"])
+        Hooks._queue("notification", ["/hooks/notification", "Probe"])
+        Hooks._queue("workspace-changed", ["/hooks/workspace-changed", "5"])
+        root._check(Hooks._queueOrder.length === 2
+                && Hooks._queueOrder[0] === "workspace-changed"
+                && Hooks._queued["workspace-changed"][1] === "5",
+            "a hook waiting on a busy runner keeps its place and takes the newest arguments")
+        Hooks._queued = ({})
+        Hooks._queueOrder = []
 
         root._startAnchorTeardown()
     }
@@ -1068,7 +1745,7 @@ ShellRoot {
                 "bounded process stops a wedged helper")
             root._timeoutProbe.destroy()
             root._timeoutProbe = null
-            Qt.callLater(root._finish)
+            Qt.callLater(root._runKillEscalationCheck)
         })
         root._timeoutProbe.running = true
     }
@@ -1093,6 +1770,58 @@ ShellRoot {
         root._check(MatugenTheme.transitioning
                 && MatugenTheme.accent.toString() !== "#654321",
             "a changed palette arms the gate and interpolates instead of snapping")
+    }
+
+    // Process has no signal() and running = false is only a SIGTERM, so a child that traps it
+    // outlives its own timeout and holds a runner slot for good unless the pid is killed
+    function _runKillEscalationCheck(): void {
+        root._killProbe = boundedProcessFactory.createObject(root, {
+            command: ["bash", "-c",
+                '(trap \'\' TERM; sleep 30) & echo $! > "$1"; '
+                    + 'trap \'\' TERM; sleep 30',
+                "silere-bounded-probe", root._orphanPidFile],
+            timeoutMs: 80
+        })
+        const startedAt = Date.now()
+        let refused = false
+        root._killProbe.timeoutReached.connect(function() {
+            refused = root._killProbe.running
+        })
+        root._killProbe.exited.connect(function() {
+            root._check(refused,
+                "a helper that traps SIGTERM survives the timeout's polite stop")
+            root._check(Date.now() - startedAt < 10000,
+                "a helper that traps SIGTERM is still killed outright")
+            root._killProbe.destroy()
+            root._killProbe = null
+            _orphanSettle.restart()
+        })
+        root._killProbe.running = true
+    }
+
+    // the wrapper and its descendant fall in the same kill pass, so let that pass drain
+    Timer {
+        id: _orphanSettle
+        interval: 400
+        onTriggered: {
+            root._orphanCheck = processFactory.createObject(root, {
+                command: ["bash", "-c",
+                    // a killed orphan re-parents to a PID 1 that may never reap it, and its
+                    // /proc entry outlives it as a zombie
+                    'read -r orphan < "$1" || exit 1; [ -n "$orphan" ] || exit 1; '
+                        + 'IFS= read -r line 2>/dev/null < "/proc/$orphan/stat" || exit 0; '
+                        + 'line=${line##*) }; [ "${line%% *}" = Z ]',
+                    "silere-bounded-check", root._orphanPidFile]
+            })
+            root._orphanCheck.exited.connect(function(code) {
+                root._check(code === 0,
+                    "a bounded process terminates descendants with its wrapper")
+                root._orphanCheck.destroy()
+                root._orphanCheck = null
+                Qt.callLater(root._finish)
+            })
+            root._orphanCheck.running = true
+        }
     }
 
     function _finish(): void {

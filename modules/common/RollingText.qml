@@ -7,6 +7,7 @@ Item {
 
     property string text: ""
     property color  color: Theme.text
+    property bool   animate: true
 
     clip: _roll.running
     anchors.verticalCenter: parent ? parent.verticalCenter : undefined
@@ -16,7 +17,7 @@ Item {
     width:  implicitWidth
     height: implicitHeight
     MotionBehavior on width {
-        gate: root._ready
+        gate: root._ready && root.animate
         NumberAnimation { duration: Motion.normal; easing.type: Easing.OutCubic }
     }
 
@@ -40,7 +41,7 @@ Item {
 
     onTextChanged: {
         if (_shown === text) return
-        if (!_ready || !visible || ShellSettings.reduceMotion) {
+        if (!_ready || !visible || !animate || ShellSettings.reduceMotion) {
             _settle()
             return
         }
@@ -49,6 +50,7 @@ Item {
         _roll.restart()
     }
     onVisibleChanged: if (!visible && _ready) _settle()
+    onAnimateChanged: if (!animate && _ready) _settle()
 
     Connections {
         target: ShellSettings

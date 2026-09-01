@@ -42,6 +42,7 @@ Singleton {
     readonly property bool hasFcList:        _tools["fc-list"] ?? false
     readonly property bool hasDbusMonitor:   _tools["dbus-monitor"] ?? false
     readonly property bool hasPwvucontrol:   _tools.pwvucontrol ?? false
+    readonly property bool hasTimeout:       _tools.timeout ?? false
 
     // "" | working | done | failed
     property string matugenRepairState: ""
@@ -89,6 +90,16 @@ Singleton {
         Quickshell.execDetached(argv)
     }
 
+    // a scan that never lands leaves every capability flag false for the session
+    function _scanFailed(message: string): void {
+        const lost = !root._sameTools(root._tools, ({}))
+        root._tools = ({})
+        root.lastError = message
+        root.ready = true
+        root.checking = false
+        if (lost) root._scanRevision++
+    }
+
     function refresh(): void {
         if (_checkProc.running) return
         // keep the last confirmed capability set while refreshing. Features no longer disappear briefly when Settings triggers a fresh probe
@@ -96,7 +107,7 @@ Singleton {
         lastError = ""
         _checkProc.exec(["bash", "-c",
             "for t in brightnessctl inotifywait nmcli cava matugen hyprsunset hyprlock systemctl loginctl hyprctl notify-send " +
-            "busctl powerprofilesctl asusctl fc-list dbus-monitor pwvucontrol; do " +
+            "busctl powerprofilesctl asusctl fc-list dbus-monitor pwvucontrol timeout; do " +
             "  command -v \"$t\" >/dev/null 2>&1 && echo \"$t\"; " +
             // the last lookup is optional; do not inherit its `command -v` status and discard every tool found before it
             "done; exit 0"])
@@ -104,18 +115,16 @@ Singleton {
 
     Component.onCompleted: refresh()
 
-    Process {
+    BoundedProcess {
         id: _checkProc
+        timeoutMs: 15000
         stdout: StdioCollector { id: _checkOut }
+        onTimeoutReached: root._scanFailed("Optional tool scan timed out")
         onExited: (code) => {
+            if (_checkProc.timedOut) return
             if (code !== 0) {
-                // A refresh must not leave removed tools advertised forever.
-                const lost = !root._sameTools(root._tools, ({}))
-                root._tools = ({})
-                root.lastError = "Optional tool scan failed (exit " + code + ")"
-                root.ready = true
-                root.checking = false
-                if (lost) root._scanRevision++
+                // a refresh must not leave removed tools advertised forever
+                root._scanFailed("Optional tool scan failed (exit " + code + ")")
                 return
             }
             const found = {}

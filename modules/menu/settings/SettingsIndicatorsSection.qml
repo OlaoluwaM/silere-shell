@@ -16,21 +16,19 @@ Column {
             expanded: ShellSettings.showWindowTitle
             ToggleRow {
                 glyph: "󰀻"; label: "App name"
+                description: "Show it beside or instead of the title"
                 key: "showWindowTitleApp"
-            }
-        }
-        // the centre visualiser takes this anchor too, with or without a title to place
-        CollapsibleSection {
-            expanded: ShellSettings.showWindowTitle || ShellSettings.centerVizConfigured
-            ToggleRow {
-                glyph: "󰉠"; label: "Center between widgets"
-                key: "windowTitleCenterGap"
             }
         }
     }
 
     SectionLabel { label: "INTERACTION" }
     SettingsCard {
+        ToggleRow {
+            glyph: "󰌶"; label: "Bar tooltips"
+            description: "Show controls and clipped titles on hover"
+            key: "barTooltips"
+        }
         ToggleRow {
             glyph: "󰍽"; label: "Hover highlight"
             key: "barHoverHighlight"

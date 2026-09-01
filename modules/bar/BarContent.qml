@@ -21,9 +21,12 @@ Item {
     readonly property int gap: Metrics.titleGapFor(effectiveCompact)
     readonly property bool centerHasWidgets: centerZone.implicitWidth > 0.5
     readonly property real _widgetLayoutWidth: centerHasWidgets
-        ? centerZone.implicitWidth
-            + 2 * Math.max(leftZone.implicitWidth, rightZone.implicitWidth)
-            + gap * 2
+        ? ShellSettings.barCenterInGap
+            ? leftZone.implicitWidth + centerZone.implicitWidth
+                + rightZone.implicitWidth + gap * 2
+            : centerZone.implicitWidth
+                + 2 * Math.max(leftZone.implicitWidth, rightZone.implicitWidth)
+                + gap * 2
         : leftZone.implicitWidth + rightZone.implicitWidth + gap
     readonly property real _osdLayoutWidth: _osdBarShowing && _osdLoader.item
         ? _osdLoader.item.implicitWidth
@@ -32,36 +35,25 @@ Item {
         : 0
     readonly property real minimumSurfaceWidth:
         Math.max(_widgetLayoutWidth, _osdLayoutWidth) + Settings.hPad * 2
-    readonly property int titleMinWidth: effectiveCompact ? 72 : 96
     readonly property real titleFreeLeft:  leftZone.implicitWidth + gap
     readonly property real titleFreeRight: width - rightZone.implicitWidth - gap
     readonly property real titleAvailableWidth: Math.max(0, titleFreeRight - titleFreeLeft)
-    readonly property bool titleHasRoom: !centerHasWidgets
-        && titleAvailableWidth >= titleMinWidth
 
-    property real titleAnchor: ShellSettings.windowTitleCenterGap
-        ? (titleFreeLeft + titleFreeRight) / 2
-        : width / 2
-    MotionBehavior on titleAnchor {
+    // animate the axis, not the zone's x: a title resize recentres at once while a
+    // side-widget change still carries the whole middle group
+    property real centerAxis: ShellSettings.barCenterInGap
+        ? (titleFreeLeft + titleFreeRight) / 2 : width / 2
+    // only the gap axis needs easing; width/2 rides the surface's own morph
+    MotionBehavior on centerAxis {
+        gate: ShellSettings.barCenterInGap
         NumberAnimation { duration: Motion.width; easing.type: Easing.OutCubic }
     }
 
     readonly property bool _compact: effectiveCompact
-    // window state, not layout: titleHasRoom would bind into the width loop the comment below describes,
-    // but "is there a client to title at all" is independent of every zone width
-    readonly property bool _titleHasClient: {
-        const t = Compositor.activeToplevel
-        return !!t && t.output === Compositor.monitorName(root.screen)
-    }
-    on_TitleHasClientChanged: _queueAutoCompact()
 
-    readonly property int mediaTextBudget: {
-        const base = _compact ? 120 : Metrics.mediaTrackWidth
-        if (!ShellSettings.showWindowTitle || centerHasWidgets || !_titleHasClient) return base
-        // a share of the whole bar, not of titleAvailableWidth: the media widget sits inside a zone
-        // that feeds titleFreeLeft/Right, so measuring the free gap here would bind into a loop
-        return Math.max(76, Math.min(base, Math.round(width * 0.065)))
-    }
+    readonly property int mediaTextBudget: _compact ? 120 : Metrics.mediaTrackWidth
+    // the configured span, not the grown one: the title feeds the width it would measure against
+    readonly property real titleWidthBudget: fitWidth > 0 ? fitWidth : 0
 
     function _queueAutoCompact(): void {
         _compactSync.restart()
@@ -78,8 +70,7 @@ Item {
 
         const layoutW = centerHasWidgets
             ? _widgetLayoutWidth
-            : leftZone.implicitWidth + rightZone.implicitWidth
-                + (ShellSettings.showWindowTitle && _titleHasClient ? 116 : 52)
+            : leftZone.implicitWidth + rightZone.implicitWidth + 52
         const capacity = fitWidth > 0 ? Math.min(fitWidth, width) : width
 
         if (!_autoCompact) {
@@ -129,29 +120,32 @@ Item {
         target: ShellSettings
         function onBarAutoCompactChanged() { root._queueAutoCompact() }
         function onBarCompactChanged() { root._queueAutoCompact() }
+        function onBarCenterInGapChanged() { root._queueAutoCompact() }
         function onShowWindowTitleChanged() { root._queueAutoCompact() }
     }
 
     // widgets bind height to root.height, not a forced-height Loader - Loader resize-to-fit mis-centres the diamond
     Component { id: _cWorkspaces;  Workspaces       { anchors.verticalCenter: parent.verticalCenter; screen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
     Component { id: _cTray;        TrayWidget       { anchors.verticalCenter: parent.verticalCenter; height: root.height; screen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
-    Component { id: _cTrayPopup;   TrayPopupWidget  { anchors.verticalCenter: parent.verticalCenter; height: root.height; screen: root.screen; compact: root.effectiveCompact } }
+    Component { id: _cTrayPopup;   TrayPopupWidget  { anchors.verticalCenter: parent.verticalCenter; height: root.height; screen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
     Component { id: _cNetwork;     NetworkWidget    { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact; barActive: root.barActive } }
-    Component { id: _cBluetooth;   BluetoothWidget  { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact } }
-    Component { id: _cVolume;      Volume           { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact } }
-    Component { id: _cBrightness;  BrightnessWidget { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact } }
-    Component { id: _cCaffeine;    CaffeineWidget   { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact } }
-    Component { id: _cDnd;         DndWidget        { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact } }
-    Component { id: _cAirplane;    AirplaneWidget   { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact } }
-    Component { id: _cBattery;     BatteryWidget    { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact } }
-    Component { id: _cVitals;      VitalsWidget     { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact } }
-    Component { id: _cPrivacy;     PrivacyWidget    { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact } }
+    Component { id: _cBluetooth;   BluetoothWidget  { anchors.verticalCenter: parent.verticalCenter; height: root.height; hintScreen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
+    Component { id: _cVolume;      Volume           { anchors.verticalCenter: parent.verticalCenter; height: root.height; hintScreen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
+    Component { id: _cBrightness;  BrightnessWidget { anchors.verticalCenter: parent.verticalCenter; height: root.height; hintScreen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
+    Component { id: _cBattery;     BatteryWidget    { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact; barActive: root.barActive } }
+    Component { id: _cCaffeine;    CaffeineWidget   { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact; barActive: root.barActive } }
+    Component { id: _cDnd;         DndWidget        { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact; barActive: root.barActive } }
+    Component { id: _cAirplane;    AirplaneWidget   { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact; barActive: root.barActive } }
+    Component { id: _cVitals;      VitalsWidget     { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact; barActive: root.barActive } }
+    Component { id: _cPrivacy;     PrivacyWidget    { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact; barActive: root.barActive } }
     Component { id: _cRecording;   RecordingWidget  { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact; barActive: root.barActive } }
     Component { id: _cMedia;       MediaWidget      { anchors.verticalCenter: parent.verticalCenter; height: root.height; screen: root.screen; textBudget: root.mediaTextBudget; compact: root.effectiveCompact; barActive: root.barActive } }
-    Component { id: _cClock;       Clock            { anchors.verticalCenter: parent.verticalCenter; screen: root.screen; compact: root.effectiveCompact } }
+    Component { id: _cClock;       Clock            { anchors.verticalCenter: parent.verticalCenter; screen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
+
+    Component { id: _cWindowTitle; WindowTitle { anchors.verticalCenter: parent.verticalCenter; screen: root.screen; widthBudget: root.titleWidthBudget; compact: root.effectiveCompact; barActive: root.barActive } }
 
     readonly property var _widgetComponents: ({
-        workspaces: _cWorkspaces, tray: _cTray, traypopup: _cTrayPopup,
+        workspaces: _cWorkspaces, windowTitle: _cWindowTitle, tray: _cTray, traypopup: _cTrayPopup,
         network: _cNetwork, bluetooth: _cBluetooth, volume: _cVolume, brightness: _cBrightness, caffeine: _cCaffeine, dnd: _cDnd, airplane: _cAirplane, battery: _cBattery,
         vitals: _cVitals, privacy: _cPrivacy, recording: _cRecording, media: _cMedia, clock: _cClock
     })
@@ -176,9 +170,8 @@ Item {
         && !ShellSettings.reduceMotion && !Idle.isIdle
         && root.barActive && root._onActiveBar && Media.shown && Media.playing && Media.cavaReady
     readonly property bool _centerVizHasRoom: titleAvailableWidth >= 48
-    // center widgets and the title keep their slot; the visualizer drops behind them instead of being suppressed
+    // center widgets keep their slot; the visualizer drops behind them instead of being suppressed
     readonly property bool _centerVizBehind: root.centerHasWidgets
-        || (ShellSettings.showWindowTitle && root.titleHasRoom)
     readonly property real _centerVizBehindOpacity: 0.30
     readonly property bool _centerVizShowing: _centerVizWanted && _centerVizHasRoom
         && !root._osdBarShowing
@@ -187,70 +180,17 @@ Item {
     readonly property int _centerVizWidth: 8 * Math.round(Math.max(48, Math.min(560,
         titleAvailableWidth * 0.68
     )) / 8)
-    // centre widgets anchor to the bar's centre, so the visualiser sitting behind them has to use
-    // that same axis; with the slot free it follows the title's anchor rule instead
-    readonly property real _centerVizAnchor:
-        root.centerHasWidgets || !ShellSettings.windowTitleCenterGap
-            ? width / 2 : (titleFreeLeft + titleFreeRight) / 2
-    readonly property int _centerVizX: Math.round(Math.max(titleFreeLeft,
-        Math.min(_centerVizAnchor - _centerVizWidth / 2,
-                 titleFreeRight - _centerVizWidth)))
-
-    Loader {
-        id: _wTitle
-        anchors.verticalCenter: parent.verticalCenter
-        x: Math.round(Math.max(root.titleFreeLeft,
-                               Math.min(root.titleAnchor - width / 2,
-                                        root.titleFreeRight - width)))
-        width: item && root.titleHasRoom ? Math.min(item.implicitWidth, root.titleAvailableWidth) : 0
-        height: parent.height
-        active: ShellSettings.showWindowTitle && root.titleHasRoom
-        sourceComponent: Component {
-            WindowTitle {
-                screen: root.screen
-                availableWidth: root.titleHasRoom ? root.titleAvailableWidth : 0
-            }
-        }
-        transformOrigin: Item.Center
-        visible: opacity > 0.001
-
-        // no Behavior on x: titleAnchor already eases, and animating x too drifts the title sideways as new text fades in
-
-        readonly property bool _want: ShellSettings.showWindowTitle && root.titleHasRoom
-            && !root._osdBarShowing
-        state: _want ? "shown" : "hidden"
-
-        states: [
-            State { name: "shown";  PropertyChanges { _wTitle.opacity: 1.0; _wTitle.scale: 1.0 } },
-            State { name: "hidden"; PropertyChanges { _wTitle.opacity: 0.0; _wTitle.scale: 0.92 } }
-        ]
-        transitions: [
-            Transition {
-                to: "shown"
-                enabled: !ShellSettings.reduceMotion
-                SequentialAnimation {
-                    PauseAnimation  { duration: Motion.fast }
-                    ParallelAnimation {
-                        NumberAnimation { property: "opacity"; duration: Motion.normal; easing.type: Easing.OutCubic }
-                        NumberAnimation { property: "scale";   duration: Motion.normal; easing.type: Easing.OutCubic }
-                    }
-                }
-            },
-            Transition {
-                to: "hidden"
-                enabled: !ShellSettings.reduceMotion
-                ParallelAnimation {
-                    NumberAnimation { property: "opacity"; duration: Motion.fast; easing.type: Easing.InCubic }
-                    NumberAnimation { property: "scale";   duration: Motion.fast; easing.type: Easing.InCubic }
-                }
-            }
-        ]
-    }
+    // shares the widgets' axis when the slot is filled; centres in the free span when it is not
+    readonly property real _centerVizAnchor: root.centerHasWidgets
+        ? root.centerAxis : (titleFreeLeft + titleFreeRight) / 2
+    readonly property int _centerVizX: Metrics.centeredSpanX(
+        _centerVizAnchor, _centerVizWidth, titleFreeLeft, titleFreeRight)
 
     BarZone {
         id: centerZone
-        anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
+        x: Metrics.centeredSpanX(root.centerAxis, width,
+            root.titleFreeLeft, root.titleFreeRight)
         height: parent.height
         orderKeys: ShellSettings.barWidgetOrderCenterKeys
         widgetComponents: root._widgetComponents
@@ -293,9 +233,6 @@ Item {
         // behind the widgets and the title, still above the bar surface painted by Bar.qml
         z: root._centerVizBehind ? -1 : 1
 
-        MotionBehavior on x {
-            NumberAnimation { duration: Motion.width; easing.type: Easing.OutCubic }
-        }
         MotionBehavior on opacity {
             NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic }
         }

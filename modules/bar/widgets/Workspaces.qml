@@ -44,7 +44,10 @@ Item {
     implicitWidth:  wsRow.implicitWidth + (urgentOffPage > 0 ? 12 : 0)
     implicitHeight: btnH
 
-    MotionBehavior on implicitWidth {NumberAnimation { duration: Motion.width; easing.type: Easing.OutCubic } }
+    MotionBehavior on implicitWidth {
+        gate: root.barActive && !Idle.isIdle
+        NumberAnimation { duration: Motion.width; easing.type: Easing.OutCubic }
+    }
 
     readonly property string monitorName: Compositor.monitorName(root.screen)
     readonly property bool monitorReady: monitorName.length > 0 && Compositor.activeWorkspaceId(monitorName) > 0
@@ -168,9 +171,7 @@ Item {
         function onWorkspaceShiftChanged() {
             if (!ShellSettings.workspaceShift) {
                 root._clearWorkspaceHandoffs()
-                _groupFadeAnim.stop()
-                root.opacity = 1
-                root._pageShift = 0
+                root._settleGroupMotion()
             }
         }
         // same settle when reduce-motion flips mid-animation, mirroring the
@@ -178,17 +179,18 @@ Item {
         // stops one already in flight
         function onReduceMotionChanged() {
             if (ShellSettings.reduceMotion) {
-                _groupFadeAnim.stop()
-                root.opacity = 1
-                root._pageShift = 0
                 root._clearWorkspaceHandoffs()
+                root._settleGroupMotion()
             }
         }
     }
     Connections {
         target: Idle
         function onIsIdleChanged() {
-            if (Idle.isIdle) root._clearWorkspaceHandoffs()
+            if (Idle.isIdle) {
+                root._clearWorkspaceHandoffs()
+                root._settleGroupMotion()
+            }
         }
     }
 
@@ -365,7 +367,10 @@ Item {
         return indexes
     }
     function _visibleIndex(wsId: int): int {
-        const index = root._visibleIndexById[wsId]
+        // a compositor signal can land mid-teardown, when the map reads back undefined
+        const byId = root._visibleIndexById
+        if (!byId) return -1
+        const index = byId[wsId]
         return index === undefined ? -1 : index
     }
 
@@ -411,6 +416,7 @@ Item {
         root._rebuildWsApps()
         root._reclaimPopupAnchors()
     }
+    Component.onDestruction: MenuState.cancelWarm(root)
 
     onRawActiveIdChanged: {
         if (rawActiveId > 0) _lastNormalActiveId = rawActiveId
@@ -487,7 +493,10 @@ Item {
         root._clearWorkspaceHandoffs()
         _initialized = true
     }
-    onBarActiveChanged: if (!root.barActive) root._clearWorkspaceHandoffs()
+    onBarActiveChanged: if (!root.barActive) {
+        root._clearWorkspaceHandoffs()
+        root._settleGroupMotion()
+    }
 
     property bool _paging: false
     Timer { id: _pagingReset; interval: Motion.fast + Motion.width; onTriggered: root._paging = false }
@@ -507,11 +516,12 @@ Item {
         _pageDir = dir
         _paging = true
         _pagingReset.restart()
-        // reduce-motion gates this like every other animation path in this file --
-        // workspaceShift only says the user WANTS the shift effect; it doesn't
-        // outrank the accessibility setting
-        if (ShellSettings.workspaceShift && !ShellSettings.reduceMotion) _groupFadeAnim.restart()
-        else { root.opacity = 1; root._pageShift = 0 }
+        if (ShellSettings.workspaceShift && root.barActive
+                && !ShellSettings.reduceMotion && !Idle.isIdle) {
+            _groupFadeAnim.restart()
+        } else {
+            root._settleGroupMotion()
+        }
     }
 
     // reflow only: the marker slide and the page shift are animations, and following them retargets an open popup's x every frame
@@ -527,6 +537,12 @@ Item {
             NumberAnimation { target: root; property: "opacity";    to: 1; duration: Motion.ms(150); easing.type: Easing.OutCubic }
             NumberAnimation { target: root; property: "_pageShift"; to: 0; duration: Motion.ms(165); easing.type: Easing.OutQuart }
         }
+    }
+
+    function _settleGroupMotion(): void {
+        _groupFadeAnim.stop()
+        root.opacity = 1
+        root._pageShift = 0
     }
 
     function activate(id: int): void {
@@ -572,6 +588,49 @@ Item {
     }
 
     property int _hoveredWsId: 0
+    readonly property bool _menuWarmIntent: root.barActive
+        && root.monitorReady
+        && !MenuState.open
+        && root._hoveredWsId === root.activeId
+
+    function _syncMenuWarmIntent(): void {
+        if (root._menuWarmIntent) {
+            _menuWarmRelease.stop()
+            if (MenuState.warmSource !== root) _menuWarmDelay.restart()
+        } else {
+            _menuWarmDelay.stop()
+            if (MenuState.warmSource === root) _menuWarmRelease.restart()
+        }
+    }
+
+    on_MenuWarmIntentChanged: root._syncMenuWarmIntent()
+
+    Timer {
+        id: _menuWarmDelay
+        // Ignore quick pointer sweeps across the bar. A deliberate hover gets
+        // enough time to prepare the menu before the following click.
+        interval: 110
+        onTriggered: if (root._menuWarmIntent) {
+            MenuState.requestWarm(root, root.screen)
+            _menuWarmExpiry.restart()
+        }
+    }
+
+    Timer {
+        id: _menuWarmRelease
+        // Keep the prepared surface across the short gap between leaving the
+        // marker and clicking, then return its memory if no open followed.
+        interval: 900
+        onTriggered: MenuState.cancelWarm(root)
+    }
+
+    Timer {
+        id: _menuWarmExpiry
+        // A parked pointer is not permanent intent. Bound speculative memory
+        // even if no hover edge arrives to start the shorter release timer.
+        interval: 2500
+        onTriggered: MenuState.cancelWarm(root)
+    }
 
     // one listener routes pulses to the matching button. Previously every visible workspace kept its own listener and renderer alive while idle
     Connections {
@@ -640,6 +699,7 @@ Item {
                 initialized:  root._initialized
                 paging:       root._paging
                 markerCovers: root.markerCovers
+                screen:       root.screen
 
                 onActivateRequested:      root.activate(wsId)
                 onAnchorMenuRequested:     root.openAnchorMenu()

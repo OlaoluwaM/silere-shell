@@ -16,9 +16,14 @@ Singleton {
     // so its presence in the bar layout keeps the 5s sensor poll alive alongside the
     // OSD-warning and underline-glow consumers that already justify running unattended
     readonly property bool _vitalsPlaced: ShellSettings.barWidgetPlaced("vitals")
-    readonly property bool _persistentNeed: ShellSettings.osdTempWarn
-        || (ShellSettings.underlineGlow && ShellSettings.underlineTempGlow)
-        || root._vitalsPlaced
+    function temperatureDemand(backgroundAlert: bool, underlineAlert: bool,
+            vitalsPlaced: bool, overview: bool): bool {
+        return backgroundAlert || vitalsPlaced || (underlineAlert && !overview)
+    }
+    readonly property bool _persistentNeed: root.temperatureDemand(
+        ShellSettings.osdTempWarn,
+        ShellSettings.underlineGlow && ShellSettings.underlineTempGlow,
+        root._vitalsPlaced, OverviewState.active)
     readonly property bool _wanted: _started && (_persistentNeed || needed) && !Idle.isIdle
     property string _sensorPath: ""
     property bool _reading: false
@@ -44,7 +49,7 @@ Singleton {
         target:         root
         targetProperty: "alertPulse"
         duration:       root.pulseDuration
-        active:         root.hot && root.needed && !Idle.isIdle
+        active:         root.hot && root.needed && !Idle.isQuiet
     }
 
     function _sample(t: real): void {
@@ -75,13 +80,34 @@ Singleton {
         return (t >= 5 && t <= 125) ? t : 0
     }
 
-    function _resetState(): void {
-        root._reading = false
+    function _clearSampleState(): void {
         root.temp = 0
         root._hotCount = 0
         root._criticalCount = 0
         root.hot = false
         root.critical = false
+    }
+
+    function _resetState(): void {
+        root._reading = false
+        root._clearSampleState()
+    }
+
+    function _applySensorText(raw: string): bool {
+        const t = root._normalizedTemp(parseFloat((raw || "").trim()))
+        if (t <= 0) {
+            // a removed hwmon node still completes one read; its last sample would keep a warning lit
+            root._clearSampleState()
+            return false
+        }
+        root._sample(t)
+        return true
+    }
+
+    function _retrySensorDetection(): void {
+        root._probeComplete = false
+        root._sensorPath = ""
+        if (root._wanted && !_detectProc.running) _detectProc.running = true
     }
 
     on_WantedChanged: {
@@ -99,8 +125,9 @@ Singleton {
 
     Component.onCompleted: root._started = true
 
-    Process {
+    BoundedProcess {
         id: _detectProc
+        timeoutMs: 10000
         environment: ({ "LC_ALL": "C" })
         command: ["bash", "-c",
             "detect_sensor() { " +
@@ -170,8 +197,10 @@ Singleton {
         if (!root._reading) return
         root._reading = false
         if (!root._wanted) return
-        const t = root._normalizedTemp(parseFloat((raw || "").trim()))
-        if (t > 0) root._sample(t)
+        if (!root._applySensorText(raw)) {
+            root._retrySensorDetection()
+            return
+        }
         root._probeComplete = true
     }
 
@@ -179,9 +208,8 @@ Singleton {
         if (!root._reading) return
         root._reading = false
         if (!root._wanted) return
-        root._probeComplete = false
-        root._sensorPath = ""
-        if (!_detectProc.running) _detectProc.running = true
+        root._clearSampleState()
+        root._retrySensorDetection()
     }
 
     Timer {

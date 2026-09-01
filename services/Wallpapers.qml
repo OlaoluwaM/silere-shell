@@ -9,7 +9,6 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import "../config"
 
 Singleton {
     id: root
@@ -88,8 +87,9 @@ Singleton {
     // not clobber whatever state the newer disposition already set
     property string _scanFor: ""
 
-    Process {
+    BoundedProcess {
         id: _scanProc
+        timeoutMs: 10000
         stdout: StdioCollector { id: _scanOut }
         stderr: StdioCollector { id: _scanErr }
         onExited: (code) => {
@@ -141,8 +141,9 @@ Singleton {
         root._startApply(path)
     }
 
-    Process {
+    BoundedProcess {
         id: _applyProc
+        timeoutMs: 30000
         onExited: (code) => {
             if (root._hasPendingApply) {
                 const next = root._pendingApplyPath

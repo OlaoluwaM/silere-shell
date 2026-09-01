@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Shared by install.sh, uninstall.sh, update.sh, and check.sh: one XDG path rule
+# Shared by install.sh, uninstall.sh, and check.sh: one XDG path rule
 
 _silere_xdg_home() {
     local configured="${1:-}" fallback="$2"

@@ -10,7 +10,7 @@
 #   - non-portable Keys attached handlers rejected by the live QML engine
 #   - ShellSettings properties and schema drifting apart
 #   - settings navigation entries and detail components drifting apart
-#   - installer/updater portability regressions
+#   - installer portability regressions
 set -u
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT" || exit 1
@@ -36,12 +36,37 @@ fail() { printf 'fail %s\n' "$*" >&2; status=1; }
 script_files=(scripts/*.sh scripts/lib/*.sh)
 
 section "merge conflict markers"
-# grep, not git grep: this lint is also meant to work from a release archive or
-# any other plain source tree without repository metadata.
+# grep, not git grep: this lint is also meant to work from any plain source
+# tree without repository metadata.
 if grep -rn -I -E '^(<<<<<<< |=======$|>>>>>>> )' --exclude-dir=.git . ; then
   fail "conflict markers found"
 else
   ok "markers" "none"
+fi
+
+section "tracked file listing"
+# git ls-files backs the qmldir checks below. When git refuses to
+# read the repository — a container running as another uid trips safe.directory — it
+# returns nothing, and both of those pass over an empty list instead of failing.
+# That refusal fails rev-parse too, so a tree carrying no repository has to be told apart
+# from a repository git declines to open: only the first has nothing to read. A checkout
+# still on disk, and anything running under SILERE_REQUIRE_GIT_TESTS, is the second.
+tracked_err=""
+if ! command -v git >/dev/null 2>&1; then
+  tracked_err="git is not installed"
+elif ! tracked_err="$(git rev-parse --is-inside-work-tree 2>&1 >/dev/null)"; then
+  tracked_err="${tracked_err:-git cannot open this repository}"
+elif tracked_probe="$(git ls-files -- '*.qml' 2>&1)" && [ -n "$tracked_probe" ]; then
+  tracked_err=""
+else
+  tracked_err="${tracked_probe:-git listed no tracked file}"
+fi
+if [ -z "$tracked_err" ]; then
+  ok "tracked" "git lists tracked files"
+elif [ -e .git ] || [ "${SILERE_REQUIRE_GIT_TESTS:-0}" = 1 ]; then
+  fail "git cannot list tracked files, so index-backed checks would pass on an empty list: ${tracked_err%%$'\n'*}"
+else
+  skip "tracked" "not a git checkout; index-backed checks have nothing to read"
 fi
 
 section "settings rail label width"
@@ -228,6 +253,12 @@ section "locale-stable parsers"
 for f in scripts/check.sh scripts/install.sh scripts/uninstall.sh; do
   if grep -q '^export LC_ALL=C$' "$f"; then ok "$f"; else fail "$f must set LC_ALL=C"; fi
 done
+if grep -qF '_silere_xdg_home "${XDG_DATA_HOME:-}" .local/share' scripts/check.sh \
+    && ! grep -qF '${XDG_DATA_HOME:-$HOME' scripts/check.sh; then
+  ok "scripts/check.sh" "XDG data path uses the shared absolute-path fallback"
+else
+  fail "scripts/check.sh must resolve XDG_DATA_HOME through scripts/lib/xdg.sh"
+fi
 check_qml_locale_count() {
   local file="$1" expected="$2" actual
   actual="$(grep -c 'environment: ({ "LC_ALL": "C" })' "$file" || true)"
@@ -241,6 +272,7 @@ check_qml_locale_count services/Battery.qml 1
 check_qml_locale_count services/CpuTemp.qml 1
 check_qml_locale_count services/Network.qml 1
 check_qml_locale_count services/PowerProfiles.qml 1
+check_qml_locale_count services/SysInfo.qml 1
 
 section "optional tool detection"
 # The status of the final command in a shell `for` loop becomes the loop's
@@ -367,6 +399,137 @@ else
   ok "mapping" "coordinate mapping stays out of bindings"
 fi
 
+section "pooled delegate motion"
+# A recycled delegate keeps the previous row's values, so an ungated animation plays the
+# new subject in from them as the row scrolls into view. Scan every file that pools rows,
+# plus the component each pooling list names as its delegate: turning reuseItems on for a
+# list whose delegate lives in another file is exactly how this regressed.
+_pooled_file_list() {
+  local f type cand
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    printf '%s\n' "$f"
+    grep -qE 'reuseItems:[[:space:]]*true' "$f" || continue
+    while IFS= read -r type; do
+      [ -n "$type" ] || continue
+      while IFS= read -r cand; do
+        [ -n "$cand" ] && printf '%s\n' "$cand"
+      done <<EOF
+$(find modules config services -name "$type.qml" 2>/dev/null)
+EOF
+    done <<EOF
+$(sed -n 's/^[[:space:]]*delegate:[[:space:]]*\([A-Z][A-Za-z0-9_]*\).*/\1/p' "$f")
+EOF
+  done <<EOF
+$(grep -rlE 'reuseItems:[[:space:]]*true|ListView\.on(Pooled|Reused)' \
+  --include='*.qml' shell.qml modules config services 2>/dev/null)
+EOF
+}
+
+pooled_ungated=""
+pooled_unhooked=""
+while IFS= read -r _f; do
+  [ -n "$_f" ] && [ -f "$_f" ] || continue
+  # buffered, not getline: a getline here consumes the following line and would skip
+  # a second animation declared directly beneath the first
+  _hits="$(awk '
+    { raw[FNR] = $0; n = FNR }
+    END {
+      for (i = 1; i <= n; i++) {
+        line = raw[i]; sub(/\/\/.*/, "", line)
+        if (line !~ /(ColorFade|MotionBehavior)[[:space:]]+on[[:space:]]/) continue
+        if (line ~ /gate:/) continue
+        nxt = (i < n) ? raw[i + 1] : ""
+        if (nxt ~ /gate:/) continue
+        print FILENAME ":" i ":" line
+      }
+    }
+  ' "$_f" || true)"
+  [ -n "$_hits" ] && pooled_ungated="$pooled_ungated$_hits"$'\n'
+  # a gate that no pool or reuse ever closes is not a gate
+  if grep -qE '(ColorFade|MotionBehavior)[[:space:]]+on[[:space:]]' "$_f" \
+     && ! grep -qE 'ListView\.on(Pooled|Reused)' "$_f"; then
+    pooled_unhooked="$pooled_unhooked  $_f"$'\n'
+  fi
+done <<EOF
+$(_pooled_file_list | sort -u)
+EOF
+
+if [ -n "$pooled_ungated" ] || [ -n "$pooled_unhooked" ]; then
+  if [ -n "$pooled_ungated" ]; then
+    fail "animations in a pooled delegate must carry a gate closed by onPooled/onReused:"
+    printf '%s' "$pooled_ungated"
+  fi
+  if [ -n "$pooled_unhooked" ]; then
+    fail "these pooled files animate but never close a gate on ListView.onPooled/onReused:"
+    printf '%s' "$pooled_unhooked"
+  fi
+else
+  ok "pooling" "every animation in a pooled delegate is gated"
+fi
+
+section "pooled view transitions"
+# A view transition animates the delegate item itself, so it leaves the item holding
+# whatever value it ended on. Where the list also pools rows that item comes back for a
+# different subject still carrying it, and the row renders faded out or offset. Every
+# property a transition writes has to be put back in onReused; the view owns y itself.
+transition_residue=""
+while IFS= read -r _f; do
+  [ -n "$_f" ] && [ -f "$_f" ] || continue
+  _miss="$(awk '
+    { raw[FNR] = $0; n = FNR }
+    END {
+      for (i = 1; i <= n; i++) {
+        line = raw[i]; sub(/\/\/.*/, "", line)
+        if (line !~ /^[[:space:]]*(add|remove|move|populate)[[:space:]]*:[[:space:]]*Transition/)
+          continue
+        depth = 0; opened = 0
+        for (j = i; j <= n; j++) {
+          l = raw[j]; sub(/\/\/.*/, "", l)
+          rest = l
+          while (match(rest, /property[[:space:]]*:[[:space:]]*"[^"]+"/)) {
+            s = substr(rest, RSTART, RLENGTH)
+            rest = substr(rest, RSTART + RLENGTH)
+            sub(/^property[[:space:]]*:[[:space:]]*"/, "", s)
+            sub(/"$/, "", s)
+            if (s != "y") animated[s] = 1
+          }
+          o = gsub(/\{/, "{", l); depth += o - gsub(/\}/, "}", l)
+          if (o > 0) opened = 1
+          if (opened && depth <= 0) break
+        }
+      }
+      body = ""
+      for (i = 1; i <= n; i++) {
+        line = raw[i]; sub(/\/\/.*/, "", line)
+        if (line !~ /ListView\.onReused[[:space:]]*:/) continue
+        depth = 0; opened = 0
+        for (j = i; j <= n; j++) {
+          l = raw[j]; sub(/\/\/.*/, "", l)
+          body = body " " l
+          o = gsub(/\{/, "{", l); depth += o - gsub(/\}/, "}", l)
+          if (o > 0) opened = 1
+          if (opened && depth <= 0) break
+        }
+      }
+      for (p in animated)
+        if (body !~ ("[^A-Za-z0-9_]" p "[[:space:]]*=[^=]"))
+          print "  " FILENAME ": " p
+    }
+  ' "$_f" || true)"
+  [ -n "$_miss" ] && transition_residue="$transition_residue$_miss"$'\n'
+done <<EOF
+$(grep -rlE 'reuseItems:[[:space:]]*true' --include='*.qml' \
+  shell.qml modules config services 2>/dev/null)
+EOF
+
+if [ -n "$transition_residue" ]; then
+  fail "a pooled delegate must restore what a view transition animated, in ListView.onReused:"
+  printf '%s' "$transition_residue"
+else
+  ok "transitions" "pooled rows come back with their transition values reset"
+fi
+
 section "reduce-motion gating"
 # MotionBehavior carries the reduce-motion gate. A bare Behavior silently
 # animates for users who asked for no motion, so route every one through it
@@ -402,6 +565,19 @@ if [ -n "$pulse_running" ]; then
   printf '%s\n' "$pulse_running"
 else
   ok "motion" "PulseLoop gating stays on active"
+fi
+
+section "bar widget sleep state"
+# A widget that never learns the bar slept keeps rolling its text and swapping its
+# glyphs behind the overview and through a blanked screen. Every entry in the map
+# takes barActive, whether or not it animates today.
+unsleeping_widgets="$(grep -nE '^[[:space:]]*Component \{ id: _c' modules/bar/BarContent.qml \
+  | grep -v 'barActive:' || true)"
+if [ -n "$unsleeping_widgets" ]; then
+  fail "every bar widget component must be passed barActive:"
+  printf '%s\n' "$unsleeping_widgets"
+else
+  ok "motion" "every bar widget receives the bar's active state"
 fi
 
 section "portable QML key handlers"
@@ -462,6 +638,22 @@ else
   fail "shell.qml must default QSG_USE_SIMPLE_ANIMATION_DRIVER=1 so popups do not fall back to the 16 ms multi-window timer"
 fi
 
+section "arm-then-confirm guards"
+# TapHandler fires once per tap, so the second half of a double-click confirms the
+# action the first half armed. Every destructive row must reject that second tap.
+# -print0/xargs: an unquoted $(find) word-splits on a path containing a space.
+unguarded_confirm="$(find modules -name '*.qml' -print0 \
+  | xargs -0 -r grep -lE '[Aa]rmed[A-Za-z]* = ' \
+  | while read -r f; do
+      grep -q 'Metrics\.confirmGuardMs' "$f" || printf '%s\n' "$f"
+    done)"
+if [ -n "$unguarded_confirm" ]; then
+  fail "an armed confirm state must reject a double-click with Metrics.confirmGuardMs:"
+  printf '%s\n' "$unguarded_confirm"
+else
+  ok "confirm" "every armed confirm state guards against a double-click"
+fi
+
 section "underscore property handlers"
 # Qt strips leading underscores before capitalising a handler name, so property
 # `_foo` is served by on_FooChanged. on_fooChanged type-checks, loads, and never
@@ -491,7 +683,7 @@ if command -v python3 >/dev/null 2>&1 && [ -f scripts/check-connections.py ]; th
     printf '%s\n' "$orphan_handlers"
   fi
 else
-  warn "handlers" "python3 or scripts/check-connections.py missing; Connections check skipped"
+  skip "handlers" "python3 or scripts/check-connections.py missing; Connections check skipped"
 fi
 
 section "installer environment defaults"
@@ -525,6 +717,17 @@ if command -v shellcheck >/dev/null 2>&1; then
   if shellcheck --severity=warning "${script_files[@]}"; then ok "shellcheck"; else fail "shellcheck reported warnings"; fi
 else
   skip "shellcheck" "not installed"
+fi
+
+section "quickshell version floor"
+# The floor is a promise made in three places at once. scripts/lib/qml-modules.sh owns the
+# number and check.sh compares it against the installed runtime; this keeps the prose honest.
+if [ ! -f README.md ]; then
+  fail "README.md must state the Quickshell $SILERE_MIN_QUICKSHELL minimum"
+elif ! grep -qF "Quickshell $SILERE_MIN_QUICKSHELL or newer" README.md; then
+  fail "README.md must state \"Quickshell $SILERE_MIN_QUICKSHELL or newer\""
+else
+  ok "qs floor" "README states the $SILERE_MIN_QUICKSHELL minimum from qml-modules.sh"
 fi
 
 section "qmldir integrity"
@@ -743,6 +946,23 @@ else
   ok "glow travel" "glowStrength max $glow_max stops at the last layer clamp $glow_sat"
 fi
 
+section "bar radius travel"
+# Same class as the glow check above: every surface that takes barRadius clamps it to half
+# its own height, so the setting stops doing anything at half the tallest bar the Height
+# chips offer. A schema max above that is slider travel that renders identically.
+radius_cap="$(awk '/label: "Height"/{take=1} take{print; if ($0 ~ /\]/) exit}' \
+  modules/menu/settings/SettingsSurfaceSection.qml \
+  | grep -oE 'value: [0-9]+' | awk '{ if ($2 > m) m = $2 } END { if (m) print m / 2 }')"
+radius_max="$(grep -oE '\{ k: "barRadius".*max: [0-9]+' services/ShellSettings.qml \
+  | grep -oE 'max: [0-9]+' | awk '{print $2}')"
+if [ -z "$radius_cap" ] || [ -z "$radius_max" ]; then
+  fail "cannot read the bar height chips or the barRadius schema max"
+elif awk -v a="$radius_max" -v b="$radius_cap" 'BEGIN { exit !(a > b) }'; then
+  fail "barRadius max $radius_max exceeds half the tallest bar $radius_cap; the travel above it renders identically"
+else
+  ok "radius travel" "barRadius max $radius_max stops at half the tallest bar $radius_cap"
+fi
+
 section "bar widget layout API"
 # The settings key list, settings metadata, and runtime component registry are
 # three views of one widget catalog. A widget is incomplete if any view drifts.
@@ -757,10 +977,14 @@ widget_components="$(awk '/_widgetComponents:[[:space:]]*\(\{/{take=1; next} \
 # a renamed toggle leaves the row bound to a key the schema no longer has, which reads
 # as a widget that cannot be hidden rather than as an error
 widget_orphan=""
+widget_unattributed=""
 while IFS= read -r wsetting; do
   [ -n "$wsetting" ] || continue
   grep -qE "\{ k: \"$wsetting\"," services/ShellSettings.qml \
     || widget_orphan="$widget_orphan $wsetting"
+  grep -E "\{ k: \"$wsetting\"," services/ShellSettings.qml \
+    | grep -qE 'sec: "[^"]*widgets' \
+    || widget_unattributed="$widget_unattributed $wsetting"
 done <<< "$(awk '/barWidgetMeta:[[:space:]]*\(\{/{take=1; next} \
   take && /^[[:space:]]*\}\)/{exit} take{print}' services/ShellSettings.qml \
   | sed -nE 's/.*setting: "([A-Za-z][A-Za-z0-9]*)".*/\1/p')"
@@ -771,6 +995,8 @@ if [ -z "$widget_keys" ] || [ "$widget_keys" != "$widget_meta" ] \
       "$widget_keys" "$widget_meta" "$widget_components"
 elif [ -n "$widget_orphan" ]; then
     fail "bar widget metadata names settings the schema does not have:$widget_orphan"
+elif [ -n "$widget_unattributed" ]; then
+    fail "bar widget settings must attribute changes to the widgets page:$widget_unattributed"
 else
     ok "bar widgets" "keys, metadata, and components agree"
 fi
@@ -796,6 +1022,26 @@ if [ -n "$private_config_access" ]; then
     printf '%s\n' "$private_config_access"
 else
     ok "config store" "paths and directory readiness have one owner"
+fi
+
+xdg_path_bypass="$(grep -RInE --include='*.qml' \
+  'Quickshell\.env\("(XDG_(CONFIG|CACHE|STATE)_HOME|XDG_RUNTIME_DIR)"\)' \
+  shell.qml modules services config \
+  | grep -v '^services/XdgPaths.qml:' || true)"
+if [ -n "$xdg_path_bypass" ]; then
+    fail "QML consumers must resolve XDG homes through XdgPaths:"
+    printf '%s\n' "$xdg_path_bypass"
+else
+    ok "XDG paths" "all shipped QML uses the shared absolute-path resolver"
+fi
+
+section "portable disk usage"
+if grep -qF '"df -Pk /' services/SysInfo.qml \
+    && grep -qF '$(NF-4)' services/SysInfo.qml \
+    && grep -qF '$(NF-3)' services/SysInfo.qml; then
+    ok "disk probe" "POSIX layout is parsed from the stable right-hand columns"
+else
+    fail "SysInfo disk usage must use POSIX df output and right-relative columns"
 fi
 
 section "solid structural surfaces"
@@ -884,6 +1130,41 @@ if [ -f "$shell_settings" ] && [ -f "$settings_nav" ]; then
             ok "attribution" "$schema_keys schema keys map to known settings pages"
         fi
     fi
+
+    # a key can name a real page and still miss the page it is edited on, which drops
+    # the changed dot from the one nav entry the user just used
+    own_bad=""
+    own_seen=0
+    for sec_file in modules/menu/settings/Settings*Section.qml; do
+        [ -f "$sec_file" ] || continue
+        own_page=$(basename "$sec_file" .qml)
+        own_page=${own_page#Settings}
+        own_page=${own_page%Section}
+        own_page=$(printf '%s' "$own_page" | tr 'A-Z' 'a-z')
+        own_keys=$( { grep -oE 'key: "[a-zA-Z0-9_]+"' "$sec_file" \
+                        | sed -E 's/.*"([^"]+)"/\1/'
+                      grep -oE 'ShellSettings\.[a-zA-Z0-9_]+[[:space:]]*=[^=]' "$sec_file" \
+                        | sed -E 's/ShellSettings\.([a-zA-Z0-9_]+).*/\1/'; } | sort -u)
+        for own_key in $own_keys; do
+            own_sec=$(printf '%s\n' "$schema_block" | grep -E "\{ k: \"$own_key\"," \
+                      | grep -oE 'sec: "[^"]*"' | sed -E 's/.*"([^"]*)"/\1/')
+            [ -z "$own_sec" ] && continue
+            [ "$own_sec" = "-" ] && continue
+            own_seen=$((own_seen + 1))
+            case ",$own_sec," in
+                *",$own_page,"*) ;;
+                *) own_bad="$own_bad  $own_key edited on $own_page but attributed to $own_sec"$'\n' ;;
+            esac
+        done
+    done
+    if [ -n "$own_bad" ]; then
+        fail "settings rows not attributed to the page they are edited on:"
+        printf '%s' "$own_bad"
+    elif [ "$own_seen" -lt 60 ]; then
+        fail "settings attribution scan matched only $own_seen rows; the harvest is broken"
+    else
+        ok "attribution" "$own_seen rows are attributed to the page that edits them"
+    fi
 else
     skip "attribution" "settings schema files not found"
 fi
@@ -946,6 +1227,29 @@ else
   ok "accent" "palette fallback matches the default accent"
 fi
 
+section "Markdown heading anchors"
+mapfile -d '' markdown_files < <(
+  find . -path './.git' -prune -o -type f -name '*.md' -print0
+)
+if [ "${#markdown_files[@]}" -eq 0 ]; then
+  skip "Markdown" "no Markdown files found"
+else
+  duplicate_headings="$(awk '
+  /^#{1,6}[[:space:]]/ {
+    heading = tolower($0)
+    sub(/^#{1,6}[[:space:]]+/, "", heading)
+    key = FILENAME SUBSEP heading
+    if (++seen[key] == 2) print FILENAME ": " heading
+  }
+' "${markdown_files[@]}")"
+  if [ -n "$duplicate_headings" ]; then
+    fail "Markdown files contain duplicate heading anchors:"
+    printf '%s\n' "$duplicate_headings"
+  else
+    ok "Markdown" "heading names are unique within each file"
+  fi
+fi
+
 section "high-contrast alpha coverage"
 # every other Theme token re-bases onto white text under high contrast. An alpha that
 # ignores _hc silently keeps its normal-mode weight there, which is how the focus ring
@@ -997,6 +1301,27 @@ else
   ok "process" "every process timeout derives from BoundedProcess"
 fi
 
+section "unbounded process opt-out"
+# A killed process exits nonzero, and every one-shot handler already reads that as failure,
+# so a plain Process is only right for something meant to outlive the call that starts it.
+# Anchoring on Process at the line start is what keeps BoundedProcess from matching here.
+unbounded=""
+while IFS= read -r qml; do
+  case "$qml" in */BoundedProcess.qml|*/SupervisedProcess.qml) continue ;; esac
+  hit="$(awk -v F="$qml" '
+    marked { id = $0; sub(/^[ \t]*id:[ \t]*/, "", id); marked = 0
+             if (id != "_sunsetProc") printf "%s:%d %s\n", F, NR - 1, id }
+    /^[ \t]*Process[ \t]*\{[ \t]*$/ { marked = 1 }
+  ' "$qml")"
+  [ -n "$hit" ] && unbounded="$unbounded$hit"$'\n'
+done < <(find services modules config -name '*.qml' 2>/dev/null | sort)
+if [ -n "$unbounded" ]; then
+  fail "a one-shot command needs BoundedProcess.timeoutMs; only a long-running process stays plain:"
+  while IFS= read -r m; do [ -n "$m" ] && printf '  %s\n' "$m"; done <<< "$unbounded"
+else
+  ok "process" "only the hyprsunset daemon runs unbounded"
+fi
+
 section "shared scroll feel"
 # ShellListView, ShellFlickable and ShellGridView already set this. Ten consumers
 # restated it, so the primitives' own value was the one thing a scroll-feel change
@@ -1024,7 +1349,7 @@ if command -v python3 >/dev/null 2>&1 && [ -f scripts/check-text-scale.py ]; the
     printf '%s\n' "$text_scaled"
   fi
 else
-  warn "static text" "python3 or scripts/check-text-scale.py missing; text scale check skipped"
+  skip "static text" "python3 or scripts/check-text-scale.py missing; text scale check skipped"
 fi
 
 section "inert compositor events"
@@ -1132,6 +1457,42 @@ if [ -n "$(printf '%s' "$key_offenders" | grep . || true)" ]; then
   while IFS= read -r m; do [ -n "$m" ] && printf '  %s\n' "$m"; done <<< "$key_offenders"
 else
   ok "key handlers" "only text entry handles keys"
+fi
+
+section "spoken value names"
+# A bar pill hides its reading until hover (valuesOnHover, or an expanded-only text).
+# Deriving accessibleName from that same text takes the value away from everyone who
+# cannot hover for it: the default bar announced a bare "Volume" with no level at all.
+mapfile -t a11y_files < <(find modules -name '*.qml' | sort)
+a11y_names="$(awk '
+function flush() {
+  if (buf ~ /\.text([^A-Za-z_0-9]|$)/ || buf ~ /(^|[^A-Za-z_0-9])expanded([^A-Za-z_0-9]|$)/)
+    printf "%s:%d: %s\n", FILENAME, start, buf
+  buf = ""
+}
+FNR == 1 && inblk { flush(); inblk = 0 }
+{
+  if (inblk) {
+    if ($0 ~ /^[[:space:]]*[A-Za-z_][A-Za-z_0-9.]*:/ || $0 ~ /^[[:space:]]*\}/) {
+      flush(); inblk = 0
+    } else { buf = buf " " $0; next }
+  }
+  if ($0 ~ /^[[:space:]]*accessibleName:/) { inblk = 1; start = FNR; buf = $0 }
+}
+END { if (inblk) flush() }
+' "${a11y_files[@]}" </dev/null || true)"
+a11y_unnamed=""
+for f in $(grep -ln 'valuesOnHover' modules/bar/widgets/*.qml 2>/dev/null || true); do
+  grep -q 'accessibleName' "$f" || a11y_unnamed="$a11y_unnamed$f"$'\n'
+done
+if [ -n "$(printf '%s' "$a11y_names" | grep . || true)" ]; then
+  fail "an accessible name must read the value, not the text a hover reveals:"
+  while IFS= read -r m; do [ -n "$m" ] && printf '  %s\n' "$m"; done <<< "$a11y_names"
+elif [ -n "$(printf '%s' "$a11y_unnamed" | grep . || true)" ]; then
+  fail "these widgets hide their reading until hover and never name it:"
+  while IFS= read -r m; do [ -n "$m" ] && printf '  %s\n' "$m"; done <<< "$a11y_unnamed"
+else
+  ok "spoken names" "every hover-gated reading is named independently of its text"
 fi
 
 section "row height derivation"

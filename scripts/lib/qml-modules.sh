@@ -1,8 +1,25 @@
 # shellcheck shell=bash
 # Shared by install.sh, check.sh, and CI: one module list, one import-root
-# lookup, instead of three diverging copies. Quickshell packages may split
-# service plugins even when the `qs` binary exists, so check actual QML
-# import paths rather than assuming one distro layout.
+# lookup, one version floor, instead of three diverging copies. Quickshell
+# packages may split service plugins even when the `qs` binary exists, so check
+# actual QML import paths rather than assuming one distro layout.
+
+# check.sh compares this floor against the installed Quickshell runtime.
+# shellcheck disable=SC2034
+SILERE_MIN_QUICKSHELL="0.3.1"
+
+# Reads the version out of `qs --version`, e.g. "Quickshell 0.3.1 (revision ...)".
+# Prints nothing when the binary is missing or the format is one we don't know.
+_silere_quickshell_version() {
+    command -v qs >/dev/null 2>&1 || return 1
+    qs --version 2>&1 | sed -n '1s/.*[Qq]uickshell[[:space:]]\+v\?\([0-9]\+\(\.[0-9]\+\)*\).*/\1/p'
+}
+
+# 0 when $1 is at least $2, comparing dot-separated numbers left to right.
+_silere_version_at_least() {
+    [ "$1" = "$2" ] && return 0
+    [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -n 1)" = "$2" ]
+}
 
 # The array is consumed by the scripts that source this library; checking this
 # file by itself cannot see those references.

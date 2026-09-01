@@ -34,6 +34,20 @@ StatusActionPill {
             parts.push(Network.trafficLabel)
         return root._join(parts)
     }
+    // _detailText is empty until hover and carries link glyphs and a 2s traffic rate
+    readonly property string _accessibleDetail: {
+        if (!root.canRead) return "backend unavailable"
+        if (!Network.connected) return "disconnected"
+
+        const parts = []
+        if (Network.hasVpn) parts.push(Network.vpnName.length > 0 ? Network.vpnName : "VPN")
+        if (root._showPhysicalLink || !Network.hasVpn) {
+            parts.push(root._signal.length > 0
+                ? root._physical + " " + root._signal
+                : root._physical)
+        }
+        return root._join(parts)
+    }
     readonly property string _detailText: {
         if (!root.canRead) return "Network backend unavailable"
         if (!Network.connected) return "Disconnected"
@@ -58,7 +72,7 @@ StatusActionPill {
     scale:          1.0
     // the icon cell is a fixed width: one glyph fits, two overflow it
     glyph:          Network.icon
-    accessibleName: root.text.length > 0 ? "Network, " + root.text : "Network"
+    accessibleName: "Network, " + root._accessibleDetail
     // full-strength wifi: the widest ink in this widget's glyph family
     glyphAlignReference: "󰤨"
     maxTextWidth:   compact ? 150 : 260

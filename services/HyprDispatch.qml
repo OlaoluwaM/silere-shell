@@ -2,7 +2,6 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import Quickshell.Hyprland
 
 Singleton {
@@ -14,8 +13,9 @@ Singleton {
     property bool useLua: false
     property bool _luaChecked: false
 
-    Process {
+    BoundedProcess {
         id: _luaCheck
+        timeoutMs: 10000
         command: ["bash", Quickshell.shellDir + "/scripts/install.sh", "--hypr-config-kind"]
         onExited: (code) => {
             if (!SystemTools.hasHyprctl) {

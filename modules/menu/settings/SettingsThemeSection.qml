@@ -19,7 +19,9 @@ Column {
                 ? "Matugen has not written a palette yet, so these are Silere's bundled colors. Re-run the installer, then set a wallpaper."
                 : MatugenTheme.paletteStale
                     ? "The palette file could not be read, so these are the last colors that loaded. Check your matugen template."
-                    : ""
+                    : Theme.accentColorless
+                        ? "This palette has no accent color of its own, so accented controls read as plain text."
+                        : ""
 
     function _hex2(v): string {
         const s = Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16)
@@ -197,6 +199,7 @@ Column {
 
                     SwatchRow {
                         id: _swatchRow
+                        accessiblePrefix: _accentTitle.text
                         width: Math.max(_swatchViewport.width, implicitWidth)
                         height: parent.height
                         spread: true
@@ -333,6 +336,18 @@ Column {
             visible: root._paletteNote.length > 0
                 && (!ShellSettings.neutralTheme || ShellSettings.neutralAccentAuto)
             text: root._paletteNote
+        }
+
+        // both sources land here: Wallpaper always, Custom whenever Auto is taking matugen's accent
+        CollapsibleSection {
+            expanded: !ShellSettings.neutralTheme || ShellSettings.neutralAccentAuto
+            symmetric: true
+
+            ToggleRow {
+                glyph: "󰆖"; label: "Balance accent"
+                description: "Match the custom presets' weight"
+                key: "matugenAccentBalance"
+            }
         }
 
         // outside both groups on purpose: a Source switch recolours this row, never collapses it

@@ -15,6 +15,7 @@ Item {
     id: root
 
     property bool compact: ShellSettings.barCompact
+    property bool barActive: true
     readonly property int _hysteresis: 5
 
     readonly property real _cpuValue: SysInfo.cpuPct * 100
@@ -55,6 +56,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             height: root.height
             compact: root.compact
+            barActive: root.barActive
             show: root._cpuHot
             interactive: show && SystemMonitor.available
             glyph: "󰻠"
@@ -70,6 +72,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             height: root.height
             compact: root.compact
+            barActive: root.barActive
             show: root._memHot
             interactive: show && SystemMonitor.available
             glyph: "󰘚"
@@ -85,6 +88,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             height: root.height
             compact: root.compact
+            barActive: root.barActive
             show: root._tempHot
             interactive: show && SystemMonitor.available
             glyph: "󰔏"

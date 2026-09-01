@@ -22,6 +22,7 @@ Item {
     required property bool initialized
     required property bool paging
     required property bool markerCovers
+    required property var screen
 
     signal activateRequested()
     signal anchorMenuRequested()
@@ -54,7 +55,10 @@ Item {
         scale = 0
         _enterAnim.start()
     }
-    Component.onDestruction: if (root.hovered) root.hoverReported(root.wsId, false)
+    Component.onDestruction: {
+        if (root.hovered) root.hoverReported(root.wsId, false)
+        BarHintState.release(root)
+    }
 
     SequentialAnimation {
         id: _enterAnim
@@ -77,8 +81,27 @@ Item {
         }
     }
 
+    function _syncHint(): void {
+        if (!root.barActive || !root.hovered) {
+            BarHintState.release(root)
+            return
+        }
+        const point = root.mapToItem(null, root.width / 2, 0)
+        const scroll = ShellSettings.wsScrollSwitch ? " · scroll workspaces" : ""
+        const actions = root.active
+            ? "Click menu · right-click quick actions" + scroll
+            : "Click switch · middle-click move window" + scroll
+        BarHintState.request(root, root.screen, point.x, actions)
+    }
     HoverHandler { id: _hover; cursorShape: Qt.PointingHandCursor }
-    onHoveredChanged: root.hoverReported(root.wsId, root.hovered)
+    onHoveredChanged: {
+        root.hoverReported(root.wsId, root.hovered)
+        root._syncHint()
+    }
+    onBarActiveChanged: root._syncHint()
+    // the cell eases to a new width when it takes the marker, and the row shifts around it
+    onWidthChanged: if (root.hovered) root._syncHint()
+    onXChanged:     if (root.hovered) root._syncHint()
 
     TapHandler {
         acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton

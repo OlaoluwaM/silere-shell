@@ -31,6 +31,7 @@ StatusActionPill {
 
     // a click only does something once the configured bluetooth-manager command is reachable
     interactive: show && Bluetooth.managerAvailable
+    hintText: interactive ? "Open Bluetooth manager" : ""
 
     readonly property string _detailText: {
         if (!Bluetooth.enabled) return "Off"
@@ -42,6 +43,7 @@ StatusActionPill {
     }
 
     text: expanded ? _detailText : ""
+    accessibleName: "Bluetooth, " + _detailText
 
     onActivated: Bluetooth.launchManager()
 }

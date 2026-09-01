@@ -289,7 +289,6 @@ Singleton {
         running: root._scannerWanted
         onTriggered: root._refreshWifiNetworks()
     }
-
     function _findWifiNetwork(ssid: string): var {
         const devices = root._devices
         let best = null
@@ -421,6 +420,13 @@ Singleton {
         _vpnRefresh.restart()
     }
 
+    function _clearVpnState(): void {
+        root._vpnCandidateActive = false
+        root._vpnCandidateName = ""
+        if (root.hasVpn || root.vpnName.length > 0)
+            root._vpnState = ({ active: false, name: "" })
+    }
+
     readonly property string _linkSignature: {
         const devices = root._devices
         const parts = [String(Networking.wifiEnabled)]
@@ -451,12 +457,18 @@ Singleton {
             _vpnRefresh.stop()
             _vpnRefreshPending = false
             _vpnProc.running = false
+            // idle only pauses and keeps the last answer; a lost nmcli has no source of truth left
+            if (!SystemTools.hasNmcli) root._clearVpnState()
         }
     }
 
     Connections {
         target: SystemTools
         function onReadyChanged() { root._queueVpnRefresh() }
+        function onScanRevisionChanged() {
+            if (SystemTools.hasNmcli) root._queueVpnRefresh()
+            else root._clearVpnState()
+        }
     }
 
     Timer {

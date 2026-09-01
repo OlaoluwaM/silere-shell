@@ -13,6 +13,9 @@ DECL = re.compile(
 SIGNAL = re.compile(r'^\s*signal\s+(\w+)', re.M)
 FUNCTION = re.compile(r'^\s*function\s+(\w+)', re.M)
 ROOT_TYPE = re.compile(r'^\s*([A-Z]\w*)\s*\{', re.M)
+GATED = re.compile(
+    r'target\s*:\s*[^\n]*?\?\s*(?:([\w.]+)\s*:\s*null|null\s*:\s*([\w.]+))\b')
+PLAIN = re.compile(r'target\s*:\s*([\w.]+)')
 
 own, base, singleton = {}, {}, set()
 for f, text in SOURCE.items():
@@ -52,6 +55,20 @@ def rooted_in_singleton(name, seen=None):
     return rooted_in_singleton(parent, seen)
 
 
+def target_name(body):
+    """The type a Connections block binds to, or None.
+
+    A gated `cond ? Foo : null` reads as Foo: the handler still has to match
+    Foo, and an orphan there is silent twice over — wrong name, and only ever
+    armed under one setting.
+    """
+    gated = GATED.search(body)
+    if gated:
+        return next(g for g in gated.groups() if g)
+    plain = PLAIN.search(body)
+    return plain.group(1) if plain else None
+
+
 def block(text, start):
     depth = 0
     i = text.index('{', start)
@@ -87,10 +104,9 @@ for f, text in SOURCE.items():
     for found in re.finditer(r'\bConnections\s*\{', text):
         body = block(text, found.start())
         line = text[:found.start()].count('\n') + 1
-        target = re.search(r'target\s*:\s*([\w.]+)', body)
-        if not target:
+        name = target_name(body)
+        if not name:
             continue
-        name = target.group(1)
         if name not in singleton or not rooted_in_singleton(name):
             continue
         exposed = members(name)

@@ -16,6 +16,21 @@ Singleton {
         }).join("/")
     }
 
+    // image://icon/<name> is filesystem-backed and reads a raw "?path=" segment with no
+    // traversal check; only Quickshell's in-memory handles are safe to take from raw text
+    readonly property var _imageScheme: /^image:/i
+    function _isSafeImageProvider(value: string): bool {
+        // qt matches scheme and provider id case-insensitively, so the guard folds case too
+        const authority = value.slice(6).replace(/^\/\//, "").toLowerCase()
+        return authority === "qsimage" || authority === "qspixmap"
+            || authority.startsWith("qsimage/") || authority.startsWith("qspixmap/")
+    }
+
+    function safeLocalSource(raw): string {
+        const source = root.localSource(raw)
+        return root._imageScheme.test(source) && !root._isSafeImageProvider(source) ? "" : source
+    }
+
     // Icon and image fields can originate in any notification or StatusNotifier
     // sender. Keep local files and Qt's internal providers, but never let a label
     // silently turn the shell into a network client or feed it an unbounded data URI.
@@ -40,9 +55,25 @@ Singleton {
     function iconSource(raw): string {
         const value = String(raw ?? "").trim()
         if (value.length === 0 || value.length > root.maxSourceChars) return ""
+        // raw text skips the theme-existence check iconPath() applies below, so an
+        // image: URI only passes here as Quickshell's safe in-memory handle
         if (value.startsWith("/") || root._scheme.test(value))
-            return root.localSource(value)
+            return root.safeLocalSource(value)
         return root.localSource(Quickshell.iconPath(value, true))
+    }
+
+    function senderImageSource(raw): string {
+        const source = root.localSource(raw)
+        if (source.startsWith("qrc:")) return source
+        return root._imageScheme.test(source) && root._isSafeImageProvider(source) ? source : ""
+    }
+
+    function senderIconSource(raw): string {
+        const value = String(raw ?? "").trim()
+        if (value.startsWith("/")) return ""
+        const match = root._scheme.exec(value)
+        if (match && match[1].toLowerCase() === "file") return ""
+        return root.iconSource(value)
     }
 
     function appMeta(identity): var {

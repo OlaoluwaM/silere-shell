@@ -27,20 +27,17 @@ is_qt6_tool() {
     [[ "$version" =~ (^|[[:space:]])6\. ]]
 }
 
-find_qmlcachegen() {
-    local candidate
-    candidate="$(command -v qmlcachegen 2>/dev/null || true)"
+# Qt 5 ships same-named tools, so PATH alone is not enough — every candidate has
+# to answer with a 6.x version before it is accepted.
+find_qt6_tool() { # $1 = name, $@ = fallback paths distros hide it under
+    local name="$1" candidate
+    shift
+    candidate="$(command -v "$name" 2>/dev/null || true)"
     if [ -n "$candidate" ] && is_qt6_tool "$candidate"; then
         printf '%s\n' "$candidate"
         return 0
     fi
-    for candidate in \
-        /usr/lib/qt6/qmlcachegen \
-        /usr/lib64/qt6/qmlcachegen \
-        /usr/lib/x86_64-linux-gnu/qt6/libexec/qmlcachegen \
-        /usr/lib/qt6/libexec/qmlcachegen \
-        /usr/local/lib/qt6/qmlcachegen
-    do
+    for candidate in "$@"; do
         if [ -x "$candidate" ] && is_qt6_tool "$candidate"; then
             printf '%s\n' "$candidate"
             return 0
@@ -49,26 +46,22 @@ find_qmlcachegen() {
     return 1
 }
 
+find_qmlcachegen() {
+    find_qt6_tool qmlcachegen \
+        /usr/lib/qt6/qmlcachegen \
+        /usr/lib64/qt6/qmlcachegen \
+        /usr/lib/x86_64-linux-gnu/qt6/libexec/qmlcachegen \
+        /usr/lib/qt6/libexec/qmlcachegen \
+        /usr/local/lib/qt6/qmlcachegen
+}
+
 find_qmllint() {
-    local candidate
-    candidate="$(command -v qmllint 2>/dev/null || true)"
-    if [ -n "$candidate" ] && is_qt6_tool "$candidate"; then
-        printf '%s\n' "$candidate"
-        return 0
-    fi
-    for candidate in \
+    find_qt6_tool qmllint \
         /usr/lib/qt6/bin/qmllint \
         /usr/lib64/qt6/bin/qmllint \
         /usr/lib/x86_64-linux-gnu/qt6/bin/qmllint \
         /usr/lib/qt6/qmllint \
         /usr/local/lib/qt6/bin/qmllint
-    do
-        if [ -x "$candidate" ] && is_qt6_tool "$candidate"; then
-            printf '%s\n' "$candidate"
-            return 0
-        fi
-    done
-    return 1
 }
 
 # Shared with install.sh/check.sh/CI: same QML2_IMPORT_PATH/qtpaths6-aware root
@@ -168,6 +161,22 @@ else
         --unterminated-case error
         --unintentional-empty-block error
         --unresolved-alias error
+        --access-singleton-via-object error
+        --comma error
+        --component-children-count error
+        --confusing-expression-statement error
+        --duplicate-import error
+        --enum-entry-matches-enum error
+        --equality-type-coercion error
+        --literal-constructor error
+        --multiline-strings error
+        --non-root-enum error
+        --prefer-non-var-properties error
+        --redundant-optional-chaining error
+        --stale-property-read error
+        --top-level-component error
+        --var-used-before-declaration error
+        --with error
     )
     qmllint_help="$("$QMLLINT" --help 2>&1 || true)"
     unsupported_lint_args=()

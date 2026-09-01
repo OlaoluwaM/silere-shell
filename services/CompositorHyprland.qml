@@ -12,6 +12,7 @@ QtObject {
 
     property int _layoutTick: 0
     property var _liveTitles: ({})
+    property string _activeTitle: ""
     property bool _refreshAgain: false
     property string _activeAddr: ""
     property bool _unfocused: false
@@ -66,9 +67,11 @@ QtObject {
         const next = Object.create(null)
         for (let i = 0; i < tops.length; i++) {
             const t = tops[i]
-            const c = t ? t.lastIpcObject : null
-            if (!c || !c.address) continue
-            next[c.address] = root._title(t.title || c.title)
+            // t.address/t.title land the instant hyprland reports them; lastIpcObject only
+            // catches up on the next refreshToplevels() round-trip, well behind a new window
+            if (!t || !t.address) continue
+            const c = t.lastIpcObject
+            next["0x" + t.address] = root._title(t.title || (c ? c.title : ""))
         }
 
         const oldKeys = Object.keys(root._liveTitles)
@@ -78,12 +81,46 @@ QtObject {
         root._liveTitles = next
     }
 
+    // a background window can retitle many times a second; only the focused title is painted
+    function _syncActiveTitle(): void {
+        const t = Hyprland.activeToplevel
+        if (!t || !t.address || root._unfocused) {
+            if (root._activeTitle.length > 0) root._activeTitle = ""
+            return
+        }
+        const c = t.lastIpcObject
+        const next = root._title(t.title || (c ? c.title : ""))
+        if (root._activeTitle !== next) root._activeTitle = next
+    }
+
+    function _titleEventAddress(data): string {
+        const raw = String(data ?? "")
+        const comma = raw.indexOf(",")
+        const address = (comma >= 0 ? raw.slice(0, comma) : raw).trim()
+        return address.startsWith("0x") ? address.slice(2) : address
+    }
+
+    function _queueTitleSync(data): void {
+        if (!root._liveTitlesWanted || Idle.isIdle) return
+        const eventAddress = root._titleEventAddress(data)
+        const active = Hyprland.activeToplevel
+        const activeAddress = active && active.address
+            ? String(active.address) : root._activeAddr
+        if (eventAddress.length > 0 && activeAddress.length > 0
+                && eventAddress === activeAddress) {
+            if (!_titleSync.running) _titleSync.start()
+        } else if (!_backgroundTitleSync.running) {
+            _backgroundTitleSync.start()
+        }
+    }
+
     property Timer _refreshSettleTimer: Timer {
         id: _refreshSettle
         interval: 80
         onTriggered: {
             root._layoutTick++
             root._syncLiveTitles()
+            root._syncActiveTitle()
             if (!root._refreshAgain) return
             root._refreshAgain = false
             Hyprland.refreshToplevels()
@@ -95,14 +132,26 @@ QtObject {
     property Timer _titleSyncTimer: Timer {
         id: _titleSync
         interval: 180
+        onTriggered: root._syncActiveTitle()
+    }
+
+    // only jump-to-app heuristics read these, so a stale window costs nothing
+    property Timer _backgroundTitleSyncTimer: Timer {
+        id: _backgroundTitleSync
+        interval: 1500
         onTriggered: root._syncLiveTitles()
     }
 
     property Connections _idleConn: Connections {
         target: Idle
         function onIsIdleChanged() {
-            if (Idle.isIdle) _titleSync.stop()
-            else root._syncLiveTitles()
+            if (Idle.isIdle) {
+                _titleSync.stop()
+                _backgroundTitleSync.stop()
+            } else {
+                root._syncLiveTitles()
+                root._syncActiveTitle()
+            }
         }
     }
 
@@ -115,8 +164,10 @@ QtObject {
             if (ShellSettings.showWindowTitle) {
                 root.refreshToplevels()
                 root._syncLiveTitles()
+                root._syncActiveTitle()
             } else {
                 _titleSync.stop()
+                _backgroundTitleSync.stop()
                 // keep one last snapshot for focus heuristics, but stop subscribing it to title-only compositor events
                 root._syncLiveTitles()
             }
@@ -223,22 +274,24 @@ QtObject {
         return out
     }
 
-    Component.onCompleted: {
-        Qt.callLater(root._syncLiveTitles)
+    Component.onCompleted: Qt.callLater(function() {
+        root._syncLiveTitles()
+        root._syncActiveTitle()
         root._queryWindowGap()
-    }
+    })
 
     // quickshell never clears activeToplevel: hyprland reports unfocus as an empty
     // activewindowv2 address and its parser bails out before the assignment
     readonly property var activeToplevel: {
         if (root._unfocused) return null
         const t = Hyprland.activeToplevel
-        if (!t) return null
-        const tops = root.toplevels
-        const c = t.lastIpcObject
-        const addr = c ? c.address : null
+        if (!t || !t.address) return null
+        const addr = "0x" + t.address
+        const tops = root.workspaceToplevels
         for (let i = 0; i < tops.length; i++)
-            if (addr && tops[i].ref === addr) return tops[i]
+            if (tops[i].ref === addr) return Object.assign({}, tops[i], {
+                title: root._activeTitle
+            })
         return null
     }
 
@@ -249,23 +302,29 @@ QtObject {
             ? String(parts[parts.length - 1]) : ""
     }
 
+    readonly property var _inertEvents: ({
+        "openlayer": true, "closelayer": true, "submap": true, "activelayout": true,
+        "screencast": true, "changefloatingmode": true, "bell": true, "pin": true,
+        "minimize": true, "togglegroup": true, "moveintogroup": true,
+        "moveoutofgroup": true, "ignoregrouplock": true, "lockgroups": true
+    })
+
     property Connections _eventConn: Connections {
         target: Hyprland
         function onRawEvent(event) {
             const n = event.name
-            if (n === "windowtitle" || n === "windowtitlev2" || n === "activewindow") {
-                if (root._liveTitlesWanted && !Idle.isIdle && !_titleSync.running)
-                    _titleSync.start()
+            // hyprland pairs each event with its v2 form; only v2 carries the title
+            if (n === "windowtitle") return
+            if (n === "windowtitlev2") {
+                root._queueTitleSync(event.data)
                 return
             }
-            // the shell's own popups, OSD and notifications each fire openlayer/closelayer, and
-            // none of these touch the workspace, monitor or toplevel lists the models read.
-            // changefloatingmode is inert for the same reason: the toplevel model carries no
-            // floating state, and it fired 420 times in two hours of ordinary use
-            if (n === "openlayer" || n === "closelayer" || n === "submap"
-                    || n === "activelayout" || n === "screencast"
-                    || n === "changefloatingmode")
+            if (n === "activewindow") {
+                // title-only half of activewindowv2; the v2 event below carries the address
                 return
+            }
+            // none of these touch the workspace, monitor or toplevel lists: no floating, group, pin or minimize state is modelled (changefloatingmode alone fired 420 times in two hours)
+            if (root._inertEvents[n] === true) return
             // activewindow refires per title frame; only v2's address distinguishes a real focus change
             if (n === "activewindowv2") {
                 const addr = String(event.data ?? "")
@@ -276,6 +335,7 @@ QtObject {
                     return
                 }
                 root._activeAddr = addr
+                root._syncActiveTitle()
                 root.refreshToplevels()
                 root._layoutTick++
                 return
@@ -283,6 +343,9 @@ QtObject {
             if (n === "openwindow" || n === "closewindow" || n === "movewindow" || n === "movewindowv2"
                 || n === "fullscreen")
                 root.refreshToplevels()
+            // a window that never retitles after opening has no windowtitlev2 to arm this on
+            if (n === "openwindow" && root._liveTitlesWanted && !Idle.isIdle && !_titleSync.running)
+                _titleSync.start()
             if (n === "activespecial" || n === "activespecialv2")
                 root._updateSpecial(event.data)
             if (n === "scrolloverview")

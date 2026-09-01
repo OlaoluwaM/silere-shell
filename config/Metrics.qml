@@ -37,6 +37,14 @@ Singleton {
 
     function clockDateGapFor(compact: bool): int { return compact ? 4 : 8 }
 
+    // a proportional cap alone lets one client own an ultrawide bar
+    function windowTitleWidthFor(compact: bool): int { return compact ? 280 : 420 }
+
+    // about sixty-five monospace characters: enough to reveal a clipped title without spanning the screen
+    function barHintWidthFor(available: real): real {
+        return Math.min(available, Math.round(Settings.fontCaption * 40))
+    }
+
     // 4px multiples land on whole physical px at 1.25/1.5/1.75/2, not at 1.6; grows only with the font
     function rowHeightFor(design: real): int {
         return 4 * Math.ceil((design
@@ -85,6 +93,12 @@ Singleton {
     // takes the clearance, not the gap: a surface that animates its own inset must pass the live value
     function popupY(windowHeight: real, popupHeight: real, atBottom: bool, edge: real): real {
         return Math.round(atBottom ? windowHeight - edge - popupHeight : edge)
+    }
+
+    // the middle of a bar is the span left free by its side zones, not the bar's own centre:
+    // an uneven pair of sides otherwise pulls a centred item underneath the wider one
+    function centeredSpanX(axis: real, span: real, freeLeft: real, freeRight: real): int {
+        return Math.round(Math.max(freeLeft, Math.min(axis - span / 2, freeRight - span)))
     }
 
     // the track title sizes to its text and marquees past this; a reserved slot left the pill

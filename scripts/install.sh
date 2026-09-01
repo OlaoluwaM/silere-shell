@@ -19,29 +19,8 @@ CONFIG_HOME="$(_silere_xdg_home "${XDG_CONFIG_HOME:-}" .config)" || {
 }
 DEFAULT_DIR="$CONFIG_HOME/silere-shell"
 
-# ── colors ──────────────────────────────────────────────────────────────────────
-if [ -t 1 ]; then
-    R='\033[0m' BOLD='\033[1m'
-    GREEN='\033[0;32m' CYAN='\033[0;36m' YELLOW='\033[1;33m' DIM='\033[2m' RED='\033[0;31m'
-else
-    R='' BOLD='' GREEN='' CYAN='' YELLOW='' DIM='' RED=''
-fi
-
-_ok()   { printf "    ${GREEN}ok${R}      %s\n" "$*"; }
-_skip() { printf "    ${DIM}skip${R}    %s\n" "$*"; }
-_warn() { printf "    ${YELLOW}warn${R}    %s\n" "$*"; }
-_err()  { printf "    ${RED}error${R}   %s\n" "$*" >&2; }
-_die()  { _err "$*"; exit 1; }
-
-_section() { printf "\n${BOLD}==> %s${R}\n" "$1"; }
-
-# -r only stats the device node: it succeeds with no controlling terminal, where
-# opening it fails with ENXIO. Open it for real, or every prompt below dies on an
-# unset reply instead of reporting the missing terminal.
-_need_tty() {
-    { : </dev/tty; } 2>/dev/null \
-        || _die "interactive install requires a TTY — clone the repo and run scripts/install.sh from a terminal"
-}
+source "$SCRIPT_DIR/lib/ui.sh"
+TTY_HINT="interactive install requires a TTY — clone the repo and run scripts/install.sh from a terminal"
 
 _reject_unsafe_path() {
     if printf '%s' "$1" | LC_ALL=C grep -q '[[:cntrl:]]'; then
@@ -319,7 +298,7 @@ _ask() {
         printf "  ${CYAN}::${R}  %s ${DIM}[Y/n]${R} yes\n" "$1"
         return 0
     fi
-    _need_tty
+    _need_tty "$TTY_HINT"
     printf "  ${CYAN}::${R}  %s ${DIM}[Y/n]${R} " "$1"
     read -r reply </dev/tty
     [[ ! "$reply" =~ ^[Nn] ]]
@@ -331,7 +310,7 @@ _ask_no() {
         printf "  ${CYAN}::${R}  %s ${DIM}[y/N]${R} no\n" "$1"
         return 1
     fi
-    _need_tty
+    _need_tty "$TTY_HINT"
     printf "  ${CYAN}::${R}  %s ${DIM}[y/N]${R} " "$1"
     read -r reply </dev/tty
     _answered_yes "$reply"
@@ -343,7 +322,7 @@ _ask_path() {
         printf '%s' "$DEFAULT_DIR"
         return 0
     fi
-    _need_tty
+    _need_tty "$TTY_HINT"
     printf "  ${CYAN}::${R}  Use a different install path? ${DIM}[y/N]${R} " >&2
     read -r reply </dev/tty
     if [[ "$reply" =~ ^[Yy] ]]; then
@@ -527,7 +506,12 @@ _ok "git"
 
 has_qs=true
 if command -v qs >/dev/null 2>&1; then
-    _ok "quickshell"
+    qs_version="$(_silere_quickshell_version || true)"
+    if [ -n "$qs_version" ] && ! _silere_version_at_least "$qs_version" "$SILERE_MIN_QUICKSHELL"; then
+        _warn "quickshell $qs_version is older than the required $SILERE_MIN_QUICKSHELL"
+    else
+        _ok "quickshell${qs_version:+ $qs_version}"
+    fi
 else
     _warn "quickshell not found — install it before launching silere"
     has_qs=false
@@ -596,7 +580,7 @@ _optdep powerprofilesctl "power profile selector"
 _optdep hyprlock      "lock screen"
 _optdep_any "power actions" "suspend / reboot / shutdown" systemctl loginctl
 _optdep notify-send   "low-battery + hot-CPU alerts"
-_optdep timeout       "bounded update checks"
+_optdep timeout       "bounded helper checks"
 
 # ── compositor ───────────────────────────────────────────────────────────────────
 # The whole install can succeed on a session Silere cannot run on: every step

@@ -26,6 +26,9 @@ Item {
         anchors.fill: parent
         interactive: contentHeight > height
         spacing: 0
+        // commit and package rows are stateless and can be pooled while long
+        // update lists scroll instead of constructing a fresh row each time
+        reuseItems: true
         model: root.model
 
         delegate: Item {

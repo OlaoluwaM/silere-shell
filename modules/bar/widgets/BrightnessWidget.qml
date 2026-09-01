@@ -15,7 +15,8 @@ Pill {
     opacity: _baseOpacity
     visible: layoutVisible
     glyph:           Brightness.icon
-    accessibleName: root.text.length > 0 ? "Brightness " + root.text : "Brightness"
+    accessibleName: root.canControl
+        ? "Brightness " + Brightness.label : "Brightness unavailable"
     // full sun: the dimmer states shrink their rays symmetrically
     glyphAlignReference: "󰃠"
     glyphColor:      canControl ? Theme.text : Theme.subtext
@@ -24,6 +25,7 @@ Pill {
                  : (canControl ? Brightness.label : "—")
     textColor:   Theme.subtext
     interactive: canControl
+    hintText: canControl ? "Scroll brightness" : ""
     levelValue: canControl ? Brightness.pct : -1
     levelVisible: canControl && ShellSettings.valuesOnHover && ShellSettings.hoverLevelBar && !expanded
     levelColor: Theme.accent

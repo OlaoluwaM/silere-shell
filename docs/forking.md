@@ -9,19 +9,23 @@ whole shell to change part of it.
 - `config/` — colours, durations, sizes
 - `services/` — settings and system state, no UI
 - `modules/` — one folder per surface: `bar/`, `menu/`, `notifications/`, `osd/`, …
-- `scripts/` — install, update, checks
+- `scripts/` — install, uninstall, checks, and development probes
 
 ## Changing things
 
 **Colours.** All of them live in `config/Theme.qml`. Change a token, the whole shell
 follows. Don't paste a hex into a widget.
 
-**A new setting** goes in four places: a property in `services/ShellSettings.qml` (its
-value there is the default), an entry in that file's `_schema` carrying a `sec:` that
-names a settings page, wherever you read it, and a row on that same page under
-`modules/menu/settings/`. Saving is automatic. Put the row on the page the `sec:` names
-— that is what dots the category once the value leaves its default, so a mismatch marks
-a page the setting isn't on.
+**A new setting** goes in four places:
+
+1. a property in `services/ShellSettings.qml` — its value there is the default
+2. an entry in that file's `_schema`, carrying a `sec:` that names a settings page
+3. wherever you read it
+4. a row on that same page under `modules/menu/settings/`
+
+Saving is automatic. Put the row on the page the `sec:` names — that is what dots the
+category once the value leaves its default, so a mismatch marks a page the setting
+isn't on.
 
 **A new component** must be listed in its folder's `qmldir`. Forget it and it fails
 only when running, as `X is not a type` — that one confuses everybody once.
@@ -35,7 +39,8 @@ only when running, as `X is not a type` — that one confuses everybody once.
    the key you want
 4. an entry in `barWidgetMeta` in `services/ShellSettings.qml` — glyph, label, group,
    and the `setting` name that hides it (empty string means it cannot be hidden)
-5. that `setting` as a property plus a `_schema` entry, if it is hideable
+5. that `setting` as a property plus a `_schema` entry whose `sec:` names the
+   `widgets` page, if it is hideable
 6. the key appended to one of the `barWidgetOrder*` defaults, or it ships in no zone
    and only appears once someone drags it out of the arranger
 

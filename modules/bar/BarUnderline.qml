@@ -103,7 +103,8 @@ Item {
         property real _bloomBoost:  0.0
         property real _screenshotSweepCenter: 0.50
         function _widgetSweep(key: string): real {
-            return ShellSettings.barWidgetLocate(key).zone === "left" ? 0.32 : 0.68
+            const zone = ShellSettings.barWidgetLocate(key).zone
+            return zone === "left" ? 0.32 : zone === "center" ? 0.50 : 0.68
         }
         readonly property real _sweepCenterTarget: {
             if (_notifFlash.running)                                         return 0.50
@@ -432,7 +433,7 @@ Item {
         Timer {
             interval: 15000
             running: _lineEffect._tempGlowEnabled && CpuTemp.critical
-                && !_lineEffect._tempSettled && !Idle.isIdle
+                && !_lineEffect._tempSettled && !Idle.isQuiet
             onTriggered: _lineEffect._tempSettled = true
         }
 
@@ -443,7 +444,7 @@ Item {
             peak:           _lineEffect._tempPeak
             floor:          _lineEffect._tempFloor
             duration:       _lineEffect._tempPulseDur
-            active:         _lineEffect._tempGlowEnabled && CpuTemp.critical && !Idle.isIdle
+            active:         _lineEffect._tempGlowEnabled && CpuTemp.critical && !Idle.isQuiet
                 && !_lineEffect._tempSettled
         }
     }

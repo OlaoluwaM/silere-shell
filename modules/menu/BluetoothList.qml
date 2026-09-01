@@ -69,17 +69,6 @@ Item {
         function onIsIdleChanged() { root._syncScanState() }
     }
 
-    function _devGlyph(icon): string {
-        const s = (icon || "").toLowerCase()
-        if (s.indexOf("headset") >= 0 || s.indexOf("headphone") >= 0 || s.indexOf("audio") >= 0) return "󰋋"
-        if (s.indexOf("mouse") >= 0)    return "󰍽"
-        if (s.indexOf("keyboard") >= 0) return "󰌌"
-        if (s.indexOf("phone") >= 0)    return "󰏳"
-        if (s.indexOf("speaker") >= 0)  return "󰓃"
-        if (s.indexOf("watch") >= 0)    return "󰖉"
-        return "󰂱"
-    }
-
     Column {
         id: _col
         width: parent.width
@@ -142,7 +131,7 @@ Item {
                         : _entry.modelData.paired    ? "Paired"
                         : "Pair"
 
-                    glyph: root._devGlyph(_entry.modelData.icon)
+                    glyph: Bluetooth.deviceGlyph(_entry.modelData.icon)
                     label: Bluetooth.deviceLabel(_entry.modelData)
                     status: _state
                     selected: _entry.modelData.connected

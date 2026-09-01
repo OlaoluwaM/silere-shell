@@ -169,8 +169,14 @@ PanelWindow {
             const wantH  = Metrics.rowHeightFor(38) + 18 + Notifications.historyCount * 70
             return Math.max(1, Math.min(capH, Math.max(floorH, Metrics.snap4(wantH))))
         }
-        readonly property int targetPanelH: Math.max(1,
+        readonly property int _resolvedPanelH: Math.max(1,
             Math.min(contentPane.targetH, _availablePanelH))
+        // A lazy page briefly reports the placeholder height before its final
+        // implicit height. Hold the live edge through that interval so a tab
+        // switch has one height destination instead of shrinking then growing.
+        readonly property int targetPanelH: _tabHeightHeld
+            ? Math.max(1, Math.min(_tabHeldH, _availablePanelH))
+            : _resolvedPanelH
 
         readonly property int activeTab: MenuState.activeTab
 
@@ -178,6 +184,8 @@ PanelWindow {
         property bool _loadedDeferred: false
         property bool _geometryReady:  false
         property bool _outerHeightMotion: false
+        property bool _tabHeightHeld: false
+        property int  _tabHeldH: idealMinH
         property bool _homeRetained:    false
         property bool _settingsRetained: false
         property bool _recentRetained:  false
@@ -212,6 +220,7 @@ PanelWindow {
             }
 
             if (activeTab === 1) {
+                _settingsWarmUnload.stop()
                 _settingsUnload.stop()
                 _settingsRetained = true
             } else if (_settingsRetained) {
@@ -242,7 +251,7 @@ PanelWindow {
             panel._loadedDeferred = true
             panel._settingsRetained = true
             panel._settingsNavRetained = true
-            _settingsUnload.restart()
+            _settingsWarmUnload.restart()
         }
 
         function _settlePageVisuals(): void {
@@ -261,9 +270,32 @@ PanelWindow {
         function switchTab(idx: int): void {
             const tab = Math.max(0, Math.min(3, idx))
             if (powerOpen) powerOpen = false
-            if (tab !== activeTab) panel._armOuterHeightMotion()
+            if (tab !== activeTab) panel._beginTabHeightHold()
             MenuState.selectTab(tab)
             contentFlick.contentY = 0
+        }
+
+        function _beginTabHeightHold(): void {
+            if (!panel.open || ShellSettings.reduceMotion) return
+            panel._tabHeldH = Math.max(1, Math.round(panel.height))
+            panel._tabHeightHeld = true
+        }
+
+        function _activePageSettled(): bool {
+            if (panel.activeTab === 1) {
+                if (settingsLoader.status === Loader.Error) return true
+                return settingsLoader.status === Loader.Ready
+                    && settingsLoader.item?.contentReady === true
+            }
+            const status = panel.activeTab === 0 ? homeLoader.status
+                : panel.activeTab === 2 ? recentLoader.status
+                : systemLoader.status
+            return status === Loader.Ready || status === Loader.Error
+        }
+
+        function _scheduleTabHeightRelease(): void {
+            if (panel._tabHeightHeld && panel._activePageSettled())
+                _tabHeightRelease.restart()
         }
 
         function _armOuterHeightMotion(): void {
@@ -279,9 +311,12 @@ PanelWindow {
                 panel.switchTab(index)
             }
             function onActiveTabChanged() {
-                panel._armOuterHeightMotion()
+                // IPC can change the tab before tabRequested reaches this window,
+                // so capture here as well as in switchTab.
+                if (!panel._tabHeightHeld) panel._beginTabHeightHold()
                 contentFlick.contentY = 0
                 panel._syncPageRetention()
+                panel._scheduleTabHeightRelease()
                 if (!MenuState.open) panel._settlePageVisuals()
             }
             function onSettingsSectionChanged() {
@@ -293,9 +328,12 @@ PanelWindow {
                     // closeFinished is canceled when a close animation reverses; transient drawer state must not depend on that callback
                     panel.powerOpen = false
                     panel._outerHeightMotion = false
+                    panel._tabHeightHeld = false
+                    _tabHeightRelease.stop()
                     _outerHeightMotionHold.stop()
                     contentFlick.contentY = 0
                 } else {
+                    _settingsWarmDelay.stop()
                     _closedUnload.restart()
                 }
             }
@@ -319,6 +357,20 @@ PanelWindow {
         }
 
         Timer {
+            id: _settingsWarmUnload
+            // A hover preload is speculative. Keep it long enough to cover an
+            // intentional pause before clicking, but do not retain a whole
+            // settings tree for the normal eight-second comparison window.
+            interval: 2500
+            onTriggered: {
+                if (panel.activeTab === 1) return
+                _settingsUnload.stop()
+                panel._settingsRetained = false
+                panel._settingsNavRetained = false
+            }
+        }
+
+        Timer {
             id: _recentUnload
             interval: Math.max(Motion.pageOut, Motion.ms(100)) + 30
             onTriggered: if (panel.activeTab !== 2) panel._recentRetained = false
@@ -335,6 +387,8 @@ PanelWindow {
             interval: Math.max(Motion.pageOut, Motion.ms(100)) + 120
             onTriggered: {
                 if (MenuState.open) return
+                _settingsWarmDelay.stop()
+                _settingsWarmUnload.stop()
                 _settingsUnload.stop()
                 _recentUnload.stop()
                 _systemUnload.stop()
@@ -349,6 +403,26 @@ PanelWindow {
             id: _outerHeightMotionHold
             interval: Motion.pageOut + Motion.panelResize + Motion.ms(60)
             onTriggered: panel._outerHeightMotion = false
+        }
+
+        Timer {
+            id: _tabHeightRelease
+            interval: 0
+            onTriggered: {
+                if (!panel._tabHeightHeld || !panel._activePageSettled()) return
+                panel._armOuterHeightMotion()
+                panel._tabHeightHeld = false
+            }
+        }
+
+        Connections {
+            target: ShellSettings
+            function onReduceMotionChanged() {
+                if (!ShellSettings.reduceMotion) return
+                _tabHeightRelease.stop()
+                panel._tabHeightHeld = false
+                panel._outerHeightMotion = false
+            }
         }
 
         width:  panelW
@@ -524,6 +598,15 @@ PanelWindow {
 
             RailLabelGroup { id: _railLabels }
 
+            Timer {
+                id: _settingsWarmDelay
+                // Ignore incidental sweeps down the icon rail. This is input
+                // intent detection, not visual motion, so reduce-motion does not
+                // collapse the delay to zero.
+                interval: 90
+                onTriggered: if (_railSettings.hovered) panel.warmSettings()
+            }
+
             Column {
                 id: _railNav
                 width: panel.railCollapsedW
@@ -597,7 +680,10 @@ PanelWindow {
                         || panel.navW < panel._navMinW
                     active: panel.activeTab === 1
                     onTapped: panel.switchTab(1)
-                    onHoveredChanged: if (hovered) panel.warmSettings()
+                    onHoveredChanged: {
+                        if (hovered) _settingsWarmDelay.restart()
+                        else _settingsWarmDelay.stop()
+                    }
                 }
 
                 RailNavItem {
@@ -728,12 +814,16 @@ PanelWindow {
                     y: 0
                     width: panel.innerW
                     readonly property bool _pagePending:
-                        panel.activeTab === 1 ? settingsLoader.status !== Loader.Ready
+                        panel.activeTab === 1
+                            ? settingsLoader.status !== Loader.Ready
+                                || settingsLoader.item?.contentReady !== true
                       : panel.activeTab === 2 ? recentLoader.status !== Loader.Ready
                       : panel.activeTab === 3 ? systemLoader.status !== Loader.Ready
                       : false
                     readonly property bool _pageError:
-                        panel.activeTab === 1 ? settingsLoader.status === Loader.Error
+                        panel.activeTab === 1
+                            ? settingsLoader.status === Loader.Error
+                                || settingsLoader.item?.contentError === true
                       : panel.activeTab === 2 ? recentLoader.status === Loader.Error
                       : panel.activeTab === 3 ? systemLoader.status === Loader.Error
                       : false
@@ -844,6 +934,7 @@ PanelWindow {
                         width: parent.width
                         active: panel._homeRetained
                         asynchronous: false
+                        onStatusChanged: panel._scheduleTabHeightRelease()
                         sourceComponent: Component {
                             HomePage {
                                 width: parent.width
@@ -859,6 +950,7 @@ PanelWindow {
                         width: parent.width
                         active: panel._loadedDeferred && panel._settingsRetained
                         asynchronous: true
+                        onStatusChanged: panel._scheduleTabHeightRelease()
                         sourceComponent: Component {
                             SettingsPage {
                                 width: parent.width
@@ -866,6 +958,7 @@ PanelWindow {
                                 powerOpen: panel.powerOpen
                                 animateOnCreate: panel.fullyShown
                                 scroller: contentFlick
+                                onContentReadyChanged: panel._scheduleTabHeightRelease()
                                 onSectionSwapped: contentFlick.contentY = 0
                             }
                         }
@@ -876,6 +969,7 @@ PanelWindow {
                         width: parent.width
                         active: panel._loadedDeferred && panel._recentRetained
                         asynchronous: true
+                        onStatusChanged: panel._scheduleTabHeightRelease()
                         sourceComponent: Component {
                             RecentPage {
                                 width: parent.width
@@ -892,6 +986,7 @@ PanelWindow {
                         width: parent.width
                         active: panel._loadedDeferred && panel._systemRetained
                         asynchronous: true
+                        onStatusChanged: panel._scheduleTabHeightRelease()
                         sourceComponent: Component {
                             SystemPage {
                                 width: parent.width

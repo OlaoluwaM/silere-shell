@@ -38,6 +38,15 @@ Item {
         }
     }
 
+    function _releaseBarHints(): void {
+        for (let i = 0; i < _items.count; i++) {
+            const tile = _items.itemAt(i)
+            if (tile) BarHintState.release(tile)
+        }
+    }
+
+    onBarActiveChanged: if (!root.barActive) root._releaseBarHints()
+
     onXChanged: root._syncMenuAnchors()
     onYChanged: root._syncMenuAnchors()
     onImplicitWidthChanged: root._syncMenuAnchors()
@@ -207,10 +216,23 @@ Item {
                 HoverHandler {
                     id: _iconHover
                     onHoveredChanged: {
-                        if (hovered) _labelDwell.restart()
-                        else { _labelDwell.stop(); _tile._dwelled = false }
+                        if (hovered && root.barActive) {
+                            _labelDwell.restart()
+                            const point = _tile.mapToItem(null, root.iconSize / 2, 0)
+                            const primary = _tile.modelData.onlyMenu ? "Click menu" : "Click open"
+                            const menu = _tile.modelData.hasMenu && !_tile.modelData.onlyMenu
+                                ? " · right-click menu" : ""
+                            BarHintState.request(_tile, root.screen, point.x,
+                                primary + menu + " · middle-click secondary · scroll action")
+                        } else {
+                            _labelDwell.stop()
+                            _tile._dwelled = false
+                            BarHintState.release(_tile)
+                        }
                     }
                 }
+
+                Component.onDestruction: BarHintState.release(_tile)
 
                 MouseArea {
                     id: _ma

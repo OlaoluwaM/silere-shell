@@ -44,7 +44,21 @@ Singleton {
     readonly property color text:       _hc ? "#ffffff" : _textBase
     readonly property color subtext:    _hc ? mix(_subtextBase, text, 0.32) : _subtextBase
     readonly property color surface:    _hc ? mix(_surfaceBase, text, 0.035) : _surfaceBase
-    readonly property color accent:     _n ? (ShellSettings.neutralAccentAuto ? MatugenTheme.accent : ShellSettings.neutralAccent) : _matuAccent
+    // the presets below are solved at this L*; matugen's dark primary lands near 80, so the
+    // same hue reads hotter under Wallpaper than under Custom until it is walked back
+    readonly property real _accentPresetL: 70.8
+    function balancedAccent(c: color): color {
+        const l = lchOf(c)
+        if (l.C < 4) return c
+        return lchColor(_accentPresetL, Math.max(20, Math.min(38, l.C)), l.h)
+    }
+    function _sourcedAccent(c: color): color {
+        return ShellSettings.matugenAccentBalance ? balancedAccent(c) : c
+    }
+    readonly property color accent:     _n ? (ShellSettings.neutralAccentAuto ? _sourcedAccent(MatugenTheme.accent) : ShellSettings.neutralAccent) : _sourcedAccent(_matuAccent)
+    // a greyscale wallpaper, or an achromatic accent pinned in the tool that drives matugen,
+    // leaves the primary with no hue to carry and every accented control reads as plain text
+    readonly property bool accentColorless: lchOf(accent).C < 4
     // matugen warning/success are M3 tertiary/secondary with no semantic meaning, so anchor the hue and let it tint; error is real
     readonly property color _warnAnchor: "#d4ad77"
     readonly property color _okAnchor:   "#94bd8b"
@@ -85,6 +99,9 @@ Singleton {
 
     readonly property color barSeparator: withAlpha(_n ? _lineBase : mix(_lineBase, accent, 0.10),
                                                     ShellSettings.dotOpacity)
+
+    // signature, not structure: keeps its accent in neutral where the panel lines drop theirs
+    readonly property color barLine: mix(_lineBase, accent, 0.30)
 
     // high contrast floors this, so the readout has to report the effective value, not the setting
     readonly property real panelOpacity: _hc ? Math.max(0.90, ShellSettings.barOpacity)

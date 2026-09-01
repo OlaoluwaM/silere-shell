@@ -1,6 +1,7 @@
 # hardware
 singleton Audio         1.0 Audio.qml
 singleton Battery       1.0 Battery.qml
+singleton BarHintState  1.0 BarHintState.qml
 singleton Bluetooth     1.0 Bluetooth.qml
 singleton Brightness    1.0 Brightness.qml
 singleton CpuTemp       1.0 CpuTemp.qml
@@ -55,3 +56,4 @@ singleton TrayMenuState 1.0 TrayMenuState.qml
 singleton TrayPopupState 1.0 TrayPopupState.qml
 singleton Wallpapers    1.0 Wallpapers.qml
 singleton WallpapersPopupState 1.0 WallpapersPopupState.qml
+singleton XdgPaths      1.0 XdgPaths.qml

@@ -13,10 +13,31 @@ PanelWindow {
     required property ShellScreen targetScreen
 
     WlrLayershell.namespace: "silere-notifications"
+    // on demand, not exclusive: exclusive routes every key in the session to this layer
+    // and the user cannot click away from it
+    WlrLayershell.keyboardFocus: win._replyOwner
+        ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     screen:         targetScreen
     color:          "transparent"
     exclusiveZone:  -1
+
+    property var _replyOwner: null
+
+    function _setReplyFocus(owner, active: bool): void {
+        if (!active) {
+            if (win._replyOwner === owner) win._replyOwner = null
+            return
+        }
+        const previous = win._replyOwner
+        if (previous && previous !== owner) previous.cancelReply()
+        win._replyOwner = owner
+        Qt.callLater(function() {
+            if (win._replyOwner !== owner) return
+            win.requestActivate()
+            owner.focusReplyInput()
+        })
+    }
 
     readonly property int _shadowPad: ShellSettings.barShadow ? 16 : 0
     // the body wraps at 3 lines collapsed, so a card pinned at 320 elides sooner as type grows
@@ -237,8 +258,7 @@ PanelWindow {
         const items = win._pendingDismissItems
         win._pendingDismissItems = []
         win._batchExits = 0
-        for (let i = 0; i < items.length; i++)
-            Notifications.dismissObject(items[i].id, items[i].notification, false)
+        Notifications.dismissObjects(items, false)
     }
 
     property var _cascadeItems: []
@@ -284,15 +304,25 @@ PanelWindow {
         }
         spacing: 6
 
-        NotifChip {
+        Item {
             id: _clearChip
-            shown:          Notifications.activeCount > 1 || win._dismissing
-            alignLeft:      win._left
-            alignCenter:    win._center
-            glyph:          "󰆴"
-            label:          "Clear all"
-            tint:           Theme.error
-            onTriggered:    win.dismissAll()
+            readonly property bool shown: Notifications.activeCount > 1 || win._dismissing
+
+            width:   parent.width
+            height:  shown ? Metrics.rowHeightFor(30) : 0
+            clip:    true
+            enabled: shown
+            visible: height > 0.5
+
+            Disclosure on height { expanded: _clearChip.shown }
+
+            ConfirmButton {
+                anchors.verticalCenter: parent.verticalCenter
+                x: win._alignedX(parent.width, width)
+                glyph: "󰆴"
+                label: "Clear all"
+                onConfirmed: win.dismissAll()
+            }
         }
 
         Item {
@@ -375,6 +405,8 @@ PanelWindow {
                                     stackHovered: _stackHover.hovered
 
                                     onLeaving: win._noteLeaving()
+                                    onReplyFocusRequested: (owner, active) =>
+                                        win._setReplyFocus(owner, active)
 
                                     onDismissRequested: (id, notification, expired) => {
                                         if (win._batchExits > 0

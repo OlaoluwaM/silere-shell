@@ -42,7 +42,7 @@ Item {
     property bool _pulseSettled: false
     onShownChanged: if (shown) _pulseSettled = false
     SequentialAnimation {
-        running: root.shown && !root._pulseSettled
+        running: root.shown && !root._pulseSettled && ShellSettings.wsUrgentPulse
             && root.barActive && !ShellSettings.reduceMotion && !Idle.isIdle
         loops:   Animation.Infinite
         onRunningChanged: if (!running) root._pulse = 1.0
@@ -51,7 +51,8 @@ Item {
     }
     Timer {
         interval: 15000
-        running: root.shown && !root._pulseSettled && root.barActive && !Idle.isIdle
+        running: root.shown && !root._pulseSettled && ShellSettings.wsUrgentPulse
+            && root.barActive && !Idle.isIdle
         onTriggered: root._pulseSettled = true
     }
 

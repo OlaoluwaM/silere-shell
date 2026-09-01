@@ -30,13 +30,33 @@ Item {
     readonly property real centerX: x + width / 2
     readonly property color tint: root.urgent ? Theme.warning : Theme.accent
 
+    function _motionAllowed(): bool {
+        return root.shown && root.barActive
+            && !ShellSettings.reduceMotion && !Idle.isIdle
+    }
+    function _settleMenuMotion(): void {
+        _menuRippleAnim.stop()
+        _menuRipple.opacity = 0
+        _menuRipple.scale = 1
+    }
+    function _settleMotion(): void {
+        _specialPulse.stop()
+        _glintAnim.stop()
+        _moveAnim.stop()
+        _tapPulse.stop()
+        root._settleMenuMotion()
+        root._specialScale = 1
+        root._moveScale = 1
+        root._tapScale = 1
+        root._glint = -1.15
+    }
     function pulse(): void {
-        if (ShellSettings.reduceMotion) return
+        if (!root._motionAllowed()) return
         _tapPulse.restart()
         glint()
     }
     function glint(): void {
-        if ((!root.gem && !root._bar) || ShellSettings.reduceMotion) return
+        if ((!root.gem && !root._bar) || !root._motionAllowed()) return
         _glintAnim.restart()
     }
 
@@ -58,11 +78,19 @@ Item {
     property real _moveScale:    1.0
     property real _specialScale: 1.0
     property real _glint:        -1.15
-    property real _menuOn: root.menuTargets && MenuState.open ? 1 : 0
-    MotionBehavior on _menuOn {NumberAnimation { duration: Motion.ms(220); easing.type: Easing.OutCubic } }
+    readonly property bool _menuFx: root.menuTargets && MenuState.open
+        && ShellSettings.wsMenuPulse
+    property real _menuOn: root._menuFx ? 1 : 0
+    MotionBehavior on _menuOn {
+        gate: root.shown && root.barActive && !Idle.isIdle
+        NumberAnimation { duration: Motion.ms(220); easing.type: Easing.OutCubic }
+    }
 
     property real _specialOn: root.inSpecial ? 0.65 : 0
-    MotionBehavior on _specialOn {NumberAnimation { duration: Motion.ms(160); easing.type: Easing.OutCubic } }
+    MotionBehavior on _specialOn {
+        gate: root._motionAllowed()
+        NumberAnimation { duration: Motion.ms(160); easing.type: Easing.OutCubic }
+    }
     readonly property real _energy: Math.max(root._menuOn * 0.82,
                                               _specialOn,
                                               (_hoverScale - 1.0) * 4.2,
@@ -115,8 +143,8 @@ Item {
         scale:   root.inSpecial ? 1.0 : 0.76
         transformOrigin: Item.Center
         visible: root.gem && opacity > 0.01
-        MotionBehavior on opacity {NumberAnimation { duration: Motion.ms(root.inSpecial ? 180 : 130); easing.type: Easing.OutCubic } }
-        MotionBehavior on scale   {NumberAnimation { duration: Motion.ms(root.inSpecial ? 210 : 130); easing.type: Easing.OutQuart } }
+        MotionBehavior on opacity { gate: root._motionAllowed(); NumberAnimation { duration: Motion.ms(root.inSpecial ? 180 : 130); easing.type: Easing.OutCubic } }
+        MotionBehavior on scale   { gate: root._motionAllowed(); NumberAnimation { duration: Motion.ms(root.inSpecial ? 210 : 130); easing.type: Easing.OutQuart } }
     }
     Rectangle {
         anchors.centerIn: parent
@@ -130,8 +158,8 @@ Item {
         scale:   root.inSpecial ? 1.0 : 0.68
         transformOrigin: Item.Center
         visible: !root._bar && opacity > 0.01
-        MotionBehavior on opacity {NumberAnimation { duration: Motion.ms(root.inSpecial ? 165 : 120); easing.type: Easing.OutCubic } }
-        MotionBehavior on scale   {NumberAnimation { duration: Motion.ms(root.inSpecial ? 190 : 120); easing.type: Easing.OutQuart } }
+        MotionBehavior on opacity { gate: root._motionAllowed(); NumberAnimation { duration: Motion.ms(root.inSpecial ? 165 : 120); easing.type: Easing.OutCubic } }
+        MotionBehavior on scale   { gate: root._motionAllowed(); NumberAnimation { duration: Motion.ms(root.inSpecial ? 190 : 120); easing.type: Easing.OutQuart } }
     }
 
     // filled rim, not a stroke (crisp on fractional displays); dot/ring reuse it as an energy-only halo
@@ -142,7 +170,7 @@ Item {
         radius: root.gem ? 3 : width / 2
         rotation: root.gem ? 45 : 0
         antialiasing: true
-        color: Theme.withAlpha(root.tint, root.menuTargets && MenuState.open ? 0.50 : 0.30)
+        color: Theme.withAlpha(root.tint, root._menuFx ? 0.50 : 0.30)
         opacity: root.gem ? 0.28 + root._energy * 0.30 : root._energy * 0.60
         scale: 1.0 + root._energy * (root.gem ? 0.035 : 0.10)
         visible: !root._bar && opacity > 0.01
@@ -257,20 +285,24 @@ Item {
     }
 
     onInSpecialChanged: {
-        if (!root.inSpecial || ShellSettings.reduceMotion) return
+        if (!root.inSpecial || !root._motionAllowed()) return
         _specialPulse.restart()
         root.glint()
     }
 
-    MotionBehavior on x           { gate: root.shiftEnabled; NumberAnimation { duration: Motion.ms(root.travelDuration); easing.type: Easing.OutQuart } }
-    MotionBehavior on width       { gate: root.shiftEnabled && root._bar; NumberAnimation { duration: Motion.ms(root.travelDuration); easing.type: Easing.OutQuart } }
+    onShownChanged: if (!shown) root._settleMotion()
+    onBarActiveChanged: if (!barActive) root._settleMotion()
+    onMenuTargetsChanged: if (!menuTargets) root._settleMenuMotion()
+
+    MotionBehavior on x           { gate: root.shiftEnabled && root._motionAllowed(); NumberAnimation { duration: Motion.ms(root.travelDuration); easing.type: Easing.OutQuart } }
+    MotionBehavior on width       { gate: root.shiftEnabled && root._bar && root._motionAllowed(); NumberAnimation { duration: Motion.ms(root.travelDuration); easing.type: Easing.OutQuart } }
     MotionBehavior on opacity     {NumberAnimation { duration: Motion.ms(150) } }
-    MotionBehavior on _hoverScale {NumberAnimation { duration: Motion.ms(120); easing.type: Easing.OutCubic } }
+    MotionBehavior on _hoverScale { gate: root._motionAllowed(); NumberAnimation { duration: Motion.ms(120); easing.type: Easing.OutCubic } }
 
     onTargetXChanged: {
         if (!root.monitorReady || root.paging) return
         if (Math.abs(targetX - x) < 2) return
-        if (!root.shiftEnabled || ShellSettings.reduceMotion) return
+        if (!root.shiftEnabled || !root._motionAllowed()) return
         _moveAnim.restart()
     }
 
@@ -293,11 +325,27 @@ Item {
     }
     Connections {
         target: MenuState
-        enabled: !ShellSettings.reduceMotion && root.barActive
+        enabled: ShellSettings.wsMenuPulse && root.menuTargets
+            && root._motionAllowed()
         function onOpenChanged() {
-            if (!MenuState.open || !root.menuTargets) return
+            if (!MenuState.open) return
             if (root._bar) root.glint()
             else _menuRippleAnim.restart()
+        }
+    }
+    Connections {
+        target: ShellSettings
+        function onWsMenuPulseChanged() {
+            if (!ShellSettings.wsMenuPulse) root._settleMenuMotion()
+        }
+        function onReduceMotionChanged() {
+            if (ShellSettings.reduceMotion) root._settleMotion()
+        }
+    }
+    Connections {
+        target: Idle
+        function onIsIdleChanged() {
+            if (Idle.isIdle) root._settleMotion()
         }
     }
 }

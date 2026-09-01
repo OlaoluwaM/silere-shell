@@ -8,6 +8,7 @@ Item {
 
     property string glyph: ""
     property string label: ""
+    property string accessiblePrefix: ""
     property string status: ""
     property color accentColor: Theme.accent
     property bool selected: false
@@ -30,6 +31,14 @@ Item {
     signal expandToggled()
 
     readonly property int rowHeight: Metrics.rowHeightFor(32)
+    // a pooled row rebinds holding the previous row's values: gate every animation below
+    property bool motionReady: true
+    // the gate must already be shut when the row rebinds, which happens before onReused;
+    // stop the pending settle too, or it reopens the gate while the row sits in the pool
+    ListView.onPooled: { _settle.stop(); root.motionReady = false }
+    ListView.onReused: { root.motionReady = false; _settle.restart() }
+    Timer { id: _settle; interval: 0; onTriggered: root.motionReady = true }
+    Component.onDestruction: _settle.stop()
     readonly property bool _hot: _hover.hovered || _tap.pressed
     readonly property bool  _attentive: root.warning || root.failed
     readonly property color _attention: root.failed ? Theme.error : Theme.warning
@@ -47,12 +56,16 @@ Item {
     implicitHeight: rowHeight
     height: implicitHeight
     opacity: root.enabled && root.interactive ? 1.0 : Theme.disabledOpacity
-    MotionBehavior on opacity {NumberAnimation { duration: Motion.medium } }
+    MotionBehavior on opacity { gate: root.motionReady; NumberAnimation { duration: Motion.medium } }
 
-    Accessible.role: Accessible.Button
-    Accessible.name: root.label
+    Accessible.role: root.accessiblePrefix.length > 0
+        ? Accessible.RadioButton : Accessible.Button
+    Accessible.name: root.accessiblePrefix.length > 0
+        ? root.accessiblePrefix + ": " + root.label : root.label
     Accessible.description: root.status
     Accessible.focusable: root.enabled && root.interactive
+    Accessible.checkable: root.accessiblePrefix.length > 0
+    Accessible.checked: root.accessiblePrefix.length > 0 && root.selected
     Accessible.selected: root.selected
     Accessible.onPressAction: root.trigger()
 
@@ -86,7 +99,7 @@ Item {
                     : _tap.pressed ? Theme.withAlpha(Theme.text, 0.055)
                         : _hover.hovered ? Theme.withAlpha(Theme.text, 0.030)
                             : "transparent"
-        ColorFade on color {}
+        ColorFade on color { gate: root.motionReady }
     }
 
     ShellText {
@@ -102,7 +115,7 @@ Item {
             : root.selected || root.highlighted ? root.accentColor
             : Theme.withAlpha(Theme.subtext, 0.78)
         font.pixelSize: Settings.iconSize + 1
-        ColorFade on color {}
+        ColorFade on color { gate: root.motionReady }
     }
 
     Loader {
@@ -129,14 +142,14 @@ Item {
         font.family: root.labelFontFamily
         font.pixelSize: Settings.fontSize
         font.weight: root.selected ? Font.DemiBold : Font.Normal
-        ColorFade on color {}
+        ColorFade on color { gate: root.motionReady }
     }
 
     ShellText {
         id: _status
         anchors.right: _chevron.left
         anchors.rightMargin: root.selected ? 6 : 0
-        MotionBehavior on anchors.rightMargin { NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic } }
+        MotionBehavior on anchors.rightMargin { gate: root.motionReady; NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic } }
         anchors.verticalCenter: parent.verticalCenter
         width: Math.min(implicitWidth, Math.max(0, root.width * 0.34))
         horizontalAlignment: Text.AlignRight
@@ -147,7 +160,7 @@ Item {
             : Theme.withAlpha(Theme.subtext, root._hot ? 0.70 : 0.54)
         font.pixelSize: Settings.fontCaption
         font.weight: root._attentive || root.selected ? Font.Medium : Font.Normal
-        ColorFade on color {}
+        ColorFade on color { gate: root.motionReady }
     }
 
     Item {
@@ -168,8 +181,8 @@ Item {
             font.pixelSize: Settings.fontLabel
             rotation: root.expanded ? 180 : 0
             transformOrigin: Item.Center
-            MotionBehavior on rotation { NumberAnimation { duration: Motion.medium; easing.type: Easing.OutCubic } }
-            ColorFade on color {}
+            MotionBehavior on rotation { gate: root.motionReady; NumberAnimation { duration: Motion.medium; easing.type: Easing.OutCubic } }
+            ColorFade on color { gate: root.motionReady }
         }
     }
 
@@ -184,7 +197,7 @@ Item {
         color: root._attentive ? root._attention : root.accentColor
         font.pixelSize: Settings.fontSize
         opacity: root.selected ? 0.90 : 0.0
-        MotionBehavior on width { NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic } }
-        MotionBehavior on opacity { NumberAnimation { duration: Motion.fast } }
+        MotionBehavior on width { gate: root.motionReady; NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic } }
+        MotionBehavior on opacity { gate: root.motionReady; NumberAnimation { duration: Motion.fast } }
     }
 }

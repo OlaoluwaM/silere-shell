@@ -15,6 +15,7 @@ QtObject {
     property var _wsRaw: []
     property var _winRaw: []
     property int _titleTick: 0
+    property int _activeTitleTick: 0
     property bool _overview: false
     readonly property bool _liveTitlesWanted: ShellSettings.showWindowTitle
 
@@ -55,18 +56,30 @@ QtObject {
         Quickshell.execDetached(["niri", "msg", "action"].concat(args))
     }
 
-    // niri sends WindowOpenedOrChanged for title-only updates too: mutate now, publish at most one title list per interval
+    // niri sends WindowOpenedOrChanged for title-only updates too: publish at most one
+    // focused tick per interval, and batch the off-screen titles nothing paints
     property Timer _titleSyncTimer: Timer {
         id: _titleSync
         interval: 180
+        onTriggered: root._activeTitleTick++
+    }
+
+    property Timer _backgroundTitleSyncTimer: Timer {
+        id: _backgroundTitleSync
+        interval: 1500
         onTriggered: root._titleTick++
     }
 
     property Connections _idleConn: Connections {
         target: Idle
         function onIsIdleChanged() {
-            if (Idle.isIdle) _titleSync.stop()
-            else root._titleTick++
+            if (Idle.isIdle) {
+                _titleSync.stop()
+                _backgroundTitleSync.stop()
+            } else {
+                root._titleTick++
+                root._activeTitleTick++
+            }
         }
     }
 
@@ -74,7 +87,9 @@ QtObject {
         target: ShellSettings
         function onShowWindowTitleChanged(): void {
             _titleSync.stop()
+            _backgroundTitleSync.stop()
             root._titleTick++
+            root._activeTitleTick++
         }
     }
 
@@ -84,6 +99,17 @@ QtObject {
 
     readonly property var workspaces: {
         const src = root._wsRaw
+        // an active window is not occupancy: a workspace holding only unfocused windows
+        // reports none, so count real windows the way the hyprland backend does
+        const winCount = {}
+        const wins = root._winRaw
+        for (let i = 0; i < wins.length; i++) {
+            const win = wins[i]
+            if (!win) continue
+            const home = win.workspace_id
+            if (home !== null && home !== undefined)
+                winCount[home] = (winCount[home] ?? 0) + 1
+        }
         const out = []
         for (let i = 0; i < src.length; i++) {
             const w = src[i]
@@ -91,7 +117,7 @@ QtObject {
             out.push({
                 wsId: w.idx, name: w.name ?? "", output: w.output ?? "",
                 active: !!w.is_active, urgent: !!w.is_urgent,
-                occupied: w.active_window_id !== null && w.active_window_id !== undefined,
+                occupied: (winCount[w.id] ?? 0) > 0,
                 ref: w.id
             })
         }
@@ -146,9 +172,34 @@ QtObject {
     }
 
     readonly property var activeToplevel: {
-        const t = root.toplevels
-        for (let i = 0; i < t.length; i++) if (t[i].focused) return t[i]
-        return null
+        root._activeTitleTick
+        const wins = root._winRaw
+        const ws = root._wsRaw
+        let focused = null
+        for (let i = 0; i < wins.length; i++) {
+            if (wins[i] && wins[i].is_focused) {
+                focused = wins[i]
+                break
+            }
+        }
+        if (!focused) return null
+        let home = null
+        for (let i = 0; i < ws.length; i++)
+            if (ws[i] && ws[i].id === focused.workspace_id) { home = ws[i]; break }
+        const app = root._identity(focused.app_id)
+        return {
+            appId: app, title: root._title(focused.title),
+            cls: app, initialClass: app,
+            pid: focused.pid ?? -1, ref: focused.id,
+            wsRef: focused.workspace_id, wsId: home ? home.idx : -1,
+            output: home ? (home.output ?? "") : "",
+            focused: true,
+            focusRank: focused.focus_timestamp
+                ? -(Number(focused.focus_timestamp.secs ?? 0)
+                    + Number(focused.focus_timestamp.nanos ?? 0) / 1e9)
+                : 9999,
+            fullscreen: !!focused.is_fullscreen
+        }
     }
 
     readonly property string focusedMonitor: {
@@ -227,15 +278,6 @@ QtObject {
             root.workspaceActivated(output)
             return
         }
-        if (ev.WorkspaceActiveWindowChanged) {
-            const d = ev.WorkspaceActiveWindowChanged
-            const ws = root._wsRaw.slice()
-            for (let i = 0; i < ws.length; i++)
-                if (ws[i] && ws[i].id === d.workspace_id)
-                    ws[i] = Object.assign({}, ws[i], { active_window_id: d.active_window_id })
-            root._wsRaw = ws
-            return
-        }
         if (ev.WorkspaceUrgencyChanged) {
             const d = ev.WorkspaceUrgencyChanged
             const ws = root._wsRaw.slice()
@@ -266,9 +308,10 @@ QtObject {
             if (foundAt >= 0 && !root._windowChanged(current[foundAt], w)) {
                 const titleChanged = current[foundAt].title !== w.title
                 current[foundAt].title = w.title
-                if (titleChanged && root._liveTitlesWanted && !Idle.isIdle
-                        && !_titleSync.running)
-                    _titleSync.start()
+                if (titleChanged && root._liveTitlesWanted && !Idle.isIdle) {
+                    const timer = w.is_focused ? _titleSync : _backgroundTitleSync
+                    if (!timer.running) timer.start()
+                }
                 return
             }
 

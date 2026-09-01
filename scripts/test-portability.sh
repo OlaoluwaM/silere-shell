@@ -15,6 +15,17 @@ assert_eq() {
     [ "$actual" = "$expected" ] || fail "$label (expected '$expected', got '$actual')"
 }
 
+# kill -0 succeeds on a zombie, and an orphan killed under a PID 1 that never reaps
+# stays one — which is every container job, GitHub Actions included
+_pid_running() { # $1 = pid
+    local line
+    # the redirect is what fails for a reaped pid, and it reports before a trailing
+    # 2>/dev/null would apply, so silence stderr first
+    IFS= read -r line 2>/dev/null < "/proc/$1/stat" || return 1
+    line=${line##*) }
+    [ "${line%% *}" != Z ]
+}
+
 test_xdg_paths_and_answer_parsing() (
     local home="$TMP/xdg-home" actual
     mkdir -p "$home"
@@ -31,6 +42,9 @@ test_xdg_paths_and_answer_parsing() (
     )"
     assert_eq "/absolute/config" "$actual" "uninstaller absolute XDG config"
 
+    actual="$(HOME="$home" bash -c 'source "$1"; _silere_xdg_home relative/data .local/share' \
+        _ "$ROOT/scripts/lib/xdg.sh")"
+    assert_eq "$home/.local/share" "$actual" "diagnostic relative XDG data fallback"
     HOME="$home" XDG_CONFIG_HOME=relative/config SILERE_SCRIPT_LIB_ONLY=1 \
         source "$ROOT/scripts/install.sh"
     _answered_yes y || fail "lowercase yes was rejected"
@@ -136,7 +150,7 @@ test_headless_qml_import_roots() (
     local stubs="$TMP/qml-tool-stubs"
     local first="$TMP/qml-import-first"
     local second="$TMP/qml-import-second"
-    local lint_help="--import --unused-imports --alias-cycle --assignment-in-condition --deprecated --duplicate-enum-entries --duplicate-inline-component --duplicate-property-binding --duplicated-name --eval --inheritance-cycle --invalid-lint-directive --missing-enum-entry --property-override --read-only-property --required --unreachable-code --unresolved-alias --missing-type --non-list-property --unterminated-case --unintentional-empty-block"
+    local lint_help="--import --unused-imports --alias-cycle --assignment-in-condition --deprecated --duplicate-enum-entries --duplicate-inline-component --duplicate-property-binding --duplicated-name --eval --inheritance-cycle --invalid-lint-directive --missing-enum-entry --property-override --read-only-property --required --unreachable-code --unresolved-alias --missing-type --non-list-property --unterminated-case --unintentional-empty-block --access-singleton-via-object --comma --component-children-count --confusing-expression-statement --duplicate-import --enum-entry-matches-enum --equality-type-coercion --literal-constructor --multiline-strings --non-root-enum --prefer-non-var-properties --redundant-optional-chaining --stale-property-read --top-level-component --var-used-before-declaration --with"
 
     mkdir -p "$stubs" "$first" "$second"
     printf '%s\n' \
@@ -390,6 +404,52 @@ test_niri_config_discovery() {
     assert_eq "$TMP/niri/custom.kdl" "$actual" "flagless niri falls back to NIRI_CONFIG"
 }
 
+# timeout stops watching when its direct command exits, so the inner shell must stay
+# until every ordinary background child has left the timeout-owned process group.
+test_hook_timeout_contains_tree() (
+    command -v timeout >/dev/null 2>&1 || {
+        printf 'SKIP: hook containment (timeout unavailable)\n'
+        return 0
+    }
+    local dir hook child
+    dir="$(mktemp -d)"
+    trap 'rm -rf "$dir"' RETURN
+    hook="$dir/hook"
+    cat > "$hook" <<EOF
+#!/bin/sh
+sh -c 'echo \$\$ > "$dir/child.pid"; exec sleep 600' &
+exit 0
+EOF
+    chmod +x "$hook"
+
+    # the same monitor Hooks.qml places between timeout and the hook
+    local monitor='"$@"; code=$?; '
+    monitor+='IFS= read -r own < /proc/self/stat || exit "$code"; '
+    monitor+='self=${own%% *}; rest=${own##*) }; set -- $rest; group=$3; outer=$PPID; '
+    monitor+='while :; do alive=false; for stat in /proc/[0-9]*/stat; do '
+    monitor+='[ -r "$stat" ] || continue; IFS= read -r line < "$stat" || continue; '
+    monitor+='pid=${line%% *}; rest=${line##*) }; set -- $rest; '
+    monitor+='[ "${1:-}" != Z ] && [ "${3:-}" = "$group" ] '
+    monitor+='&& [ "$pid" != "$self" ] && [ "$pid" != "$outer" ] '
+    monitor+='&& { alive=true; break; }; done; $alive || exit "$code"; sleep 0.1; done'
+    timeout --kill-after=1 1 bash -c "$monitor" silere-hook "$hook" >/dev/null 2>&1 &
+    local wrapper=$!
+    local waited=0
+    while [ ! -s "$dir/child.pid" ] && [ "$waited" -lt 50 ]; do
+        sleep 0.1
+        waited=$((waited + 1))
+    done
+    child="$(cat "$dir/child.pid" 2>/dev/null || true)"
+    [ -n "$child" ] || fail "hook containment: the test hook never reported its child"
+    wait "$wrapper" 2>/dev/null || true
+    sleep 1
+
+    if _pid_running "$child"; then
+        kill -KILL "$child" 2>/dev/null || true
+        fail "a hook's background child outlived the hook's runtime bound"
+    fi
+)
+
 test_repair_workflow() (
     export GIT_CONFIG_GLOBAL=/dev/null
     export GIT_CONFIG_NOSYSTEM=1
@@ -464,6 +524,7 @@ test_assume_yes_prompts
 test_install_path_safety
 test_hypr_discovery
 test_niri_config_discovery
+test_hook_timeout_contains_tree
 # This workflow builds a git fixture. Local minimal environments may skip it;
 # CI opts into making an accidental missing dependency a hard failure.
 if command -v git >/dev/null 2>&1; then

@@ -22,9 +22,8 @@ Singleton {
         const value = String(raw ?? "").trim()
         if (value.length === 0 || value.length > root.maxArtSourceChars) return ""
         if (/[\u0000-\u001F\u007F]/.test(value)) return ""
-        if (value.startsWith("/")) return IconResolver.localSource(value)
         if (/^https?:\/\//i.test(value)) return value
-        return IconResolver.localSource(value)
+        return IconResolver.safeLocalSource(value)
     }
 
     // ephemeral by design: players come and go, so a pinned choice is dropped the moment its player leaves the bus
@@ -141,12 +140,15 @@ Singleton {
     property real  _anchorMs:   0
     property real  positionNow: 0
     readonly property real positionRatio: length > 0 ? Math.max(0, Math.min(1, positionNow / length)) : 0
-    // every surface with a live seek bar must appear here, or its elapsed label and
-    // thumb freeze: this gate is the only thing that runs the 500ms position timer.
-    // The bar-anchored popup hosts the same MediaCard the menu's home tab does.
-    readonly property bool positionVisible: MenuState.homeActive
-        || MediaPopupState.open
-        || (ShellSettings.barShowMedia && root.shown && ShellSettings.mediaWidgetHelper)
+    function positionDemand(homeActive: bool, barVisible: bool, overview: bool): bool {
+        return homeActive || (barVisible && !overview)
+    }
+    // The bar-anchored popup hosts the same MediaCard as the menu home tab, so its
+    // seek controls need the timer even while the overview is active.
+    readonly property bool positionVisible: root.positionDemand(
+        MenuState.homeActive,
+        ShellSettings.barShowMedia && root.shown && ShellSettings.mediaWidgetHelper,
+        OverviewState.active) || MediaPopupState.open
 
     function _reanchor(): void {
         root._anchorPos = (player && player.positionSupported)
@@ -186,7 +188,7 @@ Singleton {
     onPositionVisibleChanged: if (positionVisible) root._reanchor()
     Timer {
         interval: 500; repeat: true
-        running: root.playing && root.hasPosition && !Idle.isIdle
+        running: root.playing && root.hasPosition && !Idle.isQuiet
             && root.positionVisible
         onTriggered: root._recompute()
     }
@@ -200,6 +202,48 @@ Singleton {
         player ? player.identity : "", root.maxIdentityChars)
     readonly property string desktopEntry: SafeText.singleLineText(
         player ? player.desktopEntry : "", root.maxIdentityChars)
+
+    function privacyPlaceholderSource(value): string {
+        const clean = SafeText.singleLineText(value, root.maxMetadataChars)
+        const match = clean.match(/^(.+?)\s+is playing media$/i)
+        return match ? match[1].trim() : ""
+    }
+
+    function metadataIsPrivacyProtected(titleValue, artistValue, urlValue,
+            identityValue, desktopEntryValue, dbusNameValue): bool {
+        const placeholderSource = root.privacyPlaceholderSource(titleValue)
+        if (placeholderSource.length === 0
+                || String(artistValue || "").trim().length > 0
+                || String(urlValue || "").trim().length > 0)
+            return false
+
+        const source = [placeholderSource, identityValue, desktopEntryValue, dbusNameValue]
+            .join(" ").toLowerCase()
+        return /(firefox|zen|librewolf|floorp|waterfox|chrome|chromium|brave|edge|opera|vivaldi|thorium)/.test(source)
+    }
+
+    readonly property string trackUrl: {
+        const metadata = player ? player.metadata : null
+        return SafeText.singleLineText(metadata ? metadata["xesam:url"] : "",
+            root.maxArtSourceChars)
+    }
+    readonly property bool metadataPrivacyProtected: root.metadataIsPrivacyProtected(
+        title, artist, trackUrl, identity, desktopEntry, player ? player.dbusName : "")
+    readonly property string sourceLabel: {
+        const placeholder = root.metadataPrivacyProtected
+            ? root.privacyPlaceholderSource(title) : ""
+        if (placeholder.length > 0) return placeholder
+        if (identity.length > 0) return identity
+        if (desktopEntry.length > 0) return desktopEntry
+        return ""
+    }
+    readonly property string displayTitle: root.metadataPrivacyProtected
+        ? "Media details hidden" : title
+    readonly property string displayArtist: root.metadataPrivacyProtected
+        ? (sourceLabel.length > 0
+            ? "Private tab details stay in " + sourceLabel
+            : "Private tab details stay in the browser")
+        : artist
 
     readonly property string artUrl: {
         if (!player) return ""
@@ -239,6 +283,8 @@ Singleton {
         SafeText.singleLineText(player.dbusName, root.maxIdentityChars)
 
     readonly property string label: {
+        if (root.metadataPrivacyProtected)
+            return sourceLabel.length > 0 ? sourceLabel + " · private media" : "Private media"
         if (ShellSettings.mediaWidgetFormat === "artist-title" && artist.length > 0 && title.length > 0)
             return SafeText.singleLineText(artist + " - " + title, root.maxMetadataChars)
         if (title.length > 0) return title
@@ -343,12 +389,9 @@ Singleton {
         "\n[smoothing]\n" +
         "noise_reduction = " + _cavaNoiseReduction + "\n"
     // runtime-owned path avoids symlink attacks through /tmp
-    readonly property string _cavaConfigPath: {
-        const runtime = String(Quickshell.env("XDG_RUNTIME_DIR") || "").trim()
-        return runtime.startsWith("/")
-            ? runtime + "/silere-shell-cava-" + Quickshell.processId + ".conf"
-            : ""
-    }
+    readonly property string _cavaConfigPath: XdgPaths.runtimeDir.length > 0
+        ? XdgPaths.runtimeDir + "/silere-shell-cava-" + Quickshell.processId + ".conf"
+        : ""
     property bool _cavaConfigReady: false
     property string _writtenCavaProfileKey: ""
     readonly property int _cavaReloadSignal: 10
@@ -356,8 +399,8 @@ Singleton {
 
     // quickshell exits hard on SIGTERM, so the profile outlives the process that wrote it
     function _sweepStaleCavaProfiles(): void {
-        const runtime = String(Quickshell.env("XDG_RUNTIME_DIR") || "").trim()
-        if (root._sweptStaleProfiles || !runtime.startsWith("/")) return
+        const runtime = XdgPaths.runtimeDir
+        if (root._sweptStaleProfiles || runtime.length === 0) return
         root._sweptStaleProfiles = true
         Quickshell.execDetached(["bash", "-c",
             'for f in "$1"/silere-shell-cava-*.conf; do ' +
@@ -432,7 +475,7 @@ Singleton {
         command: ["cava", "-p", root._cavaConfigPath]
         superviseWhen: root._cavaConfigReady && root.cavaReady
             && (root._visualizerClients > 0 || _visualizerStopGrace.running)
-            && root.available && root.playing && !Idle.isIdle && !root._fsBlocked
+            && root.available && root.playing && !Idle.isQuiet && !root._fsBlocked
         restartDelay: 1000
         maxRestartDelay: 30000
         stableAfter: 20000

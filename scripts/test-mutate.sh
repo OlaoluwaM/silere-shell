@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+source "$ROOT/scripts/probe-lib.sh"
 
 trap 'exit 130' INT TERM
 
@@ -13,25 +14,12 @@ trap 'exit 130' INT TERM
 # passes both. This drives the whole schema against surfaces that already exist.
 PROBE_SOURCE="$ROOT/scripts/probe-mutate.qml"
 
-if ! command -v qs >/dev/null 2>&1; then
-    echo "SKIP: quickshell (qs) not installed" >&2
-    exit 0
-fi
-if ! qs_probe="$(qs --version 2>&1)"; then
-    echo "FAIL: quickshell (qs) will not start: ${qs_probe%%$'\n'*}" >&2
-    exit 1
-fi
+_probe_require_qs
 
-# Same filter as test-surfaces.sh: a root-level required property is the one thing
-# the probe cannot supply, and PanelWindow roots drop out with it.
-probeable() {
-    find "$1" -maxdepth 1 -name '*.qml' \
-        ! -exec grep -qE '^ {0,4}required property' {} \; -print
-}
 list="$(
     find modules/menu/settings -name 'Settings*Section.qml'
-    probeable modules/menu
-    probeable modules/menu/controls
+    _probe_standalone modules/menu
+    _probe_standalone modules/menu/controls
 )"
 list="$(printf '%s\n' "$list" | sort -u)"
 count="$(printf '%s\n' "$list" | grep -c . || true)"
@@ -43,19 +31,12 @@ fi
 log="$(mktemp "${TMPDIR:-/tmp}/silere-mutate.XXXXXX.log")"
 cfg="$(mktemp -d "${TMPDIR:-/tmp}/silere-mutate-cfg.XXXXXX")"
 runtime="$(mktemp -d "${TMPDIR:-/tmp}/silere-mutate-runtime.XXXXXX")"
-# quickshell makes the entry file's directory the project root, so the probe needs its own
 probe_project="$(mktemp -d "${TMPDIR:-/tmp}/silere-mutate-project.XXXXXX")"
 chmod 0700 "$runtime"
-cp "$PROBE_SOURCE" "$probe_project/probe-mutate.qml"
-ln -s "$ROOT/config" "$probe_project/config"
-ln -s "$ROOT/services" "$probe_project/services"
-ln -s "$ROOT/modules" "$probe_project/modules"
+_probe_project "$ROOT" "$PROBE_SOURCE" "$probe_project"
 probe_pid=""
 cleanup() {
-    if [ -n "$probe_pid" ] && kill -0 "$probe_pid" 2>/dev/null; then
-        kill "$probe_pid" 2>/dev/null || true
-        wait "$probe_pid" 2>/dev/null || true
-    fi
+    _probe_stop "$probe_pid"
     rm -f "$log"
     rm -rf "$cfg" "$runtime" "$probe_project"
 }
@@ -71,13 +52,7 @@ XDG_CONFIG_HOME="$cfg" XDG_STATE_HOME="$cfg" XDG_RUNTIME_DIR="$runtime" \
     qs -p "$probe_project/probe-mutate.qml" --no-color >"$log" 2>&1 &
 probe_pid=$!
 
-waited=0
-while [ "$waited" -lt 400 ]; do
-    grep -q 'PROBE-MUTATE' "$log" 2>/dev/null && break
-    kill -0 "$probe_pid" 2>/dev/null || break
-    sleep 0.5
-    waited=$((waited + 1))
-done
+_probe_wait "$log" "$probe_pid" 'PROBE-MUTATE' 400 0.5 || true
 
 if ! grep -q 'PROBE-MUTATE' "$log" 2>/dev/null; then
     cat "$log" >&2
@@ -90,9 +65,7 @@ if grep -q 'PROBE-FAIL' "$log"; then
     grep 'PROBE-FAIL' "$log" | sed 's/^.*PROBE-FAIL/  /' | sort -u | head -20 >&2
     failed=1
 fi
-# same scan as test-surfaces.sh: Qt reports these non-fatally and the exit code stays 0
-errs="$(grep -oE 'Unable to assign .*|Cannot assign .*|is not a type|ReferenceError: [^,]*|TypeError: [^,]*|Binding loop detected[^,]*' "$log" \
-    | sort -u | head -10 || true)"
+errs="$(_probe_errors "$log")"
 if [ -n "$errs" ]; then
     printf '%s\n' "$errs" | sed 's/^/  /' >&2
     failed=1

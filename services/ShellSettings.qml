@@ -23,6 +23,7 @@ Singleton {
     property bool   neutralAccentAuto:   false
     property string neutralAccent:       "#9babe9"
     property string matugenAccentRole:   GeneratedDefaults.matugenAccentRole
+    property bool   matugenAccentBalance: false
     property string matugenDepth:        GeneratedDefaults.matugenDepth
     property string baseTone:            GeneratedDefaults.baseTone
     property bool   networkTrafficStats: false
@@ -37,7 +38,6 @@ Singleton {
     // the configured half of WindowTitle's app-dot decision, shared with the settings
     // disclosure that reveals the dot rows for the same no-drift reason as centerViz
     readonly property bool titleAppDotConfigured: showWindowTitle && showWindowTitleApp
-    property bool   windowTitleCenterGap: true
     property bool   trayWidget:          GeneratedDefaults.trayWidget
     property bool   valuesOnHover:       true
     property bool   hoverLevelBar:       false
@@ -144,7 +144,9 @@ Singleton {
     property int    barSpacing:          11
     property bool   barAutoCompact:      true
     property bool   barCompact:          false
+    property bool   barCenterInGap:      true
     property bool   barHoverHighlight:   false
+    property bool   barTooltips:         true
     property int    barHeight:           GeneratedDefaults.barHeight
     property int    barIconSize:         GeneratedDefaults.barIconSize
     property bool   barFloating:         GeneratedDefaults.barFloating
@@ -160,7 +162,7 @@ Singleton {
     property string barDisabledMonitors: ""
     property string overlayMonitor:      ""
 
-    readonly property var barWidgetKeys: ["workspaces", "tray", "traypopup", "network", "bluetooth", "caffeine", "dnd", "airplane", "volume", "brightness", "battery", "vitals", "recording", "privacy", "media", "clock"]
+    readonly property var barWidgetKeys: ["workspaces", "windowTitle", "tray", "traypopup", "network", "bluetooth", "caffeine", "dnd", "airplane", "volume", "brightness", "battery", "vitals", "recording", "privacy", "media", "clock"]
 
     // packaging-only, like recordingStateFile/keybindsFile above: no settings page
     // writes this, the Nix side is the only thing that ever flips it to true
@@ -196,7 +198,9 @@ Singleton {
         for (let i = 0; i < all.length; i++) {
             const k = all[i]
             if (seen[k]) continue
-            if (k === "workspaces") left.push(k); else right.push(k)
+            if (k === "workspaces") left.push(k)
+            else if (k === "windowTitle") center.push(k)
+            else right.push(k)
         }
         const loc = {}
         const names = ["left", "center", "right"]
@@ -267,6 +271,7 @@ Singleton {
     readonly property var barWidgetMeta: ({
         // no setting: the diamond is the only way into the menu, so this one cannot be hidden
         workspaces:  { glyph: "󰊗", label: "Workspaces",      group: "workspaces", setting: "" },
+        windowTitle: { glyph: "󰖯", label: "Window title",    group: "windowTitle", setting: "showWindowTitle" },
         tray:        { glyph: "󰇘", label: "System tray",     group: "tray",    setting: "trayWidget" },
         // no setting: it shows itself whenever SystemTray.items is non-empty, same
         // as workspaces above -- there is nothing to gate, only where it sits
@@ -326,6 +331,7 @@ Singleton {
     property bool   wsShowAppIcons:      false
     property bool   wsNotifPulse:        false
     property bool   wsUrgentPulse:       true
+    property bool   wsMenuPulse:         true
     property real   wsMarkerOpacity:     1.0
     property real   wsIconOpacity:       0.68
     property bool   wsIconMono:          true
@@ -334,6 +340,7 @@ Singleton {
     property bool _loaded: false
     property string _readError: ""
     property string _writeError: ""
+    property string _backupError: ""
     property string _diskText: ""
     property string _appliedText: ""
     // set for one _applyText pass when a locked order finds a stale override still
@@ -341,7 +348,8 @@ Singleton {
     property bool _scrubLockedOrder: false
     readonly property bool ready: _loaded
     readonly property string settingsError: ConfigStore.error.length > 0
-        ? ConfigStore.error : _writeError.length > 0 ? _writeError : _readError
+        ? ConfigStore.error : _backupError.length > 0 ? _backupError
+        : _writeError.length > 0 ? _writeError : _readError
     readonly property int _settingsVersion: 1
     property var _defaults: ({})
     property real _loadedVersion: _settingsVersion
@@ -360,6 +368,7 @@ Singleton {
         { k: "neutralAccentAuto",   t: "bool", sec: "theme" },
         { k: "neutralAccent",       t: "re",   re: /^#[0-9a-fA-F]{6}$/, sec: "theme" },
         { k: "matugenAccentRole",   t: "enum", vals: ["primary", "secondary", "tertiary"], sec: "theme" },
+        { k: "matugenAccentBalance", t: "bool", sec: "theme" },
         { k: "matugenDepth",        t: "enum", vals: ["none", "deep", "deeper"], sec: "theme" },
         { k: "baseTone",            t: "enum", vals: ["black", "charcoal", "graphite"], sec: "theme" },
         { k: "networkTrafficStats", t: "bool", sec: "indicators" },
@@ -369,9 +378,8 @@ Singleton {
         { k: "showSeconds",         t: "bool", sec: "clock" },
         { k: "compactDate",         t: "bool", sec: "clock" },
         { k: "clock12h",            t: "bool", sec: "clock" },
-        { k: "showWindowTitle",     t: "bool", sec: "indicators" },
+        { k: "showWindowTitle",     t: "bool", sec: "widgets,indicators" },
         { k: "showWindowTitleApp",  t: "bool", sec: "indicators" },
-        { k: "windowTitleCenterGap", t: "bool", sec: "indicators" },
         { k: "trayWidget",          t: "bool", sec: "widgets" },
         { k: "valuesOnHover",       t: "bool", sec: "indicators" },
         { k: "hoverLevelBar",       t: "bool", sec: "indicators" },
@@ -448,14 +456,16 @@ Singleton {
         { k: "barSpacing",          t: "int",  min: 4, max: 24, sec: "separators" },
         { k: "barAutoCompact",      t: "bool", sec: "separators" },
         { k: "barCompact",          t: "bool", sec: "separators" },
+        { k: "barCenterInGap",      t: "bool", sec: "separators" },
         { k: "barHoverHighlight",   t: "bool", sec: "indicators" },
+        { k: "barTooltips",         t: "bool", sec: "indicators" },
         { k: "barHeight",           t: "int",  min: 24,   max: 60, sec: "surface" },
         { k: "barIconSize",        t: "int",  min: 10,   max: 20, sec: "interface" },
         { k: "barFloating",         t: "bool", sec: "surface" },
         { k: "barGap",              t: "int",  min: 0,    max: 24, sec: "surface" },
         { k: "barWidth",            t: "real", min: 0.5,  max: 1.0, sec: "surface" },
         { k: "barFitGaps",          t: "bool", sec: "surface" },
-        { k: "barRadius",           t: "int",  min: 0,    max: 28, sec: "surface" },
+        { k: "barRadius",           t: "int",  min: 0,    max: 22, sec: "surface" },
         { k: "barShadow",           t: "bool", sec: "theme" },
         { k: "barShadowStrength",   t: "real", min: 0.3,  max: 1.6, sec: "theme" },
         { k: "barPosition",         t: "enum", vals: ["top", "bottom"], sec: "surface" },
@@ -478,21 +488,35 @@ Singleton {
         { k: "wsShowAppIcons",      t: "bool", sec: "workspaces" },
         { k: "wsNotifPulse",        t: "bool", sec: "workspaces" },
         { k: "wsUrgentPulse",       t: "bool", sec: "workspaces" },
+        { k: "wsMenuPulse",         t: "bool", sec: "workspaces" },
         { k: "wsMarkerOpacity",     t: "real", min: 0.2, max: 1.0, sec: "workspaces" },
         { k: "wsIconOpacity",       t: "real", min: 0.3, max: 1.0, sec: "workspaces" },
         { k: "wsIconMono",          t: "bool", sec: "workspaces" },
         { k: "wsActiveMarker",      t: "enum", vals: ["gem", "dot", "bar"], sec: "workspaces" }
     ]
+    readonly property var _schemaByKey: {
+        const m = Object.create(null)
+        for (let i = 0; i < _schema.length; i++) m[_schema[i].k] = _schema[i]
+        return m
+    }
+
     // a settings row binds by key: the schema already states type and range, so a row that restates them is duplication the two can drift apart on
     function schemaFor(key: string): var {
-        for (let i = 0; i < root._schema.length; i++)
-            if (root._schema[i].k === key) return root._schema[i]
-        return null
+        return root._schemaByKey[key] ?? null
     }
 
     function setValue(key: string, value): bool {
         const entry = root.schemaFor(key)
         return entry ? root._coerce(entry, value) : false
+    }
+
+    // folds only hand-typed ipc keys; schemaFor stays exact so a row's key: cannot match the wrong setting
+    function _ipcKey(key: string): string {
+        if (root.schemaFor(key)) return key
+        const fold = String(key || "").toLowerCase()
+        for (let i = 0; i < root._schema.length; i++)
+            if (root._schema[i].k.toLowerCase() === fold) return root._schema[i].k
+        return key
     }
 
     function _coerce(s, v): bool {
@@ -533,29 +557,41 @@ Singleton {
         return ""
     }
 
+    function _ipcSet(key: string, value): string {
+        const k = root._ipcKey(key)
+        if (!root.schemaFor(k)) return "unknown setting '" + key + "'; try `list`"
+        if (!root.setValue(k, value))
+            return "'" + value + "' is not valid for " + k
+                + "; expected " + root.constraintOf(k)
+        // normalize widget-order writes after all three zones are readable
+        if (k === "barWidgetOrderLeft" || k === "barWidgetOrderCenter"
+                || k === "barWidgetOrderRight")
+            root.setBarWidgetLayout(root.barWidgetOrderLeftKeys,
+                root.barWidgetOrderCenterKeys, root.barWidgetOrderRightKeys)
+        return String(root[k])
+    }
+
     IpcHandler {
         target: "settings"
 
         function get(key: string): string {
-            if (!root.schemaFor(key)) return "unknown setting '" + key + "'; try `list`"
-            return String(root[key])
+            const k = root._ipcKey(key)
+            if (!root.schemaFor(k)) return "unknown setting '" + key + "'; try `list`"
+            return String(root[k])
         }
 
         function set(key: string, value: string): string {
-            if (!root.schemaFor(key)) return "unknown setting '" + key + "'; try `list`"
-            if (!root.setValue(key, value))
-                return "'" + value + "' is not valid for " + key
-                    + "; expected " + root.constraintOf(key)
-            return String(root[key])
+            return root._ipcSet(key, value)
         }
 
         function toggle(key: string): string {
-            const s = root.schemaFor(key)
+            const k = root._ipcKey(key)
+            const s = root.schemaFor(k)
             if (!s) return "unknown setting '" + key + "'; try `list`"
             if (s.t !== "bool")
-                return key + " is not a toggle; expected " + root.constraintOf(key)
-            root[key] = !root[key]
-            return String(root[key])
+                return k + " is not a toggle; expected " + root.constraintOf(k)
+            root[k] = !root[k]
+            return String(root[k])
         }
 
         function list(filter: string): string {
@@ -652,7 +688,11 @@ Singleton {
         // Capture the values visible in the UI, including changes still inside
         // PersistedFile's debounce window, rather than the older disk echo.
         // Stamped: a fixed name let a second reset overwrite the backup of the first.
-        _backupSettingsText("pre-reset-" + root._backupStamp(), root._serialize())
+        if (!root._backupSettingsText(
+                "pre-reset-" + root._backupStamp(), root._serialize())) {
+            root._backupError = "Could not back up settings. Defaults were not restored."
+            return
+        }
         ConfigStore.pruneBackups()
         root._bulkAssign = true
         for (let i = 0; i < _schema.length; i++) {
@@ -746,11 +786,15 @@ Singleton {
         }
     }
 
-    function _backupSettingsText(tag: string, text: string): void {
+    property bool _backupWriteSucceeded: false
+
+    function _backupSettingsText(tag: string, text: string): bool {
         const body = (text || "").trim()
-        if (body.length === 0) return
+        if (body.length === 0) return false
+        root._backupWriteSucceeded = false
         _backupFile.path = ConfigStore.directory + "/settings." + tag + ".bak.json"
         _backupFile.setText(body)
+        return root._backupWriteSucceeded
     }
 
     function _backupSettings(tag: string): void {
@@ -762,8 +806,16 @@ Singleton {
         atomicWrites: true
         blockWrites:  true
         printErrors:  false
-        onSaved: ConfigStore.hardenFile(_backupFile.path)
-        onSaveFailed: (error) => console.warn("silere-shell: failed to back up settings.json:", error)
+        onSaved: {
+            root._backupWriteSucceeded = true
+            root._backupError = ""
+            ConfigStore.hardenFile(_backupFile.path)
+        }
+        onSaveFailed: (error) => {
+            root._backupWriteSucceeded = false
+            root._backupError = "Could not back up settings."
+            console.warn("silere-shell: failed to back up settings.json:", error)
+        }
     }
 
     function _applyText(t: string): void {
@@ -828,6 +880,11 @@ Singleton {
                 root.barWidgetOrderCenter = root._defaults.barWidgetOrderCenter
                 root.barWidgetOrderRight = root._defaults.barWidgetOrderRight
             }
+            // the same choice, back when it only placed the window title
+            if (parsed.barCenterInGap === undefined
+                    && parsed.windowTitleCenterGap !== undefined)
+                root._coerce(root.schemaFor("barCenterInGap"),
+                    parsed.windowTitleCenterGap)
             // The two legacy booleans represent one mode. Prefer reactive if
             // hand-edited JSON enables both, and seed the persisted restore mode
             // for settings files written before underlineLastStyle existed.

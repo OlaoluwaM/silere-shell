@@ -4,11 +4,9 @@ export LC_ALL=C
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+source "$ROOT/scripts/probe-lib.sh"
 
-on_interrupt() {
-    exit 130
-}
-trap on_interrupt INT TERM
+trap 'exit 130' INT TERM
 
 # A settings row can build cleanly and still lose its own label: the surface probe
 # only proves the section instantiates. This builds each one at the width the
@@ -21,15 +19,7 @@ trap on_interrupt INT TERM
 CONTENT_WIDTH="${FIT_W:-388}"
 PROBE="scripts/probe-fit.qml"
 
-if ! command -v qs >/dev/null 2>&1; then
-    echo "SKIP: quickshell (qs) not installed" >&2
-    exit 0
-fi
-# installed but unable to start must not skip: that would pass CI with no coverage
-if ! qs_probe="$(qs --version 2>&1)"; then
-    echo "FAIL: quickshell (qs) will not start: ${qs_probe%%$'\n'*}" >&2
-    exit 1
-fi
+_probe_require_qs
 [ -f "$PROBE" ] || { echo "FAIL: $PROBE missing" >&2; exit 1; }
 
 # Every width here is a text measurement, so it is only meaningful against the font
@@ -50,6 +40,15 @@ fi
 
 list="$(find modules/menu/settings -name 'Settings*Section.qml' | sort)"
 [ -n "$list" ] || { echo "FAIL: no settings sections found" >&2; exit 1; }
+
+# The other tabs are narrower: 400 panel less the 44 rail and 12 of pad a side. The nav
+# column ships at its 160 cap. HomePage stays out on purpose — its status lines carry
+# network and device names from outside the shell, which are meant to elide.
+list="$list
+modules/menu/RecentPage.qml|332
+modules/menu/PowerRailContent.qml|332
+modules/menu/VitalsStrip.qml|332
+modules/menu/SettingsNav.qml|160"
 
 scratch="$(mktemp -d)"
 cleanup() { rm -rf "$scratch"; }
@@ -73,18 +72,28 @@ for scale in 1.0 1.15; do
         status=1
         continue
     fi
-    if printf '%s\n' "$out" | grep -qE "FIT-TRUNC|FIT-FAIL"; then
-        printf '%s\n' "$out" | grep -E "FIT-TRUNC|FIT-FAIL" | sed 's/^/  /' >&2
+    if printf '%s\n' "$out" | grep -qE "FIT-TRUNC|FIT-CLIP|FIT-WIDE|FIT-FAIL"; then
+        printf '%s\n' "$out" | grep -E "FIT-TRUNC|FIT-CLIP|FIT-WIDE|FIT-FAIL" | sed 's/^/  /' >&2
         status=1
     fi
-    if ! printf '%s\n' "$out" | grep -q "FIT-DONE"; then
+    done_line="$(printf '%s\n' "$out" | grep -o 'FIT-DONE.*' | tail -1)"
+    if [ -z "$done_line" ]; then
         echo "FAIL: layout fit probe did not finish at scale $scale" >&2
         printf '%s\n' "$out" | tail -5 >&2
+        status=1
+    # a scan that reaches no text reports zero findings for the wrong reason
+    elif [ "$(printf '%s' "$done_line" | sed -n 's/.*texts \([0-9]*\).*/\1/p')" -lt 200 ]; then
+        echo "FAIL: layout fit probe scanned too little text at scale $scale: $done_line" >&2
+        status=1
+    # likewise for the clip check: no item measured against a clipping ancestor
+    # means the overflow scan reported clean because it never ran
+    elif [ "$(printf '%s' "$done_line" | sed -n 's/.*clipped \([0-9]*\).*/\1/p')" -lt 500 ]; then
+        echo "FAIL: layout fit probe measured too few clipped items at scale $scale: $done_line" >&2
         status=1
     fi
 done
 
 if [ "$status" -eq 0 ]; then
-    echo "settings labels fit at width $CONTENT_WIDTH across the type range"
+    echo "menu labels fit at the widths they ship at across the type range"
 fi
 exit "$status"

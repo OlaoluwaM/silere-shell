@@ -40,7 +40,7 @@ Column {
             onActivated: if (_confirm.tryConfirm("reset")) ShellSettings.resetToDefaults()
         }
         HintText {
-            text: "Backs up current settings before resetting. Wallpaper colors and calendar marks stay."
+            text: "Backs up settings first and keeps the five newest. Wallpaper colors and calendar marks stay unchanged."
         }
     }
 

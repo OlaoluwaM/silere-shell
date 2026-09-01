@@ -11,10 +11,16 @@
   # that way — add no packages/overlays outputs here.
   description = "Dev shell for hacking on silere-shell";
 
-  inputs.nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    quickshell = {
+      url = "git+https://git.outfoxxed.me/quickshell/quickshell.git?ref=refs/tags/v0.3.1";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
 
   outputs =
-    { nixpkgs, ... }:
+    { nixpkgs, quickshell, ... }:
     let
       forAllSystems = nixpkgs.lib.genAttrs [
         "x86_64-linux"
@@ -30,7 +36,7 @@
         {
           default = pkgs.mkShell {
             packages = with pkgs; [
-              quickshell # qs — the runtime; `qs -p shell.qml`
+              quickshell.packages.${system}.default # qs — v0.9.0 requires 0.3.1
               hyprland # hyprctl — scripts/check.sh probes it; night light IPC
               matugen # regenerate the palette JSON while testing theming
               brightnessctl # Brightness.qml backend

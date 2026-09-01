@@ -54,6 +54,25 @@ Singleton {
         return -1
     }
 
+    function deviceGlyph(icon): string {
+        const s = (icon || "").toLowerCase()
+        if (s.indexOf("headset") >= 0 || s.indexOf("headphone") >= 0 || s.indexOf("audio") >= 0) return "󰋋"
+        if (s.indexOf("mouse") >= 0)    return "󰍽"
+        if (s.indexOf("keyboard") >= 0) return "󰌌"
+        if (s.indexOf("phone") >= 0)    return "󰏳"
+        if (s.indexOf("speaker") >= 0)  return "󰓃"
+        if (s.indexOf("watch") >= 0)    return "󰖉"
+        return "󰂱"
+    }
+
+    readonly property string connectedGlyph: {
+        for (let i = 0; i < _devices.length; i++) {
+            const d = _devices[i]
+            if (d && d.connected) return root.deviceGlyph(d.icon)
+        }
+        return ""
+    }
+
     function _sortedDevices(): var {
         const list = root._devices.slice()
         list.sort((a, b) => {
@@ -182,6 +201,10 @@ Singleton {
     property bool   _pendingStarted: false
     // only undo pairable when this service raised it. An adapter already made pairable by the user or another tool belongs to that owner
     property var    _pairableAdapter: null
+    property int    _pairableTimeoutWas: 0
+    // BlueZ defaults PairableTimeout to 0, so a shell killed mid-attempt would leave the
+    // adapter pairable for good. Longer than _attemptGuard, so it never cuts an attempt short
+    readonly property int _pairableTimeoutSec: 60
 
     readonly property var _pendingDevice: {
         if (root._pendingAddr === "") return null
@@ -251,6 +274,8 @@ Singleton {
     function _armPairable(target): void {
         root._restorePairable()
         if (!target || target.pairable) return
+        root._pairableTimeoutWas = target.pairableTimeout
+        target.pairableTimeout = root._pairableTimeoutSec
         target.pairable = true
         root._pairableAdapter = target
     }
@@ -258,7 +283,9 @@ Singleton {
     function _restorePairable(): void {
         const owned = root._pairableAdapter
         root._pairableAdapter = null
-        if (owned) owned.pairable = false
+        if (!owned) return
+        owned.pairable = false
+        owned.pairableTimeout = root._pairableTimeoutWas
     }
 
     function _endAttempt(): void {

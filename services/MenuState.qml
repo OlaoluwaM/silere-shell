@@ -23,7 +23,47 @@ AnchoredPopupState {
     readonly property bool homeActive: open && activeTab === homeTab
     readonly property bool settingsActive: open && activeTab === settingsTab
 
+    // Hovering the active workspace is a strong signal that the menu is about
+    // to open. Let the shell prepare its LazyLoader between frames, while
+    // keeping ownership explicit so a rebuilt or second monitor cannot cancel
+    // another bar's request.
+    property QtObject warmSource: null
+    property var warmScreen: null
+    readonly property bool warmRequested: warmSource !== null
+
+    function requestWarm(source, screen): void {
+        if (!source || root.open) return
+        root.warmSource = source
+        root.warmScreen = screen ?? null
+    }
+
+    function cancelWarm(source): void {
+        if (root.warmSource !== source) return
+        root.warmSource = null
+        root.warmScreen = null
+    }
+
     property string settingsSection: "theme"
+
+    // SelectRow dropdowns are inline, so two open at once stack their option
+    // lists and retarget the panel height twice. Keep one owner for the whole
+    // settings surface and ask the previous row to fold before the next opens.
+    property var _settingsSelectOwner: null
+    function claimSettingsSelect(owner): void {
+        if (!owner || _settingsSelectOwner === owner) return
+        const previous = _settingsSelectOwner
+        if (previous) previous._setOpen(false)
+        _settingsSelectOwner = owner
+    }
+    function releaseSettingsSelect(owner): void {
+        if (_settingsSelectOwner === owner) _settingsSelectOwner = null
+    }
+    function closeSettingsSelect(): void {
+        const previous = _settingsSelectOwner
+        _settingsSelectOwner = null
+        if (previous) previous._setOpen(false)
+    }
+    onOpenChanged: if (!open) closeSettingsSelect()
 
     // order by user impact and frequency: global appearance first, daily bar surfaces next, then feedback; operational and recovery tools stay last
     readonly property var settingsTree: [
@@ -35,7 +75,7 @@ AnchoredPopupState {
         ]},
         { glyph: "󰕮", label: "Bar", children: [
             { glyph: "󰍹", label: "Layout",    section: "surface",
-              description: "Bar position, size, and shape" },
+              description: "Bar position, size, shape, and opacity" },
             { glyph: "󰍴", label: "Underline", section: "underline",
               description: "Line and event glow" },
             { glyph: "󰻂", label: "Spacing",   section: "separators",
@@ -81,7 +121,18 @@ AnchoredPopupState {
 
     function setSettingsSection(s: string): void {
         const next = root._flatSections.indexOf(s) >= 0 ? s : "theme"
-        if (next !== settingsSection) settingsSection = next
+        if (next !== settingsSection) {
+            root.closeSettingsSelect()
+            settingsSection = next
+        }
+    }
+
+    // folds only hand-typed ipc names; setSettingsSection stays exact so no caller lands on a page by accident
+    function _ipcSection(name: string): string {
+        const fold = String(name || "").toLowerCase()
+        for (let i = 0; i < root._flatSections.length; i++)
+            if (root._flatSections[i].toLowerCase() === fold) return root._flatSections[i]
+        return name
     }
 
     // the sections whose pages surface the live temperature; CpuTemp gates its sensor
@@ -108,6 +159,7 @@ AnchoredPopupState {
 
     function selectTab(index: int): int {
         const tab = root._validTab(index)
+        if (tab !== settingsTab) root.closeSettingsSelect()
         if (root._activeTab !== tab) {
             root._previousTab = root._activeTab
             root._activeTab = tab
@@ -172,9 +224,10 @@ AnchoredPopupState {
         }
         // keep `section: "` out of any literal below: ci-lint harvests nav entries by that pattern
         function settings(name: string): string {
-            const known = root._flatSections.indexOf(name) >= 0
+            const resolved = root._ipcSection(name)
+            const known = root._flatSections.indexOf(resolved) >= 0
             root._unanchor()
-            root.setSettingsSection(name)
+            root.setSettingsSection(resolved)
             root.showTab(root.settingsTab)
             if (known) return "ok"
             // pages get renamed; a keybind carrying an old name still opens Settings rather than doing nothing, and says why it landed somewhere else

@@ -19,7 +19,13 @@ Pill {
     readonly property color _iconColor: overChargeLimit ? Theme.warning : Battery.iconColor
 
     glyph:          Battery.icon
-    accessibleName: batteryPill.text.length > 0 ? "Battery " + batteryPill.text : "Battery"
+    accessibleName: {
+        if (!Battery.available) return "Battery"
+        const parts = []
+        if (Battery.label.length > 0)       parts.push(Battery.label)
+        if (Battery.statusLabel.length > 0) parts.push(Battery.statusLabel)
+        return parts.length > 0 ? "Battery " + parts.join(", ") : "Battery"
+    }
     // full battery: every level and charging variant shares its outline
     glyphAlignReference: "󰁹"
     glyphAlignNudge: -1
@@ -35,7 +41,7 @@ Pill {
     levelValue:     Battery.pct > 0 ? Battery.pct / 100 : -1
     levelVisible:   Battery.pct > 0 && ShellSettings.valuesOnHover
                     && ShellSettings.hoverLevelBar && !expanded
-    levelColor:     Battery.iconColor
+    levelColor:     _iconColor
     opacity: _baseOpacity * (Battery.critical ? 1.0 - Battery.alertPulse * 0.60
                            : (Battery.low     ? 1.0 - Battery.alertPulse * 0.18 : 1.0))
     visible: layoutVisible

@@ -287,6 +287,23 @@ ClippingRectangle {
     // are declared after this MouseArea, so their own hit targets (the source-step buttons)
     // still win the tap; everywhere else in this band, clicking raises the player. Seek and
     // transport sit below _seek.top and were never part of this target.
+    Rectangle {
+        visible: Media.metadataPrivacyProtected && Media.stableArtUrl.length === 0
+        anchors {
+            top: parent.top; topMargin: 16
+            right: parent.right; rightMargin: 18
+        }
+        width: 64; height: 64
+        radius: width / 2
+        color: Theme.withAlpha(Theme.accent, 0.06)
+
+        ShellText {
+            anchors.centerIn: parent
+            text: "󰌾"
+            color: Theme.withAlpha(Theme.accent, 0.22)
+            font.pixelSize: Settings.fontSize + 24
+        }
+    }
     MouseArea {
         id: _playerTarget
         anchors.top: parent.top
@@ -386,19 +403,20 @@ ClippingRectangle {
         property string _shownArtist:   ""
         function settleText(): void {
             _textFade.stop()
-            _shownIdentity = Media.identity
-            _shownTitle = Media.title
-            _shownArtist = Media.artist
+            _shownIdentity = Media.sourceLabel
+            _shownTitle = Media.displayTitle
+            _shownArtist = Media.displayArtist
             opacity = 1.0
             _slide = 0
         }
         Component.onCompleted: {
-            _shownIdentity = Media.identity
-            _shownTitle    = Media.title
-            _shownArtist   = Media.artist
+            _shownIdentity = Media.sourceLabel
+            _shownTitle    = Media.displayTitle
+            _shownArtist   = Media.displayArtist
         }
 
-        readonly property string trackKey: Media.identity + "\u0000" + Media.title + "\u0000" + Media.artist
+        readonly property string trackKey: Media.sourceLabel + "\u0000"
+            + Media.displayTitle + "\u0000" + Media.displayArtist
         onTrackKeyChanged: {
             if (ShellSettings.reduceMotion || (_shownTitle === "" && _shownArtist === "")) {
                 _mediaCol.settleText()
@@ -412,9 +430,9 @@ ClippingRectangle {
             NumberAnimation { target: _mediaCol; property: "opacity"; to: 0.0; duration: Motion.ms(110); easing.type: Easing.InCubic }
             ScriptAction {
                 script: {
-                    _mediaCol._shownIdentity = Media.identity
-                    _mediaCol._shownTitle    = Media.title
-                    _mediaCol._shownArtist   = Media.artist
+                    _mediaCol._shownIdentity = Media.sourceLabel
+                    _mediaCol._shownTitle    = Media.displayTitle
+                    _mediaCol._shownArtist   = Media.displayArtist
                     _mediaCol._slide = 6
                 }
             }

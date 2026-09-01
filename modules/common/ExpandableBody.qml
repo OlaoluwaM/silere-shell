@@ -12,6 +12,7 @@ Column {
     property int collapsedLineCount: 2
     property int expandedLineCount: 12
     property bool expanded: false
+    readonly property bool truncated: bodyLabel.truncated
 
     visible: bodyText.length > 0
     spacing: 5

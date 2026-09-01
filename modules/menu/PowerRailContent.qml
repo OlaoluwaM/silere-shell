@@ -30,12 +30,9 @@ Item {
         : ""
 
     onActiveChanged: {
-        if (active) {
-            if (PowerProfiles.available) PowerProfiles.refresh()
-        } else {
-            _powReb.disarm()
-            _powOff.disarm()
-        }
+        if (active) return
+        _powReb.disarm()
+        _powOff.disarm()
     }
 
     function _runAction(command, title: string): void {
