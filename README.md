@@ -58,6 +58,14 @@ rebase:
   commit. A conflict no entry anticipates and that needs a real decision
   pauses the merge until it's settled cold.
 
+Before any merge work, the maintainer creates and publishes an annotated
+safety tag on the current `custom-branch` tip. Its name is
+`pre-upstream-<release-tag>`; for example, the v0.9.0 merge anchor is created
+with `git tag -a pre-upstream-v0.9.0 a4ecf7e -m "before upstream v0.9.0"`.
+The merge does not start until that tag exists on the remote. It makes the
+pre-merge tip easy to recover without changing the rule above: reset only
+while the merge is still at the tip, and revert once later commits exist.
+
 Before the first conflict pass, enable rerere once per clone
 (`git config rerere.enabled true`): an aborted or repeated attempt then
 replays the hunks already resolved instead of presenting them again.
