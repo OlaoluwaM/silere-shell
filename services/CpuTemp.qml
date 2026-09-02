@@ -27,6 +27,7 @@ Singleton {
     property string _sensorPath: ""
     property bool _reading: false
     property bool _probeComplete: false
+    property int _detectGeneration: 0
     // available drops to false whenever the service is released, so a control gated on it flickers on every menu open; sensors do not come and go
     readonly property bool sensorMissing: _probeComplete && _sensorPath.length === 0
 
@@ -104,13 +105,25 @@ Singleton {
     }
 
     function _retrySensorDetection(): void {
+        root._detectGeneration++
         root._probeComplete = false
         root._sensorPath = ""
-        if (root._wanted && !_detectProc.running) _detectProc.running = true
+        root._startSensorDetection()
+    }
+
+    function _detectionIsCurrent(generation: int): bool {
+        return generation === root._detectGeneration
+    }
+
+    function _startSensorDetection(): void {
+        if (!root._wanted || _detectProc.running) return
+        _detectProc._generation = root._detectGeneration
+        _detectProc.running = true
     }
 
     on_WantedChanged: {
         if (!root._wanted) {
+            root._detectGeneration++
             _warmup.stop()
             if (_detectProc.running) _detectProc.running = false
             root._resetState()
@@ -118,14 +131,14 @@ Singleton {
         }
         root._warmedUp = false
         _warmup.restart()
-        if (root._sensorPath.length === 0 && !_detectProc.running)
-            _detectProc.running = true
+        if (root._sensorPath.length === 0) root._startSensorDetection()
     }
 
     Component.onCompleted: root._started = true
 
     BoundedProcess {
         id: _detectProc
+        property int _generation: -1
         timeoutMs: 10000
         environment: ({ "LC_ALL": "C" })
         command: ["bash", "-c",
@@ -168,6 +181,10 @@ Singleton {
             "detect_sensor"]
         stdout: StdioCollector { id: _detectOut }
         onExited: (code) => {
+            if (!root._detectionIsCurrent(_detectProc._generation)) {
+                if (root._wanted) Qt.callLater(root._startSensorDetection)
+                return
+            }
             if (!root._wanted) return
             const path = code === 0 ? (_detectOut.text || "").trim() : ""
             root._sensorPath = path.startsWith("/sys/") ? path : ""

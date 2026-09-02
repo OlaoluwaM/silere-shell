@@ -1148,6 +1148,13 @@ else
     fail "ChoiceChipRow's width cap must scale with Settings.fontLabel, or its chips lose their padding at the largest type"
 fi
 
+if grep -qF '_detectProc._generation = root._detectGeneration' services/CpuTemp.qml \
+    && grep -qF '!root._detectionIsCurrent(_detectProc._generation)' services/CpuTemp.qml; then
+    ok "temperature probe" "canceled sensor discovery results are generation-guarded"
+else
+    fail "CpuTemp must reject sensor-discovery results from canceled generations"
+fi
+
 xdg_path_bypass="$(grep -RInE --include='*.qml' \
   'Quickshell\.env\("(XDG_(CONFIG|CACHE|STATE)_HOME|XDG_RUNTIME_DIR)"\)' \
   shell.qml modules services config \

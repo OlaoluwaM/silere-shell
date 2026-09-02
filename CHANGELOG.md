@@ -43,6 +43,7 @@ settings file carries its own `__version` and migrates separately.
 - The Bluetooth widget keeps its generic glyph while the volume widget is already showing the connected device.
 - Settings and calendar marks that could not be written are saved once their folder is reachable again.
 - A failed settings-folder creation or permission check is no longer mistaken for a successful one.
+- The temperature readout finds its sensor after being switched off and straight back on.
 - A Bluetooth speaker shows a speaker rather than headphones, and more device types carry their own icon.
 - The Bluetooth widget stays out of the bar on a machine with no Bluetooth adapter.
 - Deleting an old notification-history row no longer erases state for a live notification that reused its id.
