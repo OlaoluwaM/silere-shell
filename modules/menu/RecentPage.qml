@@ -391,6 +391,14 @@ PageShell {
                         }
 
                         ColorFade on color { gate: _entry._heightReady }
+
+                        Accessible.role: Accessible.Notification
+                        Accessible.name: String(_entry.modelData.appName || "").length > 0
+                            ? _entry.modelData.appName + ": " + _summary.text : _summary.text
+                        Accessible.description: _body.text
+                        Accessible.focusable: true
+                        Accessible.onPressAction: _entry._toggleExpand()
+
                         HoverHandler {
                             id: _entryHover
                             cursorShape: (_body.truncated || _entry._expanded) ? Qt.PointingHandCursor : Qt.ArrowCursor
@@ -547,6 +555,11 @@ PageShell {
                                     ColorFade on outlineColor { gate: _entry._heightReady }
                                 }
                                 MotionBehavior on scale { gate: _entry._heightReady; NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic } }
+                                Accessible.role: Accessible.Button
+                                Accessible.name: "Remove notification"
+                                Accessible.focusable: true
+                                Accessible.onPressAction: _entry.removeSelf()
+
                                 HoverHandler { id: _removeHover; cursorShape: Qt.PointingHandCursor }
                                 TapHandler { id: _removeTap; enabled: !root._clearing && !_entry._removing; onTapped: _entry.removeSelf() }
 

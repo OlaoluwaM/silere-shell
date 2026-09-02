@@ -58,6 +58,7 @@ settings file carries its own `__version` and migrates separately.
 - One-shot UI motion now settles when the display blanks instead of animating behind the lock screen.
 - Popups, media art, workspace effects, and notification exits land cleanly when their animation is interrupted.
 - Attention pulses no longer age out while idle or reduced motion has paused them.
+- Notifications in the menu, and the button that removes one, reach a screen reader.
 
 ## Releases
 
