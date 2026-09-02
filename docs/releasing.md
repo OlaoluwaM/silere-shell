@@ -15,6 +15,12 @@ Release tags must be annotated `vMAJOR.MINOR.PATCH` tags signed by a key in
 `security/update-signers`. Both the release workflow and the installed updater
 reject anything else.
 
+Before tagging, set `release.json`'s `version` to the exact tag version without the
+leading `v`. Keep its Quickshell floor and settings schema in step with
+`scripts/lib/qml-modules.sh` and `services/ShellSettings.qml`; structural lint checks
+both, and the release workflow rejects a version/tag mismatch. On `main`, the next
+planned version may carry the `-dev` suffix.
+
 Repository rules should also restrict creation and deletion of matching `v*`
 tags — signature checks complement access control rather than replacing it.
 

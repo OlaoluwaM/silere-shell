@@ -4,6 +4,7 @@ export LC_ALL=C
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/scripts/lib/xdg.sh"
+source "$ROOT/scripts/lib/qml-modules.sh"
 cd "$ROOT"
 
 CACHE_HOME="$(_silere_xdg_home "${XDG_CACHE_HOME:-}" .cache)" || {
@@ -111,6 +112,104 @@ _release_fail() {
     _quiet_fail "$message"
 }
 
+_manifest_string() {
+    local key="$1"
+    printf '%s\n' "$release_manifest" | sed -n \
+        "s/^[[:space:]]*\"$key\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\"[[:space:]]*,\{0,1\}[[:space:]]*$/\1/p"
+}
+
+_manifest_number() {
+    local key="$1"
+    printf '%s\n' "$release_manifest" | sed -n \
+        "s/^[[:space:]]*\"$key\"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\)[[:space:]]*,\{0,1\}[[:space:]]*$/\1/p"
+}
+
+# Compatibility data is read only after the annotated tag has passed the
+# installed trust root. Releases before the manifest existed remain installable;
+# once a release carries one, malformed or contradictory data fails closed.
+_check_release_manifest() {
+    local mode="$1" manifest_version manifest_schema manifest_qs compositor="" qs_version
+    if ! git -C "$ROOT" cat-file -e "$release_rev:release.json" 2>/dev/null; then
+        return 0
+    fi
+    release_manifest="$(git -C "$ROOT" show "$release_rev:release.json" 2>/dev/null)" \
+        || _release_fail "$mode" "$release_tag compatibility manifest could not be read"
+    manifest_version="$(_manifest_string version)"
+    manifest_schema="$(_manifest_number settingsSchema)"
+    manifest_qs="$(_manifest_string quickshellMin)"
+    [ "$manifest_version" = "${release_tag#v}" ] \
+        || _release_fail "$mode" "$release_tag has a mismatched compatibility manifest"
+    [[ "$manifest_schema" =~ ^[0-9]+$ ]] \
+        || _release_fail "$mode" "$release_tag has an invalid settings schema"
+    [[ "$manifest_qs" =~ ^[0-9]+(\.[0-9]+)*$ ]] \
+        || _release_fail "$mode" "$release_tag has an invalid Quickshell requirement"
+    printf '%s\n' "$release_manifest" \
+        | grep -Eq '^[[:space:]]*"compositors"[[:space:]]*:[[:space:]]*\[[[:space:]]*"(hyprland|niri)"([[:space:]]*,[[:space:]]*"(hyprland|niri)")*[[:space:]]*\][[:space:]]*,?[[:space:]]*$' \
+        || _release_fail "$mode" "$release_tag has an invalid compositor list"
+
+    if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then compositor=hyprland
+    elif [ -n "${NIRI_SOCKET:-}" ]; then compositor=niri
+    fi
+    if [ -n "$compositor" ] && ! printf '%s\n' "$release_manifest" \
+            | grep -Eq "\"compositors\"[^]]*\"$compositor\""; then
+        _release_fail "$mode" "$release_tag does not support the active $compositor session"
+    fi
+
+    qs_version="$(_silere_quickshell_version || true)"
+    if [ -z "$qs_version" ]; then
+        # A fresh install may intentionally stage Silere before Quickshell is
+        # installed. A running shell check/apply cannot use that exception.
+        [ "$mode" = pin ] && return 0
+        _release_fail "$mode" "$release_tag requires Quickshell $manifest_qs or newer; the installed version could not be read"
+    fi
+    _silere_version_at_least "$qs_version" "$manifest_qs" \
+        || _release_fail "$mode" "$release_tag requires Quickshell $manifest_qs or newer; installed: $qs_version"
+}
+
+_release_note_rows() {
+    local version="${release_tag#v}"
+    git -C "$ROOT" show "$release_rev:docs/releases/$version.md" 2>/dev/null | awk '
+        function trim(s) {
+            sub(/^[[:space:]]+/, "", s)
+            sub(/[[:space:]]+$/, "", s)
+            return s
+        }
+        function emit() {
+            if (category != "" && text != "" && count < 40) {
+                gsub(/[\t\r\n]+/, " ", text)
+                print category "\t" trim(text)
+                count++
+            }
+            text = ""
+        }
+        /^## (Added|Changed|Fixed|Removed|Security)[[:space:]]*$/ {
+            emit()
+            category = substr($0, 4)
+            next
+        }
+        /^## / { emit(); category = ""; next }
+        /^### / { emit(); next }
+        category != "" && /^- / { emit(); text = substr($0, 3); next }
+        category != "" && text != "" && /^[[:space:]]+/ {
+            line = trim($0)
+            if (line != "") text = text " " line
+            next
+        }
+        { emit() }
+        END { emit() }
+    '
+}
+
+_write_release_notes() {
+    local rows
+    rows="$(_release_note_rows || true)"
+    if [ -n "$rows" ]; then
+        _write_cache_file "$RELEASE_NOTES" "target $release_tag" "$rows"
+    else
+        rm -f -- "$RELEASE_NOTES"
+    fi
+}
+
 # Verification uses the key shipped by the already-installed revision. The
 # fetched tree cannot replace this trust root before its tag has been checked.
 _resolve_trusted_release() {
@@ -132,6 +231,7 @@ _resolve_trusted_release() {
         || _release_fail "$mode" "could not resolve $release_tag"
     git -C "$ROOT" merge-base --is-ancestor "$release_rev" origin/main \
         || _release_fail "$mode" "$release_tag is not part of origin/main"
+    _check_release_manifest "$mode"
 }
 
 # A failed load makes qs exit non-zero at once, and the service restarts it every

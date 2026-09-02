@@ -39,6 +39,16 @@ jobs:
           -c gpg.ssh.allowedSignersFile="$PWD/security/update-signers"
           verify-tag "$GITHUB_REF_NAME"
 
+      - name: Match release compatibility manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' release.json)"
+          test "$version" = "${GITHUB_REF_NAME#v}" || {
+            echo "::error::release.json says $version; tag says ${GITHUB_REF_NAME#v}"
+            exit 1
+          }
+
       - name: Structural and portability validation
         run: SILERE_REQUIRE_GIT_TESTS=1 bash scripts/ci-lint.sh
 

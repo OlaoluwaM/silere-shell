@@ -521,6 +521,7 @@ test_update_refuses_dirty_apply() (
     mkdir -p "$seed/scripts/lib"
     cp "$ROOT/scripts/update.sh" "$seed/scripts/update.sh"
     cp "$ROOT/scripts/lib/xdg.sh" "$seed/scripts/lib/xdg.sh"
+    cp "$ROOT/scripts/lib/qml-modules.sh" "$seed/scripts/lib/qml-modules.sh"
     printf 'upstream v1\n' > "$seed/tracked.qml"
     git -C "$seed" add scripts security tracked.qml
     git -C "$seed" commit -qm "initial"
@@ -651,6 +652,7 @@ test_update_reporting() (
     mkdir -p "$seed/scripts/lib"
     cp "$ROOT/scripts/update.sh" "$seed/scripts/update.sh"
     cp "$ROOT/scripts/lib/xdg.sh" "$seed/scripts/lib/xdg.sh"
+    cp "$ROOT/scripts/lib/qml-modules.sh" "$seed/scripts/lib/qml-modules.sh"
     printf 'v1\n' > "$seed/tracked.qml"
     git -C "$seed" add scripts security tracked.qml
     git -C "$seed" commit -qm "initial"
@@ -843,6 +845,7 @@ test_update_rolls_back_broken_merge() (
     mkdir -p "$seed/scripts/lib"
     cp "$ROOT/scripts/update.sh" "$seed/scripts/update.sh"
     cp "$ROOT/scripts/lib/xdg.sh" "$seed/scripts/lib/xdg.sh"
+    cp "$ROOT/scripts/lib/qml-modules.sh" "$seed/scripts/lib/qml-modules.sh"
     # the gate runs whatever type-checker the merged tree ships, so the fixture owns
     # the verdict. update.sh itself must stay byte-identical across these commits:
     # it is mid-execution when the merge rewrites the worktree.
@@ -917,6 +920,7 @@ test_fresh_install_pins_release() (
     mkdir -p "$seed/scripts/lib"
     cp "$ROOT/scripts/update.sh" "$seed/scripts/update.sh"
     cp "$ROOT/scripts/lib/xdg.sh" "$seed/scripts/lib/xdg.sh"
+    cp "$ROOT/scripts/lib/qml-modules.sh" "$seed/scripts/lib/qml-modules.sh"
     printf 'release\n' > "$seed/tracked.qml"
     git -C "$seed" add scripts security tracked.qml
     git -C "$seed" commit -qm "initial"
@@ -1054,6 +1058,7 @@ test_update_apply_binds_to_confirmed_release() (
     mkdir -p "$seed/scripts/lib"
     cp "$ROOT/scripts/update.sh" "$seed/scripts/update.sh"
     cp "$ROOT/scripts/lib/xdg.sh" "$seed/scripts/lib/xdg.sh"
+    cp "$ROOT/scripts/lib/qml-modules.sh" "$seed/scripts/lib/qml-modules.sh"
     printf 'upstream v1\n' > "$seed/tracked.qml"
     git -C "$seed" add scripts security tracked.qml
     git -C "$seed" commit -qm "initial"

@@ -289,6 +289,21 @@ else
   fail "shell updater must verify stable release tags before the UI can apply them"
 fi
 
+section "release compatibility manifest"
+manifest_version="$(sed -n 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' release.json 2>/dev/null)"
+manifest_qs="$(sed -n 's/^[[:space:]]*"quickshellMin"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' release.json 2>/dev/null)"
+manifest_schema="$(sed -n 's/^[[:space:]]*"settingsSchema"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' release.json 2>/dev/null)"
+settings_schema="$(sed -n 's/.*readonly property int _settingsVersion:[[:space:]]*\([0-9][0-9]*\).*/\1/p' services/ShellSettings.qml)"
+if [[ "$manifest_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-dev)?$ ]] \
+    && [ "$manifest_qs" = "$SILERE_MIN_QUICKSHELL" ] \
+    && [ -n "$manifest_schema" ] && [ "$manifest_schema" = "$settings_schema" ] \
+    && grep -qE '^[[:space:]]*"compositors"[[:space:]]*:[[:space:]]*\[[[:space:]]*"hyprland"[[:space:]]*,[[:space:]]*"niri"[[:space:]]*\]' release.json \
+    && grep -qF '_check_release_manifest "$mode"' scripts/update.sh; then
+  ok "manifest" "$manifest_version; settings schema $manifest_schema; Quickshell $manifest_qs"
+else
+  fail "release.json must match the settings schema, Quickshell floor, supported compositors, and updater gate"
+fi
+
 section "optional tool detection"
 # The status of the final command in a shell `for` loop becomes the loop's
 # status. Since fc-list is optional and currently last, an explicit success is

@@ -13,6 +13,8 @@ settings file carries its own `__version` and migrates separately.
 
 ### Added
 
+- Signed releases carry a compatibility manifest, and the updater rejects a release that
+  needs a newer Quickshell or does not support the active compositor before changing the checkout.
 - `scripts/bench.sh --warm` samples after one menu cycle.
 - `scripts/bench.sh --json` writes one machine-readable object, and `--label` tags a run.
 - The bench report names the state it sampled, the interface font, the machine and the Quickshell version.
