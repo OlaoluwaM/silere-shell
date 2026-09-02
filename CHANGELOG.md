@@ -28,6 +28,7 @@ settings file carries its own `__version` and migrates separately.
 - Hovering the volume or microphone widget names the device in use alongside the controls that are not obvious.
 - The lock program chosen automatically follows the compositor: hyprlock leads on Hyprland, swaylock elsewhere.
 - The installer's optional-tool list names fontconfig, which the font picker and font checks need.
+- Feedback › OSD names its choices in words.
 - Sliders and switches drop their white fills: the handle takes the accent, the switch knob reads as a dark cap, and a filled track sits deeper into its card. High contrast keeps the brighter fills.
 - The media card drops its seek row: position is a bar along the card's bottom edge, with the elapsed and total times beside the controls. Dragging the bar still scrubs.
 - Media controls lose their boxes. The glyphs are the buttons, with play carrying the accent.
@@ -38,6 +39,7 @@ settings file carries its own `__version` and migrates separately.
 - The workspace button opens the menu where the compositor reports no workspaces of its own.
 - Tray icons render for apps that ship their own icon directory.
 - Night Light refreshes externally changed `hyprsunset` state when a control surface opens, without letting a stale probe undo a user toggle.
+- Option buttons in settings keep their padding at the largest interface scale.
 - One-shot UI motion now settles when the display blanks instead of animating behind the lock screen.
 - Popups, media art, workspace effects, and notification exits land cleanly when their animation is interrupted.
 - Attention pulses no longer age out while idle or reduced motion has paused them.

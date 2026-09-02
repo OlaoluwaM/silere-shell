@@ -51,9 +51,11 @@ MenuRow {
     // with nothing in the label column the row is a standalone control, not a setting:
     // holding it to the right cap leaves the gutter it would have used as dead space
     readonly property bool _headless: root.label.length === 0 && root.glyph.length === 0
+    // a flat pixel cap keeps its width while the type grows, so the chips lose their padding
+    // at the top of the scale; it rises with the label font the way the bar hint's cap does
     readonly property real _preferredControlW: root._headless
         ? Math.max(1, root.width - 28)
-        : Math.min(236,
+        : Math.min(Math.max(236, Settings.fontLabel * 22),
             root._chipW * root._optionCount + root._chipGap * (root._optionCount - 1))
     readonly property real _inlineLabelW:
         Math.max(0, root.width - 12 - root._preferredControlW - 14 - 10)

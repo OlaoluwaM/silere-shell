@@ -1131,6 +1131,14 @@ else
     ok "config store" "paths and directory readiness have one owner"
 fi
 
+# Text.HorizontalFit shrinks rather than truncates, so probe-fit's Text.truncated scan
+# cannot see a chip row whose cap stopped growing with the type
+if grep -qF 'Math.max(236, Settings.fontLabel * 22)' modules/menu/controls/ChoiceChipRow.qml; then
+    ok "chip width" "the segmented-control cap grows with its label font"
+else
+    fail "ChoiceChipRow's width cap must scale with Settings.fontLabel, or its chips lose their padding at the largest type"
+fi
+
 xdg_path_bypass="$(grep -RInE --include='*.qml' \
   'Quickshell\.env\("(XDG_(CONFIG|CACHE|STATE)_HOME|XDG_RUNTIME_DIR)"\)' \
   shell.qml modules services config \

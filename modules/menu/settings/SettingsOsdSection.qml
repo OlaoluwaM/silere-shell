@@ -49,9 +49,9 @@ Column {
                 glyph: "󰈶"; label: "Feedback for"
                 currentValue: ShellSettings.osdKindFilter
                 model: [
-                    { value: "both",       glyph: "󰓎", label: "Both" },
-                    { value: "volume",     glyph: "󰕾", label: "Vol"  },
-                    { value: "brightness", glyph: "󰃟", label: "Brt"  }
+                    { value: "both",       label: "Both" },
+                    { value: "volume",     label: "Volume" },
+                    { value: "brightness", label: "Bright" }
                 ]
                 onChosen: (v) => ShellSettings.osdKindFilter = v
             }
