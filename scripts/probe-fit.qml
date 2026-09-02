@@ -48,6 +48,7 @@ ShellRoot {
             }
             root._overflow(child, path, clipItem)
             root._paintsWide(child, path, label)
+            root._shrunk(child, path, label)
             root._scan(child, path, depth + 1, child.clip === true ? child : clipItem)
         }
     }
@@ -61,6 +62,19 @@ ShellRoot {
         console.warn("FIT-WIDE " + path + " :: \"" + label.slice(0, 40)
             + "\" paints " + Math.round(child.contentWidth)
             + " into " + Math.round(child.width))
+        root.findings++
+    }
+
+    // A fontSizeMode text shrinks its own glyphs rather than eliding, so it reports
+    // truncated:false and a contentWidth inside the box while rendering a size smaller
+    // than the row around it. implicitWidth is the size it asked for before the shrink.
+    function _shrunk(child, path: string, label: string): void {
+        if (label.length === 0 || child.fontSizeMode === undefined) return
+        if (child.fontSizeMode === Text.FixedSize) return
+        if (!(child.width > 0) || child.implicitWidth <= child.width + 0.5) return
+        console.warn("FIT-SHRINK " + path + " :: \"" + label.slice(0, 40)
+            + "\" asked " + Math.round(child.implicitWidth)
+            + " got " + Math.round(child.width))
         root.findings++
     }
 

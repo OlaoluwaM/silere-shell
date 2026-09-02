@@ -25,6 +25,10 @@ ShellRoot {
         id: probeAnchor
         property real menuAnchorX: 42
     }
+    QtObject {
+        id: pulseTarget
+        property real value: 1
+    }
 
     Component { id: sliderTrackFactory; SliderTrack {} }
     Component { id: gradientSliderFactory; GradientSlider {} }
@@ -46,6 +50,7 @@ ShellRoot {
     Component { id: workspaceButtonFactory; WorkspaceButton {} }
     Component { id: pillFactory; Pill { visible: true; glyph: "a" } }
     Component { id: rollingTextFactory; RollingText { visible: true; text: "one" } }
+    Component { id: pulseLoopFactory; PulseLoop {} }
     Component {
         id: windowTitleFactory
         WindowTitle {
@@ -155,6 +160,78 @@ ShellRoot {
             "an absolute XDG runtime path keeps significant trailing whitespace")
         root._check(XdgPaths.resolveAbsolute("relative-runtime") === "",
             "XDG runtime path resolution rejects a relative directory")
+        root._check(ConfigStore.directoryRetryDelay(0) === 1000
+                && ConfigStore.directoryRetryDelay(1) === 1000
+                && ConfigStore.directoryRetryDelay(2) === 2000
+                && ConfigStore.directoryRetryDelay(20) === 8000,
+            "configuration directory retries use bounded exponential delays")
+        root._check(Updates.sourceIdentity("pacman", true, true, false) === "pacman|paru"
+                && Updates.sourceIdentity("pacman", true, false, true) === "pacman|yay"
+                && Updates.sourceIdentity("pacman", false, true, true) === "pacman|"
+                && Updates.sourceIdentity("aur", true, false, true) === "aur|yay",
+            "update source identity follows package-manager and helper changes")
+
+        const providerWas = ShellSettings.lockProvider
+        ShellSettings.lockProvider = "gtklock"
+        root._check(SystemTools.hasGtklock
+                ? Settings.lockCommand.length === 1
+                : Settings.lockCommand.length === 0,
+            "a named lock provider resolves only when that program is installed")
+        ShellSettings.lockProvider = "custom"
+        const customWas = ShellSettings.lockCommandCustom
+        ShellSettings.lockCommandCustom = "swaylock -f  --color 000000"
+        root._check(Settings.lockCommand.length === 4
+                && Settings.lockCommand[0] === "swaylock"
+                && Settings.lockCommand[3] === "000000",
+            "a custom lock command splits on whitespace runs")
+        ShellSettings.lockCommandCustom = "   "
+        root._check(Settings.lockCommand.length === 0,
+            "a blank custom lock command leaves the lock action off")
+        ShellSettings.lockCommandCustom = customWas
+        ShellSettings.lockProvider = providerWas
+
+        const nlWas = ShellSettings.nightLightProvider
+        ShellSettings.nightLightProvider = "wlsunset"
+        const wl = Settings.nightLightCommand(3400)
+        root._check(SystemTools.hasWlsunset
+                ? wl.length > 0 && wl[0] === "wlsunset"
+                    && wl.indexOf("3400") > 0 && wl.indexOf("3399") > 0
+                : wl.length === 0,
+            "wlsunset holds one temperature by pairing it with a lower night value")
+        ShellSettings.nightLightProvider = "hyprsunset"
+        const hs = Settings.nightLightCommand(3400)
+        root._check(SystemTools.hasHyprsunset
+                ? hs.length === 3 && hs[0] === "hyprsunset" && hs[2] === "3400"
+                : hs.length === 0,
+            "a named night light provider resolves only when that program is installed")
+        root._check(Settings.nightLightProviderArgv("hyprsunset", 99999).length === 0
+                || Settings.nightLightProviderArgv("hyprsunset", 99999)[2] === "20000",
+            "a night light temperature is clamped before it reaches the command")
+        root._check(Settings.nightLightProviderArgv("nonesuch", 4000).length === 0,
+            "an unknown night light provider resolves to no command")
+        const wlFloor = Settings.nightLightProviderArgv("wlsunset", 1000)
+        root._check(wlFloor.length === 0
+                || (wlFloor[2] === "1001" && wlFloor[4] === "1000"),
+            "wlsunset keeps its day above its night at the coldest setting")
+        ShellSettings.nightLightProvider = nlWas
+
+        root._check(Audio.deviceClass(null) === ""
+                && Settings.soundSettingsCommand.length
+                    === (SystemTools.hasPwvucontrol || SystemTools.hasPavucontrol ? 1 : 0),
+            "the sound settings hand-off resolves to one mixer, or to none")
+
+        const cap = (p) => Audio.capturesOutput(p)
+        root._check(cap({ "stream.capture.sink": true })
+                && cap({ "stream.capture.sink": "true" })
+                && cap({ "target.object": "alsa_output.pci-0000_06_00.6.analog-stereo.monitor" })
+                && cap({ "node.target": "combined.monitor" }),
+            "a stream recording system output is not a microphone in use")
+        root._check(!cap({})
+                && !cap(null)
+                && !cap({ "stream.capture.sink": false })
+                && !cap({ "target.object": "alsa_input.pci-0000_06_00.6.analog-stereo" })
+                && !cap({ "target.object": "bluez_input.F4_9D_8A_18_02_3B.0" }),
+            "a stream recording a real source still counts as a microphone in use")
 
         const buttonIdle = Theme.buttonFill(Theme.accent, false, false)
         const buttonHover = Theme.buttonFill(Theme.accent, true, false)
@@ -267,6 +344,20 @@ ShellRoot {
                 && !Motion.allowsMotion(false, true),
             "visible motion is disabled by idle and reduce-motion states")
 
+        const pulseReduceWas = ShellSettings.reduceMotion
+        ShellSettings.reduceMotion = false
+        const pulseLoop = pulseLoopFactory.createObject(root, {
+            target: pulseTarget, targetProperty: "value", active: true,
+            duration: 50, restValue: 1
+        })
+        root._check(pulseLoop !== null && pulseLoop.running,
+            "a positive-duration pulse starts while motion is allowed")
+        pulseLoop.duration = 0
+        root._check(!pulseLoop.running && pulseTarget.value === 1,
+            "a live pulse settles instead of restarting as a zero-duration infinite loop")
+        pulseLoop.destroy()
+        ShellSettings.reduceMotion = pulseReduceWas
+
         const workspaceMarker = workspaceMarkerFactory.createObject(root)
         root._check(workspaceMarker !== null && workspaceMarker._motionAllowed(),
             "the active workspace marker permits effects while visible and awake")
@@ -322,6 +413,13 @@ ShellRoot {
         root._check(!notificationCard._sendInlineReply("   ")
                 && root._sentInlineReply.length === 0,
             "an empty inline notification reply is not sent")
+        let dismissCompletions = 0
+        notificationCard.dismissRequested.connect(function() { dismissCompletions++ })
+        notificationCard._leaving = true
+        notificationCard._completeDismiss()
+        notificationCard._completeDismiss()
+        root._check(dismissCompletions === 1 && !notificationCard._leaving,
+            "an interrupted notification exit completes exactly once")
         notificationCard.destroy()
 
         root._check(OsdBarState._presentationAllowed(false, true)
@@ -459,6 +557,16 @@ ShellRoot {
         crossingCell.playMarkerPass(0)
         root._check(!crossingCell.markerPassActive,
             "a bar marker leaves the cells it crosses alone")
+        crossingCell.markerCovers = true
+        crossingCell.playMarkerPass(0)
+        crossingCell.scale = 0.7
+        crossingCell._dotFade = 0.4
+        crossingCell.barActive = false
+        root._check(!crossingCell.markerPassActive
+                && crossingCell._markerPassCover === 0
+                && crossingCell.scale === 1
+                && crossingCell._dotFade === 1,
+            "a sleeping workspace cell retires transient motion at its bound state")
         crossingCell.destroy()
         ShellSettings.workspaceShift = shiftWas
         ShellSettings.reduceMotion = reduceMotionWas
@@ -657,6 +765,26 @@ ShellRoot {
             "history stops growing at the configured limit")
         root._check(Notifications.historyModel.get(0).summary === "s11",
             "the newest history entry is first")
+        Notifications.clearHistory()
+        Notifications._prependHistory({
+            id: 71, appName: "Probe", summary: "Earlier session", time: 1
+        })
+        const archivedNotification = {
+            transient: false, appName: "Probe", appIcon: "", desktopEntry: "",
+            summary: "Current session", body: "", urgency: 1
+        }
+        const firstArchive = Notifications._archiveNotification(
+            archivedNotification, 71, 2, false)
+        archivedNotification.summary = "Current session update"
+        const replacementArchive = Notifications._archiveNotification(
+            archivedNotification, 71, 3, false)
+        root._check(firstArchive && !replacementArchive
+                && Notifications.historyCount === 2
+                && Notifications.historyModel.get(0).summary === "Current session update"
+                && Notifications.historyModel.get(0).sessionCurrent
+                && Notifications.historyModel.get(1).summary === "Earlier session"
+                && !Notifications.historyModel.get(1).sessionCurrent,
+            "a reused server id coalesces this session's updates without replacing restored history")
         ShellSettings.notifHistoryLimit = 20
         for (let i = 0; i < 15; i++)
             Notifications._prependHistory({ id: 100 + i, appName: "probe", summary: "t" + i, time: 1 })
@@ -772,6 +900,19 @@ ShellRoot {
         root._check(IconResolver.senderIconSource("IMAGE://icon/x?path=/etc/passwd") === ""
                 && IconResolver.iconSource("Image://Icon/x?path=/etc/passwd") === "",
             "the icon provider guard holds when the sender varies the scheme's case")
+        root._check(IconResolver.trayIconSource(
+                "image://icon/spotify-linux-32?path=/usr/share/spotify/icons")
+                === "image://icon/spotify-linux-32?path=/usr/share/spotify/icons",
+            "a tray item keeps the icon directory its app ships")
+        root._check(IconResolver.trayIconSource("image://icon/x?path=/usr/share/../../etc") === ""
+                && IconResolver.trayIconSource("image://icon/x?path=relative") === "",
+            "a tray icon path cannot climb out of an absolute directory")
+        root._check(IconResolver.trayIconSource("image://icon/a/b?path=/tmp") === ""
+                && IconResolver.trayIconSource("image://evil/x") === "",
+            "only the icon provider itself is reachable from a tray item")
+        root._check(IconResolver.iconSource(
+                "image://icon/spotify-linux-32?path=/usr/share/spotify/icons") === "",
+            "the tray's allowance does not widen the shared icon resolver")
         root._check(IconResolver.senderImageSource("image://QsImage/1")
                 === "image://QsImage/1",
             "a mixed-case in-memory provider stays available")
@@ -975,8 +1116,14 @@ ShellRoot {
         }
         root._check(updateCommand("pacman", { checkupdates: true }).includes("checkupdates"),
             "package updates build the pacman command")
+        const pacmanAurCommand = updateCommand("pacman", { checkupdates: true, paru: true })
+        root._check(pacmanAurCommand.includes("aurrc=$?")
+                && pacmanAurCommand.includes('[ "$aurrc" -ne 1 ]'),
+            "package updates distinguish an empty AUR result from helper failure")
         root._check(updateCommand("pacman", { paru: true }).includes("paru -Qu"),
             "package updates build the AUR fallback command")
+        root._check(Updates._cmd().includes('[ "$rc" -ne 1 ]'),
+            "the AUR-only checker treats timeouts as failures")
         root._check(updateCommand("apt", { apt: true }).includes("apt list --upgradable"),
             "package updates build the apt command")
         root._check(updateCommand("dnf", { dnf: true }).includes("dnf -q check-update"),
@@ -1058,6 +1205,10 @@ ShellRoot {
                 && Object.keys(SystemTools._tools).length === 0
                 && SystemTools._scanRevision === revisionWas + 1,
             "a capability scan that gives up still lands")
+        root._check(SystemTools._repairOutcome(0, false) === "done"
+                && SystemTools._repairOutcome(1, false) === "failed"
+                && SystemTools._repairOutcome(0, true) === "failed",
+            "a timed-out Matugen repair cannot be overwritten as successful on exit")
         SystemTools.checking = checkingWas
         SystemTools.lastError = lastErrorWas
         SystemTools._scanRevision = revisionWas
@@ -1124,6 +1275,66 @@ ShellRoot {
                 && !niri._backgroundTitleSyncTimer.running,
             "the focused niri title keeps the responsive title path")
         ShellSettings.showWindowTitle = titleSettingWas
+
+        // niri idx values are per-output, so both monitors carry an idx 1 and every
+        // per-workspace event has to be scoped by output rather than by id alone
+        niri._onLine(JSON.stringify({ WorkspacesChanged: { workspaces: [
+            { id: 10, idx: 1, output: "DP-1", is_active: true,  is_focused: true },
+            { id: 11, idx: 2, output: "DP-1", is_active: false, is_focused: false },
+            { id: 20, idx: 1, output: "HDMI-A-1", is_active: true, is_focused: false }
+        ]}}))
+        const _niriByOutput = function() {
+            const out = {}
+            const list = niri.workspaces
+            for (let i = 0; i < list.length; i++) {
+                const w = list[i]
+                if (w.active) out[w.output] = w.wsId
+            }
+            return out
+        }
+        niri._onLine(JSON.stringify({ WorkspaceActivated: { id: 11, focused: true } }))
+        const niriActive = _niriByOutput()
+        root._check(niriActive["DP-1"] === 2,
+            "activating a niri workspace moves its own output to it")
+        root._check(niriActive["HDMI-A-1"] === 1,
+            "activating a niri workspace leaves the other output's active workspace alone")
+
+        niri._onLine(JSON.stringify({ WorkspaceUrgencyChanged: { id: 20, urgent: true } }))
+        const niriUrgent = niri.workspaces
+        let urgentCount = 0
+        let urgentOutput = ""
+        for (let i = 0; i < niriUrgent.length; i++)
+            if (niriUrgent[i].urgent) { urgentCount++; urgentOutput = niriUrgent[i].output }
+        root._check(urgentCount === 1 && urgentOutput === "HDMI-A-1",
+            "a niri urgency flag lands on the one workspace it names")
+
+        niri._onLine(JSON.stringify({ WindowsChanged: { windows: [
+            { id: 90, workspace_id: 11, app_id: "probe.app", title: "t", pid: 1 },
+            { id: 91, workspace_id: 20, app_id: "probe.app", title: "u", pid: 1 }
+        ]}}))
+        niri._onLine(JSON.stringify({ WindowClosed: { id: 90 } }))
+        const niriClosed = niri.workspaces
+        let closedEmpty = false
+        for (let i = 0; i < niriClosed.length; i++)
+            if (niriClosed[i].output === "DP-1" && niriClosed[i].wsId === 2)
+                closedEmpty = niriClosed[i].occupied === false
+        root._check(closedEmpty,
+            "closing the last niri window empties the workspace that held it")
+
+        niri._onLine(JSON.stringify({ WindowFocusChanged: { id: 91 } }))
+        const niriTops = niri.toplevels
+        let focusedCount = 0
+        for (let i = 0; i < niriTops.length; i++)
+            if (niriTops[i].focused) focusedCount++
+        root._check(focusedCount === 1,
+            "niri focus lands on exactly one window")
+
+        niri._onLine(JSON.stringify({ OverviewOpenedOrClosed: { is_open: true } }))
+        const overviewOpened = niri.overviewActive
+        niri._onLine(JSON.stringify({ OverviewOpenedOrClosed: { is_open: false } }))
+        root._check(overviewOpened && !niri.overviewActive,
+            "the niri overview flag follows the event both ways")
+
         niri.destroy()
 
         // nmcli -t escapes a colon inside a name; the VPN row is the only reader left
@@ -1198,6 +1409,18 @@ ShellRoot {
         ShellUpdate._parse("1\ntarget abc1234 v1.2.3 verified\nabc1234 signed release")
         root._check(ShellUpdate.targetVerified && ShellUpdate.targetTag === "v1.2.3",
             "shell update recognizes an explicitly verified release target")
+        ShellUpdate._parseReleaseNotes("target v1.2.3\nAdded\tA **bounded** `summary`\nFixed\tA [bug](https://example.invalid)")
+        root._check(ShellUpdate.releaseNotes.length === 2
+                && ShellUpdate.releaseNotes[0].category === "Added"
+                && ShellUpdate.releaseNotes[0].subject === "A bounded summary"
+                && ShellUpdate.releaseNotes[1].subject === "A bug",
+            "shell update parses categorized notes for the verified target")
+        ShellUpdate._parseReleaseNotes("target v1.2.4\nAdded\tWrong release")
+        root._check(ShellUpdate.releaseNotes.length === 0,
+            "shell update rejects cached notes for another release")
+        ShellUpdate._parseReleaseNotes("target v1.2.3\nForged\tUnknown category")
+        root._check(ShellUpdate.releaseNotes.length === 0,
+            "shell update rejects unknown release-note categories")
         ShellUpdate._parse("1\ntarget abc1234 v1.2.3\nabc1234 legacy update")
         root._check(!ShellUpdate.targetVerified,
             "shell update rejects legacy status without a verification marker")
@@ -1212,20 +1435,51 @@ ShellRoot {
         root._check(ShellUpdate._epochMsFrom("1234seconds") === 0
                 && ShellUpdate._epochMsFrom("1234") === 1234000,
             "shell update accepts only whole epoch timestamps")
+        const persistedErrorWas = ShellUpdate.persistedCheckError
+        const persistedErrorMsWas = ShellUpdate.persistedCheckErrorMs
+        const errorMalformedWas = ShellUpdate._errorMalformed
+        ShellUpdate._parsePersistedError("1234\nfetch failed\ntry again")
+        root._check(ShellUpdate.persistedCheckErrorMs === 1234000
+                && ShellUpdate.persistedCheckError === "fetch failed try again"
+                && !ShellUpdate._errorMalformed,
+            "shell update safely parses persisted unattended failures")
+        ShellUpdate._parsePersistedError("yesterday\nfetch failed")
+        root._check(ShellUpdate.persistedCheckError.length === 0
+                && ShellUpdate._errorMalformed,
+            "shell update rejects malformed persisted failure state")
+        const liveCheckErrorWas = ShellUpdate.lastCheckError
+        const nowWas = ShellUpdate._nowMs
+        ShellUpdate._parsePersistedError("1234\nfetch failed")
+        ShellUpdate.lastCheckError = ""
+        ShellUpdate._nowMs = 1234000 + 7200000
+        root._check(ShellUpdate.checkErrorAge === "2 h ago",
+            "a persisted update failure reports how long ago it happened")
+        ShellUpdate.lastCheckError = "Update check failed"
+        root._check(ShellUpdate.checkErrorAge === "",
+            "a failure from this session is not stamped with the persisted age")
+        ShellUpdate.lastCheckError = liveCheckErrorWas
+        ShellUpdate._nowMs = nowWas
+        ShellUpdate.persistedCheckError = persistedErrorWas
+        ShellUpdate.persistedCheckErrorMs = persistedErrorMsWas
+        ShellUpdate._errorMalformed = errorMalformedWas
         ShellUpdate._parse("")
         const checkedLoadedWas = ShellUpdate._checkedLoaded
         const flagLoadedWas = ShellUpdate._flagLoaded
         const flagReadErrorWas = ShellUpdate._flagReadError
         const flagMalformedWas = ShellUpdate._flagMalformed
         const checkedReadErrorWas = ShellUpdate._checkedReadError
+        const errorLoadedWas = ShellUpdate._errorLoaded
+        const errorReadErrorWas = ShellUpdate._errorReadError
         const lastCheckWas = ShellUpdate.lastCheckMs
         ShellUpdate._flagLoaded = false
         ShellUpdate._checkedLoaded = false
+        ShellUpdate._errorLoaded = false
         ShellUpdate.lastCheckMs = 0
         root._check(ShellUpdate.statusText === "Reading status" && !ShellUpdate.upToDate,
             "shell update does not claim success before both status files load")
         ShellUpdate._flagLoaded = true
         ShellUpdate._checkedLoaded = true
+        ShellUpdate._errorLoaded = true
         root._check(ShellUpdate.statusText === "Not checked yet" && !ShellUpdate.upToDate,
             "shell update does not call a missing check timestamp up to date")
         ShellUpdate._checkedReadError = true
@@ -1237,6 +1491,8 @@ ShellRoot {
         ShellUpdate._flagReadError = flagReadErrorWas
         ShellUpdate._flagMalformed = flagMalformedWas
         ShellUpdate._checkedReadError = checkedReadErrorWas
+        ShellUpdate._errorLoaded = errorLoadedWas
+        ShellUpdate._errorReadError = errorReadErrorWas
 
         root._check(PowerProfiles.profileName(0) === "power-saver"
                 && PowerProfiles.profileName(1) === "balanced"
@@ -1312,6 +1568,13 @@ ShellRoot {
         root._check(!NightLight._parseCoord("+9001+18000")
                 && !NightLight._parseCoord("+9000+18001"),
             "night light rejects coordinates beyond the latitude and longitude poles")
+        root._check(NightLight._probeState(0, false, false) === 1
+                && NightLight._probeState(1, false, false) === 0
+                && NightLight._probeState(1, false, true) === 1
+                && NightLight._probeState(0, true, true) === -1
+                && NightLight._probeState(2, false, false) === -1
+                && NightLight._probeState(-1, false, false) === -1,
+            "night light distinguishes an external daemon, no match, and a failed state probe")
         NightLight._geoResolved = geoResolvedWas
         NightLight._autoLat = autoLatWas
         NightLight._autoLon = autoLonWas
@@ -1336,6 +1599,13 @@ ShellRoot {
         CpuTemp._hotCount = cpuHotCountWas
         CpuTemp._criticalCount = cpuCriticalCountWas
 
+        const cpuDetectGenerationWas = CpuTemp._detectGeneration
+        CpuTemp._detectGeneration = 41
+        root._check(CpuTemp._detectionIsCurrent(41)
+                && !CpuTemp._detectionIsCurrent(40),
+            "a canceled CPU sensor discovery cannot publish into a newer request")
+        CpuTemp._detectGeneration = cpuDetectGenerationWas
+
         // the probe budget belongs to one ambiguous spell, or a reading that leaves and
         // re-enters ambiguity reuses a spent budget and the percentage the last spell resolved
         const scaleWas = Battery._scale100
@@ -1351,6 +1621,16 @@ ShellRoot {
         Battery._scale100 = true
         root._check(!Battery._ambiguousRawOne,
             "battery leaves ambiguity for good once the percentage scale is known")
+        root._check(Battery.normalizedPercent(0.64, false) === 64
+                && Battery.normalizedPercent(64, false) === 64
+                && Battery.normalizedPercent(64, true) === 64
+                && Battery.normalizedPercent(140, true) === 100
+                && Battery.normalizedPercent(-1, false) === 0,
+            "battery percentage normalization is stable before its scale latch and stays bounded")
+        root._check(SystemAlerts.batteryWarningLevel(true, true) === "critical"
+                && SystemAlerts.batteryWarningLevel(true, false) === "low"
+                && SystemAlerts.batteryWarningLevel(false, false) === "",
+            "a critical battery reading suppresses the duplicate low-battery alert")
         Battery._scale100 = scaleWas
         Battery._ambiguousAttempts = attemptsWas
         Battery._pctOverride = overrideWas
@@ -1640,7 +1920,22 @@ ShellRoot {
                 && Notifications.list[0].time === 2300
                 && !liveNotification.tracked,
             "a replacement notification still retires the old object and keeps its age")
+        Notifications.clearHistory()
+        Notifications._seen = { "53": true }
+        Notifications._times = { "53": 2300 }
+        Notifications._updateTimes = { "53": 2500 }
+        Notifications._prependHistory({
+            id: 53, appName: "Probe", appIcon: "", desktopEntry: "",
+            summary: "Old instance", body: "", urgency: 1, time: 2200
+        })
+        Notifications.removeFromHistory(0)
+        root._check(Notifications.historyCount === 0
+                && Notifications._seen["53"] === true
+                && Notifications._times["53"] === 2300
+                && Notifications._updateTimes["53"] === 2500,
+            "deleting old history preserves state for a live notification with a reused id")
         Notifications.list = []
+        Notifications._forgetState(53)
 
         let batchDismissed = 0
         const batchOne = {
@@ -1683,6 +1978,46 @@ ShellRoot {
         Bluetooth._restorePairable()
         root._check(openAdapter.pairable && openAdapter.pairableTimeout === 120,
             "pairing preserves an adapter another owner already made pairable")
+
+        root._check(Bluetooth.deviceGlyph("audio-headset") === Bluetooth.deviceGlyph("audio-headphones"),
+            "bluetooth glyphs group headsets with headphones")
+        root._check(Bluetooth.deviceGlyph("input-mouse") !== Bluetooth.deviceGlyph("input-keyboard"),
+            "bluetooth glyphs separate a pointer from a keyboard")
+        root._check(Bluetooth.deviceGlyph("") === Bluetooth.deviceGlyph("unknown-device")
+                && Bluetooth.deviceGlyph("").length > 0,
+            "an unrecognised bluetooth device falls back to one generic glyph")
+        root._check(Bluetooth.deviceGlyph("audio-card") === Bluetooth.deviceGlyph("speaker")
+                && Bluetooth.deviceGlyph("audio-card") !== Bluetooth.deviceGlyph("audio-headphones"),
+            "bluetooth glyphs read BlueZ's audio-card as a speaker, not headphones")
+        root._check(Bluetooth.deviceGlyph("input-gaming") !== Bluetooth.deviceGlyph("unknown-device"),
+            "a bluetooth controller gets its own glyph")
+        root._check(Bluetooth.deviceGlyph("audio-headphones") === Bluetooth.deviceGlyph("audio-tape"),
+            "an unlisted bluetooth audio device still reads as audio")
+        root._check(Bluetooth.deviceGlyph("input-tablet") !== Bluetooth.deviceGlyph("phone"),
+            "a bluetooth tablet is not read as a phone")
+        const node = (n, d, ff, ic) => ({ name: n, description: d,
+            properties: { "device.form-factor": ff, "device.icon-name": ic } })
+        root._check(Audio.deviceClass(node("alsa_output.pci", "Speakers", "", "")) === "speaker"
+                && Audio.deviceClass(node("alsa_output.usb", "Headset", "headset", "")) === "headset"
+                && Audio.deviceClass(node("alsa_output.usb", "Dock", "", "audio-speakers")) === "speaker"
+                && Audio.deviceClass(null) === "",
+            "an audio sink is classed on what it states about itself")
+        root._check(Audio.deviceClass(node("bluez_output.AA_BB.1", "Anything", "speaker", "")) === "speaker",
+            "a bluetooth sink that states a form factor is believed over its bluez name")
+        root._check(Audio.deviceClass(node("bluez_output.AA_BB.1", "Q45", "", "")) === "headset",
+            "a bluetooth sink BlueZ cannot place still reads as a headset")
+        root._check(Audio.isAppStream({ "application.name": "Spotify" })
+                && Audio.isAppStream({ "application.process.binary": "zen-bin" })
+                && !Audio.isAppStream({ "media.name": "Combined Headphones output",
+                    "node.name": "output.combined_bluez_output.X.1" })
+                && !Audio.isAppStream({})
+                && !Audio.isAppStream(null),
+            "a playback stream with no application behind it is routing, not an app")
+        root._check(Bluetooth.deviceGlyph("video-display") !== Bluetooth.deviceGlyph("unknown-device")
+                && Bluetooth.deviceGlyph("printer") !== Bluetooth.deviceGlyph("unknown-device")
+                && Bluetooth.deviceGlyph("camera-photo") !== Bluetooth.deviceGlyph("unknown-device")
+                && Bluetooth.deviceGlyph("multimedia-player") !== Bluetooth.deviceGlyph("unknown-device"),
+            "less common bluetooth device types still resolve a glyph")
 
         root._check(Bluetooth._attemptOutcome("pair", true, false, true, false, 0) === "ok",
             "a paired device settles a pair attempt as success")

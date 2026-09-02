@@ -72,8 +72,11 @@ for scale in 1.0 1.15; do
         status=1
         continue
     fi
-    if printf '%s\n' "$out" | grep -qE "FIT-TRUNC|FIT-CLIP|FIT-WIDE|FIT-FAIL"; then
-        printf '%s\n' "$out" | grep -E "FIT-TRUNC|FIT-CLIP|FIT-WIDE|FIT-FAIL" | sed 's/^/  /' >&2
+    # grep -q would SIGPIPE the producer on an early match, and pipefail turns that
+    # into a false pass; collect the matches instead of testing for them
+    fit_failures="$(printf '%s\n' "$out" | grep -E "FIT-TRUNC|FIT-CLIP|FIT-WIDE|FIT-SHRINK|FIT-FAIL" || true)"
+    if [ -n "$fit_failures" ]; then
+        printf '%s\n' "$fit_failures" | sed 's/^/  /' >&2
         status=1
     fi
     done_line="$(printf '%s\n' "$out" | grep -o 'FIT-DONE.*' | tail -1)"
