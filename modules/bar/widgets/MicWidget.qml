@@ -1,0 +1,88 @@
+import QtQuick
+import "../../../config"
+import "../../../services"
+import "../../common"
+
+Pill {
+    id: root
+
+    // strictly a capture indicator: a mic left muted with nothing listening is not
+    // news, and pinning the pill open for it is how a bar fills with nothing
+    readonly property bool show: ShellSettings.barShowMic && Audio.micActive
+    property real _baseOpacity: show ? 1.0 : 0.0
+    readonly property bool layoutVisible: show || _baseOpacity > 0.001
+    readonly property bool _live: Audio.micActive && !Audio.micMuted
+
+    collapsed: !show
+    opacity: _baseOpacity
+    visible: layoutVisible
+
+    MotionBehavior on _baseOpacity { NumberAnimation { duration: Motion.medium; easing.type: Easing.OutCubic } }
+
+    // the pill arrives mid-bar rather than sliding in from an edge, so a small settle
+    // is what separates it from a repaint
+    scale: root.show ? 1.0 : 0.88
+    transformOrigin: Item.Center
+    MotionBehavior on scale {
+        NumberAnimation {
+            duration: root.show ? Motion.medium : Motion.fast
+            easing.type: root.show ? Easing.OutBack : Easing.InCubic
+            easing.overshoot: 1.7
+        }
+    }
+
+    glyph:      Audio.micIcon
+    glyphColor: root._live ? Theme.error : Theme.subtext
+    textColor:  Theme.subtext
+    interactive: Audio.micReady
+    hintText: {
+        if (!Audio.micReady) return ""
+        const parts = []
+        if (Audio.captureSummary.length > 0) parts.push(Audio.captureSummary)
+        parts.push(Audio.micMuted ? "click unmute" : "click mute", "scroll level")
+        if (Audio.hasSoundSettings) parts.push("right-click settings")
+        return parts.join(" · ")
+    }
+    reserveText: "100%"
+    accessibleName: !Audio.micReady ? "Microphone"
+        : Audio.micMuted ? "Microphone muted, " + Audio.captureSummary
+        : "Microphone in use by " + Audio.captureSummary + ", "
+          + Math.round(Audio.micVolume * 100) + "%"
+    text: !Audio.micReady ? ""
+        : (ShellSettings.valuesOnHover && !expanded) ? ""
+        : (Math.round(Audio.micVolume * 100) + "%")
+    levelValue: Audio.micReady ? Audio.micVolume : -1
+    levelVisible: Audio.micReady && ShellSettings.valuesOnHover
+        && ShellSettings.hoverLevelBar && !expanded
+    levelColor: Audio.micMuted ? Theme.subtext : Theme.error
+
+    WheelHandler {
+        enabled: Audio.micReady
+        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+        onWheel: (event) => {
+            event.accepted = true
+            if (!Audio.micReady) return
+            const n = Scroll.processControlWheel(event, "microphone")
+            if (n !== 0) Audio.micBumpBy(n * Audio.stepPct)
+        }
+    }
+
+    HoverHandler { cursorShape: root.interactive ? Qt.PointingHandCursor : Qt.ArrowCursor }
+
+    pressed: _tap.pressed && Audio.micReady
+    onActivated: Audio.toggleMicMute()
+
+    TapHandler {
+        id: _tap
+        enabled: root.interactive
+        acceptedButtons: Qt.LeftButton
+        onTapped: root.activated()
+    }
+
+    TapHandler {
+        enabled: root.interactive && Audio.hasSoundSettings
+        acceptedButtons: Qt.RightButton
+        gesturePolicy: TapHandler.ReleaseWithinBounds
+        onSingleTapped: Audio.openSoundSettings()
+    }
+}

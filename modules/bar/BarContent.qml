@@ -132,6 +132,7 @@ Item {
     Component { id: _cNetwork;     NetworkWidget    { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact; barActive: root.barActive } }
     Component { id: _cBluetooth;   BluetoothWidget  { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact; barActive: root.barActive } }
     Component { id: _cVolume;      Volume           { anchors.verticalCenter: parent.verticalCenter; height: root.height; hintScreen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
+    Component { id: _cMic;         MicWidget        { anchors.verticalCenter: parent.verticalCenter; height: root.height; hintScreen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
     Component { id: _cBrightness;  BrightnessWidget { anchors.verticalCenter: parent.verticalCenter; height: root.height; hintScreen: root.screen; compact: root.effectiveCompact; barActive: root.barActive } }
     Component { id: _cBattery;     BatteryWidget    { anchors.verticalCenter: parent.verticalCenter; height: root.height; compact: root.effectiveCompact; barActive: root.barActive } }
     Component { id: _cMedia;       MediaWidget      { anchors.verticalCenter: parent.verticalCenter; height: root.height; screen: root.screen; textBudget: root.mediaTextBudget; compact: root.effectiveCompact; barActive: root.barActive } }
@@ -142,7 +143,8 @@ Item {
     readonly property var _widgetComponents: ({
         workspaces: _cWorkspaces, windowTitle: _cWindowTitle,
         shellUpdate: _cShellUpdate, tray: _cTray, updates: _cUpdates,
-        network: _cNetwork, bluetooth: _cBluetooth, volume: _cVolume, brightness: _cBrightness, battery: _cBattery,
+        network: _cNetwork, bluetooth: _cBluetooth, volume: _cVolume, microphone: _cMic,
+        brightness: _cBrightness, battery: _cBattery,
         media: _cMedia, clock: _cClock
     })
 

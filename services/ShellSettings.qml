@@ -38,6 +38,7 @@ Singleton {
     property bool   hoverLevelBar:       false
     property bool   batteryAutoHide:     true
     property bool   barShowBattery:      true
+    property bool   barShowMic:          true
     property bool   barShowNetwork:      true
     property bool   barShowBluetooth:   false
     property bool   barShowClock:        true
@@ -119,11 +120,11 @@ Singleton {
     property string barDisabledMonitors: ""
     property string overlayMonitor:      ""
 
-    readonly property var barWidgetKeys: ["workspaces", "windowTitle", "shellUpdate", "tray", "updates", "network", "bluetooth", "volume", "brightness", "battery", "media", "clock"]
+    readonly property var barWidgetKeys: ["workspaces", "windowTitle", "shellUpdate", "tray", "updates", "network", "bluetooth", "volume", "microphone", "brightness", "battery", "media", "clock"]
 
     property string barWidgetOrderLeft:  "workspaces,media"
     property string barWidgetOrderCenter: "windowTitle"
-    property string barWidgetOrderRight: "shellUpdate,tray,updates,network,bluetooth,volume,brightness,battery,clock"
+    property string barWidgetOrderRight: "shellUpdate,tray,updates,network,bluetooth,volume,microphone,brightness,battery,clock"
 
     function _widgetKeyList(value): var {
         const raw = Array.isArray(value) ? value : String(value || "").split(",")
@@ -224,6 +225,7 @@ Singleton {
         network:     { glyph: "󰛳", label: "Network",         group: "network", setting: "barShowNetwork" },
         bluetooth:   { glyph: "󰂯", label: "Bluetooth",       group: "network", setting: "barShowBluetooth" },
         volume:      { glyph: "󰕾", label: "Volume",          group: "levels", setting: "barShowVolume" },
+        microphone:  { glyph: "󰍬", label: "Microphone",      group: "levels", setting: "barShowMic" },
         brightness:  { glyph: "󰃟", label: "Brightness",      group: "levels", setting: "barShowBrightness" },
         battery:     { glyph: "󰂄", label: "Battery",         group: "power",  setting: "barShowBattery" },
         media:       { glyph: "󰝚", label: "Media",           group: "media",  setting: "barShowMedia" },
@@ -309,6 +311,7 @@ Singleton {
         { k: "barShowClock",        t: "bool", sec: "widgets" },
         { k: "barShowShellUpdate",  t: "bool", sec: "widgets" },
         { k: "barShowVolume",       t: "bool", sec: "widgets" },
+        { k: "barShowMic",          t: "bool", sec: "widgets" },
         { k: "barShowBrightness",   t: "bool", sec: "widgets" },
         { k: "barShowMedia",        t: "bool", sec: "widgets" },
         { k: "osdEnabled",          t: "bool", sec: "osd" },

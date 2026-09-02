@@ -14,6 +14,7 @@ settings file carries its own `__version` and migrates separately.
 ### Added
 
 - The volume control in the menu expands to Output, Input and Apps: choose a microphone, set its level, and set the level of each app playing sound.
+- A microphone widget appears while an app is listening and mutes the input on click. It stays out of the way of apps recording system output; Widgets › Show & order turns it off.
 - The expanded volume control names the apps holding the microphone open, and carries a row that opens Sound settings.
 
 ### Changed
