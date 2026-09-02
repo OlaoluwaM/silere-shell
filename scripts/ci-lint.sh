@@ -534,9 +534,10 @@ else
 fi
 
 section "reduce-motion gating"
-# MotionBehavior carries the reduce-motion gate. A bare Behavior silently
-# animates for users who asked for no motion, so route every one through it
-# and put any extra condition on `gate:` instead of `enabled:`.
+# MotionBehavior carries the global reduce-motion and blanked-screen gates. A
+# bare Behavior silently animates for users who asked for no motion, so route
+# every one through it and put any extra condition on `gate:` instead of
+# `enabled:`.
 bare_behaviors="$(grep -RInE --include='*.qml' '^[[:space:]]*Behavior[[:space:]]+on[[:space:]]' \
   shell.qml modules config services || true)"
 if [ -n "$bare_behaviors" ]; then
@@ -544,6 +545,12 @@ if [ -n "$bare_behaviors" ]; then
   printf '%s\n' "$bare_behaviors"
 else
   ok "motion" "every Behavior carries the reduce-motion gate"
+fi
+if grep -qF 'enabled: gate && !ShellSettings.reduceMotion && !Idle.isIdle' \
+    config/MotionBehavior.qml; then
+  ok "motion" "shared Behaviors settle while the display is blanked"
+else
+  fail "MotionBehavior must suppress one-shot background motion while Idle.isIdle"
 fi
 # PulseLoop derives running from `active` so the gate cannot be bypassed. Setting
 # running: directly reintroduces an infinite loop that spins at zero duration.
@@ -568,6 +575,12 @@ if [ -n "$pulse_running" ]; then
   printf '%s\n' "$pulse_running"
 else
   ok "motion" "PulseLoop gating stays on active"
+fi
+if grep -qF 'if (duration <= 0 || ShellSettings.reduceMotion)' config/PulseLoop.qml \
+    && grep -qF 'if (running) stop()' config/PulseLoop.qml; then
+  ok "motion" "infinite pulses stop before a zero-duration restart"
+else
+  fail "PulseLoop must stop when its live duration collapses to zero"
 fi
 
 section "bar widget sleep state"

@@ -32,6 +32,14 @@ Item {
     // dismiss-all clears this: every card is leaving, so collapsing heights only drags the lower ones through their own exit
     property bool collapseOnDismiss: true
 
+    function _completeDismiss(): void {
+        if (!card._leaving) return
+        _exitTimer.stop()
+        _collapseAnim.stop()
+        card._leaving = false
+        card.dismissRequested(card.notifId, card.notification, card._expired)
+    }
+
     readonly property var _defaultAction: {
         const acts = notification.actions ?? []
         for (let i = 0; i < acts.length && i < 64; i++)
@@ -107,7 +115,7 @@ Item {
         card.enabled = false
         if (!Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)
                 || !card.visible) {
-            card.dismissRequested(card.notifId, card.notification, card._expired)
+            card._completeDismiss()
             return
         }
         if (card.collapseOnDismiss) _collapseAnim.restart()
@@ -181,7 +189,7 @@ Item {
         to: 0; duration: Motion.ms(190); easing.type: Easing.InOutCubic
     }
 
-    Timer { id: _exitTimer; interval: Motion.ms(210) + 10; onTriggered: card.dismissRequested(card.notifId, card.notification, card._expired) }
+    Timer { id: _exitTimer; interval: Motion.ms(210) + 10; onTriggered: card._completeDismiss() }
 
     readonly property var   _rawProgress: notification.hints ? notification.hints["value"] : undefined
     readonly property real  _progressNumber: Number(_rawProgress)
@@ -205,7 +213,10 @@ Item {
     }
 
     Component.onCompleted: _updateTime()
-    onVisibleChanged: if (visible) _updateTime()
+    onVisibleChanged: {
+        if (!visible && card._leaving) card._completeDismiss()
+        else if (visible) card._updateTime()
+    }
 
     Timer {
         id: _timeUpdate
@@ -318,10 +329,19 @@ Item {
             // an open reply holds the countdown, so nothing else would ever retire this card
             if (Idle.isIdle) {
                 card.cancelReply()
+                // this can remove the delegate synchronously: keep it last
+                card._completeDismiss()
                 return
             }
             card._updateTime()
             card._syncCountdown()
+        }
+    }
+
+    Connections {
+        target: ShellSettings
+        function onReduceMotionChanged() {
+            if (ShellSettings.reduceMotion) card._completeDismiss()
         }
     }
 

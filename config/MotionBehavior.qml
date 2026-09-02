@@ -1,13 +1,13 @@
 import QtQuick
 import "../services"
 
-// carries the reduce-motion gate so no call site can forget it
+// carries the reduce-motion and blanked-screen gates so no call site can forget them
 Behavior {
     id: root
 
     property bool gate: true
 
-    enabled: gate && !ShellSettings.reduceMotion
+    enabled: gate && !ShellSettings.reduceMotion && !Idle.isIdle
 
     // never add a settle() that writes targetValue through targetProperty: that plain JS
     // assignment destroys the binding for good, and a gate flipping mid-animation then freezes

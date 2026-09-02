@@ -16,7 +16,14 @@ SequentialAnimation {
     running: active && !ShellSettings.reduceMotion && duration > 0
     loops: Animation.Infinite
     onRunningChanged: if (!running && target && targetProperty) target[targetProperty] = restValue
-    onDurationChanged: if (running) restart()
+    onDurationChanged: {
+        // duration reaches zero a binding update before running observes it
+        if (duration <= 0 || ShellSettings.reduceMotion) {
+            if (running) stop()
+        } else if (running) {
+            restart()
+        }
+    }
 
     NumberAnimation { target: pulse.target; property: pulse.targetProperty; to: pulse.peak;  duration: pulse.duration; easing.type: Easing.InOutSine }
     NumberAnimation { target: pulse.target; property: pulse.targetProperty; to: pulse.floor; duration: pulse.duration; easing.type: Easing.InOutSine }

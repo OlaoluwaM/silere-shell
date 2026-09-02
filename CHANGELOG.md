@@ -31,6 +31,9 @@ settings file carries its own `__version` and migrates separately.
 ### Fixed
 
 - Night Light refreshes externally changed `hyprsunset` state when a control surface opens, without letting a stale probe undo a user toggle.
+- One-shot UI motion now settles when the display blanks instead of animating behind the lock screen.
+- Popups, media art, workspace effects, and notification exits land cleanly when their animation is interrupted.
+- Attention pulses no longer age out while idle or reduced motion has paused them.
 
 ## Releases
 
