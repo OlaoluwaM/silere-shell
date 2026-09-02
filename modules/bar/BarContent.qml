@@ -59,18 +59,30 @@ Item {
         _compactSync.restart()
     }
 
+    // an empty centre still has to leave the window title somewhere to sit
+    readonly property int _bareCenterReserve: 52
+    // room the expanded layout must regain before compact is given up, so a bar sitting
+    // on the threshold does not flip on every widget that changes a digit
+    readonly property int _expandMargin: 56
+
+    function _clearCompactMeasure(): void {
+        _autoCompact = false
+        _expandedWidthEstimate = 0
+        _lastCompactWidth = 0
+    }
+
+    // Compact cannot measure what it is hiding: the expanded layout only exists while the
+    // bar is expanded. So it is captured on the way in and then carried by the change in
+    // compact width, never re-read directly.
     function _syncAutoCompact(): void {
         if (ShellSettings.barCompact || !ShellSettings.barAutoCompact || width <= 0) {
-            _autoCompact = false
-            _expandedWidthEstimate = 0
-            _lastCompactWidth = 0
+            _clearCompactMeasure()
             _compactModeSettle.stop()
             return
         }
 
-        const layoutW = centerHasWidgets
-            ? _widgetLayoutWidth
-            : leftZone.implicitWidth + rightZone.implicitWidth + 52
+        const layoutW = centerHasWidgets ? _widgetLayoutWidth
+            : leftZone.implicitWidth + rightZone.implicitWidth + _bareCenterReserve
         const capacity = fitWidth > 0 ? Math.min(fitWidth, width) : width
 
         if (!_autoCompact) {
@@ -83,26 +95,42 @@ Item {
             return
         }
 
+        // mid-transition widths are the animation, not the layout
         if (_compactModeSettle.running) {
             _lastCompactWidth = layoutW
             return
         }
 
-        if (_lastCompactWidth > 0) {
-            const delta = layoutW - _lastCompactWidth
+        if (_lastCompactWidth > 0)
             _expandedWidthEstimate = Math.max(layoutW,
-                _expandedWidthEstimate + delta)
-        }
+                _expandedWidthEstimate + (layoutW - _lastCompactWidth))
         _lastCompactWidth = layoutW
 
-        if (_expandedWidthEstimate < capacity - 56) {
-            _autoCompact = false
-            _lastCompactWidth = 0
-        }
+        if (_expandedWidthEstimate < capacity - _expandMargin) _clearCompactMeasure()
     }
 
     onWidthChanged: _queueAutoCompact()
     onFitWidthChanged: _queueAutoCompact()
+
+    // entering or leaving the centre swaps _widgetLayoutWidth to the other formula, and
+    // the delta estimate below would bank that step as if the content had resized
+    readonly property string layoutSignature: leftZone.visibleKeys.join(",")
+        + "/" + centerZone.visibleKeys.join(",") + "/" + rightZone.visibleKeys.join(",")
+    // settle first: a widget mid-move is briefly counted in both zones
+    onLayoutSignatureChanged: if (root._autoCompact) _layoutSettle.restart()
+
+    Timer {
+        id: _layoutSettle
+        interval: Motion.width + 40
+        onTriggered: root._remeasureAutoCompact()
+    }
+
+    function _remeasureAutoCompact(): void {
+        if (!_autoCompact) return
+        _clearCompactMeasure()
+        _compactModeSettle.stop()
+        _queueAutoCompact()
+    }
 
     Timer {
         id: _compactSync

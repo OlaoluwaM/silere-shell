@@ -38,6 +38,7 @@ settings file carries its own `__version` and migrates separately.
 
 ### Fixed
 
+- The bar returns to full width after a widget is moved between zones, instead of staying compact.
 - The workspace button opens the menu where the compositor reports no workspaces of its own.
 - Tray icons render for apps that ship their own icon directory.
 - The Bluetooth widget keeps its generic glyph while the volume widget is already showing the connected device.
