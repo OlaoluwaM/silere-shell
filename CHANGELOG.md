@@ -11,9 +11,15 @@ settings file carries its own `__version` and migrates separately.
 
 ## [Unreleased]
 
+### Added
+
+- The volume control in the menu expands to Output, Input and Apps: choose a microphone, set its level, and set the level of each app playing sound.
+- The expanded volume control names the apps holding the microphone open, and carries a row that opens Sound settings.
+
 ### Changed
 
 - The volume widget shows a headphone glyph while output is on a headset.
+- The volume control's tabs move in the direction of the choice, and the tab row holds still while its contents change.
 - The installer's optional-tool list names fontconfig, which the font picker and font checks need.
 
 ## Releases
