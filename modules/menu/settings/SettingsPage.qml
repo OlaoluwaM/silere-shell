@@ -108,7 +108,7 @@ PageShell {
         property real _shift: 0
         transform: Translate { x: _detail._shift }
 
-        readonly property int _bodyGap: 8
+        readonly property int _bodyGap: 16
 
         Connections {
             target: MenuState

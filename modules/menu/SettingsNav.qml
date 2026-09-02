@@ -33,7 +33,9 @@ Item {
 
     implicitHeight: _navContentHeight()
 
-    readonly property int _navTop:      42
+    // the title band below sits so its centre meets the detail header's title line, which
+    // starts pageTopInset down in the content pane; the groups keep their distance under it
+    readonly property int _navTop:      46
     readonly property int _navBottom:    8
     readonly property int _groupH:      Metrics.rowHeightFor(28)
     readonly property int _groupGap:     2
@@ -297,7 +299,7 @@ Item {
             Item {
                 id: _drawerHeader
                 x: 8
-                y: 6
+                y: 10
                 width: Math.max(1, parent.width - 16)
                 height: 28
 

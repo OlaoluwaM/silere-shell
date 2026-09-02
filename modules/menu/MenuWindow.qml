@@ -136,9 +136,9 @@ PanelWindow {
         // live width, not the target: the page reflows ahead of the outer edge otherwise
         readonly property int contentW: Math.max(1, Math.round(width - railW))
         readonly property int contentPad: activeTab === 1
-            ? Math.max(12, Math.min(20,
-                Metrics.snap4(12 + (width - _compactW) * 8 / (_settingsW - _compactW))))
-            : _railExpanded && width >= 460 ? 18 : 12
+            ? Math.max(16, Math.min(24,
+                Metrics.snap4(16 + (width - _compactW) * 8 / (_settingsW - _compactW))))
+            : _railExpanded && width >= 460 ? 22 : 16
         // the left inset sits against the rail's hairline, which already reads as
         // separation; the right inset meets the panel outline directly, so it gets
         // a touch more room for the two edges to feel equally spaced
@@ -146,8 +146,18 @@ PanelWindow {
         readonly property int innerW: Math.max(1, contentW - contentPad - contentPadRight)
         readonly property int idealMinH: 360
         readonly property int minRailFitH: 252
-        readonly property int pageTopInset: 12
+        readonly property int pageTopInset: 16
         readonly property int pageBottomInset: 12
+        // content-borne, unlike the two insets above: the run-out past a page's last card
+        // has to scroll with the page so the card clears the pane edge at the end of the range
+        readonly property int pageTrail: 24
+        // a page shorter than its tab's floor floats in the pane instead of being hugged.
+        // Settings has the nav column to justify the height; system has only its own cards,
+        // so its floor sits lower. Screen fractions, the same basis recentViewportH uses.
+        readonly property int tabFloorH: win.height <= 0 ? 0
+            : activeTab === 1 ? Metrics.snap4(win.height * 0.66)
+            : activeTab === 3 ? Metrics.snap4(win.height * 0.44)
+            : 0
         // on tall pages (settings, system) the panel would otherwise stretch to nearly the
         // full screen; capping it around three quarters keeps the rail/tray in view and lets
         // the content flickable below take over the rest via scrolling
@@ -762,7 +772,7 @@ PanelWindow {
                 const navH = panel.activeTab === 1
                     ? (_settingsNavLoader.item?.implicitHeight ?? 0) + 16 : 0
                 return 4 * Math.ceil(Math.max(panel.minRailFitH,
-                    panel.idealMinH, contentH, navH) / 4)
+                    panel.idealMinH, panel.tabFloorH, contentH, navH) / 4)
             }
 
             height: panel.height
@@ -840,12 +850,16 @@ PanelWindow {
                         interval: 220
                         onTriggered: tabContent._pageSlow = tabContent._pagePending
                     }
-                    height: panel.activeTab === 0 ? (homeLoader.item?.implicitHeight ?? 0)
+                    readonly property int _pageH:
+                            panel.activeTab === 0 ? (homeLoader.item?.implicitHeight ?? 0)
                           : panel.activeTab === 1 ? (settingsLoader.item?.implicitHeight
                                 ?? _pagePlaceholder.implicitHeight)
                           : panel.activeTab === 2 ? (recentLoader.item?.implicitHeight
                                 ?? _pagePlaceholder.implicitHeight)
                           : (systemLoader.item?.implicitHeight ?? _pagePlaceholder.implicitHeight)
+                    // the notifications page is a viewport sized to the panel, so a trail there
+                    // would only push its list off the bottom
+                    height: _pageH + (panel.activeTab === 2 ? 0 : panel.pageTrail)
                     clip: false
 
                     Item {
