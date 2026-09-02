@@ -736,6 +736,10 @@ Item {
             TapHandler   { onTapped: card.dismiss() }
             ShellText {
                 anchors.centerIn: parent
+                // the glyph's ink sits a pixel up and left of its box centre (measured at
+                // 11px; the font reports the whole cell as ink, so TextMetrics cannot say so)
+                anchors.horizontalCenterOffset: 1
+                anchors.verticalCenterOffset: 1
                 text:  "󰅖"
                 color: _closeHover.hovered ? Theme.error : Theme.withAlpha(Theme.menuTextMuted, 0.78)
                 font.pixelSize: Settings.fontCaption
