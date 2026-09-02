@@ -28,7 +28,6 @@ Item {
         : card.stackSize <= 4 ? 50 : 66
 
     property bool _expired: false
-    property bool _leaving: false
     // dismiss-all clears this: every card is leaving, so collapsing heights only drags the lower ones through their own exit
     property bool collapseOnDismiss: true
 
@@ -96,12 +95,12 @@ Item {
         if (!card.enabled) return
         card.cancelReply()
         card._expired = expired === true
-        card._leaving = true
         card.leaving()
         card._collapseBasis = cardRect.height
         _autoClose.stop()
+        // the exit is a fade where the card stands while its slot closes underneath; a slide
+        // has an edge to leave by only when the column sits at one, and the fade covered it anyway
         cardRect.opacity = 0
-        cardRect.x = card._hiddenX
         card.enabled = false
         if (!Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)
                 || !card.visible) {
@@ -227,9 +226,8 @@ Item {
     property real _collapseBasis: cardRect.height
     implicitHeight: _collapseBasis * collapseRatio
     property int slideDir: 1
-    // arrival is flung to cross a full card width in reasonable time; the exit still travels the whole way
+    // arrival nudges in from the column's edge; the exit does not travel
     readonly property real _enterX:  slideDir * 44
-    readonly property real _hiddenX: slideDir * (implicitWidth + 16)
 
     // reading one card holds the whole stack: cards expiring out from under the pointer reflow what is being read.
     // an expanded body is the same explicit read-me, even after the pointer wanders off the card
@@ -358,9 +356,10 @@ Item {
             }
         }
 
-        MotionBehavior on x       { gate: card.visible && cardRect._behaviorEnabled && !Idle.isIdle; NumberAnimation { duration: card._leaving ? Motion.ms(200) : Motion.ms(280); easing.type: card._leaving ? Easing.InCubic : Easing.OutCubic } }
-        // the fade must outlast the slide both ways: a 140ms fade against the 200ms exit is spent a third of the way out
-        MotionBehavior on opacity { gate: card.visible && cardRect._behaviorEnabled && !Idle.isIdle; NumberAnimation { duration: Motion.ms(200); easing.type: card._leaving ? Easing.InCubic : Easing.OutCubic } }
+        MotionBehavior on x       { gate: card.visible && cardRect._behaviorEnabled && !Idle.isIdle; NumberAnimation { duration: Motion.ms(280); easing.type: Easing.OutCubic } }
+        // the same soft curve both ways: the exit is this fade alone, timed so the slot's
+        // collapse lands just before it ends
+        MotionBehavior on opacity { gate: card.visible && cardRect._behaviorEnabled && !Idle.isIdle; NumberAnimation { duration: Motion.ms(200); easing.type: Easing.OutCubic } }
         MotionBehavior on height  { gate: card.visible && cardRect._behaviorEnabled && !Idle.isIdle; NumberAnimation { duration: Motion.ms(160); easing.type: Easing.OutCubic } }
 
         // same chrome tone as the menu/calendar/tray popups, or a standalone card reads as a lighter floating row.
