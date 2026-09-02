@@ -850,7 +850,7 @@ PanelWindow {
                         interval: 220
                         onTriggered: tabContent._pageSlow = tabContent._pagePending
                     }
-                    readonly property int _pageH:
+                    readonly property real _pageH:
                             panel.activeTab === 0 ? (homeLoader.item?.implicitHeight ?? 0)
                           : panel.activeTab === 1 ? (settingsLoader.item?.implicitHeight
                                 ?? _pagePlaceholder.implicitHeight)
