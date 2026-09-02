@@ -62,10 +62,10 @@ test_xdg_paths_and_timer_default() (
     actual="$(
         HOME="$home" XDG_CONFIG_HOME=relative/config XDG_CACHE_HOME=relative/cache \
             SILERE_SCRIPT_LIB_ONLY=1 bash -c \
-            'source "$1"; printf "%s|%s" "$CACHE_DIR" "$SYSTEMD_USER_DIR"' \
+            'source "$1"; printf "%s|%s|%s" "$CACHE_DIR" "$SYSTEMD_USER_DIR" "$STATE_DIR"' \
             _ "$ROOT/scripts/update.sh"
     )"
-    assert_eq "$home/.cache/silere-shell|$home/.config/systemd/user" "$actual" \
+    assert_eq "$home/.cache/silere-shell|$home/.config/systemd/user|$home/.local/state/silere-shell" "$actual" \
         "updater relative XDG fallbacks"
 
     actual="$(HOME="$home" bash -c 'source "$1"; _silere_xdg_home relative/data .local/share' \
@@ -500,6 +500,180 @@ test_atomic_update_cache() (
     if find "$CACHE_DIR" -maxdepth 1 -name '.update-pending.??????' -print -quit | grep -q .; then
         fail "temporary update cache file was left behind"
     fi
+
+    _record_update_error $'network\nfailure' || fail "update failure status was not written"
+    sed -n '1p' "$ERROR_FLAG" | grep -qE '^[0-9]{10,}$' \
+        || fail "update failure status has no timestamp"
+    assert_eq "network failure" "$(sed -n '2p' "$ERROR_FLAG")" \
+        "update failure status is single-line"
+    _clear_update_error
+    [ ! -e "$ERROR_FLAG" ] || fail "successful update state left the failure status behind"
+
+    local real_cache="$TMP/update-cache-symlink-target"
+    mkdir -m 0755 "$real_cache"
+    CACHE_DIR="$TMP/update-cache-symlink"
+    FLAG="$CACHE_DIR/update-pending"
+    ln -s "$real_cache" "$CACHE_DIR"
+    if _write_cache_file "$FLAG" "must not land"; then
+        fail "updater accepted a symlink as its private cache directory"
+    fi
+    [ ! -e "$real_cache/update-pending" ] \
+        || fail "updater followed its cache directory symlink"
+    assert_eq "755" "$(stat -c '%a' "$real_cache")" "cache symlink target mode"
+)
+
+test_shared_launcher() (
+    local stub_dir="$TMP/launcher-stubs"
+    local capture="$TMP/launcher-default.out"
+    local expected_args
+    mkdir -p "$stub_dir"
+    printf '%s\n' \
+        '#!/bin/sh' \
+        ': > "$SILERE_LAUNCH_CAPTURE"' \
+        'printf "malloc=%s\nimages=%s\negl=%s\n" "$MALLOC_CONF" "$QSG_TRANSIENT_IMAGES" "${__EGL_VENDOR_LIBRARY_FILENAMES-}" >> "$SILERE_LAUNCH_CAPTURE"' \
+        'for arg do printf "arg=%s\n" "$arg" >> "$SILERE_LAUNCH_CAPTURE"; done' \
+        > "$stub_dir/qs"
+    chmod +x "$stub_dir/qs"
+
+    env -u MALLOC_CONF -u QSG_TRANSIENT_IMAGES \
+        PATH="$stub_dir:$PATH" SILERE_LAUNCH_CAPTURE="$capture" \
+        __EGL_VENDOR_LIBRARY_FILENAMES=/chosen/vendor.json \
+        bash "$ROOT/scripts/silere" run --verbose
+    grep -qF 'malloc=narenas:2,background_thread:true,dirty_decay_ms:1000,muzzy_decay_ms:0' "$capture" \
+        || fail "shared launcher did not apply its allocator default"
+    grep -qF 'images=1' "$capture" \
+        || fail "shared launcher did not apply transient images"
+    grep -qF 'egl=/chosen/vendor.json' "$capture" \
+        || fail "shared launcher replaced an inherited EGL vendor"
+    expected_args=$'arg=--no-duplicate\narg=-p\narg='"$ROOT"$'/shell.qml\narg=--verbose'
+    assert_eq "$expected_args" "$(grep '^arg=' "$capture")" "shared launcher argv"
+    assert_eq "600" "$(stat -c '%a' "$capture")" "shared launcher state umask"
+
+    capture="$TMP/launcher-overrides.out"
+    MALLOC_CONF='' QSG_TRANSIENT_IMAGES=0 \
+        PATH="$stub_dir:$PATH" SILERE_LAUNCH_CAPTURE="$capture" \
+        __EGL_VENDOR_LIBRARY_FILENAMES='' \
+        bash "$ROOT/scripts/silere" run
+    grep -qFx 'malloc=' "$capture" \
+        || fail "shared launcher did not preserve an empty allocator override"
+    grep -qFx 'images=0' "$capture" \
+        || fail "shared launcher did not preserve the image-cache override"
+    grep -qFx 'egl=' "$capture" \
+        || fail "shared launcher did not preserve an empty EGL override"
+
+    capture="$TMP/launcher-package-name.out"
+    ln -s "$ROOT/scripts/silere" "$stub_dir/silere-shell"
+    MALLOC_CONF='' QSG_TRANSIENT_IMAGES=0 \
+        PATH="$stub_dir:$PATH" SILERE_LAUNCH_CAPTURE="$capture" \
+        __EGL_VENDOR_LIBRARY_FILENAMES='' \
+        "$stub_dir/silere-shell" --verbose
+    expected_args=$'arg=--no-duplicate\narg=-p\narg='"$ROOT"$'/shell.qml\narg=--verbose'
+    assert_eq "$expected_args" "$(grep '^arg=' "$capture")" \
+        "packaged launcher name dispatch"
+)
+
+test_interrupted_update_recovery() (
+    export GIT_CONFIG_GLOBAL=/dev/null
+    export GIT_CONFIG_NOSYSTEM=1
+    local repo="$TMP/update-transaction-repo"
+    local test_home="$TMP/update-transaction-home"
+    local old_rev new_rev head_before
+
+    mkdir -p "$test_home"
+    HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" \
+        XDG_STATE_HOME="$test_home/state" SILERE_SCRIPT_LIB_ONLY=1 \
+        source "$ROOT/scripts/update.sh"
+
+    git init -q "$repo"
+    git -C "$repo" config user.name "Silere test"
+    git -C "$repo" config user.email "test@example.invalid"
+    _prepare_release_signer "$repo"
+    printf 'known good\n' > "$repo/tracked.qml"
+    git -C "$repo" add security tracked.qml
+    git -C "$repo" commit -qm "known good"
+    old_rev="$(git -C "$repo" rev-parse HEAD)"
+    printf 'signed update\n' > "$repo/tracked.qml"
+    git -C "$repo" commit -qam "signed update"
+    _sign_release "$repo" v1.0.1
+    new_rev="$(git -C "$repo" rev-parse HEAD)"
+    git -C "$repo" reset --hard -q "$old_rev"
+
+    ROOT="$repo"
+    TRUSTED_SIGNERS="$repo/security/update-signers"
+    ROOT_HEX="$(printf '%s' "$ROOT" | od -An -tx1 | tr -d ' \n')"
+    ROOT_KEY="$(printf '%s' "$ROOT" | cksum | awk '{ print $1 "-" $2 }')"
+    STATE_DIR="$test_home/state/silere-shell"
+    APPLY_JOURNAL="$STATE_DIR/update-transaction-$ROOT_KEY"
+    APPLY_TRUSTED_SIGNERS="$STATE_DIR/update-transaction-$ROOT_KEY.signers"
+    REQUESTED_MODE=--apply
+
+    # Interruption immediately after the merge still has a prepared journal.
+    # Recovery must return to the old revision rather than assuming HEAD is good.
+    _start_apply_transaction "$old_rev" "$new_rev" v1.0.1 \
+        || fail "could not start apply transaction fixture"
+    git -C "$repo" merge --ff-only -q "$new_rev"
+    assert_eq "600" "$(stat -c '%a' "$APPLY_JOURNAL")" "apply journal mode"
+    assert_eq "600" "$(stat -c '%a' "$APPLY_TRUSTED_SIGNERS")" "journal trust snapshot mode"
+    assert_eq "700" "$(stat -c '%a' "$STATE_DIR")" "update state directory mode"
+    _recover_interrupted_apply 2>/dev/null
+    assert_eq "$old_rev" "$(git -C "$repo" rev-parse HEAD)" \
+        "prepared interrupted update rollback"
+    [ ! -e "$APPLY_JOURNAL" ] && [ ! -e "$APPLY_TRUSTED_SIGNERS" ] \
+        || fail "prepared transaction recovery left state behind"
+
+    # A durable validated phase is the commit point. Recovery keeps it even if
+    # the updater lost power before deleting the journal or restarting Silere.
+    _start_apply_transaction "$old_rev" "$new_rev" v1.0.1
+    git -C "$repo" merge --ff-only -q "$new_rev"
+    _write_apply_journal validated "$old_rev" "$new_rev" v1.0.1
+    _recover_interrupted_apply 2>/dev/null
+    assert_eq "$new_rev" "$(git -C "$repo" rev-parse HEAD)" \
+        "validated interrupted update retained"
+    [ ! -e "$APPLY_JOURNAL" ] || fail "validated transaction journal was not cleared"
+
+    # Never turn a user-editable or damaged state file into a reset instruction.
+    git -C "$repo" reset --hard -q "$old_rev"
+    _start_apply_transaction "$old_rev" "$new_rev" v1.0.1
+    git -C "$repo" merge --ff-only -q "$new_rev"
+    printf 'not a journal\n' > "$APPLY_JOURNAL"
+    head_before="$(git -C "$repo" rev-parse HEAD)"
+    if ( _recover_interrupted_apply >/dev/null 2>&1 ); then
+        fail "malformed update journal was accepted"
+    fi
+    assert_eq "$head_before" "$(git -C "$repo" rev-parse HEAD)" \
+        "malformed journal leaves checkout untouched"
+    git -C "$repo" reset --hard -q "$old_rev"
+    _clear_apply_transaction
+
+    # Likewise, an interrupted target edited after the crash needs a human
+    # choice; automated rollback must preserve the edit byte-for-byte.
+    _start_apply_transaction "$old_rev" "$new_rev" v1.0.1
+    git -C "$repo" merge --ff-only -q "$new_rev"
+    _write_apply_journal merged "$old_rev" "$new_rev" v1.0.1
+    printf 'local edit\n' >> "$repo/tracked.qml"
+    if ( _recover_interrupted_apply >/dev/null 2>&1 ); then
+        fail "interrupted update recovery discarded local changes"
+    fi
+    grep -qF 'local edit' "$repo/tracked.qml" \
+        || fail "interrupted update recovery changed the local edit"
+    assert_eq "$new_rev" "$(git -C "$repo" rev-parse HEAD)" \
+        "dirty interrupted update leaves HEAD untouched"
+    git -C "$repo" reset --hard -q "$old_rev"
+    _clear_apply_transaction
+
+    # Refuse to chmod or populate an unexpected directory through the private
+    # state leaf. XDG_STATE_HOME itself may legitimately be a symlink; Silere's
+    # own child is the ownership boundary.
+    local real_state="$TMP/update-state-symlink-target"
+    rmdir "$STATE_DIR"
+    mkdir -m 0755 "$real_state"
+    ln -s "$real_state" "$STATE_DIR"
+    if _start_apply_transaction "$old_rev" "$new_rev" v1.0.1; then
+        fail "updater accepted a symlink as its private state directory"
+    fi
+    [ ! -e "$real_state/update-transaction-$ROOT_KEY" ] \
+        || fail "updater followed its state directory symlink"
+    assert_eq "755" "$(stat -c '%a' "$real_state")" "state symlink target mode"
 )
 
 test_update_refuses_dirty_apply() (
@@ -641,7 +815,7 @@ test_update_reporting() (
     local test_home="$TMP/report-home"
     local stub_dir="$TMP/report-stubs"
     local cache="$test_home/cache/silere-shell"
-    local out target checked
+    local out target checked notes
 
     git init --bare -q "$remote"
     git --git-dir="$remote" symbolic-ref HEAD refs/heads/main
@@ -670,6 +844,32 @@ test_update_reporting() (
     assert_eq "true" "$(git -C "$client" rev-parse --is-shallow-repository)" \
         "reporting fixture starts shallow"
     printf 'v2\n' > "$seed/tracked.qml"
+    mkdir -p "$seed/docs/releases"
+    cat > "$seed/release.json" <<'EOF'
+{
+  "version": "9.9.1",
+  "settingsSchema": 1,
+  "quickshellMin": "0.3.1",
+  "compositors": ["hyprland", "niri"]
+}
+EOF
+    cat > "$seed/docs/releases/9.9.1.md" <<'EOF'
+# Silere Shell 9.9.1
+
+Released 2099-01-01.
+
+**Upgrading:** nothing to do.
+
+## Added
+
+- A useful release summary that wraps onto
+  one normalized cache row.
+
+## Fixed
+
+- A test fixture bug.
+EOF
+    git -C "$seed" add release.json docs/releases/9.9.1.md
     git -C "$seed" commit -qam "upstream update"
     _sign_release "$seed" v9.9.1
     git -C "$seed" push -q --tags origin main
@@ -686,7 +886,8 @@ test_update_reporting() (
         '  *) exit 1;;' \
         'esac' > "$stub_dir/systemctl"
     printf '#!/bin/sh\nexit 0\n' > "$stub_dir/notify-send"
-    chmod +x "$stub_dir/systemctl" "$stub_dir/notify-send"
+    printf '#!/bin/sh\n[ "${1:-}" = --version ] && echo "Quickshell 0.3.1"\n' > "$stub_dir/qs"
+    chmod +x "$stub_dir/systemctl" "$stub_dir/notify-send" "$stub_dir/qs"
 
     _run() { HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" PATH="$stub_dir:$PATH" \
         bash "$client/scripts/update.sh" "$@"; }
@@ -702,7 +903,11 @@ test_update_reporting() (
     assert_eq $'supported=1\nenabled=1\nnext=' \
         "$(SILERE_TIMER_MODE=legacy _run --timer-status)" "legacy timer status"
 
+    mkdir -p "$cache"
+    printf '%s\n' 1 'stale timer failure' > "$cache/update-error"
     _run >/dev/null
+    [ ! -e "$cache/update-error" ] \
+        || fail "successful update check left a stale failure status"
     assert_eq "false" "$(git -C "$client" rev-parse --is-shallow-repository)" \
         "update check expands an existing shallow clone"
     out="$(_run --version)"
@@ -726,6 +931,13 @@ test_update_reporting() (
         || fail "pending update flag has no resolvable target revision: $target"
     assert_eq "upstream update" "$(sed -n '3p' "$cache/update-pending" | cut -d' ' -f2-)" \
         "pending update summary"
+    notes="$(cat "$cache/release-notes")"
+    printf '%s\n' "$notes" | grep -qF 'target v9.9.1' \
+        || fail "release notes cache does not name its verified target"
+    printf '%s\n' "$notes" | grep -qF $'Added\tA useful release summary that wraps onto one normalized cache row.' \
+        || fail "release notes cache did not normalize a wrapped Added entry"
+    printf '%s\n' "$notes" | grep -qF $'Fixed\tA test fixture bug.' \
+        || fail "release notes cache omitted a Fixed entry"
 
     _run --apply >/dev/null
     [ ! -e "$cache/update-pending" ] || fail "apply left the pending update flag"
@@ -740,9 +952,27 @@ test_update_reporting() (
     [ "$(cat "$cache/update-checked")" -gt 1 ] \
         || fail "already-current check did not refresh its timestamp"
 
-    printf 'untrusted v3\n' > "$seed/tracked.qml"
+    sed -i 's/"quickshellMin": "0.3.1"/"quickshellMin": "99.0.0"/; s/"version": "9.9.1"/"version": "9.9.2"/' \
+        "$seed/release.json"
+    printf 'incompatible v3\n' > "$seed/tracked.qml"
+    git -C "$seed" commit -qam "incompatible upstream"
+    _sign_release "$seed" v9.9.2
+    git -C "$seed" push -q --tags origin main
+    if _run >/dev/null 2>&1; then
+        fail "update check accepted a release requiring a newer Quickshell"
+    fi
+    assert_eq "v2" "$(<"$client/tracked.qml")" "incompatible release worktree"
+    grep -qF 'requires Quickshell 99.0.0 or newer; installed: 0.3.1' "$cache/update-error" \
+        || fail "incompatible release did not record an actionable requirement"
+    [ ! -e "$cache/update-pending" ] \
+        || fail "incompatible release left an installable update flag"
+    [ ! -e "$cache/release-notes" ] \
+        || fail "incompatible release left trusted-looking release notes"
+
+    sed -i 's/"version": "9.9.2"/"version": "9.9.3"/' "$seed/release.json"
+    printf 'untrusted v4\n' > "$seed/tracked.qml"
     git -C "$seed" commit -qam "untrusted upstream"
-    git -C "$seed" tag -a -m "unsigned release" v9.9.2
+    git -C "$seed" tag -a -m "unsigned release" v9.9.3
     git -C "$seed" push -q --tags origin main
     if _run >/dev/null 2>&1; then
         fail "update check accepted an unsigned release"
@@ -761,6 +991,11 @@ test_update_reporting() (
     fi
     assert_eq "4242" "$(cat "$cache/update-checked")" \
         "failed fetch preserved the last successful check time"
+    sed -n '1p' "$cache/update-error" | grep -qE '^[0-9]{10,}$' \
+        || fail "failed update check did not record when it failed"
+    assert_eq "git fetch failed (check network / connectivity)" \
+        "$(sed -n '2p' "$cache/update-error")" \
+        "failed update check records an actionable reason"
 )
 
 test_repair_workflow() (

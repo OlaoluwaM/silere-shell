@@ -47,6 +47,8 @@ settings file carries its own `__version` and migrates separately.
 
 ### Fixed
 
+- An update interrupted between fast-forward and validation no longer leaves an ambiguous
+  checkout. The next run keeps the validated release, or restores the previous revision.
 - The bar returns to full width after a widget is moved between zones, instead of staying compact.
 - The workspace button opens the menu where the compositor reports no workspaces of its own.
 - Tray icons render for apps that ship their own icon directory.

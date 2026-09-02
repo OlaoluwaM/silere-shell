@@ -282,11 +282,14 @@ if awk 'NF == 0 || /^#/ { next } \
         { bad=1 } END { exit bad || valid < 1 }' security/update-signers \
         && grep -qF 'verify-tag "$release_tag"' scripts/update.sh \
         && grep -qF 'tag --merged origin/main' scripts/update.sh \
+        && grep -qF '_start_apply_transaction "$local_rev" "$remote_rev" "$release_tag"' scripts/update.sh \
+        && grep -qF '_recover_interrupted_apply' scripts/update.sh \
+        && grep -qF 'gpg.ssh.allowedSignersFile="$APPLY_TRUSTED_SIGNERS"' scripts/update.sh \
         && grep -qF 'verify-tag "$GITHUB_REF_NAME"' .github/workflows/release.yml \
         && ! grep -qF 'ShellUpdate.apply()' modules/bar/widgets/ShellUpdateWidget.qml; then
-  ok "shell updater" "trust key, signed release gates, and review-only bar action"
+  ok "shell updater" "trust gates, durable apply recovery, and review-only bar action"
 else
-  fail "shell updater must verify stable release tags before the UI can apply them"
+  fail "shell updater must verify releases and journal an apply before the UI can install it"
 fi
 
 section "release compatibility manifest"

@@ -15,14 +15,29 @@ CONFIG_HOME="$(_silere_xdg_home "${XDG_CONFIG_HOME:-}" .config)" || {
     printf 'silere-update: HOME must be an absolute path\n' >&2
     exit 1
 }
+STATE_HOME="$(_silere_xdg_home "${XDG_STATE_HOME:-}" .local/state)" || {
+    printf 'silere-update: HOME must be an absolute path\n' >&2
+    exit 1
+}
 CACHE_DIR="$CACHE_HOME/silere-shell"
 FLAG="$CACHE_DIR/update-pending"
 NOTIFIED="$CACHE_DIR/update-notified"
 CHECKED="$CACHE_DIR/update-checked"
+ERROR_FLAG="$CACHE_DIR/update-error"
+RELEASE_NOTES="$CACHE_DIR/release-notes"
 TIMER_UNIT="silere-update.timer"
 SERVICE_UNIT="silere-update.service"
 SYSTEMD_USER_DIR="$CONFIG_HOME/systemd/user"
 TRUSTED_SIGNERS="$ROOT/security/update-signers"
+REQUESTED_MODE="${1:-}"
+# Keep transactions independent when a developer has more than one checkout.
+# cksum only selects the filename; the lossless hex root inside the journal is
+# also compared before recovery, so a collision can never reset another tree.
+ROOT_HEX="$(printf '%s' "$ROOT" | od -An -tx1 | tr -d ' \n')"
+ROOT_KEY="$(printf '%s' "$ROOT" | cksum | awk '{ print $1 "-" $2 }')"
+STATE_DIR="$STATE_HOME/silere-shell"
+APPLY_JOURNAL="$STATE_DIR/update-transaction-$ROOT_KEY"
+APPLY_TRUSTED_SIGNERS="$STATE_DIR/update-transaction-$ROOT_KEY.signers"
 
 _notify() {
     command -v notify-send >/dev/null 2>&1 || return 0
@@ -35,6 +50,9 @@ _notify() {
 # offline, a branch left diverged), so it exits quietly and lets the shell
 # surface the reason. Only user-initiated work is worth a critical popup.
 _quiet_fail() {
+    case "$REQUESTED_MODE" in
+        ""|--apply) _record_update_error "$1" || true ;;
+    esac
     echo "silere-update: $1" >&2
     exit 1
 }
@@ -45,10 +63,11 @@ _fail() {
 }
 
 _clear_flag() {
-    rm -f "$FLAG" "$NOTIFIED"
+    rm -f "$FLAG" "$NOTIFIED" "$RELEASE_NOTES"
 }
 
 _ensure_cache_dir() {
+    [ ! -L "$CACHE_DIR" ] || return 1
     (umask 077 && mkdir -p "$CACHE_DIR") || return 1
     chmod 0700 "$CACHE_DIR"
 }
@@ -62,6 +81,145 @@ _write_cache_file() {
         rm -f -- "$tmp"
         return 1
     fi
+}
+
+_ensure_state_dir() {
+    [ ! -L "$STATE_DIR" ] || return 1
+    (umask 077 && mkdir -p "$STATE_DIR") || return 1
+    chmod 0700 "$STATE_DIR"
+}
+
+_write_state_file() {
+    local target="$1" tmp
+    shift
+    _ensure_state_dir || return 1
+    tmp="$(mktemp "$STATE_DIR/.${target##*/}.XXXXXX")" || return 1
+    chmod 0600 "$tmp" || { rm -f -- "$tmp"; return 1; }
+    if ! printf '%s\n' "$@" > "$tmp" || ! mv -- "$tmp" "$target"; then
+        rm -f -- "$tmp"
+        return 1
+    fi
+}
+
+_snapshot_trusted_signers() {
+    local tmp
+    [ -r "$TRUSTED_SIGNERS" ] || return 1
+    _ensure_state_dir || return 1
+    tmp="$(mktemp "$STATE_DIR/.update-signers.XXXXXX")" || return 1
+    if ! cp -- "$TRUSTED_SIGNERS" "$tmp" || ! chmod 0600 "$tmp" \
+            || ! mv -- "$tmp" "$APPLY_TRUSTED_SIGNERS"; then
+        rm -f -- "$tmp"
+        return 1
+    fi
+}
+
+_write_apply_journal() {
+    local phase="$1" old_rev="$2" new_rev="$3" tag="$4"
+    [[ "$phase" =~ ^(prepared|merged|validated)$ ]] || return 1
+    [[ "$old_rev" =~ ^[0-9a-f]{40,64}$ && "$new_rev" =~ ^[0-9a-f]{40,64}$ ]] || return 1
+    [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
+    _write_state_file "$APPLY_JOURNAL" \
+        version=1 "phase=$phase" "rootHex=$ROOT_HEX" \
+        "from=$old_rev" "to=$new_rev" "tag=$tag"
+}
+
+_start_apply_transaction() {
+    local old_rev="$1" new_rev="$2" tag="$3"
+    _snapshot_trusted_signers || return 1
+    if ! _write_apply_journal prepared "$old_rev" "$new_rev" "$tag"; then
+        rm -f -- "$APPLY_TRUSTED_SIGNERS"
+        return 1
+    fi
+}
+
+_clear_apply_transaction() {
+    # The signer snapshot must outlive the journal. If removing the journal
+    # fails, retaining the key keeps the next recovery attempt authenticatable.
+    rm -f -- "$APPLY_JOURNAL" || return 1
+    rm -f -- "$APPLY_TRUSTED_SIGNERS"
+}
+
+_read_apply_journal() {
+    local -a lines=()
+    mapfile -t lines < "$APPLY_JOURNAL" || return 1
+    [ "${#lines[@]}" -eq 6 ] || return 1
+    [ "${lines[0]}" = version=1 ] || return 1
+    JOURNAL_PHASE="${lines[1]#phase=}"
+    JOURNAL_ROOT_HEX="${lines[2]#rootHex=}"
+    JOURNAL_FROM="${lines[3]#from=}"
+    JOURNAL_TO="${lines[4]#to=}"
+    JOURNAL_TAG="${lines[5]#tag=}"
+    [ "${lines[1]}" = "phase=$JOURNAL_PHASE" ] \
+        && [ "${lines[2]}" = "rootHex=$JOURNAL_ROOT_HEX" ] \
+        && [ "${lines[3]}" = "from=$JOURNAL_FROM" ] \
+        && [ "${lines[4]}" = "to=$JOURNAL_TO" ] \
+        && [ "${lines[5]}" = "tag=$JOURNAL_TAG" ] \
+        && [[ "$JOURNAL_PHASE" =~ ^(prepared|merged|validated)$ ]] \
+        && [[ "$JOURNAL_ROOT_HEX" =~ ^[0-9a-f]+$ ]] \
+        && [[ "$JOURNAL_FROM" =~ ^[0-9a-f]{40,64}$ ]] \
+        && [[ "$JOURNAL_TO" =~ ^[0-9a-f]{40,64}$ ]] \
+        && [[ "$JOURNAL_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+}
+
+_journal_release_is_trusted() {
+    local kind resolved
+    [ "$JOURNAL_ROOT_HEX" = "$ROOT_HEX" ] || return 1
+    [ -r "$APPLY_TRUSTED_SIGNERS" ] || return 1
+    kind="$(git -C "$ROOT" cat-file -t "$JOURNAL_TAG" 2>/dev/null || true)"
+    [ "$kind" = tag ] || return 1
+    git -C "$ROOT" -c gpg.format=ssh \
+        -c gpg.ssh.allowedSignersFile="$APPLY_TRUSTED_SIGNERS" \
+        verify-tag "$JOURNAL_TAG" >/dev/null 2>&1 || return 1
+    resolved="$(git -C "$ROOT" rev-parse "$JOURNAL_TAG^{}" 2>/dev/null || true)"
+    [ "$resolved" = "$JOURNAL_TO" ] || return 1
+    git -C "$ROOT" cat-file -e "$JOURNAL_FROM^{commit}" 2>/dev/null || return 1
+    git -C "$ROOT" merge-base --is-ancestor "$JOURNAL_FROM" "$JOURNAL_TO"
+}
+
+# A SIGKILL or power loss can land after the fast-forward but before validation.
+# Never infer success from HEAD alone: the last durable phase decides whether to
+# keep the signed target or return to the known-good revision.
+_recover_interrupted_apply() {
+    local head
+    if [ ! -e "$APPLY_JOURNAL" ]; then
+        rm -f -- "$APPLY_TRUSTED_SIGNERS"
+        return 0
+    fi
+    _read_apply_journal \
+        || _quiet_fail "the interrupted-update journal is malformed — inspect $APPLY_JOURNAL"
+    _journal_release_is_trusted \
+        || _quiet_fail "the interrupted-update journal could not be authenticated — inspect $APPLY_JOURNAL"
+    head="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || true)"
+    if [ "$head" = "$JOURNAL_FROM" ]; then
+        _clear_apply_transaction \
+            || _quiet_fail "could not clear the completed update recovery journal"
+        echo "silere-update: cleared an interrupted update that had not changed the checkout" >&2
+        return 0
+    fi
+    [ "$head" = "$JOURNAL_TO" ] \
+        || _quiet_fail "checkout moved during an interrupted update — inspect $APPLY_JOURNAL"
+    if [ "$JOURNAL_PHASE" = validated ]; then
+        _clear_apply_transaction \
+            || _quiet_fail "could not clear the completed update recovery journal"
+        echo "silere-update: retained the signed update that completed validation before interruption" >&2
+        return 0
+    fi
+    _has_local_changes \
+        && _quiet_fail "local changes prevent recovery of an interrupted update — inspect $APPLY_JOURNAL"
+    git -C "$ROOT" reset --hard --quiet "$JOURNAL_FROM" \
+        || _quiet_fail "could not restore the checkout after an interrupted update — reset to $JOURNAL_FROM manually"
+    _clear_apply_transaction \
+        || _quiet_fail "the checkout was restored but its update recovery journal could not be cleared"
+    echo "silere-update: restored the previous revision after an interrupted update" >&2
+}
+
+_record_update_error() {
+    local message="${1//$'\n'/ }"
+    _write_cache_file "$ERROR_FLAG" "$(date +%s)" "$message"
+}
+
+_clear_update_error() {
+    rm -f -- "$ERROR_FLAG"
 }
 
 _has_local_changes() {
@@ -245,7 +403,7 @@ _unit_runs_this_checkout() {
     local exec_start
     exec_start="$(systemctl --user show silere-shell.service -p ExecStart --value 2>/dev/null || true)"
     case "$exec_start" in
-        *" $ROOT/shell.qml"*) return 0 ;;
+        *" $ROOT/shell.qml"*|*" $ROOT/scripts/silere"*" run"*) return 0 ;;
         *) return 1 ;;
     esac
 }
@@ -403,6 +561,7 @@ _exit_if_not_behind() {
     local local_rev="$1" remote_rev="$2" periodic="$3"
     if git merge-base --is-ancestor "$remote_rev" "$local_rev"; then
         _clear_flag
+        _clear_update_error
         exit 0
     fi
     if ! git merge-base --is-ancestor "$local_rev" "$remote_rev"; then
@@ -422,7 +581,17 @@ fi
 # failure — answer the read-only queries and never raise a critical popup for it
 if ! git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
     case "${1:-}" in
-        --version)               printf 'packaged=1\n'; exit 0 ;;
+        --version)
+            if [ -r "$ROOT/package-version" ]; then
+                packaged_version="$(head -n 1 "$ROOT/package-version")"
+            else
+                packaged_version="$(sed -n 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+                    "$ROOT/release.json" 2>/dev/null | head -n 1)"
+            fi
+            printf 'packaged=1\nversion=%s\n' "$packaged_version"
+            exit 0
+            ;;
+        --transaction-status) printf 'pending=0\n'; exit 0 ;;
         --recent|--timer-status) exit 0 ;;
     esac
     _quiet_fail "$ROOT is not a git checkout — update it through your package manager"
@@ -442,6 +611,19 @@ case "${1:-}" in
         _timer_status
         exit 0
         ;;
+    --transaction-status)
+        if [ ! -e "$APPLY_JOURNAL" ]; then
+            printf 'pending=0\n'
+            exit 0
+        fi
+        if _read_apply_journal && _journal_release_is_trusted; then
+            printf 'pending=1\nauthenticated=1\nphase=%s\nfrom=%s\nto=%s\ntag=%s\n' \
+                "$JOURNAL_PHASE" "$JOURNAL_FROM" "$JOURNAL_TO" "$JOURNAL_TAG"
+            exit 0
+        fi
+        printf 'pending=1\nauthenticated=0\nphase=unknown\n'
+        exit 1
+        ;;
     --timer-enable)
         _set_timer 1
         exit $?
@@ -453,6 +635,7 @@ case "${1:-}" in
 esac
 
 _acquire_update_lock
+_recover_interrupted_apply
 
 # --pin-release: land a fresh clone exactly on the newest signed release. --apply
 # cannot do this: main carries commits past the tag, so the fast-forward path sees
@@ -465,12 +648,13 @@ if [ "${1:-}" = "--pin-release" ]; then
         _fail "local changes block pinning a release — run: bash $ROOT/scripts/repair.sh --apply"
     fi
     _fetch_main || _fail "git fetch failed (check network / connectivity)"
-    _resolve_trusted_release apply
+    _resolve_trusted_release pin
     if [ "$(git rev-parse HEAD)" != "$release_rev" ]; then
         git -C "$ROOT" reset --hard --quiet "$release_rev" \
             || _fail "could not move the checkout to $release_tag"
     fi
     _clear_flag
+    _clear_update_error
     printf 'silere-update: pinned to %s\n' "$release_tag"
     exit 0
 fi
@@ -504,8 +688,16 @@ if [ "${1:-}" = "--apply" ]; then
     if _has_local_changes; then
         _fail "local changes block the update — run: bash $ROOT/scripts/repair.sh --apply"
     fi
+    _start_apply_transaction "$local_rev" "$remote_rev" "$release_tag" \
+        || _fail "could not create the durable update recovery journal"
     # git names the real reason here; "diverged" would point at the wrong thing
     if ! merge_err="$(git -C "$ROOT" merge --ff-only "$remote_rev" 2>&1)"; then
+        # A normal fast-forward refusal leaves HEAD unchanged. Clear the journal
+        # only when that is actually true; an unusual partial failure is safer
+        # with recovery state retained.
+        if [ "$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || true)" = "$local_rev" ]; then
+            _clear_apply_transaction || true
+        fi
         merge_line="$(printf '%s\n' "$merge_err" \
             | sed -n 's/^error: //p; s/^fatal: //p' | head -n1)"
         [ -z "$merge_line" ] \
@@ -514,19 +706,39 @@ if [ "${1:-}" = "--apply" ]; then
         merge_file="$(printf '%s\n' "$merge_err" | sed -n 's/^\t//p' | head -n1)"
         _fail "$merge_line${merge_file:+ $merge_file} — bash $ROOT/scripts/repair.sh --apply clears blocking files"
     fi
+    if ! _write_apply_journal merged "$local_rev" "$remote_rev" "$release_tag"; then
+        git -C "$ROOT" reset --hard --quiet "$local_rev" \
+            || _fail "the update journal failed and the checkout could not be rolled back — reset to $local_rev by hand"
+        _clear_apply_transaction || true
+        _fail "the update journal failed after the merge; the previous revision was restored"
+    fi
     if ! _merged_tree_loads; then
         git -C "$ROOT" reset --hard --quiet "$local_rev" \
             || _fail "the update does not load and the checkout could not be rolled back — reset to $local_rev by hand"
+        _clear_apply_transaction || true
         _fail "the update does not load and was rolled back — the shell was left running"
     fi
+    if ! _write_apply_journal validated "$local_rev" "$remote_rev" "$release_tag"; then
+        git -C "$ROOT" reset --hard --quiet "$local_rev" \
+            || _fail "validation passed but its journal failed and the checkout could not be rolled back — reset to $local_rev by hand"
+        _clear_apply_transaction || true
+        _fail "validation passed but could not be recorded durably; the previous revision was restored"
+    fi
     _clear_flag
+    _clear_update_error
+    _clear_apply_transaction \
+        || echo "silere-update: could not clear the completed update recovery journal" >&2
     new_rev="$(git rev-parse HEAD)"
     count="$(git rev-list --count "${local_rev}..${new_rev}")"
     plural="change"; [ "$count" -ne 1 ] && plural="changes"
     # systemd unit only exists on dev installs; exec-once users restart by hand
     if systemctl --user is-active --quiet silere-shell.service 2>/dev/null \
             && _unit_runs_this_checkout; then
-        systemctl --user restart silere-shell.service
+        # Do not wait inside the shell's own process tree for systemd to stop
+        # that tree. The update is already committed and smoke-tested here.
+        if ! systemctl --user --no-block restart silere-shell.service; then
+            _notify "Silere Shell updated" "$count new $plural — restart the shell to use it"
+        fi
     else
         _notify "Silere Shell updated" "$count new $plural — restart the shell to use it"
     fi
@@ -557,11 +769,17 @@ _write_cache_file "$FLAG" "$count" \
     "target $remote_rev $target_tag verified" "$summary" \
     || _quiet_fail "failed to write update status"
 
+_write_release_notes \
+    || echo "silere-update: could not cache release notes; commit details remain available" >&2
+
+_clear_update_error
+
 # The badge is the persistent reminder. Notify once per pending revision, or a
 # daily timer re-announces the same commits until they are installed.
 if [ "$(cat "$NOTIFIED" 2>/dev/null || true)" != "$remote_rev" ]; then
     plural="change"; [ "$count" -ne 1 ] && plural="changes"
-    _notify "Silere Shell update ready" "$count new $plural ready — install from the bar$([ -n "$summary" ] && printf '\n%s' "$summary")"
+    _notify "Silere Shell $target_tag ready" \
+        "$count $plural · release signature verified — review and install from the bar"
     # If this bookkeeping write fails, keep the successful update check and
     # simply allow the next periodic pass to retry the advisory notification.
     _write_cache_file "$NOTIFIED" "$remote_rev" \
