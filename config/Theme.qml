@@ -5,6 +5,8 @@ import Quickshell
 import "../services"
 
 Singleton {
+    id: root
+
     readonly property bool _n: ShellSettings.neutralTheme
     readonly property bool _hc: ShellSettings.highContrast
 
@@ -33,10 +35,22 @@ Singleton {
     readonly property color _subtextBase: _n ? _pal.subtext
                                              : mix(MatugenTheme.subtext, _matuBg, 0.25)
 
-    readonly property color background: _n ? _pal.background : _matuBg
-    readonly property color text:       _hc ? "#ffffff" : _textBase
-    readonly property color subtext:    _hc ? mix(_subtextBase, text, 0.32) : _subtextBase
-    readonly property color surface:    _hc ? mix(_surfaceBase, text, 0.035) : _surfaceBase
+    readonly property color _tBackground: _n ? _pal.background : _matuBg
+    readonly property color _tText:       _hc ? "#ffffff" : _textBase
+    readonly property color _tSubtext:    _hc ? mix(_subtextBase, _tText, 0.32) : _subtextBase
+    readonly property color _tSurface:    _hc ? mix(_surfaceBase, _tText, 0.035) : _surfaceBase
+
+    // one eased source instead of one fade per call site: everything below is a plain
+    // binding on these, so the shell recolours on a single curve and the local
+    // ColorFades stand down for the duration (see ColorFade)
+    property color background: root._tBackground
+    property color text:       root._tText
+    property color subtext:    root._tSubtext
+    property color surface:    root._tSurface
+    PaletteFade on background { gate: root._paletteReady }
+    PaletteFade on text       { gate: root._paletteReady }
+    PaletteFade on subtext    { gate: root._paletteReady }
+    PaletteFade on surface    { gate: root._paletteReady }
     // the presets below are solved at this L*; matugen's dark primary lands near 80, so the
     // same hue reads hotter under Wallpaper than under Custom until it is walked back
     readonly property real _accentPresetL: 70.8
@@ -48,16 +62,39 @@ Singleton {
     function _sourcedAccent(c: color): color {
         return ShellSettings.matugenAccentBalance ? balancedAccent(c) : c
     }
-    readonly property color accent:     _n ? (ShellSettings.neutralAccentAuto ? _sourcedAccent(MatugenTheme.accent) : ShellSettings.neutralAccent) : _sourcedAccent(_matuAccent)
-    // a greyscale wallpaper, or an achromatic accent pinned in the tool that drives matugen,
-    // leaves the primary with no hue to carry and every accented control reads as plain text
-    readonly property bool accentColorless: lchOf(accent).C < 4
+    readonly property color _tAccent:   _n ? (ShellSettings.neutralAccentAuto ? _sourcedAccent(MatugenTheme.accent) : ShellSettings.neutralAccent) : _sourcedAccent(_matuAccent)
+    property color accent: root._tAccent
+    PaletteFade on accent { gate: root._paletteReady }
+    // read off the target, not the eased value: a lerp between opposite hues passes
+    // through low chroma, and this must not flicker on the way
+    readonly property bool accentColorless: lchOf(_tAccent).C < 4
     // matugen warning/success are M3 tertiary/secondary with no semantic meaning, so anchor the hue and let it tint; error is real
     readonly property color _warnAnchor: "#d4ad77"
     readonly property color _okAnchor:   "#94bd8b"
-    readonly property color error:      _n ? "#dd92a2" : MatugenTheme.error
-    readonly property color warning:    _n ? _warnAnchor : tintKeepingChroma(_warnAnchor, MatugenTheme.warning, 0.30)
-    readonly property color success:    _n ? _okAnchor   : tintKeepingChroma(_okAnchor,   MatugenTheme.success, 0.30)
+    readonly property color _tError:    _n ? "#dd92a2" : MatugenTheme.error
+    readonly property color _tWarning:  _n ? _warnAnchor : tintKeepingChroma(_warnAnchor, MatugenTheme.warning, 0.30)
+    readonly property color _tSuccess:  _n ? _okAnchor   : tintKeepingChroma(_okAnchor,   MatugenTheme.success, 0.30)
+    property color error:   root._tError
+    property color warning: root._tWarning
+    property color success: root._tSuccess
+    PaletteFade on error   { gate: root._paletteReady }
+    PaletteFade on warning { gate: root._paletteReady }
+    PaletteFade on success { gate: root._paletteReady }
+
+    // the wallpaper palette lands a moment after the shell does; easing in from the
+    // bundled colours on every launch would read as a flash, not a transition
+    property bool _paletteReady: false
+    Timer { interval: 700; running: true; onTriggered: root._paletteReady = true }
+
+    readonly property string _paletteKey: "" + _tBackground + _tSurface + _tText
+        + _tSubtext + _tAccent + _tError + _tWarning + _tSuccess + _tLineBase
+    readonly property bool paletteShifting: _shiftWindow.running
+    on_PaletteKeyChanged: {
+        if (!root._paletteReady
+                || !Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)) return
+        _shiftWindow.restart()
+    }
+    Timer { id: _shiftWindow; interval: Motion.palette }
 
     // solved at L* 70.8, C* 20-36: equal visual weight on all three dark bases
     readonly property var neutralAccentPresets: [
@@ -84,7 +121,9 @@ Singleton {
 
     // borders and dividers are not text: they must not inherit the hierarchy sink _subtextBase
     // applies, or fixing text contrast quietly washes out every line in the shell
-    readonly property color _lineBase: _hc ? subtext : (_n ? _pal.subtext : MatugenTheme.subtext)
+    readonly property color _tLineBase: _hc ? _tSubtext : (_n ? _pal.subtext : MatugenTheme.subtext)
+    property color _lineBase: root._tLineBase
+    PaletteFade on _lineBase { gate: root._paletteReady }
 
     readonly property color outline: _hc ? withAlpha(text, lineAlpha(0.36))
                                         : _n ? withAlpha(_lineBase, lineAlpha(0.14))

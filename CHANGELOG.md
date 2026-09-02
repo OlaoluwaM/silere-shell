@@ -22,6 +22,7 @@ settings file carries its own `__version` and migrates separately.
 
 ### Changed
 
+- A wallpaper palette change crosses the whole interface on one curve instead of each element easing on its own. The approach is adapted from Flawedexa's fork.
 - The volume widget shows a headphone glyph while output is on a headset.
 - The volume control's tabs move in the direction of the choice, and the tab row holds still while its contents change.
 - Hovering the volume or microphone widget names the device in use alongside the controls that are not obvious.

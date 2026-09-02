@@ -9,6 +9,7 @@ singleton Settings      1.0 Settings.qml
 
 # helpers
 ColorFade 1.0 ColorFade.qml
+PaletteFade 1.0 PaletteFade.qml
 Disclosure 1.0 Disclosure.qml
 MotionBehavior 1.0 MotionBehavior.qml
 PersistedFile 1.0 PersistedFile.qml

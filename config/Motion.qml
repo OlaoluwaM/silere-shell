@@ -19,6 +19,8 @@ Singleton {
     readonly property int slow:    _rm ? 0 : 260
     readonly property int width:   _rm ? 0 : 180
     readonly property int color:   _rm ? 0 : 160
+    // the whole shell recolours at once, so this is a scene change, not a state change
+    readonly property int palette: _rm ? 0 : 420
 
     readonly property int hoverIn:  _rm ? 0 : 145
     readonly property int hoverOut: _rm ? 0 : 190
