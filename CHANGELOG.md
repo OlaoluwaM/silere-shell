@@ -57,6 +57,8 @@ settings file carries its own `__version` and migrates separately.
 - Tray icons render for apps that ship their own icon directory.
 - The Bluetooth widget keeps its generic glyph while the volume widget is already showing the connected device.
 - Settings and calendar marks that could not be written are saved once their folder is reachable again.
+- The installer recognises a JetBrainsMono Nerd Font that is already there instead of offering to download it again.
+- A downloaded font that fontconfig does not list is reported rather than counted as installed.
 - A failed settings-folder creation or permission check is no longer mistaken for a successful one.
 - The package list drops what it was showing and checks again when the package manager or AUR helper behind it changes.
 - Package checks preserve their last result when an AUR helper fails, reject canceled results after a quick off/on toggle, and defer automatic retries while the session is idle.

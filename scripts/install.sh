@@ -617,8 +617,11 @@ fi
 # ── font ─────────────────────────────────────────────────────────────────────────
 _section "JetBrainsMono Nerd Font"
 
+# grep -q exits on the first match and SIGPIPEs fc-list, which pipefail then reports
+# as a failure — so a font that is installed reads as missing. Let grep drain it all.
 _font_installed() {
-    command -v fc-list >/dev/null 2>&1 && fc-list : family 2>/dev/null | grep -qi "JetBrainsMono Nerd"
+    command -v fc-list >/dev/null 2>&1 || return 1
+    fc-list : family 2>/dev/null | grep -i "JetBrainsMono Nerd" >/dev/null
 }
 
 # pinned release, not "latest": the hash below is only meaningful against a fixed artifact
@@ -652,12 +655,17 @@ _font_sha256() {
 
 did_font=false
 
+FONT_DIR="$HOME/.local/share/fonts/JetBrainsMono"
+
 if _font_installed; then
     _ok "already installed"
 else
     _warn "JetBrainsMono Nerd Font not found"
-    if _font_download_tools_ready && _ask "Download and install it now?"; then
-        FONT_DIR="$HOME/.local/share/fonts/JetBrainsMono"
+    if _dry; then
+        if _font_download_tools_ready; then
+            _would "download JetBrainsMono $FONT_VERSION and install 4 faces to $FONT_DIR"
+        fi
+    elif _font_download_tools_ready && _ask "Download and install it now?"; then
         mkdir -p "$FONT_DIR"
         font_tmp="$(mktemp "${TMPDIR:-/tmp}/silere-font.XXXXXX.tar.xz")"
         spin_start "downloading..."
@@ -676,8 +684,13 @@ else
             spin_stop
             rm -f "$font_tmp"
             fc-cache -f "$FONT_DIR" 2>/dev/null || true
-            _ok "installed $FONT_VERSION to $FONT_DIR"
-            did_font=true
+            if ! command -v fc-list >/dev/null 2>&1 || _font_installed; then
+                _ok "installed $FONT_VERSION to $FONT_DIR"
+                did_font=true
+            else
+                _warn "wrote $FONT_VERSION to $FONT_DIR but fontconfig does not list it"
+                _warn "run fc-cache -fr, then re-check with fc-match monospace"
+            fi
         else
             spin_stop
             rm -f "$font_tmp"
