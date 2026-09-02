@@ -559,6 +559,17 @@ Singleton {
         if (id !== undefined) root._forgetState(id)
     }
 
+    // a stacked run clears as one gesture, so the file is written once rather than per row
+    function removeRunFromHistory(start: int, count: int): void {
+        if (start < 0 || count <= 0 || start >= _history.count) return
+        const n = Math.min(count, _history.count - start)
+        const ids = []
+        for (let i = start; i < start + n; i++) ids.push(_history.get(i).id)
+        _history.remove(start, n)
+        root._saveHistory()
+        for (const id of ids) if (id !== undefined) root._forgetState(id)
+    }
+
     // _onClosed bails on a notification already marked closing, so the retirement below
     // is the only one that runs and a batch can safely defer it to one pass
     function _dismissObject(notifId: int, notification, expired,

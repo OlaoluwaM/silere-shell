@@ -12,6 +12,8 @@ Column {
     property int collapsedLineCount: 2
     property int expandedLineCount: 12
     property bool expanded: false
+    // a host that owns the tap (a folded stack) hides the pill so one tap means one thing
+    property bool showDisclosure: true
     readonly property bool truncated: bodyLabel.truncated
 
     visible: bodyText.length > 0
@@ -35,12 +37,12 @@ Column {
     }
 
     Item {
-        visible: root.expanded || bodyLabel.truncated
+        visible: root.showDisclosure && (root.expanded || bodyLabel.truncated)
         width: root.width
         height: visible ? Math.max(16, disclosureLabel.implicitHeight) : 0
 
         Item {
-            width: disclosureLabel.implicitWidth + 2 + disclosureChevron.width
+            width: disclosureLabel.implicitWidth
             height: parent.height
 
             Accessible.role: Accessible.Button
@@ -57,34 +59,6 @@ Column {
                 font.pixelSize: Settings.fontLabel
                 font.weight: Font.Medium
                 ColorFade on color {}
-            }
-
-            Item {
-                id: disclosureChevron
-                width: 16
-                height: 16
-                anchors {
-                    left: disclosureLabel.right
-                    leftMargin: 2
-                    verticalCenter: parent.verticalCenter
-                }
-
-                ShellText {
-                    anchors.centerIn: parent
-                    text: "󰅀"
-                    color: disclosureHover.hovered
-                        ? Theme.accent : Theme.withAlpha(Theme.accent, 0.78)
-                    font.pixelSize: Settings.fontCaption
-                    rotation: root.expanded ? 180 : 0
-                    transformOrigin: Item.Center
-                    MotionBehavior on rotation {
-                        NumberAnimation {
-                            duration: Motion.fast
-                            easing.type: Easing.OutCubic
-                        }
-                    }
-                    ColorFade on color {}
-                }
             }
 
             HoverHandler {

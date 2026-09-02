@@ -20,6 +20,12 @@ PageShell {
     property real _nowMs: 0
     property real _todayStartMs: 0
 
+    // three from one app in one day is where a repeat stops reading as separate events
+    readonly property int foldAt: 3
+    // which stacks are open is view state, not model state: the menu is a glance surface,
+    // so every fresh open starts folded rather than restoring a session's worth of digging
+    property var _openRuns: ({})
+
     function _touchNow(): void {
         const nowMs = Date.now()
         const now = new Date(nowMs)
@@ -44,6 +50,9 @@ PageShell {
 
     onPageHidden: {
         _clearButton.disarm()
+        // the refold happens under the page's own exit fade, so it snaps like a model change
+        root._holdHeights()
+        root._openRuns = ({})
     }
 
     function formatTime(ms): string {
@@ -70,6 +79,107 @@ PageShell {
         return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate()
     }
 
+    // the consecutive entries of one app inside one day section. Reading the model count
+    // is what makes every binding that calls this re-run on an insert or a removal
+    function runBounds(index: int): var {
+        const rows = Notifications.historyModel
+        const n = rows.count
+        if (index < 0 || index >= n) return { start: index, length: 1, critical: false }
+        const here = rows.get(index)
+        const app = String(here.appName)
+        const day = root.dayKey(here.time)
+        let start = index
+        while (start > 0) {
+            const above = rows.get(start - 1)
+            if (String(above.appName) !== app || root.dayKey(above.time) !== day) break
+            start--
+        }
+        let end = index
+        while (end + 1 < n) {
+            const below = rows.get(end + 1)
+            if (String(below.appName) !== app || root.dayKey(below.time) !== day) break
+            end++
+        }
+        let critical = false
+        for (let i = start; i <= end && !critical; i++)
+            critical = Number(rows.get(i).urgency) === 2
+        // the same app can run twice in a day with another app between, so the key needs
+        // more than app and day. Counted from the oldest run upward because arrivals land
+        // on top: a new run of the app does not renumber the ones already open
+        let ordinal = 1
+        let inRun = false
+        for (let i = end + 1; i < n; i++) {
+            const r = rows.get(i)
+            if (root.dayKey(r.time) !== day) break
+            const same = String(r.appName) === app
+            if (same && !inRun) ordinal++
+            inRun = same
+        }
+        return { start: start, length: end - start + 1, critical: critical,
+            key: app + "|" + day + "|" + ordinal }
+    }
+
+    // a fresh object, not a write into the old one: the reference is what bindings
+    // compare, so mutating in place changes nothing on screen
+    function setRunOpen(key: string, open: bool): void {
+        const next = {}
+        for (const k in root._openRuns) next[k] = root._openRuns[k]
+        if (open) next[key] = true
+        else delete next[key]
+        root._openRuns = next
+    }
+
+    // an open key outlives its run: rows removed one by one, trimmed off the tail, or
+    // cleared would leave a later run of the same app on the same day arriving already
+    // open. Pruning on every count change covers all of those paths at once
+    function _pruneOpenRuns(): void {
+        const rows = Notifications.historyModel
+        const runs = []
+        for (let i = 0; i < rows.count; i++) {
+            const r = rows.get(i)
+            const app = String(r.appName), day = root.dayKey(r.time)
+            const last = runs[runs.length - 1]
+            if (last && last.app === app && last.day === day) last.length++
+            else runs.push({ app: app, day: day, length: 1 })
+        }
+        const keep = {}
+        for (let i = 0; i < runs.length; i++) {
+            const run = runs[i]
+            if (run.length < root.foldAt) continue
+            // same numbering as runBounds: one plus the runs of this app below it in the day
+            let ordinal = 1
+            for (let j = i + 1; j < runs.length && runs[j].day === run.day; j++)
+                if (runs[j].app === run.app) ordinal++
+            const key = run.app + "|" + run.day + "|" + ordinal
+            if (root._openRuns[key] === true) keep[key] = true
+        }
+        let same = true
+        for (const k in root._openRuns) if (!keep[k]) { same = false; break }
+        if (!same) root._openRuns = keep
+    }
+
+    // a row's height must not animate on a model change: the list lays the rows below
+    // out from the height it sees at that moment and its displaced transition carries
+    // them there, so a height still in flight leaves them overlapping or adrift once it
+    // lands. Only the user's own fold and unfold animate. Raised on the about-to signals
+    // because delegate indexes, and everything derived from them, update inside the
+    // change itself, before the count moves; dropped after the synchronous pass, before
+    // the list gets to lay out
+    property bool _settling: false
+
+    function _holdHeights(): void {
+        root._settling = true
+        Qt.callLater(() => root._settling = false)
+    }
+
+    Connections {
+        target: Notifications.historyModel
+        function onRowsAboutToBeInserted() { root._holdHeights() }
+        function onRowsAboutToBeRemoved() { root._holdHeights() }
+        function onModelAboutToBeReset() { root._holdHeights() }
+        function onCountChanged() { root._pruneOpenRuns() }
+    }
+
     function sectionLabel(ms): string {
         const nowMs = root._nowMs > 0 ? root._nowMs : Date.now()
         const value = Number(ms || nowMs)
@@ -80,7 +190,10 @@ PageShell {
         if (days <= 0) return "Today"
         if (days === 1) return "Yesterday"
         if (days < 7) return Qt.formatDateTime(d, "dddd")
-        return Qt.formatDateTime(d, "MMM d, yyyy")
+        // past a week the weekday alone stops meaning anything, so the date takes over;
+        // the year only once it is not this one
+        return Qt.formatDateTime(d, d.getFullYear() === new Date(nowMs).getFullYear()
+            ? "ddd MMM d" : "MMM d, yyyy")
     }
 
     function clearAll(): void {
@@ -246,11 +359,15 @@ PageShell {
                 enabled: !root._clearing
                 NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Motion.fast }
             }
+            // the row collapses as it fades, on the same curve the rows below use to close,
+            // so their edge follows its edge and nothing is ever drawn across leaving text.
+            // _leaveK scales the height binding rather than the transition writing height,
+            // which would sever the binding for the row's next life
             remove: Transition {
                 enabled: !root._clearing
                 ParallelAnimation {
-                    NumberAnimation { property: "opacity"; to: 0; duration: Motion.fast; easing.type: Easing.InCubic }
-                    NumberAnimation { property: "x"; to: 20; duration: Motion.fast; easing.type: Easing.InCubic }
+                    NumberAnimation { property: "opacity"; to: 0; duration: Motion.normal; easing.type: Easing.OutCubic }
+                    NumberAnimation { property: "_leaveK"; to: 0; duration: Motion.normal; easing.type: Easing.OutCubic }
                 }
             }
             removeDisplaced: Transition {
@@ -265,14 +382,31 @@ PageShell {
                     readonly property var modelData: model
                     required property int index
 
-                    readonly property var _prev: index > 0
-                        ? Notifications.historyModel.get(index - 1) : null
                     readonly property bool _critical: Number(modelData.urgency) === 2
-                    readonly property bool _showSection: !_prev
-                        || root.dayKey(modelData.time) !== root.dayKey(_prev.time)
-                    // a run of one app carries its name once; the rest of the run is just the messages
-                    readonly property bool _showHeader: _showSection
-                        || String(_prev.appName) !== String(modelData.appName)
+
+                    // a row in its remove transition has index -1 and no neighbours, so anything
+                    // read from the model would snap to a lone header mid-fade: a folded follower
+                    // popping open, a stack dropping its peeks. The shape holds its last live frame
+                    property var _shape: ({ first: true, section: true, header: true, length: 1, critical: false, open: false, key: "" })
+                    Binding on _shape {
+                        when: _entry.index >= 0
+                        restoreMode: Binding.RestoreNone
+                        value: {
+                            const prev = _entry.index > 0
+                                ? Notifications.historyModel.get(_entry.index - 1) : null
+                            const section = !prev
+                                || root.dayKey(_entry.modelData.time) !== root.dayKey(prev.time)
+                            // a run of one app carries its name once; the rest of the run is just the messages
+                            const header = section
+                                || String(prev.appName) !== String(_entry.modelData.appName)
+                            const run = root.runBounds(_entry.index)
+                            return { first: _entry.index === 0, section: section, header: header,
+                                length: run.length, critical: run.critical, key: run.key,
+                                open: root._openRuns[run.key] === true }
+                        }
+                    }
+                    readonly property bool _showSection: _shape.section
+                    readonly property bool _showHeader: _shape.header
 
                     readonly property string _appIconSource: {
                         Notifications.entriesTick
@@ -285,21 +419,41 @@ PageShell {
                             modelData.desktopEntry, modelData.appName) : ""
                     }
 
+                    readonly property string _runKey: _shape.key
+                    readonly property int _runLength: _shape.length
+                    readonly property bool _runCritical: _shape.critical
+                    readonly property bool _stackable: _runLength >= root.foldAt
+                    readonly property bool _runOpen: _shape.open
+                    // the run's newest entry stands in for the rest while it is folded
+                    readonly property bool _stacked: _showHeader && _stackable && !_runOpen
+                    readonly property bool _folded: !_showHeader && _stackable && !_runOpen
+                    readonly property int _peeks: _stacked ? Math.min(2, _runLength - 1) : 0
+
                     readonly property int _topPad: 11
                     readonly property int _sidePad: 14
+                    readonly property int _peekStep: 6
+                    readonly property int _peekInset: 8
                     readonly property int _rightGutter: _rightSlot.width + 10
                     readonly property int _firstLineHeight: _showHeader ? _metaRow.height : _summary.height
                     readonly property int _sectionHeight: _showSection ? 24 : 0
-                    readonly property int _gapAbove: index === 0 ? 0
-                        : _showSection ? 14 : _showHeader ? 8 : 3
-                    readonly property int _cardHeight: Metrics.snap4Up(
-                        _entryContent.implicitHeight + 2 * _entry._topPad)
+                    readonly property int _gapAbove: _shape.first ? 0 : _showSection ? 14 : 8
+                    // summed from the parts rather than read off the Column: a positioner
+                    // reports its new implicitHeight a frame late, after the list has already
+                    // aimed the rows below at the old height, and they snap when the slide ends
+                    readonly property int _cardHeight: Metrics.snap4Up(2 * _entry._topPad
+                        + (_metaRow.visible ? _metaRow.height + _entryContent.spacing : 0)
+                        + _summary.implicitHeight
+                        + (_body.visible ? _entryContent.spacing + _body.implicitHeight : 0))
                     readonly property int _fullHeight: _gapAbove + _sectionHeight + _cardHeight
                     property bool _removing: false
 
+                    property real _leaveK: 1
                     width: _historyList.width
-                    height: _fullHeight
+                    // the peeks live below the card, so the row grows to keep the next one clear
+                    height: (_folded ? 0 : _fullHeight + _peekStep * _peeks) * _leaveK
                     clip: true
+                    // a folded follower still has a card's worth of handlers behind zero height
+                    enabled: !_folded
 
                     // text lays out a frame after the delegate completes, so an ungated behaviour animates every row as it scrolls into view
                     property bool _heightReady: false
@@ -313,25 +467,44 @@ PageShell {
                         _entry._removing = false
                     }
                     ListView.onReused: {
-                        // the remove transition pools the row at its faded-out x and opacity
-                        _entry.x = 0
+                        // the remove transition pools the row faded out and collapsed
                         _entry.opacity = 1
+                        _entry._leaveK = 1
                         _body.expanded = false
                         _entry._removing = false
                         _entry._heightReady = false
                         _heightArm.restart()
                     }
+                    // a leaving row's height is driven by its transition; the behaviour would
+                    // only chase it a frame behind
                     MotionBehavior on height {
-                        gate: _entry._heightReady
+                        gate: _entry._heightReady && !root._settling && _entry.index >= 0
                         NumberAnimation { duration: Motion.normal; easing.type: Easing.OutCubic }
                     }
+                    // a third message folding the run would otherwise strand an expanded body
+                    // on a card whose tap now opens the run and whose Less pill is gone
+                    on_StackedChanged: if (_entry._stacked) _body.expanded = false
+                    // and a follower folded by a third arrival would reopen already expanded
+                    on_FoldedChanged: if (_entry._folded) _body.expanded = false
 
                     function removeSelf(): void {
                         if (_removing || root._clearing) return
                         const rowIndex = index
                         // persist immediately. A delegate-owned delay is lost if the user changes pages before its timer fires
                         _removing = true
-                        Notifications.removeFromHistory(rowIndex)
+                        // a folded stack is one card on screen; its × takes the run it stands for
+                        if (_entry._stacked)
+                            Notifications.removeRunFromHistory(rowIndex, _entry._runLength)
+                        else
+                            Notifications.removeFromHistory(rowIndex)
+                    }
+
+                    // an open run's header is a plain row, so Clear all cannot come off the
+                    // folded branch above and asks for the run explicitly
+                    function removeRun(): void {
+                        if (_removing || root._clearing) return
+                        _removing = true
+                        Notifications.removeRunFromHistory(_entry.index, _entry._runLength)
                     }
 
                     Item {
@@ -363,6 +536,69 @@ PageShell {
                         }
                     }
 
+                    // the run's depth, drawn rather than counted: two cards stepping out from
+                    // under the header. Declared before it so they paint behind, deepest first.
+                    // Loaded only where a stack can stand, so a plain row does not carry two
+                    // Shapes it never paints; kept loaded while the run is open so they can fade
+                    Loader {
+                        anchors.fill: parent
+                        active: _entry._showHeader && _entry._stackable
+                        sourceComponent: Item {
+                            Rectangle {
+                                id: _peekBack
+                                x: 2 * _entry._peekInset
+                                y: _card.y + 2 * _entry._peekStep
+                                width: _entry.width - 4 * _entry._peekInset
+                                height: _card.height
+                                radius: _card.radius
+                                antialiasing: true
+                                color: Theme.rowFill(false, false)
+                                opacity: _entry._peeks >= 2 ? 0.32 : 0
+                                visible: opacity > 0.001
+
+                                ColorFade on color { gate: _entry._heightReady }
+                                // same hold as the height: a run resized by the model snaps
+                                MotionBehavior on opacity {
+                                    gate: _entry._heightReady && !root._settling
+                                    NumberAnimation { duration: Motion.fast }
+                                }
+
+                                OutlineBorder {
+                                    radius: _peekBack.radius
+                                    outlineWidth: 1
+                                    outlineColor: Theme.menuCardBorder
+                                    ColorFade on outlineColor { gate: _entry._heightReady }
+                                }
+                            }
+
+                            Rectangle {
+                                id: _peekFront
+                                x: _entry._peekInset
+                                y: _card.y + _entry._peekStep
+                                width: _entry.width - 2 * _entry._peekInset
+                                height: _card.height
+                                radius: _card.radius
+                                antialiasing: true
+                                color: Theme.rowFill(false, false)
+                                opacity: _entry._peeks >= 1 ? 0.60 : 0
+                                visible: opacity > 0.001
+
+                                ColorFade on color { gate: _entry._heightReady }
+                                MotionBehavior on opacity {
+                                    gate: _entry._heightReady && !root._settling
+                                    NumberAnimation { duration: Motion.fast }
+                                }
+
+                                OutlineBorder {
+                                    radius: _peekFront.radius
+                                    outlineWidth: 1
+                                    outlineColor: Theme.menuCardBorder
+                                    ColorFade on outlineColor { gate: _entry._heightReady }
+                                }
+                            }
+                        }
+                    }
+
                     Rectangle {
                         id: _card
                         x: 0
@@ -377,8 +613,11 @@ PageShell {
                         OutlineBorder {
                             radius: _card.radius
                             outlineWidth: 1
-                            outlineColor: _entry._critical ? Theme.withAlpha(Theme.error, 0.50)
-                                : Theme.menuCardBorder
+                            // a folded stack answers for its run, so a critical entry hiding
+                            // underneath still has to reach the outline
+                            outlineColor: _entry._critical
+                                || (_entry._stacked && _entry._runCritical)
+                                ? Theme.withAlpha(Theme.error, 0.50) : Theme.menuCardBorder
                             // same gate as the height above: a recycled row would otherwise
                             // cross-fade the previous notification's urgency colour into view
                             ColorFade on outlineColor { gate: _entry._heightReady }
@@ -387,7 +626,11 @@ PageShell {
                         ColorFade on color { gate: _entry._heightReady }
                         HoverHandler {
                             id: _entryHover
-                            cursorShape: (_body.truncated || _body.expanded) ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            // a disabled ancestor stops presses but not hover on Qt 6, and a
+                            // follower still has card height while it collapses into the fold
+                            enabled: !_entry._folded
+                            cursorShape: (_body.truncated || _body.expanded || _entry._stacked)
+                                ? Qt.PointingHandCursor : Qt.ArrowCursor
                         }
                         TapHandler {
                             id: _entryTap
@@ -395,6 +638,10 @@ PageShell {
                             onTapped: eventPoint => {
                                 const p = _rightSlot.mapFromItem(_card, eventPoint.position.x, eventPoint.position.y)
                                 if (_rightSlot.contains(p)) return
+                                if (_entry._stacked) {
+                                    root.setRunOpen(_entry._runKey, true)
+                                    return
+                                }
                                 _body.toggle()
                             }
                         }
@@ -415,6 +662,9 @@ PageShell {
                                 height: visible ? Math.max(16, _appName.implicitHeight) : 0
                                 visible: _entry._showHeader
                                 spacing: 7
+
+                                readonly property int _nameSpace: Math.max(0, width
+                                    - _appIconSlot.width - spacing - _entry._rightGutter)
 
                                 Item {
                                     id: _appIconSlot
@@ -456,13 +706,115 @@ PageShell {
                                 ShellText {
                                     id: _appName
                                     anchors.verticalCenter: parent.verticalCenter
-                                    width: Math.max(0, parent.width - _appIconSlot.width
-                                        - parent.spacing - _entry._rightGutter)
+                                    // the chip belongs to the name and follows it; the run
+                                    // actions belong to the row and are pushed to its end
+                                    width: _stackChip.visible
+                                        ? Math.min(_appName.implicitWidth, Math.max(0,
+                                            _metaRow._nameSpace - _stackChip.width - _metaRow.spacing))
+                                        : _runActions.visible
+                                        ? Math.max(0, _metaRow._nameSpace
+                                            - _runActions.width - _metaRow.spacing)
+                                        : _metaRow._nameSpace
                                     text: _entry.modelData.appName || "Notification"
                                     color: _entry._critical ? Theme.error : Theme.withAlpha(Theme.subtext, 0.70)
                                     font.pixelSize: Settings.fontCaption
                                     font.weight: Font.Medium
                                     elide: Text.ElideRight
+                                }
+
+                                Rectangle {
+                                    id: _stackChip
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: _entry._stacked
+                                    width: Math.max(16, _stackCount.implicitWidth + 10)
+                                    height: 16
+                                    radius: 8
+                                    antialiasing: true
+                                    color: Theme.withAlpha(Theme.accent, 0.14)
+
+                                    ShellText {
+                                        id: _stackCount
+                                        anchors.centerIn: parent
+                                        text: String(_entry._runLength)
+                                        color: Theme.withAlpha(Theme.accent, 0.92)
+                                        font.pixelSize: Settings.fontMicro
+                                        font.weight: Font.DemiBold
+                                    }
+                                }
+
+                                Row {
+                                    id: _runActions
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    height: parent.height
+                                    visible: _entry._stackable && _entry._runOpen
+                                    spacing: 6
+
+                                    // the handlers ride a wrapper, as ExpandableBody's pill does: a
+                                    // tap on a bare Text inside this card never reported release
+                                    Item {
+                                        width: _collapseText.implicitWidth
+                                        height: parent.height
+
+                                        Accessible.role: Accessible.Button
+                                        Accessible.name: "Collapse"
+                                        Accessible.focusable: true
+                                        Accessible.onPressAction: root.setRunOpen(_entry._runKey, false)
+
+                                        ShellText {
+                                            id: _collapseText
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: "Collapse"
+                                            color: _collapseHover.hovered
+                                                ? Theme.accent : Theme.withAlpha(Theme.accent, 0.78)
+                                            font.pixelSize: Settings.fontCaption
+                                            font.weight: Font.Medium
+                                            ColorFade on color { gate: _entry._heightReady }
+                                        }
+
+                                        HoverHandler { id: _collapseHover; cursorShape: Qt.PointingHandCursor }
+                                        // the exclusive grab keeps the card's tap out of it: that
+                                        // handler runs second and would reopen the run it just folded
+                                        TapHandler {
+                                            enabled: !root._clearing && !_entry._removing
+                                            gesturePolicy: TapHandler.ReleaseWithinBounds
+                                            onTapped: root.setRunOpen(_entry._runKey, false)
+                                        }
+                                    }
+
+                                    ShellText {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: "·"
+                                        color: Theme.withAlpha(Theme.subtext, 0.34)
+                                        font.pixelSize: Settings.fontCaption
+                                    }
+
+                                    Item {
+                                        width: _clearRunText.implicitWidth
+                                        height: parent.height
+
+                                        Accessible.role: Accessible.Button
+                                        Accessible.name: "Clear all"
+                                        Accessible.focusable: true
+                                        Accessible.onPressAction: _entry.removeRun()
+
+                                        ShellText {
+                                            id: _clearRunText
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: "Clear all"
+                                            color: _clearRunHover.hovered
+                                                ? Theme.error : Theme.withAlpha(Theme.subtext, 0.70)
+                                            font.pixelSize: Settings.fontCaption
+                                            font.weight: Font.Medium
+                                            ColorFade on color { gate: _entry._heightReady }
+                                        }
+
+                                        HoverHandler { id: _clearRunHover; cursorShape: Qt.PointingHandCursor }
+                                        TapHandler {
+                                            enabled: !root._clearing && !_entry._removing
+                                            gesturePolicy: TapHandler.ReleaseWithinBounds
+                                            onTapped: _entry.removeRun()
+                                        }
+                                    }
                                 }
                             }
 
@@ -485,6 +837,8 @@ PageShell {
                                 bodyColor: Theme.withAlpha(Theme.text, 0.58)
                                 collapsedLineCount: 2
                                 spacing: 3
+                                // a folded card's tap belongs to the run, so More would be a lie
+                                showDisclosure: !_entry._stacked
                             }
                         }
 
@@ -497,7 +851,7 @@ PageShell {
                             anchors.top: parent.top
                             anchors.topMargin: _entry._topPad
                                 + Math.round((_entry._firstLineHeight - height) / 2)
-                            width: Math.max(24, _entryTime.implicitWidth)
+                            width: Math.max(24, _entryTime.implicitWidth, _removeButton.width)
                             height: 24
                             z: 2
 
@@ -516,7 +870,11 @@ PageShell {
                                 id: _removeButton
                                 anchors.right: parent.right
                                 anchors.verticalCenter: parent.verticalCenter
-                                width: 24
+                                // a folded card clears a whole run, so the control says how many
+                                width: _entry._stacked
+                                    ? Metrics.snap4Up(_removeGlyph.implicitWidth + _removeRow.spacing
+                                        + _removeLabel.implicitWidth + 18)
+                                    : 24
                                 height: 24
                                 radius: 12
                                 antialiasing: true
@@ -541,11 +899,32 @@ PageShell {
                                 HoverHandler { id: _removeHover; cursorShape: Qt.PointingHandCursor }
                                 TapHandler { id: _removeTap; enabled: !root._clearing && !_entry._removing; onTapped: _entry.removeSelf() }
 
-                                ShellText {
+                                Row {
+                                    id: _removeRow
                                     anchors.centerIn: parent
-                                    text: "󰅖"
-                                    color: _removeHover.hovered ? Theme.error : Theme.withAlpha(Theme.subtext, 0.56)
-                                    font.pixelSize: Settings.fontCaption
+                                    // the glyph's ink sits a pixel up and left of its box centre
+                                    // (measured at 11px; the font reports the whole cell as ink, so
+                                    // TextMetrics cannot say so), and the box is nudged to match
+                                    anchors.horizontalCenterOffset: 1
+                                    spacing: 5
+
+                                    ShellText {
+                                        id: _removeGlyph
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        anchors.verticalCenterOffset: 1
+                                        text: "󰅖"
+                                        color: _removeHover.hovered ? Theme.error : Theme.withAlpha(Theme.subtext, 0.56)
+                                        font.pixelSize: Settings.fontCaption
+                                    }
+
+                                    ShellText {
+                                        id: _removeLabel
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        visible: _entry._stacked
+                                        text: "Clear " + _entry._runLength
+                                        color: _removeHover.hovered ? Theme.error : Theme.withAlpha(Theme.subtext, 0.72)
+                                        font.pixelSize: Settings.fontCaption
+                                    }
                                 }
                             }
                         }
