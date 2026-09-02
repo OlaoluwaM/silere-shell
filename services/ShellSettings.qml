@@ -26,6 +26,9 @@ Singleton {
     property bool   networkSpeedInline:  false
     property bool   netVpnShowLink:      false
     property string brightnessDevice:    ""
+    property string lockProvider:        "auto"
+    property string lockCommandCustom:   ""
+    property string nightLightProvider:  "auto"
     property bool   showSeconds:         false
     property bool   compactDate:         false
     property bool   clock12h:            false
@@ -294,6 +297,9 @@ Singleton {
         { k: "networkSpeedInline",  t: "bool", sec: "indicators" },
         { k: "netVpnShowLink",      t: "bool", sec: "indicators" },
         { k: "brightnessDevice",    t: "re",   re: /^[A-Za-z0-9_.:+@-]*$/, sec: "interface" },
+        { k: "lockProvider",        t: "enum", vals: ["auto", "hyprlock", "swaylock", "gtklock", "loginctl", "custom"], sec: "maintenance" },
+        { k: "lockCommandCustom",   t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "maintenance" },
+        { k: "nightLightProvider",  t: "enum", vals: ["auto", "hyprsunset", "wlsunset"], sec: "maintenance" },
         { k: "showSeconds",         t: "bool", sec: "clock" },
         { k: "compactDate",         t: "bool", sec: "clock" },
         { k: "clock12h",            t: "bool", sec: "clock" },

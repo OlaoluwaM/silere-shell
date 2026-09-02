@@ -46,14 +46,15 @@ hides that widget or marks it unavailable.
 | `upower` | battery |
 | `nmcli` | VPN name fallback (network and Wi-Fi use Quickshell directly) |
 | `brightnessctl` | brightness |
-| `hyprsunset` | night light |
+| `hyprsunset` / `wlsunset` | night light (`hyprsunset` on Hyprland, `wlsunset` elsewhere) |
 | `matugen` | wallpaper theming |
 | `cava` | media visualizer |
 | `powerprofilesctl` | power profiles |
 | `inotifywait` | automatic screenshot-file watcher for underline feedback |
 | `checkupdates` / `apt` / `dnf` / `zypper` / `xbps-install` | package update badge |
 | `paru` / `yay` | AUR update count on Arch Linux |
-| `hyprlock` | lock action |
+| `hyprlock` / `swaylock` / `gtklock` | lock action |
+| `pwvucontrol` / `pavucontrol` | Sound settings, reached from the volume control |
 | `systemctl` / `loginctl` | suspend, reboot, and shutdown actions |
 | `notify-send` | battery, temperature, and update notifications |
 | `ssh-keygen` | cryptographic verification of Silere release tags |

@@ -10,6 +10,37 @@ Column {
     width: parent ? parent.width : 0
     spacing: 0
 
+    readonly property var _nightLightChoices: {
+        const auto = Settings.autoNightLightProvider
+        const out = [{ value: "auto",
+            label: auto.length > 0 ? "Automatic (" + auto + ")" : "Automatic (none found)" }]
+        const named = [
+            { value: "hyprsunset", label: "hyprsunset", ok: SystemTools.hasHyprsunset },
+            { value: "wlsunset",   label: "wlsunset",   ok: SystemTools.hasWlsunset   }
+        ]
+        for (let i = 0; i < named.length; i++)
+            out.push({ value: named[i].value,
+                label: named[i].ok ? named[i].label : named[i].label + " (not installed)" })
+        return out
+    }
+
+    readonly property var _lockChoices: {
+        const auto = Settings.autoLockProvider
+        const out = [{ value: "auto",
+            label: auto.length > 0 ? "Automatic (" + auto + ")" : "Automatic (none found)" }]
+        const named = [
+            { value: "hyprlock", label: "hyprlock",             ok: SystemTools.hasHyprlock },
+            { value: "swaylock", label: "swaylock",             ok: SystemTools.hasSwaylock },
+            { value: "gtklock",  label: "gtklock",              ok: SystemTools.hasGtklock  },
+            { value: "loginctl", label: "loginctl lock-session", ok: SystemTools.hasLoginctl }
+        ]
+        for (let i = 0; i < named.length; i++)
+            out.push({ value: named[i].value,
+                label: named[i].ok ? named[i].label : named[i].label + " (not installed)" })
+        out.push({ value: "custom", label: "Custom command" })
+        return out
+    }
+
     property bool _armed: false
     property real _armedAtMs: 0
 
@@ -90,10 +121,13 @@ Column {
         const tool = (g, n, v) => add(optional, g, n,
             "Install to enable this feature", v, true)
         if (!SystemTools.hasBrightnessctl)     tool("󰃟", "Brightness control", "brightnessctl")
-        if (!SystemTools.hasHyprsunset)        tool("󰖙", "Night light", "hyprsunset")
+        if (Settings.autoNightLightProvider.length === 0)
+            tool("󰖙", "Night light", Compositor.isHyprland ? "hyprsunset" : "wlsunset")
+        if (Settings.soundSettingsCommand.length === 0)
+            tool("󰕾", "Sound settings", "pwvucontrol")
         if (!SystemTools.hasCava)              tool("󰝚", "Audio visualizer", "cava")
         if (!SystemTools.hasPowerProfilesCtl)  tool("󰾅", "Power profiles", "power-profiles-daemon")
-        if (!SystemTools.hasHyprlock)          tool("󰌾", "Screen lock", "hyprlock")
+        if (Settings.lockCommand.length === 0)  tool("󰌾", "Screen lock", "hyprlock")
         if (!SystemTools.hasCheckupdates && !SystemTools.hasParu && !SystemTools.hasYay
                 && SystemTools.packageFamily === "pacman")
             tool("󰚰", "Update checks", "pacman-contrib")
@@ -208,6 +242,44 @@ Column {
         }
         HintText {
             text: "These are add-ons or informational checks, not shell failures. Add only the features you want."
+        }
+    }
+
+    SectionLabel { label: "LOCK SCREEN" }
+    SettingsCard {
+        SelectRow {
+            glyph: "󰌾"; label: "Lock with"
+            description: "Program the lock action runs"
+            currentValue: ShellSettings.lockProvider
+            model: root._lockChoices
+            onChosen: (v) => ShellSettings.lockProvider = v
+        }
+        HintText {
+            visible: ShellSettings.lockProvider === "custom"
+                && Settings.customLockCommand.length === 0
+            text: "No custom command set. Add one with: settings set lockCommandCustom \"swaylock -f\""
+        }
+        HintText {
+            visible: ShellSettings.lockProvider !== "custom"
+                && Settings.lockCommand.length === 0
+            text: "The chosen lock program is not installed, so the lock action stays off."
+        }
+    }
+
+    SectionLabel { label: "NIGHT LIGHT" }
+    SettingsCard {
+        SelectRow {
+            glyph: "󰖙"; label: "Warm with"
+            description: "Program the night light runs"
+            currentValue: ShellSettings.nightLightProvider
+            model: root._nightLightChoices
+            onChosen: (v) => ShellSettings.nightLightProvider = v
+        }
+        HintText {
+            visible: Settings.nightLightTool.length === 0
+            text: Compositor.isHyprland
+                ? "Neither program is installed, so night light stays off."
+                : "hyprsunset needs Hyprland. On this compositor install wlsunset instead."
         }
     }
 

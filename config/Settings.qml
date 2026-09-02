@@ -41,12 +41,76 @@ Singleton {
 
     readonly property int hPad: 14
 
+    function lockProviderArgv(name: string): var {
+        if (name === "hyprlock") return SystemTools.hasHyprlock ? ["hyprlock"] : []
+        if (name === "swaylock") return SystemTools.hasSwaylock ? ["swaylock"] : []
+        if (name === "gtklock")  return SystemTools.hasGtklock  ? ["gtklock"]  : []
+        if (name === "loginctl") return SystemTools.hasLoginctl ? ["loginctl", "lock-session"] : []
+        return []
+    }
+
+    // hyprlock leads only where it is native; elsewhere the wlroots locker goes first
+    readonly property var _lockOrder: Compositor.isHyprland
+        ? ["hyprlock", "swaylock", "gtklock", "loginctl"]
+        : ["swaylock", "gtklock", "hyprlock", "loginctl"]
+
+    readonly property string autoLockProvider: {
+        const order = root._lockOrder
+        for (let i = 0; i < order.length; i++)
+            if (root.lockProviderArgv(order[i]).length > 0) return order[i]
+        return ""
+    }
+
+    function nightLightProviderArgv(name: string, temp: int): var {
+        const t = Math.max(1000, Math.min(20000, Math.round(temp)))
+        if (name === "hyprsunset")
+            return SystemTools.hasHyprsunset ? ["hyprsunset", "-t", String(t)] : []
+        // wlsunset interpolates between an unequal day and night pair and exits on an equal
+        // one, so hold a value with a day that spans the clock and sits one step above night
+        if (name === "wlsunset") {
+            const day = Math.max(1001, t)
+            return SystemTools.hasWlsunset
+                ? ["wlsunset", "-T", String(day), "-t", String(day - 1),
+                   "-S", "00:00", "-s", "23:59", "-d", "1"] : []
+        }
+        return []
+    }
+
+    // hyprsunset speaks Hyprland's own IPC as well as wlr-gamma-control; wlsunset is
+    // the portable one, and is what niri's maintainer points at
+    readonly property string autoNightLightProvider:
+        Compositor.isHyprland && SystemTools.hasHyprsunset ? "hyprsunset"
+        : SystemTools.hasWlsunset   ? "wlsunset"
+        : SystemTools.hasHyprsunset ? "hyprsunset" : ""
+
+    readonly property string nightLightTool: {
+        const choice = ShellSettings.nightLightProvider
+        if (choice === "auto") return root.autoNightLightProvider
+        return root.nightLightProviderArgv(choice, 4000).length > 0 ? choice : ""
+    }
+
+    function nightLightCommand(temp: int): var {
+        return root.nightLightProviderArgv(root.nightLightTool, temp)
+    }
+
     // per-app routing is a mixer's job, not a bar's
     readonly property list<string> soundSettingsCommand: SystemTools.hasPwvucontrol
         ? ["pwvucontrol"] : SystemTools.hasPavucontrol ? ["pavucontrol"] : []
 
-    readonly property list<string> lockCommand: SystemTools.hasHyprlock ? ["hyprlock"]
-        : SystemTools.hasLoginctl ? ["loginctl", "lock-session"] : []
+    readonly property list<string> customLockCommand: {
+        const raw = ShellSettings.lockCommandCustom.trim()
+        if (raw.length === 0) return []
+        return raw.split(/\s+/)
+    }
+
+    // a named provider that is not installed stays empty: the lock button disables and
+    // Maintenance names it, rather than silently locking with a different program
+    readonly property list<string> lockCommand: {
+        const choice = ShellSettings.lockProvider
+        if (choice === "custom") return root.customLockCommand
+        if (choice !== "auto") return root.lockProviderArgv(choice)
+        return root.lockProviderArgv(root.autoLockProvider)
+    }
     readonly property list<string> suspendCommand: SystemTools.hasSystemctl ? ["systemctl", "suspend"]
         : SystemTools.hasLoginctl ? ["loginctl", "suspend"] : []
     readonly property list<string> rebootCommand: SystemTools.hasSystemctl ? ["systemctl", "reboot"]

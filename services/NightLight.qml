@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "../config"
 
 Singleton {
     id: root
@@ -11,7 +12,14 @@ Singleton {
     property string lastError:    ""
     property bool _stopping:      false
     property bool _pendingEnable: false
-    readonly property bool toolAvailable: SystemTools.hasHyprsunset
+    property int _stateGeneration: 0
+    property bool _probeFailed:   false
+    // the gamma tool is whichever one the compositor can drive; the process this
+    // instance actually launched is what a stop has to name, not the current pick
+    readonly property string tool: Settings.nightLightTool
+    property string _runningTool: ""
+    readonly property string _killTarget: _runningTool.length > 0 ? _runningTool : tool
+    readonly property bool toolAvailable: tool.length > 0
     // auto is a mode, not a value: nightLightTemp stays whatever the user last chose by hand,
     // so turning auto off restores it instead of leaving the last solar step behind
     readonly property int  temperature: ShellSettings.nightLightAuto ? root.suggestedTemp
@@ -168,28 +176,45 @@ Singleton {
     }
 
     function _startSunset(): void {
+        const argv = Settings.nightLightCommand(root.temperature)
+        if (argv.length === 0) { root.enabled = false; return }
         root.lastError = ""
-        _sunsetProc.command = ["hyprsunset", "-t", String(temperature)]
+        root._probeFailed = false
+        root._runningTool = root.tool
+        _sunsetProc.command = argv
         _sunsetProc.running = true
         enabled = true
     }
 
-    onTemperatureChanged: {
+    // the tools take their temperature at launch, so a new value means a new process
+    function _restart(): void {
         if (!root.enabled || !root.toolAvailable) return
         _pendingEnable = true
         if (_sunsetProc.running || _stopping) {
             _stopping = true
             if (_sunsetProc.running) _sunsetProc.running = false
         } else if (SystemTools.hasPkill && !_killProc.running) {
-            _killProc.exec(["pkill", "-x", "hyprsunset"])
+            _killProc.exec(["pkill", "-x", root._killTarget])
         } else if (!_killProc.running) {
             _pendingEnable = false
             root.lastError = "Install pkill to change an external night light"
         }
     }
 
+    onTemperatureChanged: root._restart()
+
+    onToolChanged: {
+        root._stateGeneration++
+        if (!root.enabled) { root._runningTool = ""; return }
+        if (!root.toolAvailable) { root._syncToolAvailability(); return }
+        if (root._runningTool.length > 0 && root._runningTool !== root.tool)
+            root._restart()
+    }
+
     function toggle(): void {
         if (!toolAvailable) return
+        // any pgrep in flight describes the state before this action
+        root._stateGeneration++
         if (enabled) {
             _pendingEnable = false
             if (_killProc.running) { enabled = false; return }
@@ -197,7 +222,7 @@ Singleton {
                 _stopping = true
                 if (_sunsetProc.running) _sunsetProc.running = false
             } else if (SystemTools.hasPkill) {
-                _killProc.exec(["pkill", "-x", "hyprsunset"])
+                _killProc.exec(["pkill", "-x", root._killTarget])
             } else {
                 root.lastError = "Install pkill to stop an external night light"
                 return
@@ -216,7 +241,8 @@ Singleton {
     Component.onCompleted: { _init(); _startGeo() }
 
     property bool _geoStarted: false
-    readonly property bool _geoWanted: toolAvailable && (ShellSettings.nightLightAuto || MenuState.open)
+    readonly property bool _geoWanted: toolAvailable
+        && (ShellSettings.nightLightAuto || ControlSurfaces.anyOpen)
     function _startGeo(): void {
         if (_geoStarted || !_geoWanted) return
         _geoStarted = true
@@ -227,16 +253,28 @@ Singleton {
         if (!SystemTools.ready) return
         if (!toolAvailable) { enabled = false; return }
         if (!SystemTools.hasPgrep) { enabled = _sunsetProc.running; return }
-        if (!_sunsetProc.running) enabled = false
-        if (!_checkProc.running) _checkProc.exec(["pgrep", "-x", "hyprsunset"])
+        if (_killProc.running || root._stopping || root._pendingEnable) return
+        if (!_checkProc.running) {
+            _checkProc._generation = root._stateGeneration
+            _checkProc.exec(["pgrep", "-x", root.tool])
+        }
+    }
+
+    // -1 means the probe itself failed; otherwise answer the state without
+    // making an old no-match override the daemon this instance just started.
+    function _probeState(code: int, timedOut: bool, selfRunning: bool): int {
+        if (timedOut || (code !== 0 && code !== 1)) return -1
+        return code === 0 || selfRunning ? 1 : 0
     }
 
     function _syncToolAvailability(): void {
         if (!SystemTools.ready) return
+        root._stateGeneration++
         if (!root.toolAvailable) {
             root._pendingEnable = false
             root.enabled = false
             root.lastError = ""
+            root._probeFailed = false
             if (_checkProc.running) _checkProc.running = false
             if (_killProc.running) _killProc.running = false
             if (_sunsetProc.running) {
@@ -261,22 +299,40 @@ Singleton {
         function onNightLightAutoChanged() { root._startGeo() }
     }
     Connections {
-        target: MenuState
-        function onOpenChanged() { root._startGeo() }
+        target: ControlSurfaces
+        function onAnyOpenChanged() {
+            if (ControlSurfaces.anyOpen) {
+                root._init()
+                root._startGeo()
+            }
+        }
     }
 
     BoundedProcess {
         id: _checkProc
+        property int _generation: -1
         timeoutMs: 5000
-        stdout: SplitParser { onRead: root.enabled = true }
         // pgrep answers "no match" with 1, so only 2+ or a timeout means the probe never ran
         onExited: (code) => {
-            if (!root.toolAvailable) return
-            if (_checkProc.timedOut || code > 1) {
-                root.lastError = "could not check for a running hyprsunset"
+            if (_checkProc._generation !== root._stateGeneration) {
+                if (root.toolAvailable) Qt.callLater(root._init)
                 return
             }
-            if (code === 0) root.enabled = true
+            if (!root.toolAvailable) return
+            const state = root._probeState(
+                code, _checkProc.timedOut, _sunsetProc.running)
+            if (state < 0) {
+                root._probeFailed = true
+                root.lastError = "could not check for a running " + root.tool
+                return
+            }
+            if (root._probeFailed) {
+                root._probeFailed = false
+                root.lastError = ""
+            }
+            root.enabled = state === 1
+            if (root.enabled && root._runningTool.length === 0)
+                root._runningTool = root.tool
         }
     }
 
@@ -284,19 +340,27 @@ Singleton {
         id: _sunsetProc
         running: false
         stderr: StdioCollector { id: _sunsetErr }
-        onExited: (code) => {
+        onExited: (code, status) => {
+            const stopped = root._runningTool.length > 0
+                ? root._runningTool : "The night light"
             if (root._stopping) {
                 root._stopping = false
+                root._runningTool = ""
                 if (root._pendingEnable) {
                     root._pendingEnable = false
                     root._startSunset()
                 }
                 return
             }
-            // not a deliberate stop: hyprsunset quit on its own, and enabled was set
-            // optimistically at launch, so without this the toggle just flips back unexplained
+            // not a deliberate stop, and enabled was set optimistically at launch, so
+            // without this the toggle just flips back unexplained. status 0 is
+            // QProcess.NormalExit; a tool killed from outside reports a signal in code,
+            // and wlsunset's running commentary on stderr is not the reason it went away
             if (code !== 0)
-                root.lastError = _sunsetErr.text.trim().split("\n").pop() || "hyprsunset stopped unexpectedly"
+                root.lastError = (status === 0
+                        ? _sunsetErr.text.trim().split("\n").pop() : "")
+                    || (stopped + " stopped unexpectedly")
+            root._runningTool = ""
             if (root.enabled) root.enabled = false
         }
     }
@@ -317,6 +381,7 @@ Singleton {
                 return
             }
             root.lastError = ""
+            root._runningTool = ""
             if (root._pendingEnable) {
                 root._pendingEnable = false
                 root._startSunset()
