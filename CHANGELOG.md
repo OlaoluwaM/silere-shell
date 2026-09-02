@@ -18,6 +18,7 @@ settings file carries its own `__version` and migrates separately.
 - The expanded volume control names the apps holding the microphone open, and carries a row that opens Sound settings.
 - Right-clicking the volume or microphone widget opens Sound settings; middle-clicking the volume widget moves to the next output.
 - Night light runs on `wlsunset` where `hyprsunset` cannot. System › Maintenance chooses between them.
+- Feedback › Notifications › Let critical through decides whether urgent alerts ignore do not disturb.
 - System › Maintenance chooses the lock program: hyprlock, swaylock, gtklock, or a command of your own.
 - The Bluetooth row in the menu shows the icon of the device that is connected.
 

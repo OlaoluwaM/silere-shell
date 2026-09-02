@@ -42,6 +42,7 @@ Singleton {
     property bool   batteryAutoHide:     true
     property bool   barShowBattery:      true
     property bool   barShowMic:          true
+    property bool   notifCriticalBypass: true
     property bool   barShowNetwork:      true
     property bool   barShowBluetooth:   false
     property bool   barShowClock:        true
@@ -341,6 +342,7 @@ Singleton {
         { k: "notifMaxVisible",     t: "int",  min: 0, max: 20, sec: "popups" },
         { k: "notifHistoryPersistent", t: "bool", sec: "popups" },
         { k: "notifHistoryLimit",   t: "int",  min: 5, max: 100, sec: "popups" },
+        { k: "notifCriticalBypass", t: "bool", sec: "popups" },
         { k: "dndSchedule",         t: "bool", sec: "popups" },
         { k: "dndFrom",             t: "int",  min: 0, max: 23, sec: "popups" },
         { k: "dndTo",               t: "int",  min: 0, max: 23, sec: "popups" },

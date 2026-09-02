@@ -653,13 +653,15 @@ Singleton {
 
         onNotification: (n) => {
             root._ensurePersistentState()
-            if (root.effectiveDnd && n.urgency !== NotificationUrgency.Critical) {
+            const bypasses = ShellSettings.notifCriticalBypass
+                && n.urgency === NotificationUrgency.Critical
+            if (root.effectiveDnd && !bypasses) {
                 if (root._archiveNotification(n, n.id, Date.now()) || n.transient)
                     root.missedCount++
                 n.tracked = false
                 return
             }
-            if (root.fullscreenSilenced && n.urgency !== NotificationUrgency.Critical) {
+            if (root.fullscreenSilenced && !bypasses) {
                 if (root._archiveNotification(n, n.id, Date.now()) || n.transient)
                     root.missedCount++
                 n.tracked = false

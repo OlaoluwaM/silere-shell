@@ -93,5 +93,10 @@ Column {
                 text: "Start and end match, so nothing is silenced."
             }
         }
+        ToggleRow {
+            glyph: "󰀦"; label: "Let critical through"
+            description: "Urgent alerts ignore do not disturb"
+            key: "notifCriticalBypass"
+        }
     }
 }
