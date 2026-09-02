@@ -56,6 +56,26 @@ through. Lint rejects a heading used twice in one file, so a part that appears
 under two sections needs a distinguishing word — `Bar` under Changed, `Bar fixes`
 under Fixed. Archived notes nest one level higher, under `###`.
 
+## Performance numbers
+
+Record a row in [`perf-history.md`](perf-history.md) as part of tagging. The README quotes
+figures, and a per-release measurement on a known machine is what keeps them true.
+
+```bash
+systemctl --user restart silere-shell.service
+sleep 30
+bash scripts/bench.sh 30 --label <version>            # cold row
+bash scripts/bench.sh 30 --warm --label <version>     # warm row
+```
+
+The restart is what makes the cold row cold; without it `bench.sh` reports `as-found`.
+
+Both rows go in against the reference machine letter they came from. Hardware not already
+in that table takes a new letter — rows from different machines are not comparable.
+
+A few MB between releases is font and driver noise. Tens of MB, a descriptor count that no
+longer settles, or a thread count past the core count holds the tag.
+
 ## Release archives
 
 When tagging, move the completed notes to `docs/releases/<version>.md` and add

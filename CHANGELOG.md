@@ -13,6 +13,12 @@ settings file carries its own `__version` and migrates separately.
 
 ### Added
 
+- `scripts/bench.sh --warm` samples after one menu cycle.
+- `scripts/bench.sh --json` writes one machine-readable object, and `--label` tags a run.
+- The bench report names the state it sampled, the interface font, the machine and the Quickshell version.
+- The bench report gives per-second median and worst CPU, and marks a sample taken during input as noisy.
+- The bench report names the widgets that were drawing, and says when another Quickshell instance shared memory with the sample.
+- `docs/perf-history.md` records per-release numbers against named reference machines.
 - The volume control in the menu expands to Output, Input and Apps: choose a microphone, set its level, and set the level of each app playing sound.
 - A microphone widget appears while an app is listening and mutes the input on click. It stays out of the way of apps recording system output; Widgets › Show & order turns it off.
 - The expanded volume control names the apps holding the microphone open, and carries a row that opens Sound settings.
@@ -35,6 +41,7 @@ settings file carries its own `__version` and migrates separately.
 - The media card drops its seek row: position is a bar along the card's bottom edge, with the elapsed and total times beside the controls. Dragging the bar still scrubs.
 - Media controls lose their boxes. The glyphs are the buttons, with play carrying the accent.
 - The calendar header runs the width of the card, with today's date at one end and the week number at the other. The month name now sits over the days it names.
+- Releasing a version records cold and warm performance rows before the tag.
 
 ### Fixed
 

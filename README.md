@@ -123,10 +123,13 @@ Package updates only move the badge.
 
 ## Performance
 
-Idle use on a reference session measured under 1% of one CPU core and 95-110 MB PSS — much
-of that the Qt and GPU driver floor rather than Silere. Measure your own checkout with
-`bash scripts/bench.sh 30`. Full numbers and the animation-driver note:
-[`docs/performance.md`](docs/performance.md).
+Idle use on a reference session measured about 142 MB PSS before the menu is first opened
+and about 154 MB after, at a low single-digit percentage of one CPU core — much of that
+the Qt and GPU driver floor rather than Silere. The menu builds its pages on first open
+and keeps them: a one-time cost, not a leak. Measure your own checkout with
+`bash scripts/bench.sh 30`, or `--warm` for the post-menu number. Full numbers and the
+animation-driver note: [`docs/performance.md`](docs/performance.md). Per-release history:
+[`docs/perf-history.md`](docs/perf-history.md).
 
 ## Troubleshooting
 
@@ -144,7 +147,8 @@ That runs the dependency, autostart and configuration checks. For startup errors
 | [install.md](docs/install.md) | fonts, optional tools, unattended installs, Matugen, removal |
 | [scripting.md](docs/scripting.md) | the IPC surface, settings over IPC, section names, hooks |
 | [troubleshooting.md](docs/troubleshooting.md) | symptom by symptom, starting with `check.sh` |
-| [performance.md](docs/performance.md) | reference numbers, how to measure, the animation driver |
+| [performance.md](docs/performance.md) | reference numbers, how to measure, fonts, the animation driver |
+| [perf-history.md](docs/perf-history.md) | per-release numbers, reference machines, how to record a row |
 | [forking.md](docs/forking.md) | the tree, what a change touches, what a rename has to get right |
 | [releasing.md](docs/releasing.md) | maintainer notes: cadence, tags, AUR, key rotation |
 | [CHANGELOG.md](CHANGELOG.md) | unreleased work, and every release archived under [docs/releases](docs/releases/) |
