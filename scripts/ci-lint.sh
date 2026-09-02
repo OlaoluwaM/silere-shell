@@ -1191,6 +1191,17 @@ else
     fail "Updates must gate canceled restarts and distinguish empty AUR results from helper failures"
 fi
 
+if grep -qF 'ERROR_FLAG="$CACHE_DIR/update-error"' scripts/update.sh \
+    && grep -qF '_record_update_error "$1"' scripts/update.sh \
+    && grep -qF 'systemctl --user --no-block restart silere-shell.service' scripts/update.sh \
+    && grep -qF '$ROOT/scripts/silere"*" run' scripts/update.sh \
+    && grep -qF 'root._reloadOperationState()' services/ShellUpdate.qml \
+    && grep -qF 'id: _error' services/ShellUpdate.qml; then
+    ok "shell updater" "timer failures persist and operation exits reload authoritative state"
+else
+    fail "the shell updater must persist unattended failures, avoid blocking its own restart, and reload state after exits"
+fi
+
 if grep -qF '_detectProc._generation = root._detectGeneration' services/CpuTemp.qml \
     && grep -qF '!root._detectionIsCurrent(_detectProc._generation)' services/CpuTemp.qml; then
     ok "temperature probe" "canceled sensor discovery results are generation-guarded"

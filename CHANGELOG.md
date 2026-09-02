@@ -15,6 +15,9 @@ settings file carries its own `__version` and migrates separately.
 
 - Signed releases carry a compatibility manifest, and the updater rejects a release that
   needs a newer Quickshell or does not support the active compositor before changing the checkout.
+- The Updates page shows categorized release notes first and keeps raw commits under
+  Technical details.
+- Package-managed installs identify their owner in Updates instead of hiding the Silere installation state.
 - `scripts/bench.sh --warm` samples after one menu cycle.
 - `scripts/bench.sh --json` writes one machine-readable object, and `--label` tags a run.
 - The bench report names the state it sampled, the interface font, the machine and the Quickshell version.
@@ -57,6 +60,8 @@ settings file carries its own `__version` and migrates separately.
 - A failed settings-folder creation or permission check is no longer mistaken for a successful one.
 - The package list drops what it was showing and checks again when the package manager or AUR helper behind it changes.
 - Package checks preserve their last result when an AUR helper fails, reject canceled results after a quick off/on toggle, and defer automatic retries while the session is idle.
+- The Silere updater surfaces unattended timer failures in Settings, says how long ago one happened, and reloads its cache and checkout state after timeouts.
+- A successful Silere install queues its own service restart without blocking inside the process tree being restarted.
 - The temperature readout finds its sensor after being switched off and straight back on.
 - A Bluetooth speaker shows a speaker rather than headphones, and more device types carry their own icon.
 - The Bluetooth widget stays out of the bar on a machine with no Bluetooth adapter.

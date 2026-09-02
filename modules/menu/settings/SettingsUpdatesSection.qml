@@ -11,6 +11,7 @@ Column {
     property bool animationActive: true
     property bool _listOpen: false
     property bool _changesOpen: false
+    property bool _notesOpen: true
     property bool _recentOpen: false
     property bool _installArmed: false
     property real _installArmedAtMs: 0
@@ -51,6 +52,8 @@ Column {
     }
     readonly property bool _changesAvailable: ShellUpdate.pending
         && ShellUpdate.pendingCommits.length > 0
+    readonly property bool _releaseNotesAvailable: ShellUpdate.pending
+        && ShellUpdate.releaseNotes.length > 0
     readonly property bool _packagesAvailable: Updates.count > 0
         && !Updates.lastFailed && Updates.packages.length > 0
 
@@ -67,7 +70,10 @@ Column {
     Connections {
         target: ShellUpdate
         function onCountChanged() { root._disarmInstall() }
-        function onTargetTagChanged() { root._disarmInstall() }
+        function onTargetTagChanged() {
+            root._disarmInstall()
+            root._notesOpen = true
+        }
         function onTargetVerifiedChanged() { root._disarmInstall() }
         function onCheckingChanged() { if (ShellUpdate.checking) root._disarmInstall() }
         function onApplyingChanged() { if (ShellUpdate.applying) root._disarmInstall() }
@@ -84,15 +90,17 @@ Column {
             UpdateStatusCard {
                 animationActive: root.animationActive
                 glyph: ShellUpdate.checking || ShellUpdate.applying ? "󰓦"
-                    : ShellUpdate.lastCheckError.length > 0 || ShellUpdate.lastApplyError.length > 0
+                    : ShellUpdate.checkError.length > 0 || ShellUpdate.lastApplyError.length > 0
                         || ShellUpdate.statusReadError.length > 0 ? "󰀦"
                     : ShellUpdate.pending ? "󰚰"
                     : !ShellUpdate.statusReady || ShellUpdate.neverChecked ? "󰓦" : "󰄬"
                 title: "Silere Shell"
                 status: ShellUpdate.statusDetail
-                meta: ShellUpdate.versionLabel
+                meta: ShellUpdate.updateVersionLabel
                 detail: ShellUpdate.lastApplyError.length > 0 ? ShellUpdate.lastApplyError
-                    : ShellUpdate.lastCheckError.length > 0 ? ShellUpdate.lastCheckError
+                    : ShellUpdate.checkError.length > 0
+                        ? ShellUpdate.checkError + (ShellUpdate.checkErrorAge.length > 0
+                            ? " · " + ShellUpdate.checkErrorAge : "")
                     : ShellUpdate.statusReadError.length > 0 ? ShellUpdate.statusReadError
                     : ShellUpdate.pending && ShellUpdate.blockedReason.length > 0
                         ? ShellUpdate.blockedReason + " — installing will not run until that is resolved"
@@ -100,10 +108,10 @@ Column {
                         ? ShellUpdate.verificationDetail + " · confirm installation within 10 seconds"
                     : ShellUpdate.pending ? ShellUpdate.verificationDetail
                     : ShellUpdate.versionDetail
-                detailError: ShellUpdate.lastApplyError.length > 0 || ShellUpdate.lastCheckError.length > 0
+                detailError: ShellUpdate.lastApplyError.length > 0 || ShellUpdate.checkError.length > 0
                     || ShellUpdate.statusReadError.length > 0
                     || (ShellUpdate.pending && ShellUpdate.blockedReason.length > 0)
-                statusColor: ShellUpdate.lastCheckError.length > 0 || ShellUpdate.lastApplyError.length > 0
+                statusColor: ShellUpdate.checkError.length > 0 || ShellUpdate.lastApplyError.length > 0
                     || ShellUpdate.statusReadError.length > 0
                     ? Theme.warning : ShellUpdate.checking || ShellUpdate.applying || ShellUpdate.pending
                         ? Theme.accent : !ShellUpdate.statusReady || ShellUpdate.neverChecked
@@ -127,10 +135,31 @@ Column {
             }
 
             ControlRow {
-                glyph: "󰜘"
-                title: "Pending changes"
+                glyph: "󰋼"
+                title: "Release notes"
                 status: ShellUpdate.targetLabel.length > 0
-                    ? "Moves to " + ShellUpdate.targetLabel : ""
+                    ? ShellUpdate.targetLabel : ""
+                valueText: String(ShellUpdate.releaseNotes.length)
+                visible: root._releaseNotesAvailable
+                expandable: true
+                expanded: root._notesOpen && root._releaseNotesAvailable
+                onExpandToggled: root._notesOpen = !root._notesOpen
+                onActivated: root._notesOpen = !root._notesOpen
+            }
+            CollapsibleSection {
+                expanded: root._notesOpen && root._releaseNotesAvailable
+                EntryList {
+                    model: root._notesOpen && root._releaseNotesAvailable
+                        ? ShellUpdate.releaseNotes : []
+                    textRole: "subject"
+                    trailingRole: "category"
+                }
+            }
+
+            ControlRow {
+                glyph: "󰜘"
+                title: "Technical details"
+                status: "Commits in this release"
                 valueText: ShellUpdate.pendingCommits.length < ShellUpdate.count
                     ? ShellUpdate.pendingCommits.length + " of " + ShellUpdate.count
                     : String(ShellUpdate.count)
@@ -153,7 +182,8 @@ Column {
             ControlRow {
                 glyph: "󰄉"
                 title: "Recent changes"
-                status: ShellUpdate.recentBusy ? "Reading history" : ""
+                status: ShellUpdate.recentBusy ? "Reading history" : ShellUpdate.recentError
+                statusColor: ShellUpdate.recentError.length > 0 ? Theme.warning : "transparent"
                 valueText: ShellUpdate.recentReady
                     ? String(ShellUpdate.recentCommits.length) : ""
                 expandable: true
@@ -183,7 +213,34 @@ Column {
         }
     }
 
-    SectionLabel { label: "SYSTEM PACKAGES"; first: ShellUpdate.packaged }
+    CollapsibleSection {
+        expanded: ShellUpdate.packaged
+
+        SectionLabel { label: "SILERE SHELL"; first: true }
+        SettingsCard {
+            ControlRow {
+                glyph: "󰄬"
+                title: "Silere Shell"
+                status: "Package-managed install"
+                valueText: ShellUpdate.versionLabel
+                statusColor: Theme.success
+                passive: true
+            }
+            ControlRow {
+                glyph: "󰏗"
+                title: "Managed by"
+                status: "Built-in self-update is disabled"
+                valueText: SystemTools.packageFamily.length > 0
+                    ? SystemTools.packageFamily : "packages"
+                passive: true
+            }
+            HintText {
+                text: "Silere updates with the rest of the system. No second updater touches package-owned files."
+            }
+        }
+    }
+
+    SectionLabel { label: "SYSTEM PACKAGES" }
     SettingsCard {
         UpdateStatusCard {
             animationActive: root.animationActive

@@ -22,14 +22,21 @@ Singleton {
     property real   lastCheckMs: 0
     property string lastCheckError: ""
     property string lastApplyError: ""
+    property string persistedCheckError: ""
+    property real   persistedCheckErrorMs: 0
     property bool   _flagLoaded: false
     property bool   _flagReadError: false
     property bool   _flagMalformed: false
     property bool   _checkedReadError: false
+    property bool   _errorLoaded: false
+    property bool   _errorReadError: false
+    property bool   _errorMalformed: false
     readonly property string statusReadError: _flagReadError
         ? "Could not read pending update status"
         : _flagMalformed ? "Pending update status is malformed"
-        : _checkedReadError ? "Could not read the last-check time" : ""
+        : _checkedReadError ? "Could not read the last-check time"
+        : _errorReadError ? "Could not read the last update failure"
+        : _errorMalformed ? "The last update failure is malformed" : ""
     property string timerError: ""
     property bool   _timerStatusError: false
     property bool   timerSupported: false
@@ -48,12 +55,16 @@ Singleton {
     property string targetTag: ""
     property bool   targetVerified: false
     property var    pendingCommits: []
+    property var    releaseNotes: []
+    onTargetTagChanged: _releaseNotes.reload()
     // relative times are recomputed from this, refreshed on the events that can reveal them
     property real   _nowMs: 0
 
     readonly property bool pending: count > 0
     readonly property bool checking: _checkProc.running
-    readonly property bool statusReady: _flagLoaded && _checkedLoaded
+    readonly property bool statusReady: _flagLoaded && _checkedLoaded && _errorLoaded
+    readonly property string checkError: lastCheckError.length > 0
+        ? lastCheckError : persistedCheckError
     readonly property string label: count + (count === 1 ? " change ready" : " changes ready")
     // "Up to date" is a claim about origin, so it needs a check to have reached it
     readonly property bool neverChecked: _checkedLoaded && lastCheckMs <= 0
@@ -62,14 +73,15 @@ Singleton {
         : lastApplyError.length > 0 ? "Install failed"
         : lastCheckError.length > 0 ? "Check failed"
         : statusReadError.length > 0 ? "Status unavailable"
-        : pending ? label
+        : pending ? (targetTag.length > 0 ? targetTag + " ready" : label)
+        : persistedCheckError.length > 0 ? "Last check failed"
         : !statusReady ? "Reading status"
         : neverChecked ? "Not checked yet"
         : "Up to date"
 
     readonly property bool upToDate: statusReady && lastCheckMs > 0
         && !applying && !checking && !pending
-        && lastApplyError.length === 0 && lastCheckError.length === 0
+        && lastApplyError.length === 0 && root.checkError.length === 0
         && statusReadError.length === 0
 
     readonly property string versionLabel: versionTag.length === 0
@@ -78,6 +90,10 @@ Singleton {
 
     readonly property string targetLabel: targetTag.length > 0 && targetTag !== versionTag
         ? targetTag : ""
+
+    readonly property string updateVersionLabel: pending && targetTag.length > 0
+        ? (versionTag.length > 0 ? versionTag + " → " + targetTag : targetTag)
+        : versionLabel
 
     readonly property string versionDetail: {
         const parts = []
@@ -108,6 +124,11 @@ Singleton {
             : "Signature not verified"
 
     readonly property string lastCheckedText: DateTime.agoText(root.lastCheckMs, root._nowMs)
+
+    // only a failure read back from disk needs its age: a live one happened just now
+    readonly property string checkErrorAge: root.lastCheckError.length === 0
+            && root.persistedCheckError.length > 0
+        ? DateTime.agoText(root.persistedCheckErrorMs, root._nowMs) : ""
 
     readonly property string nextCheckText: {
         if (!root.timerEnabled || root.nextCheckMs <= 0) return ""
@@ -193,25 +214,47 @@ Singleton {
         return isFinite(seconds) && seconds > 0 ? seconds * 1000 : 0
     }
 
+    function _parsePersistedError(t: string): void {
+        const lines = String(t || "").split(/\r?\n/)
+        const when = root._epochMsFrom(lines[0])
+        const message = SafeText.singleLineText(lines.slice(1).join(" "),
+            root.maxStatusTextChars)
+        root._errorMalformed = when <= 0 || message.length === 0
+        root.persistedCheckErrorMs = root._errorMalformed ? 0 : when
+        root.persistedCheckError = root._errorMalformed ? "" : message
+    }
+
     // history of what is already installed; the pending list disappears the moment it is applied
     property var  recentCommits: []
     property bool recentReady: false
+    property string recentError: ""
     readonly property bool recentBusy: _recentProc.running
 
     function refreshRecent(): void {
         if (_recentProc.running) return
+        root.recentError = ""
         _recentProc.running = true
     }
 
-    onCurrentVersionChanged: root.recentReady = false
+    onCurrentVersionChanged: {
+        root.recentReady = false
+        root.recentError = ""
+    }
 
     BoundedProcess {
         id: _recentProc
         timeoutMs: 15000
         command: ["bash", root._script, "--recent"]
         stdout: StdioCollector { id: _recentOut }
+        stderr: StdioCollector { id: _recentErr }
+        onTimeoutReached: root.recentError = "Reading update history timed out"
         onExited: (code) => {
-            root.recentCommits = code === 0 ? root._parseCommits(_recentOut.text) : []
+            if (!_recentProc.timedOut) {
+                root.recentError = code === 0 ? "" : root._lastOutputLine(
+                    _recentOut.text, _recentErr.text, "Could not read update history")
+            }
+            root.recentCommits = code === 0 && !_recentProc.timedOut
+                ? root._parseCommits(_recentOut.text) : []
             root.recentReady = true
         }
     }
@@ -237,6 +280,8 @@ Singleton {
             const kv = root._parseKv(_versionOut.text)
             if ((kv.packaged ?? "") === "1") {
                 root.packaged = true
+                root.versionTag = SafeText.boundedText(kv.version,
+                    root.maxVersionTextChars)
                 root.versionReady = false
                 root.versionError = ""
                 return
@@ -305,6 +350,62 @@ Singleton {
         onFileChanged: reload()
     }
 
+    FileView {
+        id: _error
+        path: root._cacheDir.length > 0 ? root._cacheDir + "/update-error" : ""
+        watchChanges: true
+        printErrors: false
+        onLoaded: {
+            root._errorReadError = false
+            root._errorLoaded = true
+            root._parsePersistedError(_error.text())
+        }
+        onLoadFailed: error => {
+            root._errorLoaded = true
+            root._errorReadError = error !== FileViewError.FileNotFound
+            if (!root._errorReadError) {
+                root._errorMalformed = false
+                root.persistedCheckError = ""
+                root.persistedCheckErrorMs = 0
+            }
+        }
+        onFileChanged: reload()
+    }
+
+    FileView {
+        id: _releaseNotes
+        path: root._cacheDir.length > 0 ? root._cacheDir + "/release-notes" : ""
+        watchChanges: true
+        printErrors: false
+        onLoaded: root._parseReleaseNotes(_releaseNotes.text())
+        onLoadFailed: root.releaseNotes = []
+        onFileChanged: reload()
+    }
+
+    function _parseReleaseNotes(t: string): void {
+        const lines = String(t || "").split(/\r?\n/)
+        const header = /^target (v[0-9]+\.[0-9]+\.[0-9]+)$/.exec(
+            String(lines.shift() || "").trim())
+        if (!header || header[1] !== root.targetTag) {
+            root.releaseNotes = []
+            return
+        }
+        const out = []
+        for (let i = 0; i < lines.length && out.length < 40; i++) {
+            const at = lines[i].indexOf("\t")
+            if (at <= 0) continue
+            const category = SafeText.boundedText(lines[i].slice(0, at), 16)
+            const subject = SafeText.boundedText(lines[i].slice(at + 1)
+                .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+                .replace(/`([^`]*)`/g, "$1")
+                .replace(/\*\*/g, ""), root.maxCommitSubjectChars)
+            if (/^(Added|Changed|Fixed|Removed|Security)$/.test(category)
+                    && subject.length > 0)
+                out.push({ category: category, subject: subject })
+        }
+        root.releaseNotes = out
+    }
+
     function _parse(t: string): void {
         const lines = (t || "").split(/\r?\n/)
         const parsedCount = root._countFrom(lines[0])
@@ -359,6 +460,15 @@ Singleton {
             root.maxStatusTextChars)
     }
 
+    function _reloadOperationState(): void {
+        // the script may have crossed a step just before a timeout, so re-read every source
+        _flag.reload()
+        _checked.reload()
+        _error.reload()
+        _releaseNotes.reload()
+        root._refreshVersion()
+    }
+
     BoundedProcess {
         id: _checkProc
         timeoutMs: 120000
@@ -366,19 +476,16 @@ Singleton {
         stderr: StdioCollector { id: _checkErr }
         onTimeoutReached: root.lastCheckError = "Update check timed out"
         onExited: (code) => {
-            if (_checkProc.timedOut) {
-                _flag.reload()
-                return
+            if (!_checkProc.timedOut) {
+                if (code === 0) {
+                    root.lastCheckError = ""
+                    root.lastApplyError = ""
+                } else {
+                    root.lastCheckError = root._lastOutputLine(
+                        _checkOut.text, _checkErr.text, "Update check failed")
+                }
             }
-            if (code === 0) {
-                root.lastCheckError = ""
-                root.lastApplyError = ""
-            } else {
-                root.lastCheckError = root._lastOutputLine(_checkOut.text, _checkErr.text, "Update check failed")
-            }
-            _flag.reload()
-            _checked.reload()
-            root._refreshVersion()
+            root._reloadOperationState()
         }
     }
 
@@ -390,16 +497,13 @@ Singleton {
         onTimeoutReached: root.lastApplyError = "Update install timed out"
         onExited: (code) => {
             root.applying = false
-            if (_applyProc.timedOut) return
-            if (code === 0) {
+            if (!_applyProc.timedOut && code === 0) {
                 root.lastApplyError = ""
-                _flag.reload()
-                root._refreshVersion()
-            } else {
+            } else if (!_applyProc.timedOut) {
                 root.lastApplyError = root._lastOutputLine(_applyOut.text, _applyErr.text, "Install failed")
-                // the authoritative script may discover a branch/dirty-state change after the UI was opened; refresh the displayed block
-                root._refreshVersion()
             }
+            // also catches an install that completed at the timeout boundary
+            root._reloadOperationState()
         }
     }
 
