@@ -10,16 +10,18 @@ import "controls"
 ClippingRectangle {
     id: root
     width: parent ? parent.width : 0
-    // the labels inside are fontMicro, so a fixed row keeps the elapsed/total pair cramped while every neighbour grows with the type
-    readonly property int _seekH: Math.max(14, Settings.fontMicro + 4)
-    readonly property int _seekBlock: Media.hasPosition ? _seekH + 12 : 0
     // 4px multiple: an odd height lands the bottom border on a half physical pixel and doubles it
-    height: 4 * Math.ceil(Math.max(140,
-        16 + _mediaCol.implicitHeight + 12 + _seekBlock + _controlsRow.height + 16) / 4)
+    height: 4 * Math.ceil(Math.max(172,
+        20 + _mediaCol.implicitHeight + 18 + _controlsRow.height + 26) / 4)
     radius: Theme.radiusCard
     color: Theme.menuCard
     opacity: Media.shown ? 1.0 : 0.0
     visible: opacity > 0.01
+
+    function _motionAllowed(): bool {
+        return root.visible && MenuState.homeActive
+            && Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)
+    }
 
     function _focusPlayer(): void {
         MenuState.close()
@@ -55,6 +57,12 @@ ClippingRectangle {
         target: ShellSettings
         function onReduceMotionChanged() {
             if (ShellSettings.reduceMotion) root.settleMediaVisual()
+        }
+    }
+    Connections {
+        target: Idle
+        function onIsIdleChanged() {
+            if (Idle.isIdle) root.settleMediaVisual()
         }
     }
 
@@ -116,7 +124,7 @@ ClippingRectangle {
             _retries = 0
             _useA = isA
             const outgoing = isA ? _artB : _artA
-            if (ShellSettings.reduceMotion) {
+            if (!root._motionAllowed()) {
                 img.scale = 1.0; img.opacity = maxAlpha; outgoing.opacity = 0
                 _releaseLayer(outgoing)
                 return
@@ -192,8 +200,7 @@ ClippingRectangle {
         }
     }
 
-    // the art is the jump target and it fills the card, so this has to as well. Declared
-    // ahead of the seek row and the controls, which stack above it and take their own clicks
+    // the art is the jump target and fills the card; later siblings take their own clicks
     MouseArea {
         id: _playerTarget
         anchors.fill: parent
@@ -206,7 +213,7 @@ ClippingRectangle {
         anchors {
             left: parent.left; leftMargin: 16
             right: parent.right; rightMargin: 16
-            bottom: _seek.top; bottomMargin: 12
+            bottom: _controlsRow.top; bottomMargin: 18
         }
         spacing: 2
         opacity: 1.0
@@ -234,7 +241,7 @@ ClippingRectangle {
         readonly property string trackKey: Media.sourceLabel + "\u0000"
             + Media.displayTitle + "\u0000" + Media.displayArtist
         onTrackKeyChanged: {
-            if (ShellSettings.reduceMotion || (_shownTitle === "" && _shownArtist === "")) {
+            if (!root._motionAllowed() || (_shownTitle === "" && _shownArtist === "")) {
                 _mediaCol.settleText()
                 return
             }
@@ -315,72 +322,85 @@ ClippingRectangle {
         }
     }
 
+    // a muted 3px rail read as a border rather than a position
     Item {
         id: _seek
         visible: Media.hasPosition
+        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+        height: 14
+
+        Accessible.role: Accessible.Slider
+        Accessible.name: "Playback position"
+        Accessible.focusable: Media.canSeek && Media.lengthKnown
+        Accessible.description: Media.formatTime(Media.positionNow) + " of "
+            + (Media.lengthKnown ? Media.formatTime(Media.length)
+                : Media.endless ? "live" : "unknown")
+
+        readonly property real _ratio: Math.max(0, Math.min(1, Media.positionRatio))
+
+        Rectangle {
+            id: _seekRail
+            anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+            height: _seekArea.containsMouse || _seekArea.pressed ? 7 : 5
+            color: Theme.withAlpha(Theme.text, 0.18)
+            MotionBehavior on height {
+                NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic }
+            }
+
+            Rectangle {
+                anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                width: Math.round(parent.width * _seek._ratio)
+                color: Theme.accent
+            }
+        }
+
+        MouseArea {
+            id: _seekArea
+            anchors.fill: parent
+            hoverEnabled: true
+            enabled: Media.canSeek && Media.lengthKnown
+            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+            function _seekTo(x) {
+                if (!enabled || width <= 0) return
+                Media.seekToRatio(Math.max(0, Math.min(1, x / width)))
+            }
+            onPressed: (e) => _seekTo(e.x)
+            onPositionChanged: (e) => { if (pressed) _seekTo(e.x) }
+        }
+    }
+
+    ShellText {
+        id: _elapsedLabel
+        visible: Media.hasPosition
         anchors {
-            left:  parent.left;  leftMargin:  16
+            left: parent.left; leftMargin: 16
+            verticalCenter: _controlsRow.verticalCenter
+        }
+        text: Media.formatTime(Media.positionNow)
+        color: Theme.withAlpha(Theme.text, 0.55)
+        font.pixelSize: Settings.fontMicro
+    }
+
+    ShellText {
+        id: _totalLabel
+        visible: Media.hasPosition
+        anchors {
             right: parent.right; rightMargin: 16
-            bottom: _controlsRow.top
-            bottomMargin: visible ? 12 : 0
+            verticalCenter: _controlsRow.verticalCenter
         }
-        height: visible ? root._seekH : 0
-
-        ShellText {
-            id: _elapsedLabel
-            // matches the total so the bar sits centred, but never below its own text: an
-            // unknown length pairs a placeholder total with an elapsed time that outgrows it
-            width: Math.max(implicitWidth, _totalLabel.implicitWidth)
-            horizontalAlignment: Text.AlignRight
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            text:           Media.formatTime(_seekTrack.dragging ? _seekTrack.shownValue * Media.length : Media.positionNow)
-            color:          Theme.withAlpha(Theme.text, 0.62)
-            font.pixelSize: Settings.fontMicro
-        }
-        ShellText {
-            id: _totalLabel
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            text:           Media.lengthKnown ? Media.formatTime(Media.length)
-                            : Media.endless ? "LIVE" : "--:--"
-            color:          Theme.withAlpha(Theme.text, 0.55)
-            font.pixelSize: Settings.fontMicro
-        }
-
-        SliderTrack {
-            id: _seekTrack
-            visible: Media.lengthKnown
-            anchors.left:  _elapsedLabel.right; anchors.leftMargin:  8
-            anchors.right: _totalLabel.left;    anchors.rightMargin: 8
-            anchors.verticalCenter: parent.verticalCenter
-            height: 12
-
-            interactive: Media.canSeek && Media.lengthKnown
-            accessibleName: "Playback position"
-            accessibleValueText: _elapsedLabel.text + " of " + _totalLabel.text
-            showThumb:   Media.canSeek && Media.lengthKnown
-            hoverGrow:   false
-            animate:     false
-            commitOnRelease: true
-            // the card is album art under a scrim, so the groove stays translucent and unringed
-            trackColor:  Theme.withAlpha(Theme.text, 0.20)
-            trackOutlineColor: "transparent"
-            railHeight:  6
-            thumbWidth:  10
-            thumbHeight: 10
-            value: Media.positionRatio
-            onChanged: value => { if (Media.canSeek) Media.seekToRatio(value) }
-        }
+        text: Media.lengthKnown ? Media.formatTime(Media.length)
+            : Media.endless ? "LIVE" : "--:--"
+        color: Theme.withAlpha(Theme.text, 0.45)
+        font.pixelSize: Settings.fontMicro
     }
 
     Row {
         id: _controlsRow
         anchors {
             horizontalCenter: parent.horizontalCenter
-            bottom: parent.bottom; bottomMargin: 16
+            bottom: parent.bottom; bottomMargin: 24
         }
-        spacing: 24
+        spacing: 26
 
         MediaButton {
             glyph: "󰒮"
@@ -392,7 +412,7 @@ ClippingRectangle {
         Item {
             id: _playBtn
             readonly property bool _on: Media.canTogglePlaying
-            width: 56; height: 40
+            width: 46; height: 44
             anchors.verticalCenter: parent.verticalCenter
             opacity: _playBtn._on ? 1.0 : Theme.disabledOpacity
             Accessible.role: Accessible.Button
@@ -406,24 +426,6 @@ ClippingRectangle {
             HoverHandler { id: _playH; enabled: _playBtn._on; cursorShape: Qt.PointingHandCursor }
             TapHandler   { id: _playT; enabled: _playBtn._on; onTapped: Media.togglePlay() }
 
-            Rectangle {
-                id: _playFill
-                anchors.fill: parent
-                radius: Theme.radiusControl
-                antialiasing: true
-                color: Theme.emphasisButtonFill(
-                    Theme.accent, _playH.hovered, _playT.pressed)
-                ColorFade on color {}
-
-                OutlineBorder {
-                    radius: _playFill.radius
-                    outlineWidth: 1
-                    outlineColor: Theme.withAlpha(Theme.accent,
-                        Theme.lineAlpha(_playT.pressed ? 0.52
-                            : _playH.hovered ? 0.38 : 0.24))
-                    ColorFade on outlineColor {}
-                }
-            }
             ShellText {
                 id: _playGlyph
                 anchors.centerIn: parent
@@ -431,13 +433,14 @@ ClippingRectangle {
                 readonly property string target: Media.playing ? "󰏤" : "󰐊"
                 property bool _ready: false
                 text: shown
-                color: _playH.hovered ? Theme.text : Theme.withAlpha(Theme.text, 0.8)
-                font.pixelSize: Settings.fontSize + 10
+                color: _playH.hovered || _playT.pressed
+                    ? Theme.mix(Theme.accent, Theme.text, 0.35) : Theme.accent
+                font.pixelSize: Settings.fontSize + 13
                 ColorFade on color {}
 
                 Component.onCompleted: { shown = target; _ready = true }
                 onTargetChanged: {
-                    if (!_ready || ShellSettings.reduceMotion) { shown = target; return }
+                    if (!_ready || !root._motionAllowed()) { shown = target; return }
                     _playStamp.restart()
                 }
                 SequentialAnimation {
