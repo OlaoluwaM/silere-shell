@@ -31,9 +31,18 @@ Singleton {
         root._pctOverride = -1
     }
     on_AmbiguousRawOneChanged: if (!root._ambiguousRawOne) root._clearAmbiguityProbe()
+
+    function normalizedPercent(raw, percentScale: bool): real {
+        const value = Number(raw)
+        if (!isFinite(value) || value <= 0) return 0
+        // a raw 64 paints as 6400% for a frame while the scale latch is still catching up
+        const percent = percentScale || value > 1 ? value : value * 100
+        return Math.max(0, Math.min(100, percent))
+    }
+
     readonly property real pct: (_ambiguousRawOne && _pctOverride >= 0)
         ? _pctOverride
-        : (_scale100 ? _raw : (_raw * 100))
+        : root.normalizedPercent(_raw, _scale100)
     readonly property bool onBattery: available ? UPower.onBattery : false
     readonly property int  _critPct: Math.max(5, Math.round(ShellSettings.batteryLowThreshold / 2))
     // pct==0 is UPower's uninitialised reading at startup; would fire a bogus critical alert
