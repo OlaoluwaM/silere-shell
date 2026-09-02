@@ -47,6 +47,7 @@ settings file carries its own `__version` and migrates separately.
 - A Bluetooth speaker shows a speaker rather than headphones, and more device types carry their own icon.
 - The Bluetooth widget stays out of the bar on a machine with no Bluetooth adapter.
 - Battery percentages stay bounded while their backend scale is detected, and a direct jump to critical sends one alert instead of two.
+- Timed-out Matugen repairs remain failures when their process later exits.
 - Deleting an old notification-history row no longer erases state for a live notification that reused its id.
 - Notification ids reused after a server restart no longer replace unrelated persisted history.
 - Night Light refreshes externally changed `hyprsunset` state when a control surface opens, without letting a stale probe undo a user toggle.
