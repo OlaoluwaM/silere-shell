@@ -43,6 +43,8 @@ settings file carries its own `__version` and migrates separately.
 - The Bluetooth widget keeps its generic glyph while the volume widget is already showing the connected device.
 - Settings and calendar marks that could not be written are saved once their folder is reachable again.
 - A failed settings-folder creation or permission check is no longer mistaken for a successful one.
+- The package list drops what it was showing and checks again when the package manager or AUR helper behind it changes.
+- Package checks preserve their last result when an AUR helper fails, reject canceled results after a quick off/on toggle, and defer automatic retries while the session is idle.
 - The temperature readout finds its sensor after being switched off and straight back on.
 - A Bluetooth speaker shows a speaker rather than headphones, and more device types carry their own icon.
 - The Bluetooth widget stays out of the bar on a machine with no Bluetooth adapter.

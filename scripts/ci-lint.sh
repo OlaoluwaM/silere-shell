@@ -1148,6 +1148,31 @@ else
     fail "ChoiceChipRow's width cap must scale with Settings.fontLabel, or its chips lose their padding at the largest type"
 fi
 
+if grep -qF 'function onScanRevisionChanged() { root._syncSourceBackend() }' services/Updates.qml; then
+    ok "update backend" "package checks follow coherent optional-tool rescans"
+else
+    fail "Updates must resynchronise its package backend after optional-tool rescans"
+fi
+
+update_discard_line="$(grep -nF 'if (root._discardResult)' services/Updates.qml | head -n1 | cut -d: -f1)"
+update_timeout_line="$(grep -nF 'if (_proc.timedOut) return' services/Updates.qml | head -n1 | cut -d: -f1)"
+if [ -n "$update_discard_line" ] && [ -n "$update_timeout_line" ] \
+    && [ "$update_discard_line" -lt "$update_timeout_line" ]; then
+    ok "update cancellation" "backend replacement wins over a timed-out old result"
+else
+    fail "Updates must consume backend discard requests before returning from timed-out results"
+fi
+
+aur_empty_guards="$(grep -Fc ' -ne 1 ]' services/Updates.qml || true)"
+if grep -qF '|| root._discardResult) return' services/Updates.qml \
+    && grep -qF 'root._discardResult = true' services/Updates.qml \
+    && grep -qF 'aurrc=$?' services/Updates.qml \
+    && [ "$aur_empty_guards" -ge 2 ]; then
+    ok "update stability" "canceled checks stay stale and AUR helper failures preserve the last result"
+else
+    fail "Updates must gate canceled restarts and distinguish empty AUR results from helper failures"
+fi
+
 if grep -qF '_detectProc._generation = root._detectGeneration' services/CpuTemp.qml \
     && grep -qF '!root._detectionIsCurrent(_detectProc._generation)' services/CpuTemp.qml; then
     ok "temperature probe" "canceled sensor discovery results are generation-guarded"

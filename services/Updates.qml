@@ -22,6 +22,7 @@ Singleton {
     // only a failure that outlives a retry says the checker itself is broken
     property int  _failStreak: 0
     property real _nowMs: 0
+    property string _sourceKey: ""
 
     readonly property bool enabled: ShellSettings.updatesWidget
     readonly property bool _online: !Network.toolAvailable || Network.connected
@@ -108,18 +109,37 @@ Singleton {
         return SafeText.singleLineText(value, 512)
     }
 
+    function sourceIdentity(managerName: string, includeAur: bool,
+            hasParu: bool, hasYay: bool): string {
+        let helper = ""
+        if ((managerName === "pacman" && includeAur) || managerName === "aur")
+            helper = hasParu ? "paru" : hasYay ? "yay" : ""
+        return managerName + "|" + helper
+    }
+
+    function _sourceIdentity(): string {
+        return root.sourceIdentity(root.manager, ShellSettings.updatesIncludeAur,
+            SystemTools.hasParu, SystemTools.hasYay)
+    }
+
     function _cmd(): string {
         switch (root.manager) {
         case "pacman": {
             // checkupdates self-syncs to a private db; rc 2 = no updates, and ERR holds the last count so a network blip can't zero the badge
-            const aur = ShellSettings.updatesIncludeAur && SystemTools.hasParu
-                      ? root._limit(60, "paru -Qua") + " 2>/dev/null"
-                      : ShellSettings.updatesIncludeAur && SystemTools.hasYay
-                      ? root._limit(60, "yay -Qua") + " 2>/dev/null"
-                      : "true"
+            const aurTool = ShellSettings.updatesIncludeAur && SystemTools.hasParu
+                ? "paru" : ShellSettings.updatesIncludeAur && SystemTools.hasYay
+                ? "yay" : ""
+            // paru/yay use rc 1 with no output for an empty result. Any other
+            // non-zero exit (especially timeout's 124) is a failed source, not
+            // proof that the previously reported AUR updates disappeared.
+            const aur = aurTool.length > 0
+                ? "aurout=$(" + root._limit(60, aurTool + " -Qua") + " 2>&1); aurrc=$?; "
+                  + "if [ \"$aurrc\" -ne 0 ] && { [ \"$aurrc\" -ne 1 ] || [ -n \"$aurout\" ]; }; "
+                  + "then echo \"ERR " + aurTool + " check failed (exit $aurrc)\"; exit 0; fi; "
+                : "aurout=''; "
             return "out=$(" + root._limit(90, "checkupdates") + " 2>&1); rc=$?; " +
                    "if [ \"$rc\" -ne 0 ] && [ \"$rc\" -ne 2 ]; then echo \"ERR checkupdates failed (exit $rc)\"; exit 0; fi; " +
-                   "aurout=$(" + aur + "); " +
+                   aur +
                    "repo=$(printf '%s' \"$out\" | grep -c .); " +
                    "aur=$(printf '%s' \"$aurout\" | grep -c .); " +
                    "echo $((repo + aur)); " +
@@ -131,7 +151,8 @@ Singleton {
         case "aur": {
             const tool = SystemTools.hasParu ? "paru" : "yay"
             return "out=$(" + root._limit(90, tool + " -Qu") + " 2>&1); rc=$?; " +
-                   "if [ \"$rc\" -ne 0 ] && [ -n \"$out\" ]; then echo \"ERR " + tool + " check failed (exit $rc)\"; exit 0; fi; " +
+                   "if [ \"$rc\" -ne 0 ] && { [ \"$rc\" -ne 1 ] || [ -n \"$out\" ]; }; " +
+                   "then echo \"ERR " + tool + " check failed (exit $rc)\"; exit 0; fi; " +
                    "printf '%s' \"$out\" | grep -c .; " +
                    "printf '%s\\n' \"$out\" | head -n " + root._maxDetail
         }
@@ -233,18 +254,30 @@ Singleton {
 
     function refresh(): void {
         // read the setting directly — on a manual toggle the `enabled` alias may not have re-evaluated yet
-        if (!ShellSettings.updatesWidget || !supported || _proc.running) return
+        if (!ShellSettings.updatesWidget || !supported || _proc.running
+                || root._discardResult) return
         // a manual check supersedes delayed recovery work. Leaving either timer armed makes a successful check run again a few seconds/minutes later
         _retry.stop()
         _reconnect.stop()
         _proc.exec(["bash", "-c", root._cmd()])
     }
 
+    function _refreshBackground(): void {
+        if (Idle.isIdle || !root._online) return
+        root.refresh()
+    }
+
     function _resetDisabledState(): void {
         _initDelay.stop()
         _retry.stop()
         _reconnect.stop()
-        if (_proc.running) _proc.running = false
+        if (_proc.running) {
+            // it exits asynchronously: mark before stopping or a quick off/on publishes it
+            root._discardResult = true
+            _proc.running = false
+        } else {
+            root._discardResult = false
+        }
         root.count = 0
         root.repoCount = 0
         root.aurCount = 0
@@ -256,6 +289,7 @@ Singleton {
     }
 
     function _sourcePreferenceChanged(): void {
+        root._sourceKey = root._sourceIdentity()
         _retry.stop()
         _reconnect.stop()
         const wasRunning = _proc.running
@@ -273,6 +307,45 @@ Singleton {
         if (!wasRunning) _sourceRefresh.restart()
     }
 
+    function _backendChanged(): void {
+        _initDelay.stop()
+        _retry.stop()
+        _reconnect.stop()
+        _sourceRefresh.stop()
+        const wasRunning = _proc.running
+        root._discardResult = wasRunning
+        if (wasRunning) _proc.running = false
+
+        root.count = 0
+        root.repoCount = 0
+        root.aurCount = 0
+        root.packages = []
+        root.lastFailed = false
+        root.lastError = ""
+        root.lastCheckMs = 0
+        root._touchNow()
+        root._failStreak = 0
+        root.ready = !root.enabled || !root.supported
+
+        if (root.enabled && root.supported && !wasRunning)
+            _sourceRefresh.restart()
+    }
+
+    function _syncSourceBackend(): void {
+        const next = root._sourceIdentity()
+        if (next === root._sourceKey) return
+        root._sourceKey = next
+
+        // the startup grace stands; a later backend change replaces stale data at once
+        if (root.lastCheckMs <= 0 && root.count === 0 && !_proc.running
+                && root.enabled && root.supported) {
+            root.ready = false
+            _initDelay.restart()
+            return
+        }
+        root._backendChanged()
+    }
+
     BoundedProcess {
         id: _proc
         timeoutMs: 180000
@@ -288,12 +361,12 @@ Singleton {
             _retry.restart()
         }
         onExited: {
-            if (_proc.timedOut) return
             if (root._discardResult) {
                 root._discardResult = false
                 _sourceRefresh.restart()
                 return
             }
+            if (_proc.timedOut) return
             root.lastCheckMs = Date.now()
             root._touchNow()
             if (!ShellSettings.updatesWidget) {
@@ -327,20 +400,24 @@ Singleton {
         interval: 900000
         repeat:   true
         running:  root.enabled && root.supported && !Idle.isIdle && root._online
-        onTriggered: root.refresh()
+        onTriggered: root._refreshBackground()
     }
 
-    Timer { id: _retry; interval: 180000; onTriggered: if (root._online) root.refresh() }
+    Timer { id: _retry; interval: 180000; onTriggered: root._refreshBackground() }
 
     Connections {
         target: Idle
         function onIsIdleChanged() {
             if (Idle.isIdle || !root.enabled || !root.supported || !root._online) return
-            if (Date.now() - root.lastCheckMs >= _poll.interval) root.refresh()
+            if (root.lastFailed) {
+                _reconnect.restart()
+                return
+            }
+            if (Date.now() - root.lastCheckMs >= _poll.interval) root._refreshBackground()
         }
     }
 
-    Timer { id: _reconnect; interval: 5000; onTriggered: root.refresh() }
+    Timer { id: _reconnect; interval: 5000; onTriggered: root._refreshBackground() }
     Timer {
         id: _sourceRefresh
         interval: 0
@@ -358,10 +435,17 @@ Singleton {
         }
     }
 
-    Timer { id: _initDelay; interval: 8000; onTriggered: root.refresh() }
+    Connections {
+        target: SystemTools
+        function onScanRevisionChanged() { root._syncSourceBackend() }
+    }
 
-    onSupportedChanged:    if (root.enabled) _initDelay.restart()
-    Component.onCompleted: if (root.enabled && root.supported) _initDelay.restart()
+    Timer { id: _initDelay; interval: 8000; onTriggered: root._refreshBackground() }
+
+    Component.onCompleted: {
+        root._sourceKey = root._sourceIdentity()
+        if (root.enabled && root.supported) _initDelay.restart()
+    }
     Connections {
         target: ShellSettings
         function onUpdatesWidgetChanged() {
