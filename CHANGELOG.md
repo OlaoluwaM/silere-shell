@@ -41,6 +41,7 @@ settings file carries its own `__version` and migrates separately.
 - Tray icons render for apps that ship their own icon directory.
 - The Bluetooth widget keeps its generic glyph while the volume widget is already showing the connected device.
 - A Bluetooth speaker shows a speaker rather than headphones, and more device types carry their own icon.
+- The Bluetooth widget stays out of the bar on a machine with no Bluetooth adapter.
 - Night Light refreshes externally changed `hyprsunset` state when a control surface opens, without letting a stale probe undo a user toggle.
 - Option buttons in settings keep their padding at the largest interface scale.
 - One-shot UI motion now settles when the display blanks instead of animating behind the lock screen.
