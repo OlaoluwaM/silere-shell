@@ -1131,6 +1131,15 @@ else
     ok "config store" "paths and directory readiness have one owner"
 fi
 
+if grep -qF 'root._pendingForDir || _debounce.running || _retry.running' config/PersistedFile.qml \
+    && grep -qF 'ConfigStore.ensureDirectory(true)' config/PersistedFile.qml \
+    && grep -qF 'mkdir -m 0700 -p -- \"$1\" || exit $?' services/ConfigStore.qml \
+    && grep -qF 'chmod 0700 -- \"$1\" || exit $?' services/ConfigStore.qml; then
+    ok "config recovery" "waiting writes and failed directory setup stay failed until repaired"
+else
+    fail "config writes must track directory waits, recheck failures, and preserve setup exit status"
+fi
+
 # Text.HorizontalFit shrinks rather than truncates, so probe-fit's Text.truncated scan
 # cannot see a chip row whose cap stopped growing with the type
 if grep -qF 'Math.max(236, Settings.fontLabel * 22)' modules/menu/controls/ChoiceChipRow.qml; then
