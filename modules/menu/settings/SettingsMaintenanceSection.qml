@@ -212,6 +212,7 @@ Column {
                 valueText: modelData.v
                 statusColor: modelData.c
                 passive: !modelData.a
+                valueIsAction: modelData.a.length > 0
                 onActivated: if (modelData.a === "matugen") SystemTools.repairMatugen()
             }
         }
