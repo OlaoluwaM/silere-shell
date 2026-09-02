@@ -41,6 +41,10 @@ Singleton {
 
     readonly property int hPad: 14
 
+    // per-app routing is a mixer's job, not a bar's
+    readonly property list<string> soundSettingsCommand: SystemTools.hasPwvucontrol
+        ? ["pwvucontrol"] : SystemTools.hasPavucontrol ? ["pavucontrol"] : []
+
     readonly property list<string> lockCommand: SystemTools.hasHyprlock ? ["hyprlock"]
         : SystemTools.hasLoginctl ? ["loginctl", "lock-session"] : []
     readonly property list<string> suspendCommand: SystemTools.hasSystemctl ? ["systemctl", "suspend"]
