@@ -32,6 +32,10 @@ one of the three files, so follow the pointers instead of restating.
 
 ## Gates before every commit
 
+- New code is cohesive with the codebase around it: it follows the existing
+  patterns, style, idioms, and architecture, and reaches for an existing
+  abstraction before inventing a bespoke one. Any deviation carries a
+  comment explaining why it was necessary.
 - `bash scripts/ci-lint.sh` passes.
 - `nix develop . --command bash scripts/check.sh` reports zero failures. A
   small, stable set of environmental warnings is normal; investigate when
@@ -54,7 +58,7 @@ one of the three files, so follow the pointers instead of restating.
 
 - Load the `qt-development-skills:qt-qml` skill before editing QML. Run
   `qt-development-skills:qt-qml-review` to completion after substantial
-  QML changes.
+  QML changes. If neither skill is available install them, then inform the user that the session needs to be reloaded before they can become available
 - Colors come from `Theme` tokens only; no hex in widgets. Motion goes
   through `Motion`/`MotionBehavior`, never a bare `Behavior`. Row heights
   come from `Metrics.rowHeightFor()`. The lint scripts enforce all three.
@@ -64,7 +68,3 @@ one of the three files, so follow the pointers instead of restating.
 - Every new QML file needs a line in its folder's `qmldir`.
 - Keep the `silere-*` layer-shell namespaces. The compositor's blur and
   animation rules match those exact strings.
-- New code is cohesive with the codebase around it: it follows the existing
-  patterns, style, idioms, and architecture, and reaches for an existing
-  abstraction before inventing a bespoke one. Any deviation carries a
-  comment explaining why it was necessary.
