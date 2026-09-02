@@ -11,6 +11,10 @@ settings file carries its own `__version` and migrates separately.
 
 ## [Unreleased]
 
+### Changed
+
+- The installer's optional-tool list names fontconfig, which the font picker and font checks need.
+
 ## Releases
 
 - [0.9.0](docs/releases/0.9.0.md) — 2026-08-30

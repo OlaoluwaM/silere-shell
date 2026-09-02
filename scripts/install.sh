@@ -562,6 +562,7 @@ if _qml_module_available Quickshell.Services.Pipewire; then
 else
     printf "    ${DIM}–       %-13s %s${R}\n" "pipewire" "volume + sound popup"
 fi
+_optdep fc-list       "font picker + font checks"
 _optdep brightnessctl "brightness control + popup"
 _optdep inotifywait   "screenshot flash"
 _optdep nmcli         "VPN name fallback"
@@ -570,11 +571,12 @@ _optdep_any updates   "update count" checkupdates apt dnf zypper xbps-install
 _optdep_any "AUR helper" "AUR update count" paru yay
 _optdep busctl        "notification daemon check"
 _optdep upower        "battery percentage + warnings"
-_optdep hyprsunset    "night light toggle"
+_optdep_any "night light" "night light toggle" hyprsunset wlsunset
 _optdep pgrep         "optional night light external state check"
 _optdep pkill         "optional night light external stop fallback"
 _optdep powerprofilesctl "power profile selector"
-_optdep hyprlock      "lock screen"
+_optdep_any "lock screen" "lock action" hyprlock swaylock gtklock
+_optdep_any "sound settings" "per-app routing hand-off" pwvucontrol pavucontrol
 _optdep_any "power actions" "suspend / reboot / shutdown" systemctl loginctl
 _optdep notify-send   "low-battery + hot-CPU alerts"
 _optdep timeout       "bounded update checks"

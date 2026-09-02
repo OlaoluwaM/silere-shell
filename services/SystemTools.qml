@@ -25,7 +25,10 @@ Singleton {
     readonly property bool hasCava:          _tools.cava ?? false
     readonly property bool hasMatugen:       _tools.matugen ?? false
     readonly property bool hasHyprsunset:    _tools.hyprsunset ?? false
+    readonly property bool hasWlsunset:      _tools.wlsunset ?? false
     readonly property bool hasHyprlock:      _tools.hyprlock ?? false
+    readonly property bool hasSwaylock:      _tools.swaylock ?? false
+    readonly property bool hasGtklock:       _tools.gtklock ?? false
     readonly property bool hasSystemctl:     _tools.systemctl ?? false
     readonly property bool hasLoginctl:      _tools.loginctl ?? false
     readonly property bool hasHyprctl:       _tools.hyprctl ?? false
@@ -43,6 +46,8 @@ Singleton {
     readonly property bool hasXbps:          _tools["xbps-install"] ?? false
     readonly property bool hasPowerProfilesCtl: _tools.powerprofilesctl ?? false
     readonly property bool hasFcList:        _tools["fc-list"] ?? false
+    readonly property bool hasPwvucontrol:   _tools.pwvucontrol ?? false
+    readonly property bool hasPavucontrol:   _tools.pavucontrol ?? false
 
     // "" | working | done | failed
     property string matugenRepairState: ""
@@ -72,8 +77,14 @@ Singleton {
         if (!command || command.length === 0) return false
         const tool = String(command[0])
         if (tool === "hyprlock")  return root.hasHyprlock
+        if (tool === "swaylock")  return root.hasSwaylock
+        if (tool === "gtklock")   return root.hasGtklock
         if (tool === "systemctl") return root.hasSystemctl
         if (tool === "loginctl")  return root.hasLoginctl
+        if (tool === "hyprsunset") return root.hasHyprsunset
+        if (tool === "wlsunset")   return root.hasWlsunset
+        if (tool === "pwvucontrol") return root.hasPwvucontrol
+        if (tool === "pavucontrol") return root.hasPavucontrol
         return true
     }
 
@@ -117,8 +128,8 @@ Singleton {
             "    esac; [ -n \"$family\" ] && break; " +
             "  done; " +
             "fi; [ -n \"$family\" ] && echo \"@family=$family\"; " +
-            "for t in brightnessctl inotifywait nmcli cava matugen hyprsunset hyprlock systemctl loginctl hyprctl pgrep pkill notify-send " +
-            "busctl checkupdates paru yay timeout apt dnf zypper xbps-install powerprofilesctl fc-list; do " +
+            "for t in brightnessctl inotifywait nmcli cava matugen hyprsunset wlsunset hyprlock swaylock gtklock systemctl loginctl hyprctl pgrep pkill notify-send " +
+            "busctl checkupdates paru yay timeout apt dnf zypper xbps-install powerprofilesctl fc-list pwvucontrol pavucontrol; do " +
             "  command -v \"$t\" >/dev/null 2>&1 && echo \"$t\"; " +
             // the last lookup is optional; do not inherit its `command -v` status and discard every tool found before it
             "done; exit 0"])
