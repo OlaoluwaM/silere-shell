@@ -56,7 +56,7 @@ Fonts, optional tools, unattended installs, Matugen wiring and removal:
 
 ## What you get
 
-- **Bar** — workspaces, media, network, bluetooth, volume, brightness, battery, clock, tray, updates.
+- **Bar** — workspaces, media, network, bluetooth, volume, microphone, brightness, battery, clock, tray, updates.
   Drag them between left, centre and right, per monitor.
 - **Menu** — live controls, every setting, and notification history in one panel.
 - **Notifications** — actions, images, history, quiet hours, source-window jumping.
@@ -81,7 +81,8 @@ long to fit. Widgets › Indicators › Bar tooltips turns that off.
 | clock | **click** opens the calendar · **middle-click** cycles seconds and date |
 | calendar | **scroll** changes the month · **click** the header to jump back to today |
 | media | **click** plays or pauses · **scroll** changes track · **middle-click** jumps to the player |
-| volume | **scroll** changes volume · **click** mutes |
+| volume | **scroll** changes volume · **click** mutes · **middle-click** moves to the next output · **right-click** opens Sound settings · in the menu, expand it for output, input and per-app levels |
+| microphone | **click** mutes · **scroll** changes the input level · **right-click** opens Sound settings · it appears while an app is listening |
 | brightness | **scroll** changes brightness |
 | tray | **click** jumps to the app · **right-click** opens its menu · **middle-click** runs the app's secondary action · **scroll** is passed through to the app |
 | notifications | **click** runs the default action · **right-click** dismisses · **middle-click** jumps to the app that sent it · a reply action opens an inline text field when the sender supports one |
