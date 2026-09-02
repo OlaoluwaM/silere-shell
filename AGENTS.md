@@ -36,6 +36,9 @@ one of the three files, so follow the pointers instead of restating.
   patterns, style, idioms, and architecture, and reaches for an existing
   abstraction before inventing a bespoke one. Any deviation carries a
   comment explaining why it was necessary.
+- When a task has no precedent in the codebase to copy or work from, rely
+  on standard QML best practices, patterns, and idioms before reaching for
+  something clever or bespoke.
 - `bash scripts/ci-lint.sh` passes.
 - `nix develop . --command bash scripts/check.sh` reports zero failures. A
   small, stable set of environmental warnings is normal; investigate when
