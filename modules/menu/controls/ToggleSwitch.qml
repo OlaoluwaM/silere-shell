@@ -29,7 +29,7 @@ Item {
         scale: root.pressed ? 0.985
             : root.highlighted ? 1.01 : 1.0
         transformOrigin: Item.Center
-        color: Theme.controlTrackFill(root.accentColor, root.checked,
+        color: Theme.switchTrackFill(root.accentColor, root.checked,
             root.highlighted, root.pressed)
         ColorFade on color {}
         MotionBehavior on scale {

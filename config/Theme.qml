@@ -197,15 +197,20 @@ Singleton {
         return menuControlLine
     }
     function emphasisButtonFill(c: color, hovered: bool, pressed: bool): color {
-        return mix(menuControl, c, pressed ? 0.54 : hovered ? 0.48 : 0.42)
+        if (_hc) return mix(menuControl, c, pressed ? 0.54 : hovered ? 0.48 : 0.42)
+        return mix(menuControl, c, pressed ? 0.40 : hovered ? 0.34 : 0.28)
     }
 
     function controlTrackFill(c: color, active: bool,
                               hovered: bool, pressed: bool): color {
         if (active) {
-            const k = _n
-                ? (pressed ? 0.80 : hovered ? 0.74 : 0.68)
-                : (pressed ? 0.85 : hovered ? 0.79 : 0.73)
+            // the filled half sits back into the card rather than glowing off it; high
+            // contrast keeps the old weights, where legibility outranks restraint
+            const k = _hc
+                ? (_n ? (pressed ? 0.80 : hovered ? 0.74 : 0.68)
+                      : (pressed ? 0.85 : hovered ? 0.79 : 0.73))
+                : (_n ? (pressed ? 0.60 : hovered ? 0.54 : 0.48)
+                      : (pressed ? 0.64 : hovered ? 0.58 : 0.52))
             return mix(menuControl, c, k)
         }
         return mix(menuControl, text,
@@ -220,10 +225,34 @@ Singleton {
         if (pressed) return withAlpha(c, lineAlpha(_hc ? 0.50 : 0.30))
         return hovered ? menuControlLineHot : menuControlLine
     }
+    // a switch is read at a glance, not aimed at, so its track sits far deeper than a
+    // slider's fill; that is the room the accent knob needs to stay legible on top of it
+    function switchTrackFill(c: color, checked: bool,
+                             hovered: bool, pressed: bool): color {
+        if (checked) {
+            if (_hc) return mix(menuControl, c, pressed ? 0.85 : hovered ? 0.79 : 0.73)
+            return mix(menuControl, c, pressed ? 0.32 : hovered ? 0.27 : 0.22)
+        }
+        return mix(menuControl, text, pressed ? 0.14 : hovered ? 0.085 : 0.035)
+    }
+
+    // a slider knob rides its own filled track, so it reads as the accent with a lift; the
+    // toggle knob below stays near-text because it has to carry against a full accent track
+    function sliderKnobFill(c: color, hovered: bool, pressed: bool): color {
+        if (_hc) return mix(text, c, pressed ? 0.13 : hovered ? 0.09 : 0.055)
+        return mix(c, text, pressed ? 0.30 : hovered ? 0.24 : 0.18)
+    }
+
+    // the switch reads off its track, so the knob is a dark cap cut out of it rather than a
+    // white pill sitting on top; high contrast keeps the bright knob it needs
     function controlKnobFill(c: color, active: bool,
                              hovered: bool, pressed: bool): color {
-        if (active) return mix(text, c, pressed ? 0.13 : hovered ? 0.09 : 0.055)
-        return mix(subtext, text, pressed ? 0.28 : hovered ? 0.23 : 0.18)
+        if (_hc) {
+            if (active) return mix(text, c, pressed ? 0.13 : hovered ? 0.09 : 0.055)
+            return mix(subtext, text, pressed ? 0.28 : hovered ? 0.23 : 0.18)
+        }
+        if (active) return mix(c, text, pressed ? 0.22 : hovered ? 0.12 : 0.0)
+        return mix(menuControl, text, pressed ? 0.42 : hovered ? 0.36 : 0.30)
     }
 
     readonly property int radiusPanel:   14

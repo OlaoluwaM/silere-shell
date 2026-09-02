@@ -28,6 +28,7 @@ settings file carries its own `__version` and migrates separately.
 - Hovering the volume or microphone widget names the device in use alongside the controls that are not obvious.
 - The lock program chosen automatically follows the compositor: hyprlock leads on Hyprland, swaylock elsewhere.
 - The installer's optional-tool list names fontconfig, which the font picker and font checks need.
+- Sliders and switches drop their white fills: the handle takes the accent, the switch knob reads as a dark cap, and a filled track sits deeper into its card. High contrast keeps the brighter fills.
 
 ### Fixed
 

@@ -116,7 +116,7 @@ Item {
         pressed: _ma.pressed
         hoverGrow: root.hoverGrow
         animate: root.animate
-        fillColor: Theme.controlKnobFill(Theme.accent, true,
+        fillColor: Theme.sliderKnobFill(Theme.accent,
             root.hoverGrow && _ma.containsMouse, _ma.pressed)
         MotionBehavior on x {
             gate: root.animate && !_ma.pressed
