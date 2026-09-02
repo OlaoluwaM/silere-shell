@@ -80,8 +80,13 @@ Item {
         NumberAnimation { target: root; property: "scale"; to: 1.0;  duration: Motion.ms(145); easing.type: Easing.OutCubic }
     }
 
+    // the menu is not a compositor feature, and this is the only pointer path into it:
+    // gating it on live workspace data strands every setting when that data is absent
     function _activate(): void {
-        if (!root.monitorReady) return
+        if (!root.monitorReady) {
+            root.anchorMenuRequested()
+            return
+        }
         if (root.active) {
             root.markerPulseRequested()
             root.anchorMenuRequested()
