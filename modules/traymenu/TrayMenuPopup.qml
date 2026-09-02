@@ -171,7 +171,7 @@ PanelWindow {
             readonly property bool checkable: btnType !== 0
             readonly property bool checked:   (modelData?.checkState ?? Qt.Unchecked) === Qt.Checked
             readonly property string label: SafeText.singleLineText(modelData?.text, 256)
-            readonly property string iconSrc: IconResolver.iconSource(modelData?.icon)
+            readonly property string iconSrc: IconResolver.trayIconSource(modelData?.icon)
 
             width: win.menuWidth
             height: sep ? 11 : 32
