@@ -180,60 +180,67 @@ PanelWindow {
             spacing: 6
 
             Item {
-                id: _todayButton
-                // the pill, not the row: a full-width hit area lights the narrow fill from 200px away
-                width: _todayRow.width + 20
-                height: Metrics.rowHeightFor(40)
+                id: _headerRow
+                width: parent.width
+                height: Metrics.rowHeightFor(36)
 
-                Accessible.role: Accessible.Button
-                Accessible.name: "Today"
-                Accessible.focusable: true
-                Accessible.onPressAction: card._goToday()
+                Item {
+                    id: _todayButton
+                    // the pill, not the row: a full-width hit area lights the narrow fill from 200px away
+                    width: _todayRow.width + 20
+                    height: parent.height
 
-                HoverHandler { id: _todayH; cursorShape: Qt.PointingHandCursor }
-                TapHandler   { id: _todayTap; onTapped: card._goToday() }
+                    Accessible.role: Accessible.Button
+                    Accessible.name: "Today"
+                    Accessible.focusable: true
+                    Accessible.onPressAction: card._goToday()
 
-                Rectangle {
-                    id: _todayFill
-                    anchors.fill: parent
-                    radius: Theme.radiusControl
-                    antialiasing: true
-                    color: _todayTap.pressed
-                        ? Theme.withAlpha(Theme.accent, 0.13)
-                        : _todayH.hovered
-                            ? Theme.withAlpha(Theme.subtext, 0.12)
-                            : "transparent"
-                    ColorFade on color {}
-                }
+                    HoverHandler { id: _todayH; cursorShape: Qt.PointingHandCursor }
+                    TapHandler   { id: _todayTap; onTapped: card._goToday() }
 
-                Row {
-                    id: _todayRow
-                    x: 10
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 11
-
-                    ShellText {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: card._todayD < 0 ? "" : card._todayD
-                        color: Theme.accent
-                        font.pixelSize: Settings.fontSize + 15; font.weight: Font.DemiBold
+                    Rectangle {
+                        id: _todayFill
+                        anchors.fill: parent
+                        radius: Theme.radiusControl
+                        antialiasing: true
+                        color: _todayTap.pressed
+                            ? Theme.withAlpha(Theme.accent, 0.13)
+                            : _todayH.hovered
+                                ? Theme.withAlpha(Theme.subtext, 0.12)
+                                : "transparent"
+                        ColorFade on color {}
                     }
-                    Column {
+
+                    Row {
+                        id: _todayRow
+                        x: 10
                         anchors.verticalCenter: parent.verticalCenter
-                        spacing: 1
+                        spacing: 11
+
                         ShellText {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: card._todayD < 0 ? "" : card._todayD
+                            color: Theme.accent
+                            font.pixelSize: Settings.fontSize + 15; font.weight: Font.DemiBold
+                        }
+                        ShellText {
+                            anchors.verticalCenter: parent.verticalCenter
                             text: card.todayWeekday
                             color: (_todayH.hovered) ? Theme.text : Theme.withAlpha(Theme.text, 0.9)
                             font.pixelSize: Settings.fontSize + 1; font.weight: Font.DemiBold
                             ColorFade on color {}
                         }
-                        ShellText {
-                            visible: card._todayWeek > 0
-                            text: "Week " + card._todayWeek
-                            color: Theme.withAlpha(Theme.subtext, 0.45)
-                            font.pixelSize: Settings.fontCaption
-                        }
                     }
+                }
+
+                ShellText {
+                    anchors.right: parent.right
+                    anchors.rightMargin: 2
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: card._todayWeek > 0
+                    text: "Week " + card._todayWeek
+                    color: Theme.withAlpha(Theme.subtext, 0.45)
+                    font.pixelSize: Settings.fontCaption
                 }
             }
 
@@ -291,6 +298,8 @@ PanelWindow {
                 Item {
                     id: _monthButton
                     anchors.centerIn: parent
+                    // the grid it names starts a week column in, so centring on the row leaves it visibly left of the days
+                    anchors.horizontalCenterOffset: Math.round(card.weekCol / 2)
                     width: _mLabel.implicitWidth + 16; height: 26
                     Accessible.role: Accessible.Button
                     Accessible.name: "Return to current month"
@@ -336,15 +345,18 @@ PanelWindow {
                 }
             }
 
+            // the header labels the grid, so it sits nearer to it than to the month row above
+            Item { width: parent.width; height: 3 }
+
             Row {
                 width: parent.width
                 Item {
-                    width: card.weekCol; height: 22
+                    width: card.weekCol; height: 20
                     ShellText {
                         anchors.centerIn: parent
                         text: "Wk"
-                        color: Theme.withAlpha(Theme.subtext, 0.30)
-                        font.pixelSize: Settings.fontTiny
+                        color: Theme.withAlpha(Theme.subtext, 0.40)
+                        font.pixelSize: Settings.fontMicro
                         font.weight: Font.Medium; font.capitalization: Font.AllUppercase
                     }
                 }
@@ -354,7 +366,7 @@ PanelWindow {
                         id: dayHdr
                         required property int index
                         required property string modelData
-                        width: card.cell; height: 22
+                        width: card.cell; height: 20
                         ShellText {
                             anchors.centerIn: parent
                             text: dayHdr.modelData
@@ -390,7 +402,7 @@ PanelWindow {
                             ShellText {
                                 anchors.centerIn: parent
                                 text: card._weekForRow(_weekRow.index)
-                                color: Theme.withAlpha(Theme.subtext, 0.38)
+                                color: Theme.withAlpha(Theme.subtext, 0.46)
                                 font.pixelSize: Settings.fontTiny
                                 font.weight: Font.Medium
                             }

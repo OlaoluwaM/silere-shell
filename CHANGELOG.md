@@ -31,6 +31,7 @@ settings file carries its own `__version` and migrates separately.
 - Sliders and switches drop their white fills: the handle takes the accent, the switch knob reads as a dark cap, and a filled track sits deeper into its card. High contrast keeps the brighter fills.
 - The media card drops its seek row: position is a bar along the card's bottom edge, with the elapsed and total times beside the controls. Dragging the bar still scrubs.
 - Media controls lose their boxes. The glyphs are the buttons, with play carrying the accent.
+- The calendar header runs the width of the card, with today's date at one end and the week number at the other. The month name now sits over the days it names.
 
 ### Fixed
 
