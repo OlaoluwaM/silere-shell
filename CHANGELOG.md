@@ -19,6 +19,7 @@ settings file carries its own `__version` and migrates separately.
 - Right-clicking the volume or microphone widget opens Sound settings; middle-clicking the volume widget moves to the next output.
 - Night light runs on `wlsunset` where `hyprsunset` cannot. System › Maintenance chooses between them.
 - System › Maintenance chooses the lock program: hyprlock, swaylock, gtklock, or a command of your own.
+- The Bluetooth row in the menu shows the icon of the device that is connected.
 
 ### Changed
 
@@ -38,6 +39,8 @@ settings file carries its own `__version` and migrates separately.
 
 - The workspace button opens the menu where the compositor reports no workspaces of its own.
 - Tray icons render for apps that ship their own icon directory.
+- The Bluetooth widget keeps its generic glyph while the volume widget is already showing the connected device.
+- A Bluetooth speaker shows a speaker rather than headphones, and more device types carry their own icon.
 - Night Light refreshes externally changed `hyprsunset` state when a control surface opens, without letting a stale probe undo a user toggle.
 - Option buttons in settings keep their padding at the largest interface scale.
 - One-shot UI motion now settles when the display blanks instead of animating behind the lock screen.
