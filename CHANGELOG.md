@@ -13,6 +13,7 @@ settings file carries its own `__version` and migrates separately.
 
 ### Changed
 
+- The volume widget shows a headphone glyph while output is on a headset.
 - The installer's optional-tool list names fontconfig, which the font picker and font checks need.
 
 ## Releases
