@@ -31,7 +31,8 @@ cd silere-shell
 bash scripts/install.sh
 ```
 
-Restart your compositor, or start it right away with `qs -p /that/path/shell.qml`.
+Restart your compositor, or start it right away with `silere run`. Before the optional
+maintenance-command link exists, use `scripts/silere run` from the checkout.
 
 Then **click the active workspace diamond**. That is the way into the menu and every
 setting, so bind a key to it early:
@@ -40,7 +41,9 @@ setting, so bind a key to it early:
 qs ipc -p ~/.config/silere-shell/shell.qml call menu toggle
 ```
 
-Fonts, optional tools, unattended installs, Matugen wiring and removal:
+Preview it first with `bash scripts/install.sh --dry-run`. After installation,
+`silere doctor` checks the runtime and integrations without changing them. Fonts, optional tools,
+the maintenance command, unattended installs, Matugen wiring and removal:
 [`docs/install.md`](docs/install.md).
 
 ## Why Silere
@@ -144,7 +147,7 @@ That runs the dependency, autostart and configuration checks. For startup errors
 
 | page | what's in it |
 |---|---|
-| [install.md](docs/install.md) | fonts, optional tools, unattended installs, Matugen, removal |
+| [install.md](docs/install.md) | doctor/maintenance command, optional tools, Matugen, removal |
 | [scripting.md](docs/scripting.md) | the IPC surface, settings over IPC, section names, hooks |
 | [troubleshooting.md](docs/troubleshooting.md) | symptom by symptom, starting with `check.sh` |
 | [performance.md](docs/performance.md) | reference numbers, how to measure, fonts, the animation driver |

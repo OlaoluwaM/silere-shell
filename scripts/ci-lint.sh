@@ -33,7 +33,7 @@ skip() {
   fi
 }
 fail() { printf 'fail %s\n' "$*" >&2; status=1; }
-script_files=(scripts/*.sh scripts/lib/*.sh)
+script_files=(scripts/*.sh scripts/silere scripts/lib/*.sh)
 
 section "merge conflict markers"
 # grep, not git grep: this lint is also meant to work from a release archive or
@@ -250,7 +250,7 @@ for f in "${script_files[@]}"; do
 done
 
 section "locale-stable parsers"
-for f in scripts/check.sh scripts/install.sh scripts/update.sh scripts/uninstall.sh; do
+for f in scripts/check.sh scripts/doctor.sh scripts/install.sh scripts/update.sh scripts/uninstall.sh; do
   if grep -q '^export LC_ALL=C$' "$f"; then ok "$f"; else fail "$f must set LC_ALL=C"; fi
 done
 if grep -qF '_silere_xdg_home "${XDG_DATA_HOME:-}" .local/share' scripts/check.sh \
@@ -721,11 +721,15 @@ else
 fi
 
 section "installer environment defaults"
-if grep -qF '${MALLOC_CONF-' scripts/install.sh \
-    && grep -qF '${QSG_TRANSIENT_IMAGES-' scripts/install.sh; then
-  ok "launcher" "inherited overrides are preserved"
+if grep -qF '${MALLOC_CONF-' scripts/silere \
+    && grep -qF '${QSG_TRANSIENT_IMAGES-' scripts/silere \
+    && grep -qF 'exec qs --no-duplicate -p "$ROOT/shell.qml"' scripts/silere \
+    && grep -qF 'LAUNCH_CMD="exec \"\$(printf' scripts/install.sh \
+    && grep -qF 'set -- run "$@"' scripts/silere \
+    && [ "$(grep -Fc 'ln -s "/usr/share/$_pkgname/scripts/silere"' packaging/aur/PKGBUILD)" -eq 2 ]; then
+  ok "launcher" "one exec path owns tuning, startup grace, and duplicate refusal"
 else
-  fail "installer launcher must preserve MALLOC_CONF and QSG_TRANSIENT_IMAGES overrides"
+  fail "source, compositor, and packaged launchers must share silere run"
 fi
 
 section "terminal detection"
@@ -775,8 +779,7 @@ if [ ! -f "$aur_dir/PKGBUILD" ] || [ ! -f "$aur_dir/.SRCINFO" ]; then
 elif ! grep -qF "depends=('quickshell>=$SILERE_MIN_QUICKSHELL')" "$aur_dir/PKGBUILD" \
     || ! grep -qF "$(printf '\tdepends = quickshell>=%s' "$SILERE_MIN_QUICKSHELL")" "$aur_dir/.SRCINFO"; then
   fail "AUR package must enforce the documented Quickshell $SILERE_MIN_QUICKSHELL minimum"
-elif ! awk '/^#!\/bin\/sh$/ { wrapper=1; next } wrapper && /^umask 077$/ { private=1 } END { exit !private }' \
-    "$aur_dir/PKGBUILD"; then
+elif ! grep -qF 'umask 077' scripts/silere; then
   fail "AUR launcher must use a private umask for Quickshell state"
 elif command -v makepkg >/dev/null 2>&1; then
   aur_srcinfo="$(mktemp "${TMPDIR:-/tmp}/silere-srcinfo.XXXXXX")"
@@ -838,7 +841,7 @@ else
 
   # allowlist, not a denylist of known dev tools: a new dev script only this check
   # doesn't yet know the name of must still fail, not pass silently
-  allowed_scripts="install.sh update.sh repair.sh silere-update.service silere-update.timer lib"
+  allowed_scripts="install.sh update.sh repair.sh doctor.sh silere silere-update.service silere-update.timer lib"
   payload_extra=""
   while IFS= read -r ref; do
     [ -n "$ref" ] || continue
@@ -1207,6 +1210,30 @@ if grep -qF '_detectProc._generation = root._detectGeneration' services/CpuTemp.
     ok "temperature probe" "canceled sensor discovery results are generation-guarded"
 else
     fail "CpuTemp must reject sensor-discovery results from canceled generations"
+fi
+
+section "installer optional tools"
+# Every binary SystemTools probes lights up one feature, and the installer's optional
+# tools table is where a user finds out which one they are missing. hyprctl is the
+# exception: it ships with Hyprland, which the compositor section already requires.
+# match the table, not the whole file: fc-list drifted out of the table while the
+# font check still named it, so a plain file-wide grep passes on the broken tree.
+# Strip the quoted label and description; the bare words left are the binaries.
+optdep_tools="$(grep -E '^_optdep(_any)? ' scripts/install.sh \
+    | sed -E 's/^_optdep(_any)? //; s/"[^"]*"//g' | tr -s ' ' '\n' | sed '/^$/d' | sort -u)"
+unlisted_tools=""
+while read -r _tool; do
+    [ -z "$_tool" ] && continue
+    # matugen is a named dependency, hyprctl ships with the required compositor
+    case "$_tool" in matugen|hyprctl) continue ;; esac
+    printf '%s\n' "$optdep_tools" | grep -qxF -- "$_tool" \
+        || unlisted_tools="$unlisted_tools $_tool"
+done < <(grep -oE '_tools\.[a-z0-9]+|_tools\["[a-z0-9-]+"\]' services/SystemTools.qml \
+    | sed -E 's/_tools\.//; s/_tools\["//; s/"\]//' | sort -u)
+if [ -n "$unlisted_tools" ]; then
+    fail "installer never mentions optional tools SystemTools probes:$unlisted_tools"
+else
+    ok "installer" "every probed optional tool is named in install.sh"
 fi
 
 xdg_path_bypass="$(grep -RInE --include='*.qml' \

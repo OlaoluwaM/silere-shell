@@ -1,0 +1,232 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export LC_ALL=C
+
+source_path="$(readlink -f -- "${BASH_SOURCE[0]}" 2>/dev/null || true)"
+[ -n "$source_path" ] || source_path="${BASH_SOURCE[0]}"
+SCRIPT_DIR="$(cd "$(dirname "$source_path")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$ROOT/scripts/lib/xdg.sh"
+
+usage() {
+    cat <<'EOF'
+Usage: silere <command> [options]
+
+  run [--startup]       Start Silere once; --startup waits for the compositor
+  status                 Show installation and updater state
+  doctor                 Run read-only installation diagnostics
+  update                 Check for a signed Silere release
+  update --apply         Install the confirmed signed release
+  repair                 Preview local checkout changes
+  repair --apply [--yes] Save local changes and restore shipped files
+  repair --undo [--yes]  Restore the latest repair stash
+  version                Print the installed Silere version
+  uninstall              Remove integrations created by the installer
+  help                    Show this message
+EOF
+}
+
+die() {
+    printf 'silere: %s\n' "$*" >&2
+    exit 1
+}
+
+run_shell() {
+    local startup=0 renderer=""
+    local allocator_default="narenas:2,background_thread:true,dirty_decay_ms:1000,muzzy_decay_ms:0"
+    local mesa_egl="/usr/share/glvnd/egl_vendor.d/50_mesa.json"
+    local nvidia_egl="/usr/share/glvnd/egl_vendor.d/10_nvidia.json"
+
+    if [ "${1:-}" = --startup ]; then
+        startup=1
+        shift
+    fi
+    [ -f "$ROOT/shell.qml" ] || die "shell.qml is missing from $ROOT"
+    command -v qs >/dev/null 2>&1 || die "Quickshell is not installed"
+
+    # Preserve an explicitly empty override. Quickshell links jemalloc; a small
+    # arena count and prompt decay return transient menu/image allocations to the
+    # OS instead of retaining every high-water mark for the session.
+    export MALLOC_CONF="${MALLOC_CONF-$allocator_default}"
+    export QSG_TRANSIENT_IMAGES="${QSG_TRANSIENT_IMAGES-1}"
+
+    umask 077
+    # At compositor boot the Wayland/Xwayland endpoints can lag the autostart
+    # event. Wait before renderer detection too, or glxinfo races the same gap.
+    [ "$startup" -eq 0 ] || sleep 1
+
+    # libglvnd otherwise maps the unused nvidia EGL vendor into an iGPU-rendered
+    # shell. Only choose Mesa when both vendors exist and the active renderer is
+    # positively known not to be nvidia. An inherited value, including empty,
+    # always belongs to the user.
+    if [ -z "${__EGL_VENDOR_LIBRARY_FILENAMES+x}" ] \
+            && [ -f "$mesa_egl" ] && [ -f "$nvidia_egl" ] \
+            && command -v glxinfo >/dev/null 2>&1; then
+        renderer="$(glxinfo -B 2>/dev/null | grep -i 'OpenGL renderer' || true)"
+        if [ -n "$renderer" ] && ! printf '%s\n' "$renderer" | grep -qi nvidia; then
+            export __EGL_VENDOR_LIBRARY_FILENAMES="$mesa_egl"
+        fi
+    fi
+
+    exec qs --no-duplicate -p "$ROOT/shell.qml" "$@"
+}
+
+package_manager() {
+    if command -v pacman >/dev/null 2>&1; then printf 'pacman'
+    elif command -v dnf >/dev/null 2>&1; then printf 'dnf'
+    elif command -v apt >/dev/null 2>&1; then printf 'apt'
+    elif command -v zypper >/dev/null 2>&1; then printf 'zypper'
+    elif command -v xbps-install >/dev/null 2>&1; then printf 'xbps'
+    else printf 'the system package manager'
+    fi
+}
+
+version_info() {
+    bash "$ROOT/scripts/update.sh" --version
+}
+
+is_packaged() {
+    version_info 2>/dev/null | grep -q '^packaged=1$'
+}
+
+print_update_status() {
+    local cache_home cache_dir flag count target error
+    cache_home="$(_silere_xdg_home "${XDG_CACHE_HOME:-}" .cache)" \
+        || die "HOME must be absolute"
+    cache_dir="$cache_home/silere-shell"
+    flag="$cache_dir/update-pending"
+    count="$(sed -n '1p' "$flag" 2>/dev/null || true)"
+    target="$(sed -n '2p' "$flag" 2>/dev/null || true)"
+    if [[ "$count" =~ ^[0-9]{1,6}$ ]] \
+            && [[ "$target" =~ ^target\ ([0-9a-f]{40}|[0-9a-f]{64})\ (v[0-9]+\.[0-9]+\.[0-9]+)\ verified$ ]]; then
+        printf 'Update: %s ready (%s commit%s, signature verified)\n' \
+            "${BASH_REMATCH[2]}" "$count" "$([ "$count" = 1 ] || printf s)"
+        return
+    fi
+    error="$(sed -n '2p' "$cache_dir/update-error" 2>/dev/null \
+        | LC_ALL=C tr -d '\001-\037\177' | cut -c 1-512 || true)"
+    if [ -n "$error" ]; then
+        printf 'Update: last check failed — %s\n' "$error"
+    elif [ -s "$cache_dir/update-checked" ]; then
+        printf 'Update: no pending release from the last check\n'
+    else
+        printf 'Update: not checked yet\n'
+    fi
+}
+
+print_transaction_status() {
+    local out phase tag
+    if ! out="$(bash "$ROOT/scripts/update.sh" --transaction-status 2>/dev/null)"; then
+        if printf '%s\n' "$out" | grep -q '^pending=1$'; then
+            printf 'Update transaction: recovery state is damaged; run silere doctor\n'
+        fi
+        return 0
+    fi
+    printf '%s\n' "$out" | grep -q '^pending=1$' || return 0
+    phase="$(printf '%s\n' "$out" | sed -n 's/^phase=//p')"
+    tag="$(printf '%s\n' "$out" | sed -n 's/^tag=//p')"
+    if [ "$phase" = validated ]; then
+        printf 'Update transaction: %s validated; cleanup/restart was interrupted\n' "${tag:-release}"
+    else
+        printf 'Update transaction: %s interrupted during %s; the next update run will recover it\n' \
+            "${tag:-release}" "${phase:-apply}"
+    fi
+}
+
+human_version() {
+    local out packaged version tag sha ahead
+    out="$(version_info)" || return 1
+    packaged="$(printf '%s\n' "$out" | sed -n 's/^packaged=//p')"
+    version="$(printf '%s\n' "$out" | sed -n 's/^version=//p')"
+    if [ "$packaged" = 1 ]; then
+        printf 'Silere Shell %s (managed by %s)\n' "${version:-package build}" "$(package_manager)"
+        return 0
+    fi
+    tag="$(printf '%s\n' "$out" | sed -n 's/^tag=//p')"
+    sha="$(printf '%s\n' "$out" | sed -n 's/^sha=//p')"
+    ahead="$(printf '%s\n' "$out" | sed -n 's/^ahead=//p')"
+    printf 'Silere Shell %s%s%s\n' "${tag:-#$sha}" \
+        "$([ "${ahead:-0}" -gt 0 ] 2>/dev/null && printf ' +%s' "$ahead")" \
+        "$([ -n "$sha" ] && printf ' (#%s)' "$sha")"
+}
+
+# The packaged desktop entry is a symlink to this same executable. Its historical
+# arguments belong to Quickshell, while `silere` arguments are maintenance commands.
+if [ "${0##*/}" = silere-shell ]; then
+    set -- run "$@"
+fi
+
+command_name="${1:-help}"
+shift || true
+
+case "$command_name" in
+    help|-h|--help)
+        [ "$#" -eq 0 ] || { usage >&2; exit 2; }
+        usage
+        ;;
+    version)
+        [ "$#" -eq 0 ] || { usage >&2; exit 2; }
+        human_version
+        ;;
+    run)
+        run_shell "$@"
+        ;;
+    status)
+        [ "$#" -eq 0 ] || { usage >&2; exit 2; }
+        info="$(version_info)" || die "could not read updater state"
+        human_version
+        if printf '%s\n' "$info" | grep -q '^packaged=1$'; then
+            printf 'Updates: managed by %s; Silere self-update is disabled\n' "$(package_manager)"
+        else
+            branch="$(printf '%s\n' "$info" | sed -n 's/^branch=//p')"
+            dirty="$(printf '%s\n' "$info" | sed -n 's/^dirty=//p')"
+            printf 'Checkout: %s%s\n' "${branch:-unknown branch}" \
+                "$([ "$dirty" = 1 ] && printf ' (local changes)')"
+            print_transaction_status
+            print_update_status
+            timer="$(bash "$ROOT/scripts/update.sh" --timer-status 2>/dev/null || true)"
+            if printf '%s\n' "$timer" | grep -q '^enabled=1$'; then
+                printf 'Update timer: enabled\n'
+            else
+                printf 'Update timer: disabled or unavailable\n'
+            fi
+        fi
+        ;;
+    doctor)
+        [ "$#" -eq 0 ] || { usage >&2; exit 2; }
+        exec bash "$ROOT/scripts/doctor.sh"
+        ;;
+    update)
+        if is_packaged; then
+            die "updates are managed by $(package_manager); Silere will not modify package-owned files"
+        fi
+        case "${1:-}" in
+            "") [ "$#" -eq 0 ] || { usage >&2; exit 2; }
+                exec bash "$ROOT/scripts/update.sh" ;;
+            --apply) [ "$#" -eq 1 ] || { usage >&2; exit 2; }
+                exec bash "$ROOT/scripts/update.sh" --apply ;;
+            *) usage >&2; exit 2 ;;
+        esac
+        ;;
+    repair)
+        if is_packaged; then
+            die "this installation is managed by $(package_manager); repair its package there"
+        fi
+        [ -x "$ROOT/scripts/repair.sh" ] || die "this installation is managed by $(package_manager); repair it there"
+        exec bash "$ROOT/scripts/repair.sh" "$@"
+        ;;
+    uninstall)
+        [ "$#" -eq 0 ] || { usage >&2; exit 2; }
+        if is_packaged; then
+            die "this installation is managed by $(package_manager); remove its package there"
+        fi
+        [ -x "$ROOT/scripts/uninstall.sh" ] \
+            || die "this installation is managed by $(package_manager); remove its package there"
+        exec bash "$ROOT/scripts/uninstall.sh"
+        ;;
+    *)
+        printf 'silere: unknown command: %s\n' "$command_name" >&2
+        usage >&2
+        exit 2
+        ;;
+esac

@@ -90,6 +90,24 @@ fi
 # ── header ───────────────────────────────────────────────────────────────────────
 printf "\n${BOLD}:: silere-shell uninstaller${R}\n"
 
+# ── maintenance command ──────────────────────────────────────────────────────────
+_section "maintenance command"
+CLI_LINK="$HOME/.local/bin/silere"
+CLI_TARGET="$SCRIPT_DIR/silere"
+if [ -L "$CLI_LINK" ] \
+        && [ "$(readlink -f -- "$CLI_LINK" 2>/dev/null || true)" = "$CLI_TARGET" ]; then
+    if _ask "Remove $CLI_LINK?"; then
+        rm -f -- "$CLI_LINK"
+        _ok "removed owned command link"
+    else
+        _skip "kept"
+    fi
+elif [ -e "$CLI_LINK" ] || [ -L "$CLI_LINK" ]; then
+    _skip "$CLI_LINK is not owned by this install"
+else
+    _skip "not found"
+fi
+
 # ── legacy cava config ───────────────────────────────────────────────────────────
 _section "legacy cava config"
 CAVA_DST="$CONFIG_HOME/cava/silere-shell.conf"

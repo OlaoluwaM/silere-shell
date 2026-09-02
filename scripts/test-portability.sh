@@ -1397,16 +1397,19 @@ test_headless_qml_import_roots
 test_font_archive_selection
 test_assume_yes_prompts
 test_install_path_safety
+test_dry_run_writes_nothing
 test_hypr_discovery
 test_niri_config_discovery
 test_atomic_units
 test_atomic_update_cache
+test_shared_launcher
 test_hook_timeout_contains_tree
 test_update_lock_survives_orphaned_child
 # These workflows build git fixtures. Local minimal environments may skip them;
 # CI opts into making an accidental missing dependency a hard failure.
 if command -v git >/dev/null 2>&1 && command -v ssh-keygen >/dev/null 2>&1; then
     test_update_refuses_dirty_apply
+    test_interrupted_update_recovery
     test_fresh_install_pins_release
     test_update_rolls_back_broken_merge
     test_update_reporting

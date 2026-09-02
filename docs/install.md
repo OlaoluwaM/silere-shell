@@ -16,8 +16,44 @@ The installer:
 - offers to leave the checkout on the latest signed release
 - prints the final install path when it's done
 
-To start it, restart your compositor, or try it right away with
-`qs -p /that/path/shell.qml`.
+To start it, restart your compositor, or try it right away with `silere run`. Before the
+optional maintenance-command link exists, use `/that/path/scripts/silere run`.
+
+## Previewing the install
+
+`bash scripts/install.sh --dry-run` lists every file the install would create or edit and
+the autostart line it would add, then exits without writing anything. It answers the
+prompts the way an unattended install does, so it shows the fullest plan.
+
+## Maintenance command
+
+The installer offers a link at `~/.local/bin/silere`. It is a small dispatcher over the
+same reviewed scripts in the checkout—there is no daemon:
+
+```bash
+silere run
+silere status
+silere doctor
+silere update
+silere update --apply
+silere repair
+silere repair --apply
+silere repair --undo
+silere version
+silere uninstall
+```
+
+`silere doctor` and `bash scripts/install.sh --check` are read-only. They check the
+runtime, compositor IPC, required QML modules, audio services, optional features,
+autostart, settings, update timer, and release trust key. Missing optional packages are
+reported with a command for the detected package family; Silere prints that command but
+never runs it or elevates privileges.
+
+`silere update --apply` writes a private transaction journal before changing the checkout.
+If power is lost or the updater is killed between the fast-forward and validation, the next
+update run authenticates that journal with a snapshot of the previously installed release
+key and restores the known-good revision. A release whose validation completed is retained.
+Recovery refuses to reset a checkout that gained local edits after the interruption.
 
 ## Unattended installs
 

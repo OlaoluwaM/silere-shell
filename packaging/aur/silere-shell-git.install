@@ -4,6 +4,7 @@ post_install() {
   silere is installed at /usr/share/silere-shell
 
   start it:      silere-shell
+  check it:      silere doctor
   autostart:     add `exec-once = silere-shell` to your Hyprland config,
                  or `spawn-at-startup "silere-shell"` to your niri config
 
@@ -23,6 +24,7 @@ post_install() {
   visualizer is visible and never changes your personal cava config.
 
   updates come from pacman; the in-shell updater stays out of the way.
+  `silere status` reports that ownership instead of offering a second updater.
 
 EOF
 }

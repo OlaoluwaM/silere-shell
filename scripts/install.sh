@@ -280,6 +280,50 @@ _replace_matugen_block() {
     fi
 }
 
+_owned_block_contains() {
+    local file="$1" begin="$2" end="$3" needle="$4"
+    [ -f "$file" ] || return 1
+    awk -v begin="$begin" -v end="$end" -v needle="$needle" '
+        $0 == begin { begins++; begin_line = NR; inside = 1; next }
+        $0 == end   { ends++; end_line = NR; inside = 0; next }
+        inside && index($0, needle) { found = 1 }
+        END { exit !(begins == 1 && ends == 1 && begin_line < end_line && found) }
+    ' "$file"
+}
+
+_replace_owned_block() {
+    local file="$1" begin="$2" end="$3" body="$4" target tmp line removing=false
+    [ -f "$file" ] || return 1
+    target="$file"
+    if [ -L "$file" ]; then
+        target="$(readlink -f -- "$file" 2>/dev/null)" || return 1
+    fi
+    if ! awk -v begin="$begin" -v end="$end" '
+        $0 == begin { begins++; begin_line = NR }
+        $0 == end   { ends++; end_line = NR }
+        END { exit !(begins == 1 && ends == 1 && begin_line < end_line) }
+    ' "$target"; then
+        _warn "silere-shell markers are malformed or ambiguous in $file — left untouched"
+        return 1
+    fi
+    tmp="$(mktemp "$(dirname -- "$target")/.silere-autostart.XXXXXX")" || return 1
+    while IFS= read -r line || [ -n "$line" ]; do
+        if [ "$line" = "$begin" ]; then
+            printf '%s\n%s\n%s\n' "$begin" "$body" "$end"
+            removing=true
+        elif $removing; then
+            [ "$line" = "$end" ] && removing=false
+        else
+            printf '%s\n' "$line"
+        fi
+    done < "$target" > "$tmp"
+    chmod --reference="$target" "$tmp" 2>/dev/null || true
+    if ! mv -- "$tmp" "$target"; then
+        rm -f -- "$tmp"
+        return 1
+    fi
+}
+
 # Always read from /dev/tty so curl | bash works
 # an assumed yes never overrides a refusal: the [y/N] prompts guard an unsupported
 # compositor and an opt-in timer, so they stay no
@@ -350,6 +394,11 @@ Usage:
         line it would add, then exit without writing anything. Answers the
         prompts the way SILERE_ASSUME_YES=1 does, so it shows the fullest plan.
 
+  bash scripts/install.sh --check
+        Run focused, read-only installation diagnostics. This does not install,
+        update, or edit anything. The installed `silere doctor` command runs the
+        same check.
+
   bash scripts/install.sh --repair-matugen
         Rewire Matugen without reinstalling. Writes only Silere's own template
         and its marked block in config.toml, and refuses an entry it does not
@@ -373,11 +422,13 @@ EOF
 # argument is a typo. Left unhandled it used to start a real install, and
 # --help is the first thing a careful reader types before running a script.
 _repair_matugen=0
+_check_only=0
 case "${1:-}" in
     "") ;;
     -h|--help) _usage; exit 0 ;;
     --repair-matugen) _repair_matugen=1 ;;
     --dry-run) _dry_run=1 ;;
+    --check) _check_only=1 ;;
     *)
         _err "unknown option: $1"
         _usage >&2
@@ -389,6 +440,10 @@ if [ "$#" -gt 1 ]; then
     _err "unexpected argument: $2"
     _usage >&2
     exit 2
+fi
+
+if [ "$_check_only" = "1" ]; then
+    exec bash "$SCRIPT_DIR/doctor.sh"
 fi
 
 _backup() {
@@ -809,7 +864,9 @@ else
     spin_stop; _ok "cloned to $INSTALL_DIR"
 fi
 
-if $fresh_clone; then
+if $fresh_clone && _dry; then
+    _would "check out the latest signed release in $INSTALL_DIR"
+elif $fresh_clone; then
     _secure_fresh_default_install "$INSTALL_DIR"
     if _ask "Install the latest signed release?"; then
         spin_start "checking release..."
@@ -824,11 +881,37 @@ if $fresh_clone; then
 fi
 
 ROOT="$INSTALL_DIR"
-did_tmpl=false did_toml=false did_autostart=false did_update=false
+did_tmpl=false did_toml=false did_autostart=false did_update=false did_cli=false
 autostart_ready=false
 ROOT_PRINTF_BYTES="$(_shell_quote "$(_shell_printf_bytes "$ROOT")")"
 MATUGEN_OUTPUT_TOML="$(_toml_basic_string "$CONFIG_HOME/matugen/silere-shell.json")"
 MATUGEN_INPUT_TOML="$(_toml_basic_string "$CONFIG_HOME/matugen/templates/silere-shell/Theme.json")"
+
+# ── maintenance command ──────────────────────────────────────────────────────────
+_section "maintenance command"
+CLI_DIR="$HOME/.local/bin"
+CLI_LINK="$CLI_DIR/silere"
+CLI_TARGET="$ROOT/scripts/silere"
+if [ ! -x "$CLI_TARGET" ] && ! _dry; then
+    _warn "maintenance command is missing from $ROOT"
+elif [ -L "$CLI_LINK" ] \
+        && [ "$(readlink -f -- "$CLI_LINK" 2>/dev/null || true)" = "$CLI_TARGET" ]; then
+    _ok "already available at $CLI_LINK"
+elif [ -e "$CLI_LINK" ] || [ -L "$CLI_LINK" ]; then
+    _warn "$CLI_LINK already exists and is not owned by this Silere install"
+    _skip "left it untouched; run $CLI_TARGET directly"
+elif _ask "Install the silere doctor/update/repair command?"; then
+    if _dry; then
+        _would "create $CLI_LINK → $CLI_TARGET"
+    else
+        (umask 077 && mkdir -p "$CLI_DIR") || _die "could not create $CLI_DIR"
+        ln -s -- "$CLI_TARGET" "$CLI_LINK" || _die "could not create $CLI_LINK"
+        _ok "installed at $CLI_LINK"
+        did_cli=true
+    fi
+else
+    _skip "run it directly: $CLI_TARGET"
+fi
 
 # ── matugen template ─────────────────────────────────────────────────────────────
 _section "matugen template"
@@ -914,41 +997,11 @@ if [ -n "$HYPR_CONFIG" ]; then
         esac
     fi
 fi
-# Quickshell links jemalloc, which defaults to 4×nCPU arenas and no purge thread,
-# so memory freed after a spike (menu close, wifi scan, notification burst) is
-# retained rather than returned to the OS — RSS only ever climbs. Fewer arenas
-# plus a background decay thread hand it back. ~50 MB reclaimed per spike here;
-# Override (or explicitly clear) this by exporting MALLOC_CONF before launch.
-MALLOC_TUNE="narenas:2,background_thread:true,dirty_decay_ms:1000,muzzy_decay_ms:0"
-
-# Qt Quick keeps a CPU-side copy of every image it uploads to the GPU (album art,
-# notification images, app icons). Transient mode frees the copy after upload;
-# worst case is a re-decode if the texture is ever lost, which never happens on
-# a long-lived desktop session.
-QSG_TUNE="1"
-
-# On hybrid GPUs that render on the iGPU, libglvnd still loads the nvidia EGL
-# vendor into every GL process (~33 MB unused). Pin to mesa to skip it — but only
-# when the active renderer isn't nvidia, or we'd force llvmpipe and break GPU
-# rendering. No glxinfo / NVIDIA-only / iGPU-only: leave it unset.
-EGL_PIN=""
-_mesa_egl="/usr/share/glvnd/egl_vendor.d/50_mesa.json"
-_nv_egl="/usr/share/glvnd/egl_vendor.d/10_nvidia.json"
-if [ -f "$_mesa_egl" ] && [ -f "$_nv_egl" ] && command -v glxinfo >/dev/null 2>&1; then
-    _renderer="$(glxinfo -B 2>/dev/null | grep -i 'OpenGL renderer' || true)"
-    if [ -n "$_renderer" ] && ! printf '%s\n' "$_renderer" | grep -qi nvidia; then
-        EGL_PIN="__EGL_VENDOR_LIBRARY_FILENAMES=$_mesa_egl "
-        _ok "EGL pinned to mesa (skips unused nvidia driver, ~33 MB)"
-    fi
-fi
-# sleep 1: at Hyprland start the Wayland socket may not be ready yet; without the
-# delay Qt's platform plugin aborts with SIGABRT in createEventDispatcher. Braces
-# group delay+launch so || short-circuits correctly in exec_unless_running.
-MALLOC_ENV_ARG='MALLOC_CONF="${MALLOC_CONF-'"$MALLOC_TUNE"'}" '
-QSG_ENV_ARG='QSG_TRANSIENT_IMAGES="${QSG_TRANSIENT_IMAGES-'"$QSG_TUNE"'}" '
-EGL_ENV_ARG=""
-[ -n "$EGL_PIN" ] && EGL_ENV_ARG='__EGL_VENDOR_LIBRARY_FILENAMES="${__EGL_VENDOR_LIBRARY_FILENAMES-'"$_mesa_egl"'}" '
-LAUNCH_CMD="{ umask 077; sleep 1; env ${MALLOC_ENV_ARG}${QSG_ENV_ARG}${EGL_ENV_ARG}qs -p \"\$(printf '%b' $ROOT_PRINTF_BYTES)/shell.qml\"; }"
+# `silere run` owns allocator/image/GPU defaults and execs Quickshell with its
+# duplicate guard. Keeping compositor config this small means a later update can
+# improve startup without rewriting the user's Hyprland or niri file.
+# --startup retains the one-second Wayland-socket grace needed at compositor boot.
+LAUNCH_CMD="exec \"\$(printf '%b' $ROOT_PRINTF_BYTES)/scripts/silere\" run --startup"
 LAUNCH_CMD_LUA="$(_lua_string "$LAUNCH_CMD")"
 
 _already_present() { grep -qF 'silere-shell begin' "$1" 2>/dev/null; }
@@ -978,7 +1031,25 @@ if [ -n "${NIRI_SOCKET:-}" ] || [ "${XDG_CURRENT_DESKTOP:-}" = "niri" ] \
     else
         _ok "found niri config at $(_tilde "$NIRI_CONFIG")"
         if _already_present "$NIRI_CONFIG"; then
-            _ok "already present in $(_tilde "$NIRI_CONFIG")"; autostart_ready=true
+            if _owned_block_contains "$NIRI_CONFIG" '// silere-shell begin' \
+                    '// silere-shell end' '/scripts/silere' \
+                    && _owned_block_contains "$NIRI_CONFIG" '// silere-shell begin' \
+                    '// silere-shell end' 'run --startup'; then
+                _ok "already present in $(_tilde "$NIRI_CONFIG")"
+            elif _dry; then
+                _would "migrate the Silere block in $NIRI_CONFIG to the shared launcher"
+            elif _ask "Update the existing Silere autostart command in $(_tilde "$NIRI_CONFIG")?"; then
+                _backup "$NIRI_CONFIG"
+                _replace_owned_block "$NIRI_CONFIG" '// silere-shell begin' \
+                    '// silere-shell end' "$NIRI_SPAWN" \
+                    || _die "could not update $NIRI_CONFIG"
+                _ok "autostart command updated"; did_autostart=true
+            else
+                _skip "kept the existing Silere autostart command"
+            fi
+            autostart_ready=true
+        elif _dry; then
+            _would "append to $NIRI_CONFIG: $NIRI_SPAWN"
         elif _ask "Add spawn-at-startup to $(_tilde "$NIRI_CONFIG")?"; then
             _reject_unsafe_path "$NIRI_CONFIG"
             _backup "$NIRI_CONFIG"
@@ -1011,7 +1082,26 @@ if [[ "$HYPR_CONFIG" == *.lua ]]; then
     _ok "found Hyprland Lua config at $(_tilde "$HYPR_CONFIG")"
 
     if [ -n "$LUA_EXEC_FILE" ] && _already_present "$LUA_EXEC_FILE"; then
-        _ok "already present in $(_tilde "$LUA_EXEC_FILE")"; autostart_ready=true
+        LUA_AUTOSTART_BODY="$(printf 'hl.on(\"hyprland.start\", function()\n    hl.exec_cmd(%s)\nend)' "$LAUNCH_CMD_LUA")"
+        if _owned_block_contains "$LUA_EXEC_FILE" '-- silere-shell begin' \
+                '-- silere-shell end' '/scripts/silere' \
+                && _owned_block_contains "$LUA_EXEC_FILE" '-- silere-shell begin' \
+                '-- silere-shell end' 'run --startup'; then
+            _ok "already present in $(_tilde "$LUA_EXEC_FILE")"
+        elif _dry; then
+            _would "migrate the Silere block in $LUA_EXEC_FILE to the shared launcher"
+        elif _ask "Update the existing Silere autostart command in $(_tilde "$LUA_EXEC_FILE")?"; then
+            _backup "$LUA_EXEC_FILE"
+            _replace_owned_block "$LUA_EXEC_FILE" '-- silere-shell begin' \
+                '-- silere-shell end' "$LUA_AUTOSTART_BODY" \
+                || _die "could not update $LUA_EXEC_FILE"
+            _ok "autostart command updated"; did_autostart=true
+        else
+            _skip "kept the existing Silere autostart command"
+        fi
+        autostart_ready=true
+    elif [ -n "$LUA_EXEC_FILE" ] && _dry; then
+        _would "append to $LUA_EXEC_FILE: hl.exec_cmd($LAUNCH_CMD_LUA)"
     elif [ -n "$LUA_EXEC_FILE" ]; then
         if _ask "Add autostart to $(_tilde "$LUA_EXEC_FILE")?"; then
             _backup "$LUA_EXEC_FILE"
@@ -1039,7 +1129,25 @@ EOF
 elif [[ "$HYPR_CONFIG" == *.conf ]]; then
     _ok "found Hyprland config at $(_tilde "$HYPR_CONFIG")"
     if _already_present "$HYPR_CONFIG"; then
-        _ok "already present in $(_tilde "$HYPR_CONFIG")"; autostart_ready=true
+        if _owned_block_contains "$HYPR_CONFIG" '# silere-shell begin' \
+                '# silere-shell end' '/scripts/silere' \
+                && _owned_block_contains "$HYPR_CONFIG" '# silere-shell begin' \
+                '# silere-shell end' 'run --startup'; then
+            _ok "already present in $(_tilde "$HYPR_CONFIG")"
+        elif _dry; then
+            _would "migrate the Silere block in $HYPR_CONFIG to the shared launcher"
+        elif _ask "Update the existing Silere autostart command in $(_tilde "$HYPR_CONFIG")?"; then
+            _backup "$HYPR_CONFIG"
+            _replace_owned_block "$HYPR_CONFIG" '# silere-shell begin' \
+                '# silere-shell end' "exec-once = $LAUNCH_CMD" \
+                || _die "could not update $HYPR_CONFIG"
+            _ok "autostart command updated"; did_autostart=true
+        else
+            _skip "kept the existing Silere autostart command"
+        fi
+        autostart_ready=true
+    elif _dry; then
+        _would "append to $HYPR_CONFIG: exec-once = $LAUNCH_CMD"
     else
         if _ask "Add exec-once to $(_tilde "$HYPR_CONFIG")?"; then
             _backup "$HYPR_CONFIG"
@@ -1091,6 +1199,7 @@ $did_tmpl      && printf "    ${GREEN}ok${R}      matugen template\n" || printf 
 $did_toml      && printf "    ${GREEN}ok${R}      matugen toml\n"     || printf "    ${DIM}skip${R}    matugen toml\n"
 $did_autostart && printf "    ${GREEN}ok${R}      autostart\n"        || printf "    ${DIM}skip${R}    autostart\n"
 $did_update    && printf "    ${GREEN}ok${R}      update-check timer\n" || printf "    ${DIM}skip${R}    update-check timer\n"
+$did_cli       && printf "    ${GREEN}ok${R}      silere maintenance command\n" || printf "    ${DIM}skip${R}    silere maintenance command\n"
 # a missing runtime and an unwired autostart are independent, so report them
 # separately — chaining them tells a user to restart into a shell nothing launches
 printf '\n'
@@ -1104,7 +1213,10 @@ if $autostart_ready; then
 else
     printf "  ${YELLOW}autostart is not set up${R} — silere will not start on its own\n"
     printf "  add the line above to your Hyprland or niri config, or run it now:\n"
-    printf "    ${DIM}qs -p %s/shell.qml${R}\n" "$ROOT"
+    printf "    ${DIM}%s/scripts/silere run${R}\n" "$ROOT"
+fi
+if [ -f "$ROOT/scripts/check.sh" ]; then
+    printf "  if a surface does not appear: ${DIM}bash %s/scripts/check.sh${R}\n" "$ROOT"
 fi
 printf "  click the active workspace diamond to open the menu and settings\n"
 printf "  or bind it: ${DIM}qs ipc -p %s/shell.qml call menu toggle${R}\n" "$ROOT"

@@ -13,6 +13,9 @@ settings file carries its own `__version` and migrates separately.
 
 ### Added
 
+- `silere doctor`, `status`, `update`, `repair`, `version`, and `uninstall` make the
+  existing maintenance paths discoverable from one command; `install.sh --check` runs
+  the same read-only doctor.
 - Signed releases carry a compatibility manifest, and the updater rejects a release that
   needs a newer Quickshell or does not support the active compositor before changing the checkout.
 - The Updates page shows categorized release notes first and keeps raw commits under
@@ -36,11 +39,14 @@ settings file carries its own `__version` and migrates separately.
 
 ### Changed
 
+- `silere run` is the single launch path for source, compositor, and package installs. It
+  applies the memory and GPU defaults at every start, and refuses a duplicate instance.
 - A wallpaper palette change crosses the whole interface on one curve instead of each element easing on its own. The approach is adapted from Flawedexa's fork.
 - The volume widget shows a headphone glyph while output is on a headset.
 - The volume control's tabs move in the direction of the choice, and the tab row holds still while its contents change.
 - Hovering the volume or microphone widget names the device in use alongside the controls that are not obvious.
 - The lock program chosen automatically follows the compositor: hyprlock leads on Hyprland, swaylock elsewhere.
+- The installer closes by naming the check script to run when a surface does not appear.
 - The installer's optional-tool list names fontconfig, which the font picker and font checks need.
 - Feedback › OSD names its choices in words.
 - Sliders and switches drop their white fills: the handle takes the accent, the switch knob reads as a dark cap, and a filled track sits deeper into its card. High contrast keeps the brighter fills.
