@@ -283,7 +283,13 @@ _replace_matugen_block() {
 # Always read from /dev/tty so curl | bash works
 # an assumed yes never overrides a refusal: the [y/N] prompts guard an unsupported
 # compositor and an opt-in timer, so they stay no
-_assume_yes() { [ "${SILERE_ASSUME_YES:-0}" = "1" ]; }
+# a dry run reports the plan the assumed-yes answers would produce, so the two
+# share one answer path and only the writes are gated
+_dry_run=0
+_dry() { [ "$_dry_run" = "1" ]; }
+# shellcheck disable=SC2059
+_would() { printf "    ${CYAN}dry${R}     %s\n" "$*"; }
+_assume_yes() { [ "${SILERE_ASSUME_YES:-0}" = "1" ] || _dry; }
 
 _ask() {
     local reply
@@ -339,6 +345,11 @@ Usage:
   bash scripts/install.sh        Install Silere Shell (interactive)
   bash scripts/install.sh --help Show this message
 
+  bash scripts/install.sh --dry-run
+        Report every file the install would create or edit, and the autostart
+        line it would add, then exit without writing anything. Answers the
+        prompts the way SILERE_ASSUME_YES=1 does, so it shows the fullest plan.
+
   bash scripts/install.sh --repair-matugen
         Rewire Matugen without reinstalling. Writes only Silere's own template
         and its marked block in config.toml, and refuses an entry it does not
@@ -366,16 +377,27 @@ case "${1:-}" in
     "") ;;
     -h|--help) _usage; exit 0 ;;
     --repair-matugen) _repair_matugen=1 ;;
+    --dry-run) _dry_run=1 ;;
     *)
         _err "unknown option: $1"
         _usage >&2
         exit 2
         ;;
 esac
+# the case above only reads $1, so a trailing typo would otherwise be dropped
+if [ "$#" -gt 1 ]; then
+    _err "unexpected argument: $2"
+    _usage >&2
+    exit 2
+fi
 
 _backup() {
     local file="$1"
     if [ -f "$file" ] && [ ! -f "${file}.bak" ]; then
+        if _dry; then
+            _would "back up $file → ${file##*/}.bak"
+            return 0
+        fi
         cp -p "$file" "${file}.bak"
         _skip "backed up existing → ${file##*/}.bak"
     fi
@@ -389,10 +411,12 @@ _install_file() {
         _skip "already at $dst"
         _ask "Overwrite?" || return 1
         _backup "$dst"
+        if _dry; then _would "overwrite $dst"; return 0; fi
         cp "$src" "$dst" || _die "could not write $dst"
         _ok "updated"
     else
         _ask "Install $label?" || { _skip "skipped"; return 1; }
+        if _dry; then _would "create $dst"; return 0; fi
         mkdir -p "${dst%/*}" || _die "could not create ${dst%/*}"
         cp "$src" "$dst" || _die "could not write $dst"
         _ok "installed"
@@ -709,7 +733,13 @@ INSTALL_DIR="$(_ask_path)"
 INSTALL_DIR="$(_normalized_install_path "$INSTALL_DIR")"
 fresh_clone=false
 
-if [ "$INSTALL_DIR" = "$DEFAULT_DIR" ]; then
+if [ "$INSTALL_DIR" = "$DEFAULT_DIR" ] && _dry; then
+    if [ ! -d "$CONFIG_HOME" ]; then
+        _would "create $CONFIG_HOME with mode 0700"
+    elif [ "$(stat -c '%a' "$CONFIG_HOME" 2>/dev/null)" != 700 ]; then
+        _would "restrict $CONFIG_HOME to mode 0700"
+    fi
+elif [ "$INSTALL_DIR" = "$DEFAULT_DIR" ]; then
     # -m with -p only applies to the deepest directory, so any parent this
     # creates would land at the umask default; clamp it for the whole path.
     (umask 077 && mkdir -p "$CONFIG_HOME") || _die "could not create $CONFIG_HOME"
@@ -727,7 +757,9 @@ if [ -d "$INSTALL_DIR/.git" ]; then
         [ -x "$INSTALL_DIR/scripts/repair.sh" ] \
             && _warn "preview a safe restore with: bash $INSTALL_DIR/scripts/repair.sh"
     fi
-    if _ask "Install the latest signed release?"; then
+    if _dry; then
+        _would "update $INSTALL_DIR to the latest signed release"
+    elif _ask "Install the latest signed release?"; then
         spin_start "checking release..."
         if ! GIT_TERMINAL_PROMPT=0 bash "$INSTALL_DIR/scripts/update.sh" >/dev/null \
                 || ! GIT_TERMINAL_PROMPT=0 bash "$INSTALL_DIR/scripts/update.sh" --apply >/dev/null; then
@@ -742,7 +774,10 @@ if [ -d "$INSTALL_DIR/.git" ]; then
         _skip "using existing clone"
     fi
 elif [ -e "$INSTALL_DIR" ] || [ -L "$INSTALL_DIR" ]; then
-    if _ask "Path exists but is not a git repo. Move it aside and clone fresh?"; then
+    if _dry; then
+        _would "move $INSTALL_DIR aside and clone $REPO_URL in its place"
+        fresh_clone=true
+    elif _ask "Path exists but is not a git repo. Move it aside and clone fresh?"; then
         install_backup="$(_move_aside_path "$INSTALL_DIR")" \
             || _die "could not preserve existing path: $INSTALL_DIR"
         _ok "preserved existing path at $install_backup"
@@ -762,6 +797,9 @@ elif [ -e "$INSTALL_DIR" ] || [ -L "$INSTALL_DIR" ]; then
     else
         _die "$INSTALL_DIR exists but is not a git repo — pick a different path or clean it up manually"
     fi
+elif _dry; then
+    _would "clone $REPO_URL → $INSTALL_DIR"
+    fresh_clone=true
 else
     spin_start "cloning..."
     if ! GIT_TERMINAL_PROMPT=0 git clone --single-branch --quiet "$REPO_URL" "$INSTALL_DIR"; then
@@ -812,6 +850,8 @@ elif [ -f "$MATUGEN_CFG" ] && grep -q '# silere-shell begin' "$MATUGEN_CFG"; the
     if grep -qF "input_path  = $MATUGEN_INPUT_TOML" "$MATUGEN_CFG" \
             && grep -qF "output_path = $MATUGEN_OUTPUT_TOML" "$MATUGEN_CFG"; then
         _ok "entry already present"
+    elif _dry; then
+        _would "rewrite the silere-shell block in $MATUGEN_CFG"
     elif _ask "Update the existing Silere entry for this install?"; then
         _backup "$MATUGEN_CFG"
         if _replace_matugen_block "$MATUGEN_CFG" "$MATUGEN_INPUT_TOML" "$MATUGEN_OUTPUT_TOML"; then
@@ -826,7 +866,9 @@ elif _matugen_table_present "$MATUGEN_CFG"; then
     _warn "an unmanaged [templates.silere-shell] entry already exists"
     _skip "left $MATUGEN_CFG unchanged"
 else
-    if _ask "Add entry to $MATUGEN_CFG?"; then
+    if _dry; then
+        _would "add a silere-shell block to $MATUGEN_CFG"
+    elif _ask "Add entry to $MATUGEN_CFG?"; then
         cfg_existed=false
         [ -f "$MATUGEN_CFG" ] && cfg_existed=true
         mkdir -p "${MATUGEN_CFG%/*}"
@@ -1035,6 +1077,13 @@ else
 fi
 
 # ── summary ──────────────────────────────────────────────────────────────────────
+if _dry; then
+    printf "\n${BOLD}==> dry run${R}\n"
+    printf "    ${DIM}nothing was written${R}\n"
+    printf "\n  re-run without --dry-run to apply this plan\n\n"
+    exit 0
+fi
+
 printf "\n${BOLD}==> done${R}\n"
 printf "    ${GREEN}ok${R}      installed at %s\n" "$ROOT"
 $did_font      && printf "    ${GREEN}ok${R}      JetBrainsMono Nerd Font\n" || printf "    ${DIM}skip${R}    JetBrainsMono Nerd Font\n"

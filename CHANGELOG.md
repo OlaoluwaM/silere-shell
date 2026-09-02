@@ -18,6 +18,7 @@ settings file carries its own `__version` and migrates separately.
 - The Updates page shows categorized release notes first and keeps raw commits under
   Technical details.
 - Package-managed installs identify their owner in Updates instead of hiding the Silere installation state.
+- `scripts/install.sh --dry-run` lists the files an install would create or edit and the autostart line it would add, then exits without writing.
 - `scripts/bench.sh --warm` samples after one menu cycle.
 - `scripts/bench.sh --json` writes one machine-readable object, and `--label` tags a run.
 - The bench report names the state it sampled, the interface font, the machine and the Quickshell version.

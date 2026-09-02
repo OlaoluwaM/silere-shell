@@ -277,6 +277,31 @@ test_assume_yes_prompts() (
     fi
 )
 
+test_dry_run_writes_nothing() (
+    local home="$TMP/dry-run-home" conf before out
+    mkdir -p "$home/.config/hypr"
+    conf="$home/.config/hypr/hyprland.conf"
+    printf 'monitor=,preferred,auto,1\n' > "$conf"
+    before="$(<"$conf")"
+
+    out="$(HOME="$home" XDG_CONFIG_HOME="$home/.config" SILERE_HYPR_CONFIG="$conf" \
+        bash "$ROOT/scripts/install.sh" --dry-run </dev/null 2>&1)" \
+        || fail "dry run exited non-zero"
+
+    assert_eq "$before" "$(<"$conf")" "dry run left the Hyprland config unchanged"
+    [ ! -e "$home/.config/silere-shell" ] || fail "dry run created the install directory"
+    [ ! -e "$home/.config/matugen" ] || fail "dry run created matugen config"
+
+    case "$out" in
+        *"append to $conf: exec-once = "*) ;;
+        *) fail "dry run did not report the autostart line it would add" ;;
+    esac
+    case "$out" in
+        *"nothing was written"*) ;;
+        *) fail "dry run did not report that it wrote nothing" ;;
+    esac
+)
+
 test_install_path_safety() (
     SILERE_SCRIPT_LIB_ONLY=1 source "$ROOT/scripts/install.sh"
     local source="$TMP/existing-install" generic="$TMP/generic-repo" backup actual
