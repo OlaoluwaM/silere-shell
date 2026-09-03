@@ -2,6 +2,7 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import "../config"
 
 Singleton {
     id: root
@@ -65,6 +66,7 @@ Singleton {
             root.close()
             return
         }
+        _exitSettle.stop()
         root.triggerScreen = root._pendingScreen
         root.anchorX = root._pendingAnchorX
         root.text = root._pendingText
@@ -76,7 +78,16 @@ Singleton {
         root._pendingScreen = null
         root._pendingAnchorX = 0
         root._pendingText = ""
-        if (!root.open) {
+        if (!root.open) _exitSettle.restart()
+    }
+
+    // the popup's width follows its text, so emptying it at close collapses the box while
+    // the exit is still fading; the shown values hold until the exit has run
+    Timer {
+        id: _exitSettle
+        interval: Math.max(Motion.popOut, Motion.popOutFade)
+        onTriggered: {
+            if (root.open) return
             root.triggerScreen = null
             root.anchorX = 0
             root.text = ""
