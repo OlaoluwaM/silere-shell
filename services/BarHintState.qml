@@ -78,17 +78,20 @@ Singleton {
         root._pendingScreen = null
         root._pendingAnchorX = 0
         root._pendingText = ""
-        if (!root.open) _exitSettle.restart()
+        if (!root.open) {
+            // the screen goes at once: the popup loader latches its own copy for the exit
+            root.triggerScreen = null
+            _exitSettle.restart()
+        }
     }
 
-    // the popup's width follows its text, so emptying it at close collapses the box while
-    // the exit is still fading; the shown values hold until the exit has run
+    // the popup's width follows its text and its place follows the anchor, so clearing them
+    // at close collapses and shifts the box while the exit is still fading; they hold until it has run
     Timer {
         id: _exitSettle
         interval: Math.max(Motion.popOut, Motion.popOutFade)
         onTriggered: {
             if (root.open) return
-            root.triggerScreen = null
             root.anchorX = 0
             root.text = ""
         }
