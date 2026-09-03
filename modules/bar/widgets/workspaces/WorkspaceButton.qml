@@ -34,7 +34,7 @@ Item {
     readonly property bool _hoverFx: hovered && ShellSettings.barHoverHighlight
     // an underline marker leaves the cell centre free, so the active workspace keeps its own content
     readonly property bool _blanked: active && markerCovers
-    readonly property int _menuHintDelay: 900
+    readonly property int _menuHintDelay: 2400
     readonly property bool _showIcons: ShellSettings.wsShowAppIcons && !_blanked && apps.length > 0
 
     width:  cellWidth
