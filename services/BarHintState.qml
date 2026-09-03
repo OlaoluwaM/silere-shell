@@ -28,7 +28,12 @@ Singleton {
         return sameOwner && sameText && dwelling
     }
 
-    function request(owner, screen, x: real, label: string): void {
+    // how long the pointer rests before a hint shows. A widget whose click opens a surface
+    // may ask for longer, so a deliberate click lands before the hint and never under it
+    readonly property int showDelay: 520
+    property int _pendingDelay: 0
+
+    function request(owner, screen, x: real, label: string, delay): void {
         const next = String(label || "").trim()
         if (!owner || !screen || !isFinite(x) || next.length === 0 || root._blocked()) {
             root.release(owner)
@@ -42,6 +47,7 @@ Singleton {
         root._pendingScreen = screen
         root._pendingAnchorX = x
         root._pendingText = next
+        root._pendingDelay = Number(delay) > 0 ? Number(delay) : 0
         if (root.open) root._showPending()
         else if (!settling) _showDelay.restart()
     }
@@ -99,7 +105,7 @@ Singleton {
 
     Timer {
         id: _showDelay
-        interval: 520
+        interval: root._pendingDelay > 0 ? root._pendingDelay : root.showDelay
         onTriggered: root._showPending()
     }
 

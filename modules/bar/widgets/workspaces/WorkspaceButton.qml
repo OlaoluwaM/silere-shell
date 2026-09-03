@@ -34,6 +34,7 @@ Item {
     readonly property bool _hoverFx: hovered && ShellSettings.barHoverHighlight
     // an underline marker leaves the cell centre free, so the active workspace keeps its own content
     readonly property bool _blanked: active && markerCovers
+    readonly property int _menuHintDelay: 900
     readonly property bool _showIcons: ShellSettings.wsShowAppIcons && !_blanked && apps.length > 0
 
     width:  cellWidth
@@ -91,7 +92,10 @@ Item {
         const actions = root.active
             ? "Click menu · right-click quick actions" + scroll
             : "Click switch · middle-click move window" + scroll
-        BarHintState.request(root, root.screen, point.x, actions)
+        // the active button opens the menu, so its hint waits longer than the shared delay:
+        // a click lands before it, and the panel never fades in under a hint fading out
+        BarHintState.request(root, root.screen, point.x, actions,
+            root.active ? root._menuHintDelay : 0)
     }
     HoverHandler { id: _hover; cursorShape: Qt.PointingHandCursor }
     onHoveredChanged: {
