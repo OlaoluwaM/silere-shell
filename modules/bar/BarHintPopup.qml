@@ -121,7 +121,8 @@ PanelWindow {
         anchors.verticalCenter: parent.verticalCenter
         radius: Theme.radiusInline
         antialiasing: true
-        color: Theme.menuCard
+        // menuHint, not menuCard: this floats over the wallpaper with no pane beneath it, so under glass it must be opaque
+        color: Theme.menuHint
         opacity: win._op
         visible: win._op > 0.001
         transform: Translate { y: win._rise }
