@@ -22,6 +22,14 @@ Item {
         ? Math.round(_wrapped(position) * displayScale) % displayScale
         : Math.round(_clamped(position) * displayScale)
     readonly property real stepSize: 1
+    // the motion lives on the position, not on the thumb's x: x also moves when the
+    // track is laid out or resized, and a section opening around the slider would
+    // sweep the thumb in from the left
+    property real _shownPosition: _clamped(position)
+    MotionBehavior on _shownPosition {
+        gate: !_mouse.pressed
+        NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic }
+    }
 
     signal picked(real position)
 
@@ -87,8 +95,7 @@ Item {
         width: 14
         height: 14
         y: (parent.height - height) / 2
-        x: Math.round(_track.x + root._clamped(root.position) * _track.width
-            - width / 2)
+        x: Math.round(_track.x + root._shownPosition * _track.width - width / 2)
         fillColor: root.thumbColor
         // the fill is the picked hue, so it needs a ring of its own to stay legible on the gradient
         outlineColor: Theme.withAlpha(Theme.text,
@@ -96,8 +103,6 @@ Item {
             : _mouse.containsMouse || _mouse.pressed ? 0.52 : 0.30)
         hovered: _mouse.containsMouse
         pressed: _mouse.pressed
-
-        MotionBehavior on x { gate: !_mouse.pressed; NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic } }
     }
 
     MouseArea {

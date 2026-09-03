@@ -50,6 +50,14 @@ Item {
 
     readonly property real _ratio: max > min
         ? Math.max(0, Math.min(1, (_shownValue - min) / (max - min))) : 0
+    // the motion lives on the ratio, not on the fill's width or the thumb's x: those also
+    // move when the rail is laid out or resized, and a panel opening around a slider would
+    // sweep every fill in from zero
+    property real _shownRatio: _ratio
+    MotionBehavior on _shownRatio {
+        gate: root.animate && !_ma.pressed
+        NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic }
+    }
 
     function _clamp(v: real): real {
         const number = Number(v)
@@ -86,17 +94,13 @@ Item {
 
         Rectangle {
             // whole logical px, or the fill edge slides out from under the rounded handle x
-            width: Math.round(parent.width * root._ratio)
+            width: Math.round(parent.width * root._shownRatio)
             height: parent.height
             radius: parent.radius
             antialiasing: true
             color: Theme.controlTrackFill(Theme.accent, true,
                 _ma.containsMouse, _ma.pressed)
             ColorFade on color { gate: root.animate }
-            MotionBehavior on width {
-                gate: root.animate && !_ma.pressed
-                NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic }
-            }
         }
 
         OutlineBorder {
@@ -111,17 +115,13 @@ Item {
         visible: root.showThumb
         width: root.thumbWidth; height: root.thumbHeight
         anchors.verticalCenter: parent.verticalCenter
-        x: Math.round(root._railInset + root._railWidth * root._ratio - width / 2)
+        x: Math.round(root._railInset + root._railWidth * root._shownRatio - width / 2)
         hovered: _ma.containsMouse
         pressed: _ma.pressed
         hoverGrow: root.hoverGrow
         animate: root.animate
         fillColor: Theme.controlKnobFill(Theme.accent, true,
             root.hoverGrow && _ma.containsMouse, _ma.pressed)
-        MotionBehavior on x {
-            gate: root.animate && !_ma.pressed
-            NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic }
-        }
     }
 
     MouseArea {
