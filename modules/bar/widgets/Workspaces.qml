@@ -406,6 +406,7 @@ Item {
     Connections {
         target: QuickActionsState
         function onAnchorSourceChanged() { root._reclaimPopupAnchors() }
+        // same shape as the menu's: its open closes the menu, whose vacated anchor lands here first
         function onOpenChanged() {
             if (QuickActionsState.open) root._syncMenuAnchor()
         }
