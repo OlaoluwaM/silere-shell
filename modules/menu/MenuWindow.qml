@@ -83,8 +83,7 @@ PanelWindow {
         anchorX: MenuState.effectiveAnchorX
         barBottom: Metrics.barAtBottom
         targetWidth: placementW
-        // the panel arrives as a fade with the card's short rise from the bar edge, and
-        // leaves the same way; no scale
+        // the panel arrives as a fade with the card's short rise from the bar edge; no scale
         animateScale: false
         animatePlacement: false
         clip: true

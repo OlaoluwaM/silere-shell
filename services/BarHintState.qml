@@ -33,7 +33,7 @@ Singleton {
     readonly property int showDelay: 520
     property int _pendingDelay: 0
 
-    function request(owner, screen, x: real, label: string, delay): void {
+    function request(owner, screen, x: real, label: string, delay: int): void {
         const next = String(label || "").trim()
         if (!owner || !screen || !isFinite(x) || next.length === 0 || root._blocked()) {
             root.release(owner)
@@ -47,7 +47,7 @@ Singleton {
         root._pendingScreen = screen
         root._pendingAnchorX = x
         root._pendingText = next
-        root._pendingDelay = Number(delay) > 0 ? Number(delay) : 0
+        root._pendingDelay = delay > 0 ? delay : 0
         if (root.open) root._showPending()
         else if (!settling) _showDelay.restart()
     }
