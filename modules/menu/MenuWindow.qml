@@ -83,6 +83,8 @@ PanelWindow {
         anchorX: MenuState.effectiveAnchorX
         barBottom: Metrics.barAtBottom
         targetWidth: placementW
+        // the panel arrives as a fade with the card's short rise from the bar edge, and
+        // leaves the same way; no scale
         animateScale: false
         animatePlacement: false
         clip: true
@@ -122,7 +124,7 @@ PanelWindow {
         // animated here, not on the rail Item: the content pane derives its x and width from this, and easing only the rail leaves the content snapping ahead of it
         property int railW: _railExpanded ? railExpandedW : railCollapsedW
         MotionBehavior on railW {
-            gate: panel._geometryReady && panel.open
+            gate: panel._geometryReady && panel.fullyShown
             NumberAnimation {
                 duration: panel._railMotionMs
                 easing.type: Easing.BezierSpline
@@ -438,9 +440,11 @@ PanelWindow {
         width:  panelW
         height: targetPanelH
 
-        // must match railW's curve, or the panel's outer edge and the rail's inner edge disagree mid-motion
+        // must match railW's curve, or the panel's outer edge and the rail's inner edge disagree mid-motion.
+        // Not before the card is shown: a window warmed by a hover has its geometry armed
+        // before the click, and the width would grow out of the rail under the fade
         MotionBehavior on width {
-            gate: panel._geometryReady && panel.open
+            gate: panel._geometryReady && panel.fullyShown
             NumberAnimation {
                 duration: panel._railMotionMs
                 easing.type: Easing.BezierSpline
