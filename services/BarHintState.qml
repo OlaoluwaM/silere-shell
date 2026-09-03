@@ -48,7 +48,15 @@ Singleton {
         root._pendingAnchorX = x
         root._pendingText = next
         root._pendingDelay = delay > 0 ? delay : 0
-        if (root.open) root._showPending()
+        // an open hint hands over to a neighbour at once, so a sweep along the bar reads as
+        // one hint changing its text. A widget that asked for a longer wait is not a
+        // neighbour in that sense: handing over would show its hint with no wait at all,
+        // so the open one leaves and the longer dwell starts from here
+        if (root.open && root._pendingDelay > 0) {
+            root.open = false
+            _exitSettle.restart()
+            _showDelay.restart()
+        } else if (root.open) root._showPending()
         else if (!settling) _showDelay.restart()
     }
 
@@ -84,6 +92,7 @@ Singleton {
         root._pendingScreen = null
         root._pendingAnchorX = 0
         root._pendingText = ""
+        root._pendingDelay = 0
         if (!root.open) {
             // the screen goes at once: the popup loader latches its own copy for the exit
             root.triggerScreen = null

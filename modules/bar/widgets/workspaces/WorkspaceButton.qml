@@ -133,7 +133,11 @@ Item {
         if (_blanked) _dotFadeOut.restart()
         else          _dotFadeIn.restart()
     }
-    onActiveChanged: if (root.active) root.clearMarkerPass()
+    // the hint's text and wait both follow active, so a switch under a resting pointer re-asks
+    onActiveChanged: {
+        if (root.active) root.clearMarkerPass()
+        root._syncHint()
+    }
     onPagingChanged: if (root.paging) root.clearMarkerPass()
 
     readonly property real _pulseOpacity: _urgentFx.item ? _urgentFx.item.pulseOpacity : 1.0

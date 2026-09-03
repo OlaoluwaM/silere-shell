@@ -354,6 +354,10 @@ ShellRoot {
             root._check(BarHintState.open && BarHintState.anchorX === 84
                     && BarHintState.text === "Second hint",
                 "a stale bar widget cannot close the hint that replaced its own")
+            BarHintState.request(probeAnchor, hintScreen, 42, "Slow hint", 2400)
+            root._check(!BarHintState.open && BarHintState._pendingText === "Slow hint"
+                    && BarHintState._pendingDelay === 2400 && BarHintState.text === "Second hint",
+                "a widget asking for a longer wait does not inherit an open hint")
             BarHintState.close()
             ShellSettings.barTooltips = false
             BarHintState.request(probeAnchor, hintScreen, 42, "Blocked hint")
