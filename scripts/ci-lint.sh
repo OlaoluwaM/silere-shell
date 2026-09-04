@@ -1294,6 +1294,18 @@ else
     fail "SysInfo disk usage must use POSIX df output and right-relative columns"
 fi
 
+section "widget theme tokens"
+# A literal colour in a widget cannot follow the palette. config/ owns the literal
+# definitions; everything under modules/ consumes a token.
+widget_hex="$(grep -RInE --include='*.qml' \
+  '"#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3}|[0-9A-Fa-f]{5})?"' modules || true)"
+if [ -n "$widget_hex" ]; then
+  fail "widget colours must come from Theme tokens:"
+  printf '%s\n' "$widget_hex"
+else
+  ok "theme tokens" "widgets carry no literal hex colours"
+fi
+
 section "solid structural surfaces"
 # Structural lines, progress fills, and readability scrims are intentionally
 # uniform. Gradients remain available to data visualisations and opt-in glows.

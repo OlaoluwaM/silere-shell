@@ -9,6 +9,8 @@ Singleton {
 
     readonly property bool _n: ShellSettings.neutralTheme
     readonly property bool _hc: ShellSettings.highContrast
+    // the one colour depth sinks toward; the theme preview mixes against it too
+    readonly property color depthSink: "#000000"
 
     readonly property var _tones: ({
         black:    { background: "#030405", surface: "#121214", subtext: "#9296a1" },
@@ -25,8 +27,8 @@ Singleton {
     readonly property var _depths: ({ none: 0.0, deep: 0.38, deeper: 0.80 })
     readonly property real _depthK: _depths[ShellSettings.matugenDepth] ?? 0.0
     // surface sinks slower than background, or the elevation separation flattens out
-    readonly property color _matuBg:      mix(MatugenTheme.background, "#000000", _depthK)
-    readonly property color _matuSurface: mix(MatugenTheme.surface,    "#000000", _depthK * 0.6)
+    readonly property color _matuBg:      mix(MatugenTheme.background, depthSink, _depthK)
+    readonly property color _matuSurface: mix(MatugenTheme.surface,    depthSink, _depthK * 0.6)
 
     readonly property color _surfaceBase: _n ? _pal.surface   : _matuSurface
     readonly property color _textBase:    _n ? "#e9eaf0"      : MatugenTheme.text
