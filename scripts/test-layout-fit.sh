@@ -16,6 +16,9 @@ trap 'exit 130' INT TERM
 # plus a nav column capped at 160, and the pane pads 20 a side — see
 # MenuWindow's panelW/navW/contentPad. Narrower than this only happens on a
 # screen under roughly 700px wide, where status text is expected to elide.
+# The panel and the nav cap take the same growth above 100% type, so this pane
+# width holds across the range; the rail below is probed at its base 160, which
+# measures a narrower column than the shell draws there.
 CONTENT_WIDTH="${FIT_W:-388}"
 PROBE="scripts/probe-fit.qml"
 

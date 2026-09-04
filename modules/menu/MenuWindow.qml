@@ -87,11 +87,17 @@ PanelWindow {
         animatePlacement: false
         clip: true
 
+        // the rail cap and the detail pane are both px while a category label scales with
+        // uiScale, so each end takes the same growth: the pane keeps its width and the
+        // longest label, 13 characters, stops eliding at the top of the type range
+        readonly property int _typeGain: Metrics.snap4(
+            13 * 0.6 * Math.max(0, Settings.fontSize - Settings.fontSizeBase))
+
         // every panel width stays on the 4px grid, or the outline's right edge lands on a
         // half output px at fractional scale and rasterizes wider than its left
         readonly property int _compactW: 400
         readonly property int _powerW: 568
-        readonly property int _settingsW: 632
+        readonly property int _settingsW: 632 + _typeGain
         readonly property bool _settingsNavVisible:
             activeTab === 1 && !powerOpen
         readonly property bool _railExpanded: _settingsNavVisible || powerOpen
@@ -106,7 +112,7 @@ PanelWindow {
             Math.min(_settingsW, _availablePanelW))
         readonly property int railCollapsedW: 44
         readonly property int _navMinW: 112
-        readonly property int _navMaxW: 160
+        readonly property int _navMaxW: 160 + _typeGain
         readonly property int navW: {
             const available = panelW - railCollapsedW
             const desired = Math.max(_navMinW, Metrics.snap4(panelW * 0.28))

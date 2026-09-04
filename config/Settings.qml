@@ -29,9 +29,12 @@ Singleton {
     readonly property int capHeight: Math.ceil(_capM.height)
     TextMetrics { id: _capM; font.family: root.font; font.pixelSize: root.fontSize; text: "M" }
 
+    // the same size at uiScale 1.0; a surface fixed in px widens by what the type gained over it
+    readonly property int fontSizeBase: Math.round(12 * root.fontScale)
+
     // the same measure at uiScale 1.0; row metrics grow past their design height only above it
     readonly property int capHeightBase: Math.ceil(_capBaseM.height)
-    TextMetrics { id: _capBaseM; font.family: root.font; font.pixelSize: Math.round(12 * root.fontScale); text: "M" }
+    TextMetrics { id: _capBaseM; font.family: root.font; font.pixelSize: root.fontSizeBase; text: "M" }
 
     // small type steps floor so a lowered uiScale cannot push secondary text under legibility; sizes above body need no floor
     readonly property int fontLabel:   Math.max(9, fontSize - 1)

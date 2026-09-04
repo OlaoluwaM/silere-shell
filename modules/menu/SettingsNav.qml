@@ -525,9 +525,11 @@ Item {
                                             id: _leafGlyph
                                             visible: !root.compact
                                             anchors.left: parent.left
-                                            anchors.leftMargin: 11
+                                            anchors.leftMargin: 9
                                             anchors.verticalCenter: parent.verticalCenter
-                                            width: 18
+                                            // the rail cap is fixed while the label grows with uiScale, so the
+                                            // slot beside it has to give the type its width back
+                                            width: Metrics.iconCellFor(Settings.fontLabel)
                                             horizontalAlignment: Text.AlignHCenter
                                             text: _leaf.glyph
                                             color: _leaf.active
@@ -555,9 +557,9 @@ Item {
 
                                         ShellText {
                                             anchors.left: _leafGlyph.visible ? _leafGlyph.right : parent.left
-                                            anchors.leftMargin: _leafGlyph.visible ? 8 : 12
+                                            anchors.leftMargin: _leafGlyph.visible ? 7 : 12
                                             anchors.right: _leafDot.visible ? _leafDot.left : parent.right
-                                            anchors.rightMargin: _leafDot.visible ? 5 : 8
+                                            anchors.rightMargin: _leafDot.visible ? 5 : 6
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: _leaf.modelData.label
                                             elide: Text.ElideRight

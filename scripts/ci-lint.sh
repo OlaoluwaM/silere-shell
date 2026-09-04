@@ -70,11 +70,12 @@ else
 fi
 
 section "settings rail label width"
-# The nav rail is clamped to 160px and the UI font is monospace, so a label is either
-# inside the budget or it elides. test-layout-fit covers the detail pane, not the rail,
-# so "Order & visibility" sat truncated as "Order & visib…" without failing anything.
-# 13 is the longest label observed to fit ("Notifications"), measured at 100% with the
-# modified dot showing: 85.7px of text against an 89px budget.
+# The nav rail is clamped to 160px at the base type and the UI font is monospace, so a
+# label is either inside the budget or it elides. test-layout-fit covers the detail pane,
+# not the rail, so "Order & visibility" sat truncated as "Order & visib…" without failing
+# anything. 13 is the longest label observed to fit ("Notifications"), measured at 100%
+# with the modified dot showing: 85.7px of text against a 97px budget. Above 100% the cap
+# grows with the type (MenuWindow's _typeGain), which is what keeps 13 inside the budget.
 rail_over="$(grep -oE 'label: "[^"]{14,}"' services/MenuState.qml || true)"
 if [ -n "$rail_over" ]; then
   fail "these settings nav labels are too long for the rail and will elide:"

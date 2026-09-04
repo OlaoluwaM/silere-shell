@@ -73,6 +73,7 @@ settings file carries its own `__version` and migrates separately.
 - The installer recognises a JetBrainsMono Nerd Font that is already there instead of offering to download it again.
 - A downloaded font that fontconfig does not list is reported rather than counted as installed.
 - A failed settings-folder creation or permission check is no longer mistaken for a successful one.
+- Settings category names keep their full width in the rail at the top of the interface scale range.
 - The package list drops what it was showing and checks again when the package manager or AUR helper behind it changes.
 - Package checks preserve their last result when an AUR helper fails, reject canceled results after a quick off/on toggle, and defer automatic retries while the session is idle.
 - The Silere updater surfaces unattended timer failures in Settings, says how long ago one happened, and reloads its cache and checkout state after timeouts.
