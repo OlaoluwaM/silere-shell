@@ -1177,6 +1177,9 @@ ShellRoot {
         }
         root._check(updateCommand("pacman", { checkupdates: true }).includes("checkupdates"),
             "package updates build the pacman command")
+        root._check(!SystemTools.hasTimeout
+                || Updates._limit(10, "checker").startsWith("timeout --kill-after=2 10 "),
+            "package update timeouts force helpers down after the TERM grace")
         const pacmanAurCommand = updateCommand("pacman", { checkupdates: true, paru: true })
         root._check(pacmanAurCommand.includes("aurrc=$?")
                 && pacmanAurCommand.includes('[ "$aurrc" -ne 1 ]'),

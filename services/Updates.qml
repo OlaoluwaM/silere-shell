@@ -94,7 +94,9 @@ Singleton {
     }
 
     function _limit(seconds: int, command: string): string {
-        return SystemTools.hasTimeout ? ("timeout " + seconds + " " + command) : command
+        // TERM is advisory: a package helper can hold its capture open past it
+        return SystemTools.hasTimeout
+            ? ("timeout --kill-after=2 " + seconds + " " + command) : command
     }
 
     function _countFrom(text: string): int {

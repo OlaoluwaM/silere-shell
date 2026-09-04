@@ -496,7 +496,7 @@ if [ "$qs_usable" = 1 ]; then
 
     code=0
     smoke_log="$(mktemp "${TMPDIR:-/tmp}/silere-qs-smoke.XXXXXX.log")"
-    timeout 5s qs -p shell.qml --no-color >"$smoke_log" 2>&1 || code=$?
+    timeout --kill-after=2s 5s qs -p shell.qml --no-color >"$smoke_log" 2>&1 || code=$?
     if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then
       if grep -qE 'Failed to create wl_display|could not connect to display|no Qt platform plugin could be initialized' "$smoke_log"; then
         warn "startup" "display inaccessible; runtime smoke test skipped"
@@ -529,7 +529,7 @@ if [ "$qs_usable" = 1 ]; then
         } > "$cov_cfg/silere-shell/settings.json"
         cov_log="$(mktemp "${TMPDIR:-/tmp}/silere-qs-cov.XXXXXX.log")"
         code=0
-        XDG_CONFIG_HOME="$cov_cfg" timeout 5s qs -p shell.qml --no-color \
+        XDG_CONFIG_HOME="$cov_cfg" timeout --kill-after=2s 5s qs -p shell.qml --no-color \
           >"$cov_log" 2>&1 || code=$?
         if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then
           cat "$cov_log"
@@ -565,7 +565,7 @@ if [ "$qs_usable" = 1 ]; then
         mkdir -p "$bad_cfg/silere-shell"
         printf '%s' "$_case" > "$bad_cfg/silere-shell/settings.json"
         code=0
-        XDG_CONFIG_HOME="$bad_cfg" timeout 5s qs -p shell.qml --no-color \
+        XDG_CONFIG_HOME="$bad_cfg" timeout --kill-after=2s 5s qs -p shell.qml --no-color \
           >"$bad_log" 2>&1 || code=$?
         if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then
           bad_failures="$bad_failures  exited $code on: ${_case:-<empty>}"$'\n'
