@@ -1601,6 +1601,10 @@ test_update_apply_binds_to_confirmed_release() (
         "apply proceeds once the newest release has been confirmed"
 )
 
+if [ "${SILERE_TEST_LIB_ONLY:-0}" = 1 ]; then
+    return 0 2>/dev/null || exit 0
+fi
+
 test_xdg_paths_and_timer_default
 test_fresh_install_permissions
 test_marker_removal
@@ -1615,27 +1619,8 @@ test_dry_run_writes_nothing
 test_hypr_discovery
 test_niri_config_discovery
 test_atomic_units
-test_atomic_update_cache
 test_shared_launcher
 test_hook_timeout_contains_tree
-test_update_lock_survives_orphaned_child
-# These workflows build git fixtures. Local minimal environments may skip them;
-# CI opts into making an accidental missing dependency a hard failure.
-if command -v git >/dev/null 2>&1 && command -v ssh-keygen >/dev/null 2>&1; then
-    test_installation_mode_detection
-    test_candidate_runtime_isolation
-    test_update_refuses_dirty_apply
-    test_interrupted_update_recovery
-    test_fresh_install_pins_release
-    test_update_rejects_broken_stage
-    test_update_reporting
-    test_update_apply_binds_to_confirmed_release
-    test_repair_workflow
-else
-    if [ "${SILERE_REQUIRE_GIT_TESTS:-0}" = 1 ]; then
-        fail "git and ssh-keygen are required for updater and repair workflow tests"
-    fi
-    printf 'SKIP: updater and repair workflows (git or ssh-keygen unavailable)\n'
-fi
+test_repair_workflow
 
 printf 'portability regression tests passed\n'
