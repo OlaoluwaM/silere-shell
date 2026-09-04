@@ -51,6 +51,8 @@ Singleton {
     property string versionError: ""
     // a distro package ships no .git, so every git-backed control hides instead of erroring
     property bool   packaged: false
+    property string installationMode: ""
+    readonly property bool development: installationMode === "development"
     readonly property bool versionBusy: _versionProc.running
     property string targetTag: ""
     property bool   targetVerified: false
@@ -73,6 +75,7 @@ Singleton {
         : lastApplyError.length > 0 ? "Install failed"
         : lastCheckError.length > 0 ? "Check failed"
         : statusReadError.length > 0 ? "Status unavailable"
+        : development ? "Managed with Git"
         : pending ? (targetTag.length > 0 ? targetTag + " ready" : label)
         : persistedCheckError.length > 0 ? "Last check failed"
         : !statusReady ? "Reading status"
@@ -80,7 +83,7 @@ Singleton {
         : "Up to date"
 
     readonly property bool upToDate: statusReady && lastCheckMs > 0
-        && !applying && !checking && !pending
+        && !development && !applying && !checking && !pending
         && lastApplyError.length === 0 && root.checkError.length === 0
         && statusReadError.length === 0
 
@@ -111,6 +114,7 @@ Singleton {
             : root.versionError.length > 0 ? root.versionError
             : "The checkout state has not been verified"
         if (root._flagReadError || root._flagMalformed) return root.statusReadError
+        if (root.development) return "Development checkout; Silere self-update is disabled"
         if (root.pending && !root.targetVerified) return "The release signature has not been verified"
         if (root.branch === "HEAD") return "The checkout is on a detached HEAD"
         if (root.branch.length > 0 && root.branch !== "main") return "The checkout is on branch " + root.branch
@@ -152,14 +156,15 @@ Singleton {
     readonly property string _script: Quickshell.shellDir + "/scripts/update.sh"
 
     function check(): void {
-        if (checking || applying || packaged) return
+        if (checking || applying || packaged || development) return
         lastCheckError = ""
         _checkProc.exec(["bash", root._script])
     }
 
     function apply(): void {
         // keep fetch/check and merge/apply out of the same checkout at the same time even when this API is called outside the guarded settings UI
-        if (checking || applying || _applyProc.running || !pending || !targetVerified
+        if (checking || applying || _applyProc.running || development
+                || !pending || !targetVerified
                 || !versionReady || versionBusy || root.blockedReason.length > 0) return
         applying = true
         lastApplyError = ""
@@ -172,7 +177,7 @@ Singleton {
     }
 
     function setTimerEnabled(enabled: bool): void {
-        if (timerBusy || !timerSupported) return
+        if (development || timerBusy || !timerSupported) return
         root._timerStatusError = false
         root.timerError = ""
         _timerSet.exec(["bash", root._script, enabled ? "--timer-enable" : "--timer-disable"])
@@ -280,6 +285,7 @@ Singleton {
             const kv = root._parseKv(_versionOut.text)
             if ((kv.packaged ?? "") === "1") {
                 root.packaged = true
+                root.installationMode = "package"
                 root.versionTag = SafeText.boundedText(kv.version,
                     root.maxVersionTextChars)
                 root.versionReady = false
@@ -290,8 +296,10 @@ Singleton {
             const sha = SafeText.boundedText(kv.sha, root.maxVersionTextChars)
             const branch = SafeText.boundedText(kv.branch, root.maxVersionTextChars)
             const dirty = kv.dirty ?? ""
+            const mode = kv.mode ?? ""
             if (sha.length === 0 || branch.length === 0
-                    || (dirty !== "0" && dirty !== "1")) {
+                    || (dirty !== "0" && dirty !== "1")
+                    || (mode !== "managed" && mode !== "development")) {
                 root.versionReady = false
                 root.versionError = "The checkout state could not be verified"
                 return
@@ -303,6 +311,7 @@ Singleton {
             root.versionAhead = isNaN(ahead) ? 0 : ahead
             root.branch = branch
             root.localChanges = dirty === "1"
+            root.installationMode = mode
             root.versionError = ""
             root.versionReady = true
         }

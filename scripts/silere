@@ -180,6 +180,12 @@ case "$command_name" in
         else
             branch="$(printf '%s\n' "$info" | sed -n 's/^branch=//p')"
             dirty="$(printf '%s\n' "$info" | sed -n 's/^dirty=//p')"
+            mode="$(printf '%s\n' "$info" | sed -n 's/^mode=//p')"
+            if [ "$mode" = development ]; then
+                printf 'Installation: Development checkout; updates are managed with Git\n'
+            else
+                printf 'Installation: Managed release; signed self-update is enabled\n'
+            fi
             printf 'Checkout: %s%s\n' "${branch:-unknown branch}" \
                 "$([ "$dirty" = 1 ] && printf ' (local changes)')"
             print_transaction_status

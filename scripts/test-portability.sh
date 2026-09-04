@@ -43,6 +43,25 @@ _sign_release() {
     git -C "$repo" tag -s -m "$tag" "$tag"
 }
 
+_test_path_escape() {
+    local LC_ALL=C s="$1" out="" ch oct i
+    for ((i = 0; i < ${#s}; i++)); do
+        ch="${s:i:1}"
+        printf -v oct '%03o' "'$ch"
+        out+="\\$oct"
+    done
+    printf '%s' "$out"
+}
+
+_mark_managed_install() {
+    local checkout="$1" home="$2" state
+    state="$home/.local/state/silere-shell"
+    mkdir -p "$state"
+    printf '%s\n' version=1 installMode=managed \
+        "checkoutPath=$(_test_path_escape "$checkout")" > "$state/install-receipt"
+    chmod 0600 "$state/install-receipt"
+}
+
 test_xdg_paths_and_timer_default() (
     local home="$TMP/xdg-home" actual
     mkdir -p "$home"
@@ -774,6 +793,44 @@ test_interrupted_update_recovery() (
     assert_eq "755" "$(stat -c '%a' "$real_state")" "state symlink target mode"
 )
 
+test_installation_mode_detection() (
+    local repo="$TMP/install-mode-repo"
+    local home="$TMP/install-mode-home"
+    local state="$home/.local/state/silere-shell"
+    mkdir -p "$repo" "$state"
+
+    HOME="$home" XDG_STATE_HOME="$home/.local/state" SILERE_SCRIPT_LIB_ONLY=1 \
+        source "$ROOT/scripts/update.sh"
+    ROOT="$repo"
+    INSTALL_RECEIPT="$state/install-receipt"
+
+    assert_eq managed "$(_installation_mode main)" "main without a receipt is managed"
+    assert_eq development "$(_installation_mode feature/workspaces)" \
+        "a working branch without a receipt is a development checkout"
+    assert_eq development "$(_installation_mode HEAD)" \
+        "a detached HEAD without a receipt is a development checkout"
+
+    printf '%s\n' version=1 installMode=development \
+        "checkoutPath=$(_test_path_escape "$repo")" > "$INSTALL_RECEIPT"
+    assert_eq development "$(_installation_mode main)" \
+        "the receipt outranks a clean main"
+
+    printf '%s\n' version=1 installMode=managed \
+        "checkoutPath=$(_test_path_escape "$repo")" > "$INSTALL_RECEIPT"
+    assert_eq managed "$(_installation_mode feature/workspaces)" \
+        "a managed receipt survives a branch switch"
+
+    # a receipt describing a different checkout must never speak for this one
+    printf '%s\n' version=1 installMode=managed \
+        "checkoutPath=$(_test_path_escape "$repo-other")" > "$INSTALL_RECEIPT"
+    assert_eq development "$(_installation_mode feature/workspaces)" \
+        "another checkout's receipt is ignored"
+
+    printf 'installMode=managed\ncheckoutPath=not-octal\n' > "$INSTALL_RECEIPT"
+    assert_eq development "$(_installation_mode feature/workspaces)" \
+        "a malformed receipt is ignored"
+)
+
 test_update_refuses_dirty_apply() (
     export GIT_CONFIG_GLOBAL=/dev/null
     export GIT_CONFIG_NOSYSTEM=1
@@ -851,6 +908,9 @@ test_update_refuses_dirty_apply() (
     assert_eq "branch=feature" "$(HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" \
         PATH="$stub_dir:$PATH" bash "$client/scripts/update.sh" --version | grep '^branch=')" \
         "feature-branch version reporting"
+    assert_eq "mode=development" "$(HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" \
+        PATH="$stub_dir:$PATH" bash "$client/scripts/update.sh" --version | grep '^mode=')" \
+        "feature-branch installation mode"
     if HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" PATH="$stub_dir:$PATH" \
         bash "$client/scripts/update.sh" --apply >/dev/null 2>&1; then
         fail "feature-branch update apply unexpectedly succeeded"
@@ -939,6 +999,7 @@ test_update_reporting() (
     git -C "$seed" push -q origin main --tags
 
     git clone --depth 1 -q "file://$remote" "$client"
+    _mark_managed_install "$client" "$test_home"
     assert_eq "true" "$(git -C "$client" rev-parse --is-shallow-repository)" \
         "reporting fixture starts shallow"
     printf 'v2\n' > "$seed/tracked.qml"
@@ -1015,6 +1076,8 @@ EOF
     assert_eq "ahead=1" "$(printf '%s\n' "$out" | grep '^ahead=')" "--version commits since tag"
     assert_eq "branch=main" "$(printf '%s\n' "$out" | grep '^branch=')" "--version branch"
     assert_eq "dirty=0" "$(printf '%s\n' "$out" | grep '^dirty=')" "--version clean checkout"
+    assert_eq "mode=managed" "$(printf '%s\n' "$out" | grep '^mode=')" \
+        "--version receipt installation mode"
 
     printf 'local edit\n' >> "$client/tracked.qml"
     assert_eq "dirty=1" "$(_run --version | grep '^dirty=')" "--version dirty checkout"
@@ -1482,6 +1545,7 @@ test_update_lock_survives_orphaned_child
 # These workflows build git fixtures. Local minimal environments may skip them;
 # CI opts into making an accidental missing dependency a hard failure.
 if command -v git >/dev/null 2>&1 && command -v ssh-keygen >/dev/null 2>&1; then
+    test_installation_mode_detection
     test_update_refuses_dirty_apply
     test_interrupted_update_recovery
     test_fresh_install_pins_release

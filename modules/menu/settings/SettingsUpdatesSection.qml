@@ -96,6 +96,7 @@ Column {
                 glyph: ShellUpdate.checking || ShellUpdate.applying ? "󰓦"
                     : ShellUpdate.checkError.length > 0 || ShellUpdate.lastApplyError.length > 0
                         || ShellUpdate.statusReadError.length > 0 ? "󰀦"
+                    : ShellUpdate.development ? "󰊢"
                     : ShellUpdate.pending ? "󰚰"
                     : !ShellUpdate.statusReady || ShellUpdate.neverChecked ? "󰓦" : "󰄬"
                 title: "Silere Shell"
@@ -118,21 +119,25 @@ Column {
                 statusColor: ShellUpdate.checkError.length > 0 || ShellUpdate.lastApplyError.length > 0
                     || ShellUpdate.statusReadError.length > 0
                     ? Theme.warning : ShellUpdate.checking || ShellUpdate.applying || ShellUpdate.pending
-                        ? Theme.accent : !ShellUpdate.statusReady || ShellUpdate.neverChecked
-                            ? Theme.subtext : Theme.success
+                        ? Theme.accent : ShellUpdate.development
+                            ? Theme.accent : !ShellUpdate.statusReady || ShellUpdate.neverChecked
+                                ? Theme.subtext : Theme.success
                 busy: ShellUpdate.checking || ShellUpdate.applying
 
                 primaryLabel: ShellUpdate.applying ? "Installing…"
+                    : ShellUpdate.development ? "Git managed"
                     : root._installArmed ? "Confirm" : ShellUpdate.pending ? "Install" : "Check"
                 primaryGlyph: root._installArmed ? "󰌾" : ShellUpdate.pending ? "󰅢" : "󰓦"
-                primaryEnabled: !ShellUpdate.checking && !ShellUpdate.applying
+                primaryEnabled: !ShellUpdate.development
+                    && !ShellUpdate.checking && !ShellUpdate.applying
                     && (!ShellUpdate.pending || (ShellUpdate.targetVerified
                         && ShellUpdate.blockedReason.length === 0))
                 primaryEmphasis: ShellUpdate.pending
                 primaryColor: root._installArmed ? Theme.warning : Theme.accent
                 onPrimaryTriggered: root._triggerShellAction()
 
-                secondaryShown: ShellUpdate.pending && !ShellUpdate.applying
+                secondaryShown: ShellUpdate.pending && !ShellUpdate.development
+                    && !ShellUpdate.applying
                 secondaryGlyph: "󰑐"
                 secondaryEnabled: !ShellUpdate.checking && !ShellUpdate.applying
                 onSecondaryTriggered: ShellUpdate.check()
@@ -209,9 +214,11 @@ Column {
                 description: ShellUpdate.timerError.length > 0
                     ? ShellUpdate.timerError : ShellUpdate.nextCheckText
                 checked: ShellUpdate.timerEnabled
-                enabled: !ShellUpdate.timerBusy
-                available: ShellUpdate.timerSupported
-                dependsNote: ShellUpdate.timerBusy ? "Working" : (!SystemTools.ready ? "Checking" : "No systemd")
+                enabled: !ShellUpdate.development && !ShellUpdate.timerBusy
+                available: ShellUpdate.timerSupported && !ShellUpdate.development
+                dependsNote: ShellUpdate.development ? "Git managed"
+                    : ShellUpdate.timerBusy ? "Working"
+                    : (!SystemTools.ready ? "Checking" : "No systemd")
                 onToggled: nextChecked => ShellUpdate.setTimerEnabled(nextChecked)
             }
         }

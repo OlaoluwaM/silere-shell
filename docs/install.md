@@ -55,6 +55,9 @@ update run authenticates that journal with a snapshot of the previously installe
 key and restores the known-good revision. A release whose validation completed is retained.
 Recovery refuses to reset a checkout that gained local edits after the interruption.
 
+A checkout the installer marked as a development install — or any checkout not on
+`main` — is left to Git; Updates shows its branch and state but self-update is disabled.
+
 ## Unattended installs
 
 Bootstrapping from a dotfiles script or a container? `SILERE_ASSUME_YES=1` answers the

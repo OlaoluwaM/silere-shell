@@ -39,6 +39,8 @@ settings file carries its own `__version` and migrates separately.
 - Workspaces › Dynamic workspaces lists only the workspaces in use, growing and shrinking
   as they come and go. A trailing slot opens the next empty one, and middle-clicking it
   moves the focused window there.
+- Updates names the installation as a managed release or a development checkout, and
+  disables self-update controls on a development checkout instead of failing when pressed.
 - Settings older than the current schema migrate through explicit, ordered steps instead
   of one-off compatibility checks.
 - The installer records a receipt of what it created; uninstall reads it before falling

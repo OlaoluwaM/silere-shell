@@ -1587,6 +1587,22 @@ ShellRoot {
         ShellUpdate._errorLoaded = errorLoadedWas
         ShellUpdate._errorReadError = errorReadErrorWas
 
+        // a checkout demoted to development after an earlier managed check keeps its old
+        // lastCheckMs forever (nothing clears it) — upToDate must not read that as current
+        const installationModeWas = ShellUpdate.installationMode
+        ShellUpdate._flagLoaded = true
+        ShellUpdate._checkedLoaded = true
+        ShellUpdate._errorLoaded = true
+        ShellUpdate.lastCheckMs = 1234000
+        ShellUpdate.installationMode = "development"
+        root._check(!ShellUpdate.upToDate && ShellUpdate.statusDetail === "Managed with Git",
+            "a stale check timestamp from before a checkout became development is not reported as up to date")
+        ShellUpdate.installationMode = installationModeWas
+        ShellUpdate.lastCheckMs = lastCheckWas
+        ShellUpdate._flagLoaded = flagLoadedWas
+        ShellUpdate._checkedLoaded = checkedLoadedWas
+        ShellUpdate._errorLoaded = errorLoadedWas
+
         root._check(PowerProfiles.profileName(0) === "power-saver"
                 && PowerProfiles.profileName(1) === "balanced"
                 && PowerProfiles.profileName(2) === "performance"

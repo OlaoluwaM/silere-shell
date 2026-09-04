@@ -38,6 +38,7 @@ ROOT_KEY="$(printf '%s' "$ROOT" | cksum | awk '{ print $1 "-" $2 }')"
 STATE_DIR="$STATE_HOME/silere-shell"
 APPLY_JOURNAL="$STATE_DIR/update-transaction-$ROOT_KEY"
 APPLY_TRUSTED_SIGNERS="$STATE_DIR/update-transaction-$ROOT_KEY.signers"
+INSTALL_RECEIPT="$STATE_DIR/install-receipt"
 
 _notify() {
     command -v notify-send >/dev/null 2>&1 || return 0
@@ -499,7 +500,7 @@ _timer_status() {
 }
 
 _version_info() {
-    local head tag ahead=0 branch dirty=0
+    local head tag ahead=0 branch dirty=0 mode
     head="$(git -C "$ROOT" log -1 --format='%h %cs')"
     tag="$(git -C "$ROOT" describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)"
     if [ -n "$tag" ]; then
@@ -507,8 +508,35 @@ _version_info() {
     fi
     branch="$(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
     if _has_local_changes; then dirty=1; fi
-    printf 'sha=%s\ndate=%s\ntag=%s\nahead=%s\nbranch=%s\ndirty=%s\n' \
-        "${head%% *}" "${head##* }" "$tag" "$ahead" "$branch" "$dirty"
+    mode="$(_installation_mode "$branch")"
+    printf 'sha=%s\ndate=%s\ntag=%s\nahead=%s\nbranch=%s\ndirty=%s\nmode=%s\n' \
+        "${head%% *}" "${head##* }" "$tag" "$ahead" "$branch" "$dirty" "$mode"
+}
+
+_receipt_install_mode() {
+    local mode encoded checkout
+    [ -r "$INSTALL_RECEIPT" ] && [ ! -L "$INSTALL_RECEIPT" ] || return 1
+    mode="$(sed -n 's/^installMode=//p' "$INSTALL_RECEIPT")"
+    encoded="$(sed -n 's/^checkoutPath=//p' "$INSTALL_RECEIPT")"
+    [[ "$mode" =~ ^(managed|development)$ ]] || return 1
+    [[ "$encoded" =~ ^(\\[0-7]{3})+$ ]] || return 1
+    checkout="$(printf '%b' "$encoded")"
+    [ "$checkout" = "$ROOT" ] || return 1
+    printf '%s\n' "$mode"
+}
+
+# Ownership, not blockers. The installer's receipt is authoritative; without one,
+# a branch the user drives is the only signal that this checkout is theirs. Local
+# changes are deliberately not part of it — a dirty tree is a state the apply path
+# already refuses by name, and demoting the whole installation over it would leave
+# the Updates page inert every time a file is edited.
+_installation_mode() {
+    local branch="${1:-$(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || true)}"
+    local mode
+    mode="$(_receipt_install_mode 2>/dev/null || true)"
+    if [ -n "$mode" ]; then printf '%s\n' "$mode"; return 0; fi
+    [ "$branch" = main ] || { printf 'development\n'; return 0; }
+    printf 'managed\n'
 }
 
 _write_update_units() {
@@ -588,7 +616,7 @@ if ! git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
                 packaged_version="$(sed -n 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
                     "$ROOT/release.json" 2>/dev/null | head -n 1)"
             fi
-            printf 'packaged=1\nversion=%s\n' "$packaged_version"
+            printf 'packaged=1\nversion=%s\nmode=package\n' "$packaged_version"
             exit 0
             ;;
         --transaction-status) printf 'pending=0\n'; exit 0 ;;
@@ -636,6 +664,16 @@ esac
 
 _acquire_update_lock
 _recover_interrupted_apply
+
+if [ "${1:-}" != --pin-release ] && [ "$(_installation_mode)" = development ]; then
+    if [ "${1:-}" = --apply ]; then
+        _fail "development checkout — updates are managed with Git"
+    fi
+    _clear_flag
+    _clear_update_error
+    printf 'silere-update: development checkout; updates are managed with Git\n'
+    exit 0
+fi
 
 # --pin-release: land a fresh clone exactly on the newest signed release. --apply
 # cannot do this: main carries commits past the tag, so the fast-forward path sees

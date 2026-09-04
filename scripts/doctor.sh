@@ -127,7 +127,13 @@ fi
 if [ "$git_install" -eq 1 ] && command -v git >/dev/null 2>&1; then
     version="$(git -C "$ROOT" describe --tags --always --dirty 2>/dev/null || true)"
     info "version" "${version:-unknown}"
-    info "installation" "Git checkout at $ROOT"
+    install_mode="$(bash "$ROOT/scripts/update.sh" --version 2>/dev/null \
+        | sed -n 's/^mode=//p' | head -n 1)"
+    if [ "$install_mode" = managed ]; then
+        info "installation" "managed release at $ROOT"
+    else
+        info "installation" "development checkout at $ROOT"
+    fi
 elif [ "$git_install" -eq 1 ]; then
     info "version" "unknown (git is unavailable)"
     info "installation" "Git checkout at $ROOT"
