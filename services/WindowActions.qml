@@ -52,7 +52,7 @@ Singleton {
 
         for (let i = 0; i < clients.length; i++) {
             const c = clients[i]
-            if (!c || !c.ref || c.wsId < 0 || !matches(c)) continue
+            if (!c || !c.ref || c.wsId === -1 || !matches(c)) continue
 
             const rank = c.focusRank ?? 9999
             if (!bestAny || rank < (bestAny.focusRank ?? 9999))
@@ -214,11 +214,11 @@ Singleton {
         const deHint  = root._norm(notification.desktopEntry || hints["desktop-entry"] || "")
 
         const pidMatch = root._clientFromPidChain(clients, pidHint, followPidParents)
-        if (pidMatch && pidMatch.wsId >= 0) return pidMatch
+        if (pidMatch && pidMatch.wsId !== -1) return pidMatch
 
         if (deHint.length > 0) {
             const bestDesktop = root._chooseMatchingSource(clients, c => root._classMatches(c, deHint))
-            if (bestDesktop && bestDesktop.wsId >= 0) return bestDesktop
+            if (bestDesktop && bestDesktop.wsId !== -1) return bestDesktop
         }
 
         const appName = root._norm(notification.appName)
@@ -229,7 +229,7 @@ Singleton {
         if (!bestApp)
             bestApp = root._resolveByDesktopEntry(clients, appName)
 
-        return (bestApp && bestApp.wsId >= 0) ? bestApp : null
+        return (bestApp && bestApp.wsId !== -1) ? bestApp : null
     }
 
     function focusNotificationSource(notification): void {
