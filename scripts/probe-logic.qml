@@ -1126,9 +1126,9 @@ ShellRoot {
                 && !Media.positionDemand(false, true, true)
                 && Media.positionDemand(true, false, true),
             "media progress pauses with a concealed bar but stays live for the menu")
-        root._check(Audio._clampVolume(NaN) === 0
-                && Audio._clampVolume(Infinity) === 0
-                && Audio._clampVolume(1.5) === 1,
+        root._check(Audio._out._clampVolume(NaN) === 0
+                && Audio._out._clampVolume(Infinity) === 0
+                && Audio._out._clampVolume(1.5) === 1,
             "audio service normalizes non-finite backend volume")
         root._check(CpuTemp.temperatureDemand(false, true, false, false)
                 && !CpuTemp.temperatureDemand(false, true, true, false)

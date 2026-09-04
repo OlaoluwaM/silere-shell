@@ -12,7 +12,6 @@ Singleton {
     readonly property real stepPct: 0.05
 
     readonly property PwNode      sink:  Pipewire.defaultAudioSink
-    readonly property PwNodeAudio audio: sink ? sink.audio : null
     readonly property PwNode      source: Pipewire.defaultAudioSource
 
     readonly property PwVolumeControl _out: PwVolumeControl {
@@ -231,11 +230,6 @@ Singleton {
         const app = props["application.name"] || props["media.name"] || ""
         return SafeText.singleLineText(
             app || node.description || node.nickname || node.name || "App", 256)
-    }
-
-    function _clampVolume(v: real): real {
-        if (!isFinite(v)) return 0
-        return Math.max(0, Math.min(1.0, v))
     }
 
     function bumpBy(delta: real): void { root._out.bumpBy(delta) }
