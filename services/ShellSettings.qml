@@ -606,6 +606,13 @@ Singleton {
         root._recountModified()
     }
 
+    function flushForUpdate(): bool {
+        if (!root._loaded || !_store.writeAllowed) return false
+        root._writeError = ""
+        _store.flush(true)
+        return root._writeError.length === 0
+    }
+
     function _sameValue(a, b): bool {
         if (typeof a === "number" && typeof b === "number")
             return Math.abs(a - b) < 0.0001

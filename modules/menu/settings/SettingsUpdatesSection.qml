@@ -36,6 +36,10 @@ Column {
         }
         if (Date.now() - root._installArmedAtMs < Metrics.confirmGuardMs) return
         root._disarmInstall()
+        if (!ShellSettings.flushForUpdate()) {
+            ShellUpdate.lastApplyError = "Settings could not be saved before the update"
+            return
+        }
         ShellUpdate.apply()
     }
 
