@@ -153,6 +153,15 @@ test_uninstall_targets_and_backups() (
     fi
     rm -f "$live"
     _backup_restore_allowed "$live" || fail "backup restore was rejected for a missing live file"
+
+    INSTALL_RECEIPT="$TMP/install-receipt"
+    printf '%s\n' version=1 installMode=managed \
+        'checkoutPath=\057\164\155\160\057\163\151\154\145\162\145' \
+        > "$INSTALL_RECEIPT"
+    assert_eq /tmp/silere "$(_receipt_path checkoutPath)" \
+        "uninstaller receipt checkout path"
+    assert_eq managed "$(_receipt_value installMode)" \
+        "uninstaller receipt mode"
 )
 
 test_qml_module_lookup() (
@@ -347,6 +356,70 @@ test_install_path_safety() (
     grep -qFx before "$generic/managed-matugen.toml" \
         && grep -qFx after "$generic/managed-matugen.toml" \
         || fail "managed Matugen migration lost surrounding config"
+)
+
+test_install_transaction_and_receipt() (
+    local home="$TMP/install-transaction-home"
+    local work="$TMP/install-transaction-work"
+    local existing="$work/existing.conf"
+    local new_file="$work/new.conf"
+    local created_tree="$work/new-checkout"
+    local replaced_tree="$work/replaced-checkout"
+    local replaced_backup="$work/replaced-checkout.backup"
+    mkdir -p "$home" "$work" "$replaced_tree"
+    printf 'before\n' > "$existing"
+    printf 'old checkout\n' > "$replaced_tree/value"
+
+    HOME="$home" XDG_STATE_HOME="$home/state" SILERE_SCRIPT_LIB_ONLY=1 \
+        source "$ROOT/scripts/install.sh"
+    _dry_run=0
+    _txn_begin
+    _txn_before_file "$existing"
+    _txn_before_file "$new_file"
+    printf 'after\n' > "$existing"
+    printf 'created\n' > "$new_file"
+    mkdir -p "$created_tree"
+    printf 'new checkout\n' > "$created_tree/value"
+    _txn_tree_created "$created_tree"
+    mv "$replaced_tree" "$replaced_backup"
+    _txn_tree_replaced "$replaced_tree" "$replaced_backup"
+    mkdir -p "$replaced_tree"
+    printf 'replacement\n' > "$replaced_tree/value"
+    _txn_rollback
+
+    assert_eq before "$(cat "$existing")" "install transaction restored a file"
+    [ ! -e "$new_file" ] || fail "install transaction retained a created file"
+    [ ! -e "$created_tree" ] || fail "install transaction retained a created checkout"
+    assert_eq "old checkout" "$(cat "$replaced_tree/value")" \
+        "install transaction restored a replaced checkout"
+    grep -q '^status=rolled-back$' "$TXN_JOURNAL" \
+        || fail "install transaction did not record rollback"
+
+    _txn_begin
+    ROOT="$work/managed-checkout"
+    mkdir -p "$ROOT"
+    install_mode=managed
+    receipt_compositor=hyprland
+    receipt_autostart="$work/hyprland.conf"
+    did_font=false did_cli=true did_tmpl=false did_toml=false
+    did_autostart=true did_update=true
+    _txn_commit || fail "install receipt did not commit"
+    grep -q '^installMode=managed$' "$INSTALL_RECEIPT" \
+        || fail "install receipt omitted the managed mode"
+    grep -q '^compositor=hyprland$' "$INSTALL_RECEIPT" \
+        || fail "install receipt omitted the compositor"
+    grep -q '^status=committed$' "$TXN_JOURNAL" \
+        || fail "install journal did not record commit"
+    assert_eq 600 "$(stat -c '%a' "$INSTALL_RECEIPT")" "install receipt mode"
+
+    local i kept
+    for i in 1 2 3 4 5 6 7; do
+        mkdir -p "$INSTALL_STATE_DIR/install-transactions/2026010${i}T000000Z-1"
+    done
+    _txn_begin
+    kept="$(find "$INSTALL_STATE_DIR/install-transactions" -mindepth 1 -maxdepth 1 | wc -l)"
+    assert_eq 5 "$kept" "install ledger keeps a bounded transaction history"
+    [ -d "$TXN_DIR" ] || fail "install ledger pruned the transaction it just opened"
 )
 
 make_proc() {
@@ -1397,6 +1470,7 @@ test_headless_qml_import_roots
 test_font_archive_selection
 test_assume_yes_prompts
 test_install_path_safety
+test_install_transaction_and_receipt
 test_dry_run_writes_nothing
 test_hypr_discovery
 test_niri_config_discovery

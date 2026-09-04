@@ -9,6 +9,10 @@ CONFIG_HOME="$(_silere_xdg_home "${XDG_CONFIG_HOME:-}" .config)" || {
     printf 'silere: HOME must be an absolute path\n' >&2
     exit 1
 }
+STATE_HOME="$(_silere_xdg_home "${XDG_STATE_HOME:-}" .local/state)" || {
+    printf 'silere: HOME must be an absolute path\n' >&2
+    exit 1
+}
 DEFAULT_DIR="$CONFIG_HOME/silere-shell"
 
 source "$SCRIPT_DIR/lib/ui.sh"
@@ -96,6 +100,196 @@ _shell_printf_bytes() {
         out+="\\$oct"
     done
     printf '%s' "$out"
+}
+
+# A write-ahead install ledger owns rollback for this invocation and becomes the
+# durable receipt when the transaction commits. Paths are octal-escaped so one
+# record remains one line even under an unusual but valid home directory.
+TXN_ACTIVE=0
+TXN_COMMITTED=0
+TXN_DIR=""
+TXN_JOURNAL=""
+INSTALL_STATE_DIR="$STATE_HOME/silere-shell"
+INSTALL_RECEIPT="$INSTALL_STATE_DIR/install-receipt"
+declare -A _TXN_FILES=()
+TXN_FILE_COUNT=0
+install_mode=development
+receipt_compositor=unknown
+receipt_autostart=""
+
+_txn_escape() { _shell_printf_bytes "$1"; }
+_txn_unescape() { printf '%b' "$1"; }
+
+_txn_append() {
+    [ "$TXN_ACTIVE" = 1 ] || return 0
+    printf '%s\n' "$*" >> "$TXN_JOURNAL"
+}
+
+# every transaction directory holds pre-images of the files that run touched, so
+# the ledger would otherwise grow with each install
+_txn_prune_old() {
+    local dir="$INSTALL_STATE_DIR/install-transactions" old
+    [ -d "$dir" ] && [ ! -L "$dir" ] || return 0
+    while IFS= read -r old; do
+        [[ "$old" =~ ^[0-9]{8}T[0-9]{6}Z-[0-9]+(-[0-9]+)?$ ]] || continue
+        [ -L "${dir:?}/$old" ] || rm -rf -- "${dir:?}/$old"
+    done < <(ls -1t "$dir" 2>/dev/null | tail -n +6)
+}
+
+_txn_begin() {
+    [ "${_dry_run:-0}" = 0 ] || return 0
+    local id base suffix=0
+    id="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+    [ ! -L "$INSTALL_STATE_DIR" ] || _die "refusing symlinked install state directory"
+    (umask 077 && mkdir -p "$INSTALL_STATE_DIR/install-transactions") \
+        || _die "could not create install transaction state"
+    chmod 0700 "$INSTALL_STATE_DIR" "$INSTALL_STATE_DIR/install-transactions" \
+        || _die "could not secure install transaction state"
+    base="$id"
+    while [ -e "$INSTALL_STATE_DIR/install-transactions/$id" ]; do
+        suffix=$((suffix + 1))
+        id="$base-$suffix"
+    done
+    TXN_DIR="$INSTALL_STATE_DIR/install-transactions/$id"
+    (umask 077 && mkdir "$TXN_DIR") || _die "could not start install transaction"
+    _txn_prune_old
+    TXN_JOURNAL="$TXN_DIR/journal"
+    (umask 077 && printf 'version=1\nstatus=active\ntransaction=%s\n' "$id" \
+        > "$TXN_JOURNAL") || _die "could not write install transaction"
+    chmod 0600 "$TXN_JOURNAL"
+    _TXN_FILES=()
+    TXN_FILE_COUNT=0
+    TXN_COMMITTED=0
+    TXN_ACTIVE=1
+}
+
+_txn_before_file() {
+    local requested="$1" path="$1" key backup existed=0
+    [ "$TXN_ACTIVE" = 1 ] || return 0
+    if [ -L "$path" ]; then
+        path="$(readlink -f -- "$path" 2>/dev/null)" || return 1
+    fi
+    [ -n "$path" ] || return 1
+    key="$path"
+    [ -z "${_TXN_FILES[$key]:-}" ] || return 0
+    _TXN_FILES[$key]=1
+    TXN_FILE_COUNT=$((TXN_FILE_COUNT + 1))
+    backup="file-$TXN_FILE_COUNT"
+    if [ -e "$path" ] || [ -L "$path" ]; then
+        [ ! -d "$path" ] || return 1
+        cp -a --no-dereference -- "$path" "$TXN_DIR/$backup" || return 1
+        existed=1
+    else
+        backup="-"
+    fi
+    _txn_append $'file\t'"$(_txn_escape "$path")"$'\t'"$existed"$'\t'"$backup"$'\t'"$(_txn_escape "$requested")"
+}
+
+_txn_before_mode() {
+    local path="$1" mode
+    [ "$TXN_ACTIVE" = 1 ] || return 0
+    [ -e "$path" ] || return 0
+    mode="$(stat -c '%a' -- "$path" 2>/dev/null)" || return 1
+    _txn_append $'mode\t'"$(_txn_escape "$path")"$'\t'"$mode"
+}
+
+_txn_tree_created() {
+    [ "$TXN_ACTIVE" = 1 ] || return 0
+    _txn_append $'tree-created\t'"$(_txn_escape "$1")"
+}
+
+_txn_tree_replaced() {
+    [ "$TXN_ACTIVE" = 1 ] || return 0
+    _txn_append $'tree-replaced\t'"$(_txn_escape "$1")"$'\t'"$(_txn_escape "$2")"
+}
+
+_txn_timer_state() {
+    local enabled=0
+    [ "$TXN_ACTIVE" = 1 ] || return 0
+    command -v systemctl >/dev/null 2>&1 \
+        && systemctl --user is-enabled --quiet silere-update.timer 2>/dev/null \
+        && enabled=1
+    _txn_append $'timer\t'"$enabled"
+}
+
+_txn_remove_created_tree() {
+    local path="$1"
+    # Only normalized installer targets recorded by this process reach here.
+    [ -n "$path" ] && [ "$path" != / ] && [ "$path" != "$HOME" ] \
+        && [ "$path" != "$CONFIG_HOME" ] || return 1
+    rm -rf -- "$path"
+}
+
+_txn_rollback() {
+    local -a records=()
+    local i kind a b c requested path backup
+    [ "$TXN_ACTIVE" = 1 ] && [ "$TXN_COMMITTED" = 0 ] || return 0
+    mapfile -t records < "$TXN_JOURNAL" || return 1
+    _warn "install failed; rolling back transaction ${TXN_DIR##*/}"
+    for ((i=${#records[@]} - 1; i >= 0; i--)); do
+        IFS=$'\t' read -r kind a b c requested <<< "${records[i]}"
+        case "$kind" in
+            file)
+                path="$(_txn_unescape "$a")"
+                if [ "$b" = 1 ]; then
+                    backup="$TXN_DIR/$c"
+                    mkdir -p "${path%/*}" || continue
+                    rm -f -- "$path"
+                    cp -a --no-dereference -- "$backup" "$path" || true
+                else
+                    [ -d "$path" ] || rm -f -- "$path"
+                fi
+                ;;
+            mode)
+                path="$(_txn_unescape "$a")"
+                [ ! -e "$path" ] || chmod "$b" -- "$path" 2>/dev/null || true
+                ;;
+            tree-created)
+                _txn_remove_created_tree "$(_txn_unescape "$a")" || true
+                ;;
+            tree-replaced)
+                path="$(_txn_unescape "$a")"
+                backup="$(_txn_unescape "$b")"
+                _txn_remove_created_tree "$path" || true
+                [ ! -e "$backup" ] || mv -- "$backup" "$path" || true
+                ;;
+            timer)
+                if [ "$a" = 0 ] && command -v systemctl >/dev/null 2>&1; then
+                    systemctl --user disable --now silere-update.timer >/dev/null 2>&1 || true
+                    systemctl --user daemon-reload >/dev/null 2>&1 || true
+                fi
+                ;;
+        esac
+    done
+    printf 'status=rolled-back\n' >> "$TXN_JOURNAL"
+    TXN_ACTIVE=0
+}
+
+_txn_commit() {
+    local tmp
+    [ "$TXN_ACTIVE" = 1 ] || return 0
+    tmp="$(mktemp "$INSTALL_STATE_DIR/.install-receipt.XXXXXX")" || return 1
+    chmod 0600 "$tmp" || { rm -f -- "$tmp"; return 1; }
+    if ! printf '%s\n' \
+            version=1 \
+            "transaction=${TXN_DIR##*/}" \
+            "installMode=$install_mode" \
+            "checkoutPath=$(_txn_escape "$ROOT")" \
+            "compositor=$receipt_compositor" \
+            "autostartPath=$(_txn_escape "$receipt_autostart")" \
+            "fontInstalled=$($did_font && printf 1 || printf 0)" \
+            "cliInstalled=$($did_cli && printf 1 || printf 0)" \
+            "matugenTemplate=$($did_tmpl && printf 1 || printf 0)" \
+            "matugenConfig=$($did_toml && printf 1 || printf 0)" \
+            "updateTimer=$($did_update && printf 1 || printf 0)" \
+            "journal=$(_txn_escape "$TXN_JOURNAL")" > "$tmp" \
+            || ! mv -- "$tmp" "$INSTALL_RECEIPT"; then
+        rm -f -- "$tmp"
+        return 1
+    fi
+    printf 'status=committed\n' >> "$TXN_JOURNAL" || return 1
+    TXN_COMMITTED=1
+    return 0
 }
 
 _lua_string() {
@@ -448,13 +642,17 @@ fi
 
 _backup() {
     local file="$1"
-    if [ -f "$file" ] && [ ! -f "${file}.bak" ]; then
-        if _dry; then
+    if [ -f "$file" ]; then
+        if _dry && [ ! -f "${file}.bak" ]; then
             _would "back up $file → ${file##*/}.bak"
             return 0
         fi
-        cp -p "$file" "${file}.bak"
-        _skip "backed up existing → ${file##*/}.bak"
+        _txn_before_file "$file" || _die "could not journal $file"
+        if [ ! -f "${file}.bak" ]; then
+            _txn_before_file "${file}.bak" || _die "could not journal ${file}.bak"
+            cp -p "$file" "${file}.bak"
+            _skip "backed up existing → ${file##*/}.bak"
+        fi
     fi
 }
 
@@ -472,6 +670,7 @@ _install_file() {
     else
         _ask "Install $label?" || { _skip "skipped"; return 1; }
         if _dry; then _would "create $dst"; return 0; fi
+        _txn_before_file "$dst" || _die "could not journal $dst"
         mkdir -p "${dst%/*}" || _die "could not create ${dst%/*}"
         cp "$src" "$dst" || _die "could not write $dst"
         _ok "installed"
@@ -560,9 +759,11 @@ spin_stop() {
 }
 
 _cleanup() {
+    local code=$?
     spin_stop
     [ -n "$font_tmp" ] && rm -f "$font_tmp"
-    return 0
+    if [ "$code" -ne 0 ]; then _txn_rollback || true; fi
+    return "$code"
 }
 trap '_cleanup' EXIT
 trap '_cleanup; exit 130' INT TERM
@@ -693,6 +894,8 @@ else
     fi
 fi
 
+_txn_begin
+
 # ── font ─────────────────────────────────────────────────────────────────────────
 _section "JetBrainsMono Nerd Font"
 
@@ -745,6 +948,10 @@ else
             _would "download JetBrainsMono $FONT_VERSION and install 4 faces to $FONT_DIR"
         fi
     elif _font_download_tools_ready && _ask "Download and install it now?"; then
+        for font_file in "${SILERE_FONT_FILES[@]}"; do
+            _txn_before_file "$FONT_DIR/$font_file" \
+                || _die "could not journal $FONT_DIR/$font_file"
+        done
         mkdir -p "$FONT_DIR"
         font_tmp="$(mktemp "${TMPDIR:-/tmp}/silere-font.XXXXXX.tar.xz")"
         spin_start "downloading..."
@@ -797,6 +1004,7 @@ if [ "$INSTALL_DIR" = "$DEFAULT_DIR" ] && _dry; then
 elif [ "$INSTALL_DIR" = "$DEFAULT_DIR" ]; then
     # -m with -p only applies to the deepest directory, so any parent this
     # creates would land at the umask default; clamp it for the whole path.
+    _txn_before_mode "$CONFIG_HOME" || _die "could not journal permissions for $CONFIG_HOME"
     (umask 077 && mkdir -p "$CONFIG_HOME") || _die "could not create $CONFIG_HOME"
     chmod 0700 "$CONFIG_HOME" || _die "could not secure $CONFIG_HOME"
 fi
@@ -824,6 +1032,7 @@ if [ -d "$INSTALL_DIR/.git" ]; then
             fi
             _die "signed release update failed — check the connection or update manually"
         fi
+        install_mode=managed
         spin_stop; _ok "up to date"
     else
         _skip "using existing clone"
@@ -835,6 +1044,8 @@ elif [ -e "$INSTALL_DIR" ] || [ -L "$INSTALL_DIR" ]; then
     elif _ask "Path exists but is not a git repo. Move it aside and clone fresh?"; then
         install_backup="$(_move_aside_path "$INSTALL_DIR")" \
             || _die "could not preserve existing path: $INSTALL_DIR"
+        _txn_tree_replaced "$INSTALL_DIR" "$install_backup" \
+            || _die "could not journal checkout replacement"
         _ok "preserved existing path at $install_backup"
         spin_start "cloning..."
         if ! GIT_TERMINAL_PROMPT=0 git clone --single-branch --quiet "$REPO_URL" "$INSTALL_DIR"; then
@@ -856,6 +1067,7 @@ elif _dry; then
     _would "clone $REPO_URL → $INSTALL_DIR"
     fresh_clone=true
 else
+    _txn_tree_created "$INSTALL_DIR" || _die "could not journal checkout creation"
     spin_start "cloning..."
     if ! GIT_TERMINAL_PROMPT=0 git clone --single-branch --quiet "$REPO_URL" "$INSTALL_DIR"; then
         spin_stop; _die "git clone failed — check your connection"
@@ -868,6 +1080,9 @@ if $fresh_clone && _dry; then
     _would "check out the latest signed release in $INSTALL_DIR"
 elif $fresh_clone; then
     _secure_fresh_default_install "$INSTALL_DIR"
+    # a clone this installer made is Silere's to update either way; declining the
+    # pin only chooses main over the tag, and main still moves on signed releases
+    install_mode=managed
     if _ask "Install the latest signed release?"; then
         spin_start "checking release..."
         if ! GIT_TERMINAL_PROMPT=0 bash "$INSTALL_DIR/scripts/update.sh" --pin-release >/dev/null; then
@@ -905,6 +1120,7 @@ elif _ask "Install the silere doctor/update/repair command?"; then
         _would "create $CLI_LINK → $CLI_TARGET"
     else
         (umask 077 && mkdir -p "$CLI_DIR") || _die "could not create $CLI_DIR"
+        _txn_before_file "$CLI_LINK" || _die "could not journal $CLI_LINK"
         ln -s -- "$CLI_TARGET" "$CLI_LINK" || _die "could not create $CLI_LINK"
         _ok "installed at $CLI_LINK"
         did_cli=true
@@ -954,6 +1170,7 @@ else
     elif _ask "Add entry to $MATUGEN_CFG?"; then
         cfg_existed=false
         [ -f "$MATUGEN_CFG" ] && cfg_existed=true
+        _txn_before_file "$MATUGEN_CFG" || _die "could not journal $MATUGEN_CFG"
         mkdir -p "${MATUGEN_CFG%/*}"
         [ ! -f "$MATUGEN_CFG" ] && printf '[config]\nversion_check = false\n' > "$MATUGEN_CFG"
         $cfg_existed && _backup "$MATUGEN_CFG"
@@ -1025,6 +1242,8 @@ if [ -n "${NIRI_SOCKET:-}" ] || [ "${XDG_CURRENT_DESKTOP:-}" = "niri" ] \
     || [ -n "$NIRI_CONFIG_OVERRIDE" ] \
     || { [ -z "$HYPR_CONFIG" ] && [ -f "$NIRI_CONFIG" ]; }; then
     NIRI_SPAWN="spawn-at-startup \"sh\" \"-c\" $(_lua_string "$LAUNCH_CMD")"
+    receipt_compositor=niri
+    receipt_autostart="$NIRI_CONFIG"
     if [ ! -f "$NIRI_CONFIG" ]; then
         _warn "no niri config at $(_tilde "$NIRI_CONFIG")"
         _warn "add manually: $NIRI_SPAWN"
@@ -1063,6 +1282,7 @@ if [ -n "${NIRI_SOCKET:-}" ] || [ "${XDG_CURRENT_DESKTOP:-}" = "niri" ] \
 fi
 
 if ! $_autostart_done; then
+receipt_compositor=hyprland
 HYPR_DIR="$(dirname -- "${HYPR_CONFIG:-$CONFIG_HOME/hypr/hyprland.conf}")"
 
 if [ "$HYPR_CONFIG" = "$HYPR_LUA" ] && [ -f "$HYPR_CONF" ]; then
@@ -1082,6 +1302,7 @@ if [[ "$HYPR_CONFIG" == *.lua ]]; then
     _ok "found Hyprland Lua config at $(_tilde "$HYPR_CONFIG")"
 
     if [ -n "$LUA_EXEC_FILE" ] && _already_present "$LUA_EXEC_FILE"; then
+        receipt_autostart="$LUA_EXEC_FILE"
         LUA_AUTOSTART_BODY="$(printf 'hl.on(\"hyprland.start\", function()\n    hl.exec_cmd(%s)\nend)' "$LAUNCH_CMD_LUA")"
         if _owned_block_contains "$LUA_EXEC_FILE" '-- silere-shell begin' \
                 '-- silere-shell end' '/scripts/silere' \
@@ -1103,6 +1324,7 @@ if [[ "$HYPR_CONFIG" == *.lua ]]; then
     elif [ -n "$LUA_EXEC_FILE" ] && _dry; then
         _would "append to $LUA_EXEC_FILE: hl.exec_cmd($LAUNCH_CMD_LUA)"
     elif [ -n "$LUA_EXEC_FILE" ]; then
+        receipt_autostart="$LUA_EXEC_FILE"
         if _ask "Add autostart to $(_tilde "$LUA_EXEC_FILE")?"; then
             _backup "$LUA_EXEC_FILE"
             cat >> "$LUA_EXEC_FILE" <<EOF
@@ -1127,6 +1349,7 @@ EOF
     fi
 
 elif [[ "$HYPR_CONFIG" == *.conf ]]; then
+    receipt_autostart="$HYPR_CONFIG"
     _ok "found Hyprland config at $(_tilde "$HYPR_CONFIG")"
     if _already_present "$HYPR_CONFIG"; then
         if _owned_block_contains "$HYPR_CONFIG" '# silere-shell begin' \
@@ -1174,6 +1397,11 @@ _section "update-check timer"
 if ! command -v systemctl >/dev/null 2>&1; then
     _skip "systemctl not found"
 elif _ask_no "Install daily update-check timer (flags pending updates in the bar)?"; then
+    _txn_timer_state || _die "could not journal update timer state"
+    _txn_before_file "$CONFIG_HOME/systemd/user/silere-update.service" \
+        || _die "could not journal silere-update.service"
+    _txn_before_file "$CONFIG_HOME/systemd/user/silere-update.timer" \
+        || _die "could not journal silere-update.timer"
     if "$ROOT/scripts/update.sh" --timer-enable 2>/dev/null; then
         _ok "enabled — checks for Silere updates and shows a bar badge when one is ready"
         did_update=true
@@ -1191,6 +1419,8 @@ if _dry; then
     printf "\n  re-run without --dry-run to apply this plan\n\n"
     exit 0
 fi
+
+_txn_commit || _die "could not commit the install receipt; the install was rolled back"
 
 printf "\n${BOLD}==> done${R}\n"
 printf "    ${GREEN}ok${R}      installed at %s\n" "$ROOT"

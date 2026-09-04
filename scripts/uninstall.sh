@@ -8,6 +8,11 @@ CONFIG_HOME="$(_silere_xdg_home "${XDG_CONFIG_HOME:-}" .config)" || {
     printf 'silere-uninstall: HOME must be an absolute path\n' >&2
     exit 1
 }
+STATE_HOME="$(_silere_xdg_home "${XDG_STATE_HOME:-}" .local/state)" || {
+    printf 'silere-uninstall: HOME must be an absolute path\n' >&2
+    exit 1
+}
+INSTALL_RECEIPT="$STATE_HOME/silere-shell/install-receipt"
 
 source "$SCRIPT_DIR/lib/ui.sh"
 
@@ -83,6 +88,21 @@ _append_hypr_config_targets() {
     fi
 }
 
+_receipt_value() {
+    local key="$1" value
+    [ -r "$INSTALL_RECEIPT" ] && [ ! -L "$INSTALL_RECEIPT" ] || return 1
+    value="$(sed -n "s/^$key=//p" "$INSTALL_RECEIPT")"
+    [ -n "$value" ] || return 1
+    printf '%s\n' "$value"
+}
+
+_receipt_path() {
+    local encoded
+    encoded="$(_receipt_value "$1")" || return 1
+    [[ "$encoded" =~ ^(\\[0-7]{3})+$ ]] || return 1
+    printf '%b' "$encoded"
+}
+
 if [ "${SILERE_SCRIPT_LIB_ONLY:-0}" = "1" ]; then
     return 0 2>/dev/null || exit 0
 fi
@@ -90,12 +110,30 @@ fi
 # ── header ───────────────────────────────────────────────────────────────────────
 printf "\n${BOLD}:: silere-shell uninstaller${R}\n"
 
+RECEIPT_CHECKOUT="$(_receipt_path checkoutPath 2>/dev/null || true)"
+RECEIPT_AUTOSTART="$(_receipt_path autostartPath 2>/dev/null || true)"
+RECEIPT_MODE="$(_receipt_value installMode 2>/dev/null || true)"
+if [[ "$RECEIPT_MODE" =~ ^(managed|development)$ ]] && [ -n "$RECEIPT_CHECKOUT" ]; then
+    _info "using $RECEIPT_MODE install receipt for $RECEIPT_CHECKOUT"
+else
+    RECEIPT_CHECKOUT=""
+    RECEIPT_AUTOSTART=""
+    _info "no usable install receipt; using defensive discovery"
+fi
+
 # ── maintenance command ──────────────────────────────────────────────────────────
 _section "maintenance command"
 CLI_LINK="$HOME/.local/bin/silere"
-CLI_TARGET="$SCRIPT_DIR/silere"
-if [ -L "$CLI_LINK" ] \
-        && [ "$(readlink -f -- "$CLI_LINK" 2>/dev/null || true)" = "$CLI_TARGET" ]; then
+# the receipt names the checkout that made the link; this script may be running
+# from a second one, so a match against either counts as ours
+CLI_TARGETS=("$SCRIPT_DIR/silere")
+[ -z "$RECEIPT_CHECKOUT" ] || CLI_TARGETS+=("$RECEIPT_CHECKOUT/scripts/silere")
+CLI_RESOLVED="$(readlink -f -- "$CLI_LINK" 2>/dev/null || true)"
+cli_owned=false
+for target in "${CLI_TARGETS[@]}"; do
+    if [ "$CLI_RESOLVED" = "$target" ]; then cli_owned=true; fi
+done
+if [ -L "$CLI_LINK" ] && $cli_owned; then
     if _ask "Remove $CLI_LINK?"; then
         rm -f -- "$CLI_LINK"
         _ok "removed owned command link"
@@ -194,6 +232,7 @@ _section "autostart"
 
 ACTIVE_NIRI_CONFIG="$(bash "$SCRIPT_DIR/install.sh" --niri-config-path 2>/dev/null || true)"
 AUTOSTART_FILES=(
+    "$RECEIPT_AUTOSTART"
     "$CONFIG_HOME/hypr/custom/execs.lua"
     "$CONFIG_HOME/hypr/hyprland/execs.lua"
     "$CONFIG_HOME/hypr/execs.lua"

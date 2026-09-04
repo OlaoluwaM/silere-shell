@@ -41,6 +41,8 @@ settings file carries its own `__version` and migrates separately.
   moves the focused window there.
 - Settings older than the current schema migrate through explicit, ordered steps instead
   of one-off compatibility checks.
+- The installer records a receipt of what it created; uninstall reads it before falling
+  back to searching for its own files.
 
 ### Changed
 
