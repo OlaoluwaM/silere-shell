@@ -407,16 +407,19 @@ Item {
     Connections {
         target: MenuState
         function onAnchorSourceChanged() { root._reclaimPopupAnchors() }
-        // mapToItem sees no ancestor geometry, so the cached x is a stale layout pass by now
+        // mapToItem sees no ancestor geometry, so the cached x is a stale layout pass by now.
+        // Measured even when the anchor is already held: opening closes the sibling popups,
+        // and a sibling's vacated anchor gets this widget adopted before this handler runs,
+        // so a held anchor can still carry an x from before the bar's startup morph settled
         function onOpenChanged() {
-            if (MenuState.open && MenuState.anchorSource === null) root._syncMenuAnchor()
+            if (MenuState.open) root._syncMenuAnchor()
         }
     }
     Connections {
         target: QuickActionsState
         function onAnchorSourceChanged() { root._reclaimPopupAnchors() }
         function onOpenChanged() {
-            if (QuickActionsState.open && QuickActionsState.anchorSource === null) root._syncMenuAnchor()
+            if (QuickActionsState.open) root._syncMenuAnchor()
         }
     }
 
