@@ -76,10 +76,10 @@ Item {
         hoverActive = false
         BarHintState.release(root)
     }
-    onHintTextChanged: if (hovered) root._requestBarHint()
+    onHintTextChanged: if (hovered) root._requestBarHint(root.hovered)
     // hovering reveals the value and widens the pill, so an anchor taken on entry
     // points well left of the centre the hint is finally shown against
-    onWidthChanged: if (root.hovered) root._requestBarHint()
+    onWidthChanged: if (root.hovered) root._requestBarHint(root.hovered)
     Component.onDestruction: BarHintState.release(root)
     onMotionActiveChanged: if (!motionActive && _ready) _settleAnimatedContent()
     Timer {
@@ -115,8 +115,8 @@ Item {
         if (root.animateText) _textEl._shown = root.text
     }
 
-    function _requestBarHint(): void {
-        if (!root.hovered || root.hintText.length === 0 || !root.hintScreen) {
+    function _requestBarHint(hoveredNow: bool): void {
+        if (!hoveredNow || root.hintText.length === 0 || !root.hintScreen) {
             BarHintState.release(root)
             return
         }
@@ -358,7 +358,9 @@ Item {
         onHoveredChanged: {
             if (hovered) {
                 _hoverRevealTimer.restart()
-                root._requestBarHint()
+                // the handler's signal fires before root.hovered's binding observes it,
+                // so pass the event's state instead of reading the binding back
+                root._requestBarHint(true)
             } else {
                 _hoverRevealTimer.stop()
                 root.hoverActive = false
