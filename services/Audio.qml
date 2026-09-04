@@ -159,7 +159,8 @@ Singleton {
         const streams = root._inputStreams
         for (let i = 0; i < streams.length; i++) {
             const n = streams[i]
-            if (!root.capturesOutput(n ? n.properties : null)) out.push(n)
+            const props = n ? n.properties : null
+            if (root.isAppStream(props) && !root.capturesOutput(props)) out.push(n)
         }
         return out
     }

@@ -2092,7 +2092,7 @@ ShellRoot {
                     "node.name": "output.combined_bluez_output.X.1" })
                 && !Audio.isAppStream({})
                 && !Audio.isAppStream(null),
-            "a playback stream with no application behind it is routing, not an app")
+            "a stream with no application behind it is routing, not an app")
         root._check(Bluetooth.deviceGlyph("video-display") !== Bluetooth.deviceGlyph("unknown-device")
                 && Bluetooth.deviceGlyph("printer") !== Bluetooth.deviceGlyph("unknown-device")
                 && Bluetooth.deviceGlyph("camera-photo") !== Bluetooth.deviceGlyph("unknown-device")

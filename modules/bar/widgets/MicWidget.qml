@@ -39,15 +39,20 @@ Pill {
         if (!Audio.micReady) return ""
         const parts = []
         if (Audio.captureSummary.length > 0) parts.push(Audio.captureSummary)
+        if (Audio.sourceName.length > 0) parts.push(Audio.sourceName)
         parts.push(Audio.micMuted ? "click unmute" : "click mute", "scroll level")
         if (Audio.hasSoundSettings) parts.push("right-click settings")
         return parts.join(" · ")
     }
     reserveText: "100%"
-    accessibleName: !Audio.micReady ? "Microphone"
-        : Audio.micMuted ? "Microphone muted, " + Audio.captureSummary
-        : "Microphone in use by " + Audio.captureSummary + ", "
-          + Math.round(Audio.micVolume * 100) + "%"
+    accessibleName: {
+        if (!Audio.micReady) return "Microphone"
+        const parts = [Audio.micMuted ? "Microphone muted" : "Microphone in use"]
+        if (Audio.captureSummary.length > 0) parts.push(Audio.captureSummary)
+        if (!Audio.micMuted) parts.push(Math.round(Audio.micVolume * 100) + "%")
+        if (Audio.sourceName.length > 0) parts.push(Audio.sourceName)
+        return parts.join(", ")
+    }
     text: !Audio.micReady ? ""
         : (ShellSettings.valuesOnHover && !expanded) ? ""
         : (Math.round(Audio.micVolume * 100) + "%")
