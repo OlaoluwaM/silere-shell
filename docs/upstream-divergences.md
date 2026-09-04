@@ -75,7 +75,10 @@ so resurrecting one on purpose means removing its line in the same commit.
   around those two constraints. The history page's stacked runs are the
   fork's own: an upstream history grouping lands under that fold or not at all. The fork's duration-picker DND replaces
   upstream's scheduled quiet hours; keep `dndSchedule`, `dndFrom`, `dndTo`,
-  their settings rows, and their service logic removed.
+  their settings rows, and their service logic removed. Notification history
+  keeps its current-server marker across a QML hot reload by keying it to the
+  Quickshell process; upstream currently drops the marker even though its
+  notification server survives that reload.
 - The Bluetooth bar widget stays an actionable `StatusActionPill` that opens
   the configured manager. Take compatible upstream service, accessibility,
   hint, and lifecycle improvements without replacing it with a passive pill.

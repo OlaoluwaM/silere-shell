@@ -58,6 +58,10 @@ Singleton {
         }
     }
 
+    function _restoredSessionCurrent(entry): bool {
+        return Number(entry?.serverProcessId ?? -1) === Quickshell.processId
+    }
+
     function _trimHistory(): void {
         const dropped = []
         while (_history.count > root._maxHistory) {
@@ -128,7 +132,8 @@ Singleton {
             const h = _history.get(i)
             out.push({
                 id: h.id, appName: h.appName, appIcon: h.appIcon, desktopEntry: h.desktopEntry,
-                summary: h.summary, body: h.body, urgency: h.urgency, time: h.time
+                summary: h.summary, body: h.body, urgency: h.urgency, time: h.time,
+                serverProcessId: h.sessionCurrent ? Quickshell.processId : -1
             })
         }
         _persist.historyJson = ShellSettings.notifHistoryPersistent
@@ -189,10 +194,12 @@ Singleton {
         _history.clear()
         if (Array.isArray(savedHistory)) {
             for (let i = 0; i < savedHistory.length && i < root._maxHistory; i++) {
-                const e = root._normalizeEntry(savedHistory[i])
+                const savedEntry = savedHistory[i]
+                const e = root._normalizeEntry(savedEntry)
                 if (e) {
-                    // ids restart with the server, so a saved one names nothing this session
-                    e.sessionCurrent = false
+                    // The notification server survives a QML reload but not this process.
+                    // Keep its ids current across the former and stale across the latter.
+                    e.sessionCurrent = root._restoredSessionCurrent(savedEntry)
                     _history.append(e)
                 }
             }

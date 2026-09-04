@@ -642,6 +642,14 @@ ShellRoot {
         root._check(!Notifications._normalizeEntry({ id: 12 }).sessionCurrent
                 && Notifications._normalizeEntry({ id: 12, sessionCurrent: true }).sessionCurrent,
             "history marks only entries created in this server lifetime as current")
+        root._check(Notifications._restoredSessionCurrent({
+                    serverProcessId: Quickshell.processId
+                })
+                && !Notifications._restoredSessionCurrent({
+                    serverProcessId: Quickshell.processId + 1
+                })
+                && !Notifications._restoredSessionCurrent({}),
+            "history keeps its current-server marker across a QML reload only")
         const restoredSeen = Notifications._normalizeSeenMap(JSON.parse(
             '{"1":true,"2":"true","-1":true,"2147483648":true,"__proto__":true}'))
         root._check(Object.getPrototypeOf(restoredSeen) === null
