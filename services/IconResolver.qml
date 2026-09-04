@@ -26,9 +26,37 @@ Singleton {
             || authority.startsWith("qsimage/") || authority.startsWith("qspixmap/")
     }
 
+    // a tray item's icon arrives from Quickshell as image://icon/<name>?path=<dir>, so
+    // refusing the provider outright leaves every app shipping its own icons unrendered
+    function _isSafeIconProvider(value: string): bool {
+        const rest = value.slice(6).replace(/^\/\//, "")
+        if (rest.slice(0, 5).toLowerCase() !== "icon/") return false
+        const q = rest.indexOf("?")
+        const name = q < 0 ? rest : rest.slice(0, q)
+        if (name.length <= 5 || name.indexOf("/", 5) >= 0) return false
+        if (q < 0) return true
+        const query = rest.slice(q + 1)
+        if (query.slice(0, 5).toLowerCase() !== "path=") return false
+        let dir = ""
+        try { dir = decodeURIComponent(query.slice(5)) } catch (e) { return false }
+        // the segment the guard was written for: an absolute directory that cannot climb out
+        return dir.startsWith("/") && ("/" + dir + "/").indexOf("/../") < 0
+    }
+
     function safeLocalSource(raw): string {
         const source = root.localSource(raw)
         return root._imageScheme.test(source) && !root._isSafeImageProvider(source) ? "" : source
+    }
+
+    // the tray's icons come from Quickshell's own SystemTray service, not from raw sender
+    // text, and image://icon is the only form it offers for an app shipping its own theme
+    function trayIconSource(raw): string {
+        const value = String(raw ?? "").trim()
+        if (value.length === 0 || value.length > root.maxSourceChars) return ""
+        if (root._imageScheme.test(value))
+            return root._isSafeImageProvider(value) || root._isSafeIconProvider(value)
+                ? value : ""
+        return root.iconSource(value)
     }
 
     // Icon and image fields can originate in any notification or StatusNotifier

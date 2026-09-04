@@ -88,7 +88,7 @@ Item {
                     String(modelData.tooltipTitle || "").length > 0 ? modelData.tooltipTitle
                     : String(modelData.title || "").length > 0 ? modelData.title
                     : modelData.id, 128)
-                readonly property string iconSource: IconResolver.iconSource(modelData.icon)
+                readonly property string iconSource: IconResolver.trayIconSource(modelData.icon)
                 readonly property bool passive: modelData.status === Status.Passive
                 readonly property bool needsAttention: modelData.status === Status.NeedsAttention
                 property real menuAnchorX: 0

@@ -831,6 +831,15 @@ ShellRoot {
         root._check(IconResolver.senderIconSource("IMAGE://icon/x?path=/etc/passwd") === ""
                 && IconResolver.iconSource("Image://Icon/x?path=/etc/passwd") === "",
             "the icon provider guard holds when the sender varies the scheme's case")
+        root._check(IconResolver.trayIconSource("image://icon/app?path=/opt/app/icons")
+                === "image://icon/app?path=/opt/app/icons",
+            "tray icons may use an app-owned absolute icon directory")
+        root._check(IconResolver.trayIconSource("image://icon/app?path=relative") === ""
+                && IconResolver.trayIconSource(
+                    "image://icon/app?path=/opt/app/../private") === ""
+                && IconResolver.trayIconSource(
+                    "image://icon/sub/app?path=/opt/app/icons") === "",
+            "tray icon directories stay absolute and cannot traverse or name nested providers")
         root._check(IconResolver.senderImageSource("image://QsImage/1")
                 === "image://QsImage/1",
             "a mixed-case in-memory provider stays available")
