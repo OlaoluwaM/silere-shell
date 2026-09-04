@@ -44,7 +44,7 @@ ClippingRectangle {
         // ever open, so closing the other is a no-op.
         MenuState.close()
         MediaPopupState.close()
-        HyprActions.focusMediaPlayer(Media.playerName, Media.title)
+        WindowActions.focusMediaPlayer(Media.playerName, Media.title)
     }
 
     function settleMediaVisual(): void {

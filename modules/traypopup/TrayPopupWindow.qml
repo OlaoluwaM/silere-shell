@@ -75,7 +75,7 @@ PanelWindow {
     }
 
     function _activateItem(item, row): void {
-        if (!HyprActions.focusTrayItem(item.id, item.title, item.tooltipTitle)) {
+        if (!WindowActions.focusTrayItem(item.id, item.title, item.tooltipTitle)) {
             if (item.onlyMenu) win._openItemMenu(item, row)
             else item.activate()
         }

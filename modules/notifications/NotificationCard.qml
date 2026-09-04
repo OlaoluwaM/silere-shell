@@ -116,7 +116,7 @@ Item {
         if (card._defaultAction)
             card._defaultAction.invoke()
 
-        HyprActions.focusNotificationSource(card.notification)
+        WindowActions.focusNotificationSource(card.notification)
         if (!card._defaultAction || !card.notification.resident)
             card.dismiss()
     }
@@ -702,7 +702,7 @@ Item {
             onClicked: (mouse) => {
                 if (mouse.button === Qt.RightButton) { card.dismiss(); return }
                 if (mouse.button === Qt.MiddleButton)
-                    HyprActions.focusNotificationSource(card.notification)
+                    WindowActions.focusNotificationSource(card.notification)
                 else
                     card.activatePrimary()
             }
