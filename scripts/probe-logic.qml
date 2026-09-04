@@ -11,6 +11,7 @@ import "modules/bar/widgets"
 import "modules/bar/widgets/workspaces"
 import "modules/menu/controls"
 import "modules/notifications"
+import "services/SettingsMigrations.js" as SettingsMigrations
 
 // Small behavioral assertions for pure logic that a type-check or construction
 // probe cannot validate. Keep this free of compositor and hardware dependencies.
@@ -695,6 +696,28 @@ ShellRoot {
         root._check(migratedV1.value.untouchedFutureShape
                 === "keep until known-key coercion",
             "a migration does not discard unrelated input before schema coercion")
+
+        // the engine is asserted directly so these hold after the schema number moves on:
+        // a registry gap must throw, because _applyText turns the throw into a refusal to
+        // write, and that is the only thing keeping a half-migrated file off disk
+        let migrationGapThrew = false
+        let migrationGapValue = null
+        try {
+            migrationGapValue = SettingsMigrations.migrate({ barHeight: 40 }, 0, 2)
+        } catch (e) {
+            migrationGapThrew = true
+        }
+        root._check(migrationGapThrew && migrationGapValue === null,
+            "a missing migration step throws instead of returning a half-migrated value")
+        const migrationHeld = SettingsMigrations.migrate({ barHeight: 40 }, 1, 1)
+        root._check(migrationHeld.applied.length === 0
+                && migrationHeld.version === 1
+                && migrationHeld.value.__version === undefined
+                && migrationHeld.value.barHeight === 40,
+            "migrating to the version already held stamps and changes nothing")
+        const migrationNewer = SettingsMigrations.migrate({ barHeight: 40 }, 3, 1)
+        root._check(migrationNewer.applied.length === 0 && migrationNewer.version === 3,
+            "a value newer than the target is carried through untouched")
         // "settings written by a newer version than you run keep their unknown values
         // instead of being stripped" — a downgrade silently losing config is invisible
         // until the user upgrades again, so pin the round trip rather than the wording
