@@ -39,6 +39,8 @@ STATE_DIR="$STATE_HOME/silere-shell"
 APPLY_JOURNAL="$STATE_DIR/update-transaction-$ROOT_KEY"
 APPLY_TRUSTED_SIGNERS="$STATE_DIR/update-transaction-$ROOT_KEY.signers"
 INSTALL_RECEIPT="$STATE_DIR/install-receipt"
+STAGE_PARENT=""
+STAGE_DIR=""
 
 _notify() {
     command -v notify-send >/dev/null 2>&1 || return 0
@@ -138,6 +140,28 @@ _clear_apply_transaction() {
     # fails, retaining the key keeps the next recovery attempt authenticatable.
     rm -f -- "$APPLY_JOURNAL" || return 1
     rm -f -- "$APPLY_TRUSTED_SIGNERS"
+}
+
+_cleanup_candidate_stage() {
+    local stage="${STAGE_DIR:-}" parent="${STAGE_PARENT:-}"
+    STAGE_DIR=""
+    STAGE_PARENT=""
+    if [ -n "$stage" ]; then
+        git -C "$ROOT" worktree remove --force "$stage" >/dev/null 2>&1 || true
+    fi
+    if [ -n "$parent" ] && [ -d "$parent" ]; then
+        rmdir -- "$parent" >/dev/null 2>&1 || true
+    fi
+}
+
+_create_candidate_stage() {
+    STAGE_PARENT="$(mktemp -d "${TMPDIR:-/tmp}/silere-stage.XXXXXX")" || return 1
+    chmod 0700 "$STAGE_PARENT" || { _cleanup_candidate_stage; return 1; }
+    STAGE_DIR="$STAGE_PARENT/tree"
+    if ! git -C "$ROOT" worktree add --detach --quiet "$STAGE_DIR" "$release_rev"; then
+        _cleanup_candidate_stage
+        return 1
+    fi
 }
 
 _read_apply_journal() {
@@ -395,8 +419,8 @@ _resolve_trusted_release() {
 
 # A failed load makes qs exit non-zero at once, and the service restarts it every
 # few seconds forever — no bar, no menu, and no UI left to roll back from. Type-check
-# the merged tree first (~15s) and only restart into it if it actually loads. Skipping
-# the gate when the checker or qs is missing keeps the updater usable without them.
+# a detached candidate tree first (~15s) and only activate it if it actually loads.
+# Skipping the gate when the checker or qs is missing keeps the updater usable without them.
 # The unit name is fixed, so a --apply run from a second checkout would otherwise
 # restart whichever shell is live, not the one it just updated. systemd expands %h
 # in ExecStart before reporting it, so the resolved path is safe to match on.
@@ -415,14 +439,31 @@ _unit_runs_this_checkout() {
 # sees it. Offscreen cannot stand in: with no PanelWindow backend every tree
 # fails alike. Skipped when a display, timeout or the theme is missing, so a
 # headless or bare checkout is never rolled back over a condition of its own.
-_merged_tree_starts() {
+_candidate_tree_starts() {
+    local candidate_root="$1"
     command -v timeout >/dev/null 2>&1 || return 0
     [ -n "${WAYLAND_DISPLAY:-}" ] || return 0
     [ -n "${XDG_RUNTIME_DIR:-}" ] && [ -d "$XDG_RUNTIME_DIR" ] || return 0
-    [ -f "$ROOT/config/MatugenPalette.qml" ] || return 0
-    local log code=0 verdict=0
-    log="$(mktemp "${TMPDIR:-/tmp}/silere-update-smoke.XXXXXX.log")" || return 0
-    timeout --kill-after=5 5s qs -p "$ROOT/shell.qml" --no-color >"$log" 2>&1 9>&- || code=$?
+    [ -f "$candidate_root/config/MatugenPalette.qml" ] || return 0
+    local sandbox log code=0 verdict=0
+    sandbox="$(mktemp -d "${TMPDIR:-/tmp}/silere-update-runtime.XXXXXX")" || return 1
+    chmod 0700 "$sandbox" || { rmdir -- "$sandbox"; return 1; }
+    mkdir -p "$sandbox/config/silere-shell" "$sandbox/cache" "$sandbox/state" \
+        || { rm -rf -- "$sandbox"; return 1; }
+    # Exercise the candidate against the user's current on-disk shape without
+    # allowing a migration or startup write to touch the real configuration.
+    if [ -f "$CONFIG_HOME/silere-shell/settings.json" ] \
+            && [ ! -L "$CONFIG_HOME/silere-shell/settings.json" ]; then
+        cp -- "$CONFIG_HOME/silere-shell/settings.json" \
+            "$sandbox/config/silere-shell/settings.json" \
+            || { rm -rf -- "$sandbox"; return 1; }
+    fi
+    log="$(mktemp "${TMPDIR:-/tmp}/silere-update-smoke.XXXXXX.log")" \
+        || { rm -rf -- "$sandbox"; return 1; }
+    XDG_CONFIG_HOME="$sandbox/config" XDG_CACHE_HOME="$sandbox/cache" \
+        XDG_STATE_HOME="$sandbox/state" \
+        timeout --kill-after=5 5s qs -p "$candidate_root/shell.qml" --no-color \
+        >"$log" 2>&1 9>&- || code=$?
     # 124 is the timeout firing, i.e. it stayed up for the whole window
     if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then
         # an unreachable display is not the update's fault; never roll back over it
@@ -432,14 +473,16 @@ _merged_tree_starts() {
         verdict=1
     fi
     rm -f "$log"
+    rm -rf -- "$sandbox"
     return "$verdict"
 }
 
-_merged_tree_loads() {
-    [ -r "$ROOT/scripts/test-qml-headless.sh" ] || return 0
+_candidate_tree_loads() {
+    local candidate_root="$1"
+    [ -r "$candidate_root/scripts/test-qml-headless.sh" ] || return 0
     command -v qs >/dev/null 2>&1 || return 0
-    bash "$ROOT/scripts/test-qml-headless.sh" >/dev/null 2>&1 || return 1
-    _merged_tree_starts
+    bash "$candidate_root/scripts/test-qml-headless.sh" >/dev/null 2>&1 || return 1
+    _candidate_tree_starts "$candidate_root"
 }
 
 _acquire_update_lock() {
@@ -605,6 +648,9 @@ if [ "${SILERE_SCRIPT_LIB_ONLY:-0}" = "1" ]; then
     return 0 2>/dev/null || exit 0
 fi
 
+trap _cleanup_candidate_stage EXIT
+trap 'exit 130' INT TERM
+
 # a distro package ships no .git, which is a supported install shape and not a
 # failure — answer the read-only queries and never raise a critical popup for it
 if ! git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
@@ -697,8 +743,9 @@ if [ "${1:-}" = "--pin-release" ]; then
     exit 0
 fi
 
-# --apply: fast-forward to the already-fetched, signed release and restart the
-# shell. The trust check runs again so the cache flag is never authoritative.
+# --apply: validate the already-fetched, signed release outside the live checkout,
+# then fast-forward and restart. The trust check runs again so the cache flag is
+# never authoritative.
 if [ "${1:-}" = "--apply" ]; then
     apply_branch="$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
     [ -n "$apply_branch" ] \
@@ -726,8 +773,32 @@ if [ "${1:-}" = "--apply" ]; then
     if _has_local_changes; then
         _fail "local changes block the update — run: bash $ROOT/scripts/repair.sh --apply"
     fi
+    _create_candidate_stage \
+        || _fail "could not create a detached staging worktree for $release_tag"
+    if ! _candidate_tree_loads "$STAGE_DIR"; then
+        _cleanup_candidate_stage
+        _fail "the staged update does not load; the live installation was not changed"
+    fi
+    _cleanup_candidate_stage
+
+    # Validation takes long enough for an editor or a separate Git command to
+    # change this checkout. The updater lock serializes Silere, not the user.
+    [ "$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)" = main ] \
+        || _fail "the checkout branch changed during staging — check for updates again"
+    [ "$(git rev-parse HEAD 2>/dev/null || true)" = "$local_rev" ] \
+        || _fail "the checkout revision changed during staging — check for updates again"
+    if _has_local_changes; then
+        _fail "local changes appeared during staging — review them before updating"
+    fi
     _start_apply_transaction "$local_rev" "$remote_rev" "$release_tag" \
         || _fail "could not create the durable update recovery journal"
+    # The candidate has already passed its gate. Recording that fact before the
+    # fast-forward means an interruption after HEAD moves retains the proven tree;
+    # an interruption while HEAD is still old simply clears the transaction.
+    if ! _write_apply_journal validated "$local_rev" "$remote_rev" "$release_tag"; then
+        _clear_apply_transaction || true
+        _fail "could not record staged validation; the checkout was not changed"
+    fi
     # git names the real reason here; "diverged" would point at the wrong thing
     if ! merge_err="$(git -C "$ROOT" merge --ff-only "$remote_rev" 2>&1)"; then
         # A normal fast-forward refusal leaves HEAD unchanged. Clear the journal
@@ -743,24 +814,6 @@ if [ "${1:-}" = "--apply" ]; then
         # git lists offending paths tab-indented on the next lines
         merge_file="$(printf '%s\n' "$merge_err" | sed -n 's/^\t//p' | head -n1)"
         _fail "$merge_line${merge_file:+ $merge_file} — bash $ROOT/scripts/repair.sh --apply clears blocking files"
-    fi
-    if ! _write_apply_journal merged "$local_rev" "$remote_rev" "$release_tag"; then
-        git -C "$ROOT" reset --hard --quiet "$local_rev" \
-            || _fail "the update journal failed and the checkout could not be rolled back — reset to $local_rev by hand"
-        _clear_apply_transaction || true
-        _fail "the update journal failed after the merge; the previous revision was restored"
-    fi
-    if ! _merged_tree_loads; then
-        git -C "$ROOT" reset --hard --quiet "$local_rev" \
-            || _fail "the update does not load and the checkout could not be rolled back — reset to $local_rev by hand"
-        _clear_apply_transaction || true
-        _fail "the update does not load and was rolled back — the shell was left running"
-    fi
-    if ! _write_apply_journal validated "$local_rev" "$remote_rev" "$release_tag"; then
-        git -C "$ROOT" reset --hard --quiet "$local_rev" \
-            || _fail "validation passed but its journal failed and the checkout could not be rolled back — reset to $local_rev by hand"
-        _clear_apply_transaction || true
-        _fail "validation passed but could not be recorded durably; the previous revision was restored"
     fi
     _clear_flag
     _clear_update_error

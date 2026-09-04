@@ -831,6 +831,44 @@ test_installation_mode_detection() (
         "a malformed receipt is ignored"
 )
 
+test_candidate_runtime_isolation() (
+    local home="$TMP/candidate-runtime-home"
+    local candidate="$TMP/candidate-runtime-tree"
+    local runtime="$TMP/candidate-runtime-dir"
+    local stubs="$TMP/candidate-runtime-stubs"
+    local capture="$TMP/candidate-runtime-capture"
+    mkdir -p "$home/config/silere-shell" "$candidate/config" "$runtime" "$stubs"
+    printf '{"__version":1,"barHeight":40}\n' > "$home/config/silere-shell/settings.json"
+    printf 'fallback\n' > "$candidate/config/MatugenPalette.qml"
+    printf 'shell\n' > "$candidate/shell.qml"
+    cat > "$stubs/qs" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n%s\n%s\n' "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_STATE_HOME" \
+    > "${SILERE_RUNTIME_CAPTURE:?}"
+cat "$XDG_CONFIG_HOME/silere-shell/settings.json" >> "$SILERE_RUNTIME_CAPTURE"
+printf '{"candidate":"wrote here"}\n' > "$XDG_CONFIG_HOME/silere-shell/settings.json"
+exit 0
+EOF
+    chmod +x "$stubs/qs"
+
+    HOME="$home" XDG_CONFIG_HOME="$home/config" SILERE_SCRIPT_LIB_ONLY=1 \
+        source "$ROOT/scripts/update.sh"
+    WAYLAND_DISPLAY=wayland-test XDG_RUNTIME_DIR="$runtime" \
+        SILERE_RUNTIME_CAPTURE="$capture" PATH="$stubs:$PATH" \
+        _candidate_tree_starts "$candidate" \
+        || fail "isolated candidate runtime was rejected"
+    assert_eq '{"__version":1,"barHeight":40}' \
+        "$(cat "$home/config/silere-shell/settings.json")" \
+        "candidate runtime left live settings untouched"
+    isolated_config="$(sed -n '1p' "$capture")"
+    [ "$isolated_config" != "$home/config" ] \
+        || fail "candidate runtime received the live config home"
+    [ ! -e "${isolated_config%/config}" ] \
+        || fail "candidate runtime sandbox was not removed"
+    grep -qF '"barHeight":40' "$capture" \
+        || fail "candidate runtime did not receive the copied settings shape"
+)
+
 test_update_refuses_dirty_apply() (
     export GIT_CONFIG_GLOBAL=/dev/null
     export GIT_CONFIG_NOSYSTEM=1
@@ -1222,7 +1260,7 @@ test_repair_workflow() (
         "nested repair left its parent worktree untouched"
 )
 
-test_update_rolls_back_broken_merge() (
+test_update_rejects_broken_stage() (
     export GIT_CONFIG_GLOBAL=/dev/null
     export GIT_CONFIG_NOSYSTEM=1
     local remote="$TMP/rollback-remote.git"
@@ -1242,9 +1280,8 @@ test_update_rolls_back_broken_merge() (
     cp "$ROOT/scripts/update.sh" "$seed/scripts/update.sh"
     cp "$ROOT/scripts/lib/xdg.sh" "$seed/scripts/lib/xdg.sh"
     cp "$ROOT/scripts/lib/qml-modules.sh" "$seed/scripts/lib/qml-modules.sh"
-    # the gate runs whatever type-checker the merged tree ships, so the fixture owns
-    # the verdict. update.sh itself must stay byte-identical across these commits:
-    # it is mid-execution when the merge rewrites the worktree.
+    # The gate runs whatever type-checker the staged tree ships, so the fixture
+    # owns the verdict without ever replacing the live script mid-execution.
     printf '#!/bin/sh\nexit 0\n' > "$seed/scripts/test-qml-headless.sh"
     printf 'upstream v1\n' > "$seed/tracked.qml"
     git -C "$seed" add scripts security tracked.qml
@@ -1280,22 +1317,62 @@ test_update_rolls_back_broken_merge() (
         fail "an update that fails the load gate was applied anyway"
     fi
     assert_eq "$good_head" "$(git -C "$client" rev-parse HEAD)" "rolled back HEAD"
-    assert_eq "upstream v1" "$(cat "$client/tracked.qml")" "rolled back worktree"
+    assert_eq "upstream v1" "$(cat "$client/tracked.qml")" "untouched live worktree"
     [ -f "$test_home/cache/silere-shell/update-pending" ] \
         || fail "rollback cleared the pending update flag"
 
     # positive control: the same path must still apply when the merged tree loads,
     # or a gate that always failed would satisfy every assertion above
-    printf '#!/bin/sh\nexit 0\n' > "$seed/scripts/test-qml-headless.sh"
+    cat > "$seed/scripts/test-qml-headless.sh" <<'EOF'
+#!/usr/bin/env bash
+candidate_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+[ "$candidate_root" != "${SILERE_EXPECT_LIVE_ROOT:-}" ] || exit 81
+[ "$(cat "$candidate_root/tracked.qml")" = "upstream v3" ] || exit 82
+printf '%s\n' "$candidate_root" > "${SILERE_STAGE_CAPTURE:?}"
+EOF
     printf 'upstream v3\n' > "$seed/tracked.qml"
     git -C "$seed" commit -qam "working upstream"
     _sign_release "$seed" v1.0.2
     git -C "$seed" push -q origin main --tags
     HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" PATH="$stub_dir:$PATH" \
         bash "$client/scripts/update.sh" >/dev/null
+    stage_capture="$TMP/update-stage-path"
     HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" PATH="$stub_dir:$PATH" \
+        SILERE_EXPECT_LIVE_ROOT="$client" SILERE_STAGE_CAPTURE="$stage_capture" \
         bash "$client/scripts/update.sh" --apply >/dev/null
     assert_eq "upstream v3" "$(cat "$client/tracked.qml")" "applied a tree that loads"
+    [ "$(cat "$stage_capture")" != "$client" ] \
+        || fail "candidate validation ran in the live checkout"
+    [ ! -e "$(cat "$stage_capture")" ] \
+        || fail "successful validation left its staging worktree"
+    assert_eq 1 "$(git -C "$client" worktree list --porcelain | grep -c '^worktree ')" \
+        "staging worktree cleanup"
+
+    # A user edit arriving during validation wins. Recheck after the gate and
+    # refuse activation without discarding the edit or the pending release.
+    cat > "$seed/scripts/test-qml-headless.sh" <<'EOF'
+#!/usr/bin/env bash
+printf 'local edit during staging\n' >> "${SILERE_EXPECT_LIVE_ROOT:?}/tracked.qml"
+exit 0
+EOF
+    printf 'upstream v4\n' > "$seed/tracked.qml"
+    git -C "$seed" commit -qam "racing upstream"
+    _sign_release "$seed" v1.0.3
+    git -C "$seed" push -q origin main --tags
+    HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" PATH="$stub_dir:$PATH" \
+        bash "$client/scripts/update.sh" >/dev/null
+    before_race="$(git -C "$client" rev-parse HEAD)"
+    if HOME="$test_home" XDG_CACHE_HOME="$test_home/cache" PATH="$stub_dir:$PATH" \
+            SILERE_EXPECT_LIVE_ROOT="$client" \
+            bash "$client/scripts/update.sh" --apply >/dev/null 2>&1; then
+        fail "update activated after the live checkout changed during staging"
+    fi
+    assert_eq "$before_race" "$(git -C "$client" rev-parse HEAD)" \
+        "staging race HEAD"
+    grep -qF 'local edit during staging' "$client/tracked.qml" \
+        || fail "staging race discarded the live edit"
+    [ -f "$test_home/cache/silere-shell/update-pending" ] \
+        || fail "staging race cleared the pending release"
 )
 
 test_fresh_install_pins_release() (
@@ -1546,10 +1623,11 @@ test_update_lock_survives_orphaned_child
 # CI opts into making an accidental missing dependency a hard failure.
 if command -v git >/dev/null 2>&1 && command -v ssh-keygen >/dev/null 2>&1; then
     test_installation_mode_detection
+    test_candidate_runtime_isolation
     test_update_refuses_dirty_apply
     test_interrupted_update_recovery
     test_fresh_install_pins_release
-    test_update_rolls_back_broken_merge
+    test_update_rejects_broken_stage
     test_update_reporting
     test_update_apply_binds_to_confirmed_release
     test_repair_workflow

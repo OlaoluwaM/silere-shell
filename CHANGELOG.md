@@ -39,6 +39,8 @@ settings file carries its own `__version` and migrates separately.
 - Workspaces › Dynamic workspaces lists only the workspaces in use, growing and shrinking
   as they come and go. A trailing slot opens the next empty one, and middle-clicking it
   moves the focused window there.
+- `silere update --apply` validates a signed release in an isolated copy of the checkout
+  before it changes anything live.
 - Updates names the installation as a managed release or a development checkout, and
   disables self-update controls on a development checkout instead of failing when pressed.
 - Settings older than the current schema migrate through explicit, ordered steps instead
@@ -71,8 +73,8 @@ settings file carries its own `__version` and migrates separately.
 ### Fixed
 
 - Cover art that will not load falls through to the other covers a track offers, including a cover file beside a local track.
-- An update interrupted between fast-forward and validation no longer leaves an ambiguous
-  checkout. The next run keeps the validated release, or restores the previous revision.
+- An update interrupted mid-apply no longer leaves an ambiguous checkout. The next run
+  keeps a release that finished validating, or restores the previous revision.
 - The bar returns to full width after a widget is moved between zones, instead of staying compact.
 - The workspace button opens the menu where the compositor reports no workspaces of its own.
 - Tray icons render for apps that ship their own icon directory.

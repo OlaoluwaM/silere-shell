@@ -49,10 +49,12 @@ autostart, settings, update timer, and release trust key. Missing optional packa
 reported with a command for the detected package family; Silere prints that command but
 never runs it or elevates privileges.
 
-`silere update --apply` writes a private transaction journal before changing the checkout.
-If power is lost or the updater is killed between the fast-forward and validation, the next
-update run authenticates that journal with a snapshot of the previously installed release
-key and restores the known-good revision. A release whose validation completed is retained.
+`silere update --apply` stages the signed release in a detached worktree and validates it
+there — headless type-check, then a sandboxed launch against a copy of your settings —
+before the live checkout changes at all. It writes a private transaction journal recording
+that validation passed, then fast-forwards. If power is lost or the updater is killed after
+that point, the next update run authenticates the journal with a snapshot of the previously
+installed release key and retains the validated revision, or restores the previous one.
 Recovery refuses to reset a checkout that gained local edits after the interruption.
 
 A checkout the installer marked as a development install — or any checkout not on
