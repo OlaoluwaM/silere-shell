@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Services.Notifications
 
 Singleton {
@@ -23,6 +24,8 @@ Singleton {
     readonly property int _maxBodyChars: 16384
     readonly property int _maxSourceChars: IconResolver.maxSourceChars
     readonly property int activeCount: Array.isArray(list) ? list.length : 0
+    readonly property string _serverLifetimeId: root._serverLifetimeToken(
+        _bootIdFile.text(), Quickshell.processId, _processStatFile.text())
 
     // reassigning a var array resets the view — every delegate rebuilt, scroll to top, expanded card collapsed
     ListModel { id: _history }
@@ -58,8 +61,22 @@ Singleton {
         }
     }
 
+    function _serverLifetimeToken(bootId, processId, processStat): string {
+        const boot = String(bootId ?? "").trim().toLowerCase()
+        const pid = Number(processId)
+        const stat = String(processStat ?? "")
+        const commEnd = stat.lastIndexOf(")")
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(boot)
+                || !Number.isInteger(pid) || pid <= 0 || commEnd < 0) return ""
+        // Fields after comm start at proc stat field 3; process start time is field 22.
+        const fields = stat.slice(commEnd + 1).trim().split(/\s+/)
+        const startTicks = fields.length > 19 ? fields[19] : ""
+        return /^\d+$/.test(startTicks) ? `${boot}:${pid}:${startTicks}` : ""
+    }
+
     function _restoredSessionCurrent(entry): bool {
-        return Number(entry?.serverProcessId ?? -1) === Quickshell.processId
+        const marker = String(entry?.serverLifetimeId ?? "")
+        return marker.length > 0 && marker === root._serverLifetimeId
     }
 
     function _trimHistory(): void {
@@ -133,7 +150,7 @@ Singleton {
             out.push({
                 id: h.id, appName: h.appName, appIcon: h.appIcon, desktopEntry: h.desktopEntry,
                 summary: h.summary, body: h.body, urgency: h.urgency, time: h.time,
-                serverProcessId: h.sessionCurrent ? Quickshell.processId : -1
+                serverLifetimeId: h.sessionCurrent ? root._serverLifetimeId : ""
             })
         }
         _persist.historyJson = ShellSettings.notifHistoryPersistent
@@ -315,6 +332,22 @@ Singleton {
         property string historyJson: "[]"
         property string seenJson:  "{}"
         property string timesJson: "{}"
+    }
+
+    FileView {
+        id: _bootIdFile
+        path: "/proc/sys/kernel/random/boot_id"
+        blockLoading: true
+        blockAllReads: true
+        printErrors: false
+    }
+
+    FileView {
+        id: _processStatFile
+        path: "/proc/self/stat"
+        blockLoading: true
+        blockAllReads: true
+        printErrors: false
     }
 
     signal sourcePulse(int wsId, bool critical)

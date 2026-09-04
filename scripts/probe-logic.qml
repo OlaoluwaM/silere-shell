@@ -642,13 +642,16 @@ ShellRoot {
         root._check(!Notifications._normalizeEntry({ id: 12 }).sessionCurrent
                 && Notifications._normalizeEntry({ id: 12, sessionCurrent: true }).sessionCurrent,
             "history marks only entries created in this server lifetime as current")
+        const serverLifetimeToken = Notifications._serverLifetimeToken(
+            "01234567-89ab-cdef-0123-456789abcdef", 123,
+            "123 (silere shell) S 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 4242")
+        root._check(serverLifetimeToken
+                === "01234567-89ab-cdef-0123-456789abcdef:123:4242"
+                && Notifications._serverLifetimeToken("bad", 123, "") === "",
+            "notification server identity includes boot and process start time")
         root._check(Notifications._restoredSessionCurrent({
-                    serverProcessId: Quickshell.processId
-                })
-                && !Notifications._restoredSessionCurrent({
-                    serverProcessId: Quickshell.processId + 1
-                })
-                && !Notifications._restoredSessionCurrent({}),
+                    serverLifetimeId: Notifications._serverLifetimeId
+                }) && !Notifications._restoredSessionCurrent({}),
             "history keeps its current-server marker across a QML reload only")
         const restoredSeen = Notifications._normalizeSeenMap(JSON.parse(
             '{"1":true,"2":"true","-1":true,"2147483648":true,"__proto__":true}'))
