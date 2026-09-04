@@ -223,9 +223,7 @@ Singleton {
     readonly property string displayTitle: root.metadataPrivacyProtected
         ? "Media details hidden" : title
     readonly property string displayArtist: root.metadataPrivacyProtected
-        ? (sourceLabel.length > 0
-            ? "Private tab details stay in " + sourceLabel
-            : "Private tab details stay in the browser")
+        ? (sourceLabel.length > 0 ? "Private tab in " + sourceLabel : "Private tab")
         : artist
 
     // Spotify's Linux client reports an open.spotify.com/image link that 404s
