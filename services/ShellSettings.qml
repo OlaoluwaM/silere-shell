@@ -59,7 +59,7 @@ Singleton {
     property bool   osdChargedNotify: false
     property bool   osdBarIntegrated: false
     property bool   osdMatchBar:      true
-    property bool   settingsNavPinned:   false
+    property bool   settingsNavPinned:   true
     property bool   settingsNavDots:     true
     property bool   reduceMotion:        false
     property bool   highContrast:        false
