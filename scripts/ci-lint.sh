@@ -901,6 +901,9 @@ fi
 # theme still sits untracked in config/ on upgraded checkouts.
 unpackaged=""
 while IFS= read -r f; do
+  # the index still lists a file deleted in the worktree, and a component that is gone
+  # cannot fail to resolve; the qmldir-references-missing-files check above owns that case
+  [ -f "$f" ] || continue
   dir="$(dirname "$f")"
   case "$dir" in .|./scripts|scripts) continue ;; esac
   [ -f "$dir/qmldir" ] || { unpackaged="$unpackaged $f(no-qmldir)"; continue; }
