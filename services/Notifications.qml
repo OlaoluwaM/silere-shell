@@ -52,7 +52,9 @@ Singleton {
             urgency:      isFinite(rawUrgency)
                 ? Math.max(0, Math.min(2, Math.round(rawUrgency))) : 1,
             time:         isFinite(rawTime) && rawTime >= 0 && rawTime <= 8.64e15
-                ? rawTime : 0
+                ? rawTime : 0,
+            // coalesces replaces_id within one server lifetime; never persisted
+            sessionCurrent: e.sessionCurrent === true
         }
     }
 
@@ -188,7 +190,11 @@ Singleton {
         if (Array.isArray(savedHistory)) {
             for (let i = 0; i < savedHistory.length && i < root._maxHistory; i++) {
                 const e = root._normalizeEntry(savedHistory[i])
-                if (e) _history.append(e)
+                if (e) {
+                    // ids restart with the server, so a saved one names nothing this session
+                    e.sessionCurrent = false
+                    _history.append(e)
+                }
             }
         }
         root._seen = root._normalizeSeenMap(savedSeen)
@@ -407,7 +413,8 @@ Singleton {
             summary: root.plainText(notification.summary, root._maxSummaryChars),
             body:    root.plainText(notification.body),
             urgency: notification.urgency,
-            time:    time
+            time:    time,
+            sessionCurrent: true
         }
     }
 
@@ -422,7 +429,11 @@ Singleton {
         if (!entry) return false
         let replaced = false
         for (let i = _history.count - 1; i >= 0; i--) {
-            if (_history.get(i).id === id) { _history.remove(i); replaced = true }
+            const previous = _history.get(i)
+            if (previous.id === id && previous.sessionCurrent === true) {
+                _history.remove(i)
+                replaced = true
+            }
         }
         root._prependHistory(entry)
         if (saveHistory !== false) root._saveHistory()
@@ -556,7 +567,8 @@ Singleton {
         const id = _history.get(idx).id
         _history.remove(idx)
         root._saveHistory()
-        if (id !== undefined) root._forgetState(id)
+        // a reused id must not let an old row erase a live card's read/time state
+        if (id !== undefined) root._forgetTrimmed([String(id)])
     }
 
     // a stacked run clears as one gesture, so the file is written once rather than per row
@@ -564,10 +576,13 @@ Singleton {
         if (start < 0 || count <= 0 || start >= _history.count) return
         const n = Math.min(count, _history.count - start)
         const ids = []
-        for (let i = start; i < start + n; i++) ids.push(_history.get(i).id)
+        for (let i = start; i < start + n; i++) {
+            const id = _history.get(i).id
+            if (id !== undefined) ids.push(String(id))
+        }
         _history.remove(start, n)
         root._saveHistory()
-        for (const id of ids) if (id !== undefined) root._forgetState(id)
+        root._forgetTrimmed(ids)
     }
 
     // _onClosed bails on a notification already marked closing, so the retirement below

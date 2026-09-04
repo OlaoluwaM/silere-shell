@@ -639,6 +639,9 @@ ShellRoot {
         root._check(boundedHistoryNumbers.id === 12 && boundedHistoryNumbers.urgency === 2
                 && boundedHistoryNumbers.time === 0,
             "history bounds numeric roles before inserting them into the model")
+        root._check(!Notifications._normalizeEntry({ id: 12 }).sessionCurrent
+                && Notifications._normalizeEntry({ id: 12, sessionCurrent: true }).sessionCurrent,
+            "history marks only entries created in this server lifetime as current")
         const restoredSeen = Notifications._normalizeSeenMap(JSON.parse(
             '{"1":true,"2":"true","-1":true,"2147483648":true,"__proto__":true}'))
         root._check(Object.getPrototypeOf(restoredSeen) === null
@@ -1608,6 +1611,44 @@ ShellRoot {
                 && !liveNotification.tracked,
             "a replacement notification still retires the old object and keeps its age")
         Notifications.list = []
+
+        const reusedNotification = {
+            transient: false,
+            appName: "Probe", appIcon: "", desktopEntry: "",
+            summary: "Current session", body: "", urgency: 1
+        }
+        Notifications.clearHistory()
+        Notifications._prependHistory({
+            id: 63, appName: "Probe", summary: "Previous session", time: 3000
+        })
+        Notifications._archiveNotification(reusedNotification, 63, 3100, false)
+        root._check(Notifications.historyCount === 2
+                && Notifications.historyModel.get(0).sessionCurrent
+                && !Notifications.historyModel.get(1).sessionCurrent,
+            "a reused server id does not replace persisted notification history")
+        Notifications._seen = { "63": true }
+        Notifications._times = { "63": 3100 }
+        Notifications.list = [{ notification: reusedNotification, id: 63, time: 3100 }]
+        Notifications.removeFromHistory(1)
+        root._check(Notifications._seen["63"] === true
+                && Notifications._times["63"] === 3100,
+            "removing an old reused-id row preserves the live notification state")
+        Notifications.list = []
+        Notifications.clearHistory()
+
+        Notifications._prependHistory({ id: 64, appName: "Probe", time: 3200 })
+        Notifications._prependHistory({ id: 65, appName: "Probe", time: 3300 })
+        Notifications._seen = { "64": true, "65": true }
+        Notifications._times = { "64": 3200, "65": 3300 }
+        Notifications.list = [{ notification: reusedNotification, id: 64, time: 3200 }]
+        Notifications.removeRunFromHistory(0, 2)
+        root._check(Notifications._seen["64"] === true
+                && Notifications._times["64"] === 3200
+                && Notifications._seen["65"] === undefined
+                && Notifications._times["65"] === undefined,
+            "removing a history run keeps state only for ids that remain live")
+        Notifications.list = []
+        Notifications._forgetTrimmed(["64"])
 
         let batchDismissed = 0
         const batchOne = {
