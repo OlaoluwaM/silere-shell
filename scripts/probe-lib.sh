@@ -61,5 +61,13 @@ _probe_stop() { # $1 = pid
     [ -n "${1:-}" ] || return 0
     kill -0 "$1" 2>/dev/null || return 0
     kill "$1" 2>/dev/null || true
+    # A broken probe must not wedge the test runner while ignoring TERM. Poll the
+    # exact child briefly, then force it down before wait reaps its status.
+    local i
+    for ((i = 0; i < 20; i++)); do
+        kill -0 "$1" 2>/dev/null || { wait "$1" 2>/dev/null || true; return 0; }
+        sleep 0.05
+    done
+    kill -KILL "$1" 2>/dev/null || true
     wait "$1" 2>/dev/null || true
 }

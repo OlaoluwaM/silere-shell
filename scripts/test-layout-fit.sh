@@ -54,7 +54,11 @@ modules/menu/VitalsStrip.qml|332
 modules/menu/SettingsNav.qml|160"
 
 scratch="$(mktemp -d)"
-cleanup() { rm -rf "$scratch"; }
+probe_pid=""
+cleanup() {
+    _probe_stop "${probe_pid:-}"
+    rm -rf "$scratch"
+}
 trap 'cleanup; exit 130' INT TERM
 trap cleanup EXIT
 
@@ -63,12 +67,32 @@ status=0
 # largest scale is where a row first runs out of room.
 for scale in 1.0 1.15; do
     conf="$scratch/$scale"
-    mkdir -p "$conf/silere-shell"
+    runtime="$conf/runtime"
+    log="$conf/layout.log"
+    mkdir -p "$conf/silere-shell" "$conf/cache" "$conf/state" "$runtime"
+    chmod 0700 "$runtime"
     printf '{ "__version": 1, "uiScale": %s }\n' "$scale" > "$conf/silere-shell/settings.json"
 
-    out="$(FIT_ROOT="$ROOT" FIT_LIST="$list" FIT_W="$CONTENT_WIDTH" \
-        XDG_CONFIG_HOME="$conf" QT_QPA_PLATFORM=offscreen QT_FORCE_STDERR_LOGGING=1 \
-        timeout 120 qs -p "$PROBE" 2>&1)" && code=0 || code=$?
+    # Capture to a regular file, not command substitution. A component may launch
+    # a detached helper which inherits stdout; that helper can keep a capture pipe
+    # open forever even after the probe itself has reached FIT-DONE.
+    code=0
+    FIT_ROOT="$ROOT" FIT_LIST="$list" FIT_W="$CONTENT_WIDTH" \
+        XDG_CONFIG_HOME="$conf" XDG_CACHE_HOME="$conf/cache" \
+        XDG_STATE_HOME="$conf/state" XDG_RUNTIME_DIR="$runtime" \
+        QT_QPA_PLATFORM=offscreen QT_FORCE_STDERR_LOGGING=1 \
+        qs -p "$PROBE" --no-color >"$log" 2>&1 &
+    probe_pid=$!
+    if ! _probe_wait "$log" "$probe_pid" 'FIT-DONE' 240 0.5; then
+        if kill -0 "$probe_pid" 2>/dev/null; then
+            code=124
+        else
+            wait "$probe_pid" 2>/dev/null || code=$?
+        fi
+    fi
+    _probe_stop "$probe_pid"
+    probe_pid=""
+    out="$(<"$log")"
 
     if [ "$code" -eq 124 ]; then
         echo "FAIL: layout fit probe timed out at scale $scale" >&2
