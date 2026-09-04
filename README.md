@@ -84,6 +84,11 @@ The v0.9.0 merge commit omitted its usual conflict narrative. Its
 [resolution record](docs/upstream-merge-v0.9.0.md) preserves those decisions
 without rewriting published branch history.
 
+On 2026-09-04, the maintainer explicitly authorized a one-off selection of
+unreleased commits. The [selective integration record](docs/upstream-picks-2026-09-04.md)
+records their provenance and exclusions. This exception does not change the
+release-tag policy above or authorize further development-branch imports.
+
 ## Pinning from nixos-config
 
 `nixos-config` pins this fork by commit in its `flake.lock`. Re-locking
