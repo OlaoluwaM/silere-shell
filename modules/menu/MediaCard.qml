@@ -107,12 +107,21 @@ ClippingRectangle {
         Timer {
             id: _artRetry
             interval: 2500
-            onTriggered: { if (!MenuState.open) return; _art._curUrl = ""; _art._apply() }
+            onTriggered: {
+                if (!MenuState.open) return
+                Media.retryArt()
+                _art._curUrl = ""
+                _art._apply()
+            }
         }
         function _failed(img) {
             if (img !== _pendingLayer) return
             _pendingLayer = null
+            const dead = _curUrl
             _curUrl = ""
+            Media.artFailed(dead)
+            // the service already moved the card onto the next cover it knows about
+            if (_curUrl.length > 0) return
             if (MenuState.open && _retries < 3) { _retries++; _artRetry.restart() }
         }
 
@@ -135,7 +144,8 @@ ClippingRectangle {
             _artOut.target = outgoing; _artOut.to = 0; _artOut.restart()
         }
 
-        Connections { target: Media; function onStableArtUrlChanged() { _art._retries = 0; _art._apply() } }
+        Connections { target: Media; function onStableArtUrlChanged() { _art._apply() } }
+        Connections { target: Media; function onArtKeyChanged() { _art._retries = 0 } }
         Connections { target: MenuState; function onOpenChanged() { if (MenuState.open) { _art._retries = 0; _art._apply() } } }
         Component.onCompleted: _apply()
 

@@ -63,6 +63,7 @@ settings file carries its own `__version` and migrates separately.
 
 ### Fixed
 
+- Cover art that will not load falls through to the other covers a track offers, including a cover file beside a local track.
 - An update interrupted between fast-forward and validation no longer leaves an ambiguous
   checkout. The next run keeps the validated release, or restores the previous revision.
 - The bar returns to full width after a widget is moved between zones, instead of staying compact.

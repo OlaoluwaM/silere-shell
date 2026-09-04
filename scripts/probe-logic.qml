@@ -1066,6 +1066,21 @@ ShellRoot {
             "media artwork cannot reach the filesystem-backed icon provider")
         root._check(Media.artSource("image://qsimage/1") === "image://qsimage/1",
             "media artwork keeps the in-memory image provider")
+        root._check(Media.normalizedArtUrl("https://open.spotify.com/image/abc")
+                === "https://i.scdn.co/image/abc",
+            "media artwork rewrites Spotify's dead image host")
+        root._check(Media.upscaledArtUrl(
+                    "https://i.scdn.co/image/ab67616d00004851deadbeef")
+                === "https://i.scdn.co/image/ab67616d0000b273deadbeef"
+                && Media.upscaledArtUrl(
+                    "https://i.scdn.co/image/ab67616d0000b273deadbeef") === ""
+                && Media.upscaledArtUrl("https://example.invalid/cover.jpg") === "",
+            "media artwork asks Spotify for the full-size cover of a thumbnail")
+        root._check(Media.trackDirectory("file:///home/u/Music/A%20B/song.mp3")
+                === "/home/u/Music/A B"
+                && Media.trackDirectory("https://example.invalid/song.mp3") === ""
+                && Media.trackDirectory("file:///home/u/../etc/song.mp3") === "",
+            "media artwork resolves a local album directory without climbing out of it")
         root._check(Media.privacyPlaceholderSource("Zen is playing media") === "Zen"
                 && Media.privacyPlaceholderSource("Song is playing") === "",
             "media recognises a browser's generic playback placeholder")

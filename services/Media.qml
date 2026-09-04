@@ -228,14 +228,70 @@ Singleton {
             : "Private tab details stay in the browser")
         : artist
 
-    readonly property string artUrl: {
-        if (!player) return ""
-        // remote art is allowed on purpose where notification icons are denied: mpris art genuinely is a url
-        // Spotify's Linux client reports an open.spotify.com/image link that 404s
-        const value = String(player.trackArtUrl || "")
+    // Spotify's Linux client reports an open.spotify.com/image link that 404s
+    function normalizedArtUrl(raw): string {
+        return String(raw ?? "")
             .replace("https://open.spotify.com/image/", "https://i.scdn.co/image/")
-        return root.artSource(value)
     }
+
+    // i.scdn.co spells the edge length into the id prefix and publishes all three sizes
+    // for every cover; clients that hand over the 64px form leave the tile a blur
+    function upscaledArtUrl(raw): string {
+        const match = String(raw ?? "").match(
+            /^(https:\/\/i\.scdn\.co\/image\/)ab67616d(?:00004851|00001e02)([0-9a-f]{8,})$/i)
+        return match ? match[1] + "ab67616d0000b273" + match[2] : ""
+    }
+
+    // the directory holding a locally played track, for the covers that sit beside it
+    function trackDirectory(raw): string {
+        const value = String(raw ?? "")
+        if (value.slice(0, 8) !== "file:///") return ""
+        let path = ""
+        try { path = decodeURIComponent(value.slice(7)) } catch (error) { return "" }
+        const cut = path.lastIndexOf("/")
+        return cut > 0 && path.indexOf("/../") < 0 ? path.slice(0, cut) : ""
+    }
+
+    readonly property var sidecarArtNames: [
+        "cover.jpg", "cover.png", "Cover.jpg",
+        "folder.jpg", "folder.png", "Folder.jpg",
+        "front.jpg", "AlbumArt.jpg"
+    ]
+
+    // remote art is allowed on purpose where notification icons are denied: mpris art genuinely is a url
+    readonly property var artCandidates: {
+        const out = []
+        function offer(value) {
+            const source = root.artSource(value)
+            if (source.length > 0 && out.indexOf(source) < 0) out.push(source)
+        }
+        const reported = root.normalizedArtUrl(root.player ? root.player.trackArtUrl : "")
+        offer(root.upscaledArtUrl(reported))
+        offer(reported)
+        const directory = root.trackDirectory(root.trackUrl)
+        if (directory.length > 0)
+            for (let i = 0; i < root.sidecarArtNames.length; i++)
+                offer(directory + "/" + root.sidecarArtNames[i])
+        return out
+    }
+
+    readonly property string artKey: root.artCandidates.join("\u0000")
+    property int _artCandidate: 0
+    onArtKeyChanged: root._artCandidate = 0
+
+    readonly property string artUrl: {
+        const candidates = root.artCandidates
+        if (candidates.length === 0) return ""
+        return candidates[Math.min(root._artCandidate, candidates.length - 1)]
+    }
+
+    // a view reports the load it could not finish; without this a cover url that 404s
+    // retries itself forever while a readable cover sits unopened beside the track
+    function artFailed(url: string): void {
+        if (url !== root.artUrl) return
+        if (root._artCandidate + 1 < root.artCandidates.length) root._artCandidate++
+    }
+    function retryArt(): void { root._artCandidate = 0 }
 
     property string stableArtUrl: ""
     function _syncStableArt(): void {
