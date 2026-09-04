@@ -39,6 +39,8 @@ settings file carries its own `__version` and migrates separately.
 - Workspaces › Dynamic workspaces lists only the workspaces in use, growing and shrinking
   as they come and go. A trailing slot opens the next empty one, and middle-clicking it
   moves the focused window there.
+- Settings older than the current schema migrate through explicit, ordered steps instead
+  of one-off compatibility checks.
 
 ### Changed
 
@@ -60,6 +62,7 @@ settings file carries its own `__version` and migrates separately.
 - Settings opens with every category expanded. Interface › Keep groups open still returns to one group at a time.
 - The category groups in the settings rail are set as headings over their pages rather than rows beside them.
 - The active workspace marker starts as the dot, and holds still when the menu opens.
+- Restore defaults no longer writes a settings backup first.
 
 ### Fixed
 

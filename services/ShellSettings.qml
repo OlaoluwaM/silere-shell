@@ -5,6 +5,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "../config"
+import "SettingsMigrations.js" as SettingsMigrations
 
 Singleton {
     id: root
@@ -268,13 +269,11 @@ Singleton {
     property bool _loaded: false
     property string _readError: ""
     property string _writeError: ""
-    property string _backupError: ""
     property string _diskText: ""
     property string _appliedText: ""
     readonly property bool ready: _loaded
     readonly property string settingsError: ConfigStore.error.length > 0
-        ? ConfigStore.error : _backupError.length > 0 ? _backupError
-        : _writeError.length > 0 ? _writeError : _readError
+        ? ConfigStore.error : _writeError.length > 0 ? _writeError : _readError
     readonly property int _settingsVersion: 1
     property var _defaults: ({})
     property real _loadedVersion: _settingsVersion
@@ -584,13 +583,6 @@ Singleton {
         root._rebuildModifiedSections()
     }
 
-    function _backupStamp(): string {
-        const d = new Date()
-        const p = (n) => (n < 10 ? "0" : "") + n
-        return "" + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate())
-            + "-" + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds())
-    }
-
     // one user action that moves several keys is still one settings change: without this each discrete key flushes the whole file on its own
     function batch(apply): void {
         if (root._bulkAssign) { apply(); return }
@@ -600,15 +592,6 @@ Singleton {
     }
 
     function resetToDefaults(): void {
-        // Capture the values visible in the UI, including changes still inside
-        // PersistedFile's debounce window, rather than the older disk echo.
-        // Stamped: a fixed name let a second reset overwrite the backup of the first.
-        if (!root._backupSettingsText(
-                "pre-reset-" + root._backupStamp(), root._serialize())) {
-            root._backupError = "Could not back up settings. Defaults were not restored."
-            return
-        }
-        ConfigStore.pruneBackups()
         root._bulkAssign = true
         for (let i = 0; i < _schema.length; i++) {
             const k = _schema[i].k
@@ -701,40 +684,13 @@ Singleton {
         }
     }
 
-    property bool _backupWriteSucceeded: false
-
-    function _backupSettingsText(tag: string, text: string): bool {
-        const body = (text || "").trim()
-        if (body.length === 0) return false
-        root._backupWriteSucceeded = false
-        _backupFile.path = ConfigStore.directory + "/settings." + tag + ".bak.json"
-        _backupFile.setText(body)
-        return root._backupWriteSucceeded
-    }
-
-    function _backupSettings(tag: string): void {
-        root._backupSettingsText(tag, root._diskText)
-    }
-
-    FileView {
-        id: _backupFile
-        atomicWrites: true
-        blockWrites:  true
-        printErrors:  false
-        onSaved: {
-            root._backupWriteSucceeded = true
-            root._backupError = ""
-            ConfigStore.hardenFile(_backupFile.path)
-        }
-        onSaveFailed: (error) => {
-            root._backupWriteSucceeded = false
-            root._backupError = "Could not back up settings."
-            console.warn("silere-shell: failed to back up settings.json:", error)
-        }
+    function _migrateSettingsObject(value, fromVersion: int): var {
+        return SettingsMigrations.migrate(value, fromVersion, root._settingsVersion)
     }
 
     function _applyText(t: string): void {
         const raw = (t || "").trim()
+        let migrationApplied = false
         // our own atomic write echoes back through the watcher; skip it
         if (_store.writeAllowed && raw === _store.lastSavedText) {
             root._appliedText = raw
@@ -745,14 +701,17 @@ Singleton {
         // every setting through its default and back, rebuilding the bar on the way
         if (_loaded && raw === root._appliedText) return
         try {
-            const parsed = JSON.parse(raw || "{}")
+            let parsed = JSON.parse(raw || "{}")
             if (parsed === null || Array.isArray(parsed) || typeof parsed !== "object")
                 throw new Error("settings root must be an object")
             const rawVersion = typeof parsed.__version === "number" && isFinite(parsed.__version)
                 ? parsed.__version : 0
             const onDiskVersion = Math.max(0, Math.floor(rawVersion))
-            if (onDiskVersion < _settingsVersion && Object.keys(parsed).length > 0)
-                _backupSettings("v" + onDiskVersion)
+            if (onDiskVersion < _settingsVersion && Object.keys(parsed).length > 0) {
+                const migration = root._migrateSettingsObject(parsed, onDiskVersion)
+                parsed = migration.value
+                migrationApplied = migration.applied.length > 0
+            }
             const fromFuture = onDiskVersion > _settingsVersion
             _loadedVersion = fromFuture ? onDiskVersion : _settingsVersion
             _futureSettings = fromFuture ? parsed : ({})
@@ -771,20 +730,6 @@ Singleton {
                 const s = _schema[i]
                 if (parsed[s.k] !== undefined) _coerce(s, parsed[s.k])
             }
-            // the same choice, back when it only placed the window title
-            if (parsed.barCenterInGap === undefined
-                    && parsed.windowTitleCenterGap !== undefined)
-                root._coerce(root.schemaFor("barCenterInGap"),
-                    parsed.windowTitleCenterGap)
-            // The two legacy booleans represent one mode. Prefer reactive if
-            // hand-edited JSON enables both, and seed the persisted restore mode
-            // for settings files written before underlineLastStyle existed.
-            if (root.underlineGlow && root.barBorderVisible)
-                root.barBorderVisible = false
-            if (root.underlineGlow) root.underlineLastStyle = "glow"
-            else if (root.barBorderVisible) root.underlineLastStyle = "static"
-            // barCornerStyle folded into barRadius, where 0 is flat; carry the old choice over
-            if (parsed.barCornerStyle === "flat") root.barRadius = 0
             root._appliedText = raw
             root._readError = ""
             _store.writeAllowed = true
@@ -795,6 +740,7 @@ Singleton {
         }
         _loaded = true
         root._recountModified()
+        if (migrationApplied && _store.writeAllowed) _store.flush(false)
     }
 
     function _serialize(): string {

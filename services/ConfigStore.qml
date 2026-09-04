@@ -54,29 +54,10 @@ Singleton {
         onTriggered: root._startDirectoryAttempt()
     }
 
-    function _owned(path: string): bool {
-        if (path === root.settingsPath || path === root.calendarMarksPath) return true
-        if (root.directory.length === 0) return false
-        const prefix = root.directory + "/settings."
-        const suffix = ".bak.json"
-        if (!path.startsWith(prefix) || !path.endsWith(suffix)) return false
-        // a tag carrying a slash would chmod its way out of the store directory
-        return /^[a-z0-9.-]+$/i.test(path.slice(prefix.length, path.length - suffix.length))
-    }
-
-    // stamped reset backups would otherwise accumulate forever
-    function pruneBackups(): void {
-        if (root.directory.length === 0) return
-        Quickshell.execDetached(["bash", "-c",
-            "cd -- \"$1\" 2>/dev/null || exit 0; "
-            + "ls -1t settings.pre-reset*.bak.json 2>/dev/null | tail -n +6 | "
-            + "while IFS= read -r f; do [ -L \"$f\" ] || rm -f -- \"$f\"; done",
-            "bash", root.directory])
-    }
-
     function hardenFile(path: string): void {
         // only files owned by this store may be chmodded. Keep the path as a separate argv entry so even unusual XDG paths never become syntax
-        if (path.length === 0 || !root._owned(path)) return
+        if (path.length === 0
+                || (path !== root.settingsPath && path !== root.calendarMarksPath)) return
         Quickshell.execDetached(["bash", "-c",
             "[ ! -L \"$1\" ] && chmod 0600 -- \"$1\"", "bash", path])
     }

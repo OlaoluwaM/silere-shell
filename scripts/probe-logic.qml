@@ -674,6 +674,27 @@ ShellRoot {
         root._checkCoerce("fontFamily", "A\u0007B", "", "a control character in a font name is refused")
         root._checkCoerce("notifHistoryLimit", -1, 5, "a negative history limit clamps up")
 
+        const migratedV1 = ShellSettings._migrateSettingsObject({
+            windowTitleCenterGap: true,
+            underlineGlow: true,
+            barBorderVisible: true,
+            barCornerStyle: "flat",
+            untouchedFutureShape: "keep until known-key coercion"
+        }, 0)
+        root._check(migratedV1.version === 1
+                && migratedV1.applied.join(",") === "1"
+                && migratedV1.value.__version === 1,
+            "settings migrations apply each target version in order")
+        root._check(migratedV1.value.barCenterInGap === true
+                && migratedV1.value.windowTitleCenterGap === undefined
+                && migratedV1.value.underlineLastStyle === "glow"
+                && migratedV1.value.barBorderVisible === false
+                && migratedV1.value.barRadius === 0
+                && migratedV1.value.barCornerStyle === undefined,
+            "the v0 to v1 fixture produces the explicit compatibility shape")
+        root._check(migratedV1.value.untouchedFutureShape
+                === "keep until known-key coercion",
+            "a migration does not discard unrelated input before schema coercion")
         // "settings written by a newer version than you run keep their unknown values
         // instead of being stripped" — a downgrade silently losing config is invisible
         // until the user upgrades again, so pin the round trip rather than the wording
@@ -699,10 +720,6 @@ ShellRoot {
         const clean = JSON.parse(ShellSettings._serialize())
         root._check(Object.keys(clean).length === 1 && clean.__version === 1,
             "an unmodified settings file serializes to nothing but its version")
-        root._check(ShellSettings._backupSettingsText(
-                "probe-" + Date.now(), ShellSettings._serialize())
-                && ShellSettings._backupError.length === 0,
-            "a blocking settings backup reports success before recovery can continue")
 
         // the sec: on every schema entry exists only to light the nav dots, and ci-lint
         // guards the attribution but not the reader; an unrelated refactor deleted the

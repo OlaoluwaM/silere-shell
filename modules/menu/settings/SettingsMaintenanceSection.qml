@@ -312,7 +312,7 @@ Column {
             }
         }
         HintText {
-            text: "Backs up settings first and keeps the five newest. Wallpaper colors and calendar marks stay unchanged."
+            text: "Wallpaper colors and calendar marks stay unchanged."
         }
     }
 }
