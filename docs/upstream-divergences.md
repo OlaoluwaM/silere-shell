@@ -76,9 +76,12 @@ so resurrecting one on purpose means removing its line in the same commit.
   fork's own: an upstream history grouping lands under that fold or not at all. The fork's duration-picker DND replaces
   upstream's scheduled quiet hours; keep `dndSchedule`, `dndFrom`, `dndTo`,
   their settings rows, and their service logic removed. Notification history
-  keeps its current-server marker across a QML hot reload by keying it to a
-  boot ID, PID, and process start-time token; upstream currently drops the
-  marker even though its notification server survives that reload.
+  retains `sessionCurrent` through `PersistentProperties`, which survives QML
+  reloads but not process exits. Restore on its `loaded` signal, before the
+  server re-emits kept notifications; defer pruning until those arrivals have
+  rebuilt the live list. Keep the settings label scoped to reloads and the
+  unused `ConfigStore` hardening for `quickshell/states.json` removed: this
+  storage path writes no file. Disk persistence needs a separate decision.
 - The Bluetooth bar widget stays an actionable `StatusActionPill` that opens
   the configured manager. Take compatible upstream service, accessibility,
   hint, and lifecycle improvements without replacing it with a passive pill.

@@ -17,9 +17,22 @@ import "modules/notifications"
 ShellRoot {
     id: root
 
-    property int _failures: 0
-    property int _checks: 0
+    property alias _failures: reloadProbe.failures
+    property alias _checks: reloadProbe.checks
     property string _sentInlineReply: ""
+
+    PersistentProperties {
+        id: reloadProbe
+        reloadableId: "silereLogicReloadProbe"
+        property int phase: 0
+        property int failures: 0
+        property int checks: 0
+    }
+
+    Connections {
+        target: Quickshell
+        function onReloadCompleted() { Quickshell.inhibitReloadPopup() }
+    }
 
     QtObject {
         id: probeAnchor
@@ -642,17 +655,6 @@ ShellRoot {
         root._check(!Notifications._normalizeEntry({ id: 12 }).sessionCurrent
                 && Notifications._normalizeEntry({ id: 12, sessionCurrent: true }).sessionCurrent,
             "history marks only entries created in this server lifetime as current")
-        const serverLifetimeToken = Notifications._serverLifetimeToken(
-            "01234567-89ab-cdef-0123-456789abcdef", 123,
-            "123 (silere shell) S 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 4242")
-        root._check(serverLifetimeToken
-                === "01234567-89ab-cdef-0123-456789abcdef:123:4242"
-                && Notifications._serverLifetimeToken("bad", 123, "") === "",
-            "notification server identity includes boot and process start time")
-        root._check(Notifications._restoredSessionCurrent({
-                    serverLifetimeId: Notifications._serverLifetimeId
-                }) && !Notifications._restoredSessionCurrent({}),
-            "history keeps its current-server marker across a QML reload only")
         const restoredSeen = Notifications._normalizeSeenMap(JSON.parse(
             '{"1":true,"2":"true","-1":true,"2147483648":true,"__proto__":true}'))
         root._check(Object.getPrototypeOf(restoredSeen) === null
@@ -1643,6 +1645,8 @@ ShellRoot {
             appName: "Probe", appIcon: "", desktopEntry: "",
             summary: "Current session", body: "", urgency: 1
         }
+        const savedHistoryRetention = ShellSettings.notifHistoryPersistent
+        ShellSettings.notifHistoryPersistent = true
         Notifications.clearHistory()
         Notifications._prependHistory({
             id: 63, appName: "Probe", summary: "Previous session", time: 3000
@@ -1652,6 +1656,19 @@ ShellRoot {
                 && Notifications.historyModel.get(0).sessionCurrent
                 && !Notifications.historyModel.get(1).sessionCurrent,
             "a reused server id does not replace persisted notification history")
+        Notifications._saveHistory()
+        Notifications._restorePersistentState()
+        root._check(Notifications.historyCount === 2
+                && Notifications.historyModel.get(0).sessionCurrent
+                && !Notifications.historyModel.get(1).sessionCurrent,
+            "history serialization preserves current and legacy session markers")
+        Notifications._archiveNotification(Object.assign({}, reusedNotification, {
+            summary: "After reload"
+        }), 63, 3100, false)
+        root._check(Notifications.historyCount === 2
+                && Notifications.historyModel.get(0).summary === "After reload"
+                && Notifications.historyModel.get(1).summary === "Previous session",
+            "restored current history coalesces a replacement without losing a legacy row")
         Notifications._seen = { "63": true }
         Notifications._times = { "63": 3100 }
         Notifications.list = [{ notification: reusedNotification, id: 63, time: 3100 }]
@@ -1675,6 +1692,15 @@ ShellRoot {
             "removing a history run keeps state only for ids that remain live")
         Notifications.list = []
         Notifications._forgetTrimmed(["64"])
+
+        ShellSettings.notifHistoryPersistent = false
+        Notifications._archiveNotification(reusedNotification, 66, 3400)
+        root._check(Notifications.historyCount === 1,
+            "disabled reload retention still keeps new history in memory")
+        Notifications._restorePersistentState()
+        root._check(Notifications.historyCount === 0,
+            "disabled reload retention restores no notification text")
+        ShellSettings.notifHistoryPersistent = savedHistoryRetention
 
         let batchDismissed = 0
         const batchOne = {
@@ -1923,6 +1949,35 @@ ShellRoot {
 
     function _finish(): void {
         root._runPaletteTransitionChecks()
+        ShellSettings.notifHistoryPersistent = true
+        Notifications.clearHistory()
+        Notifications._archiveNotification({ summary: "Before engine reload" }, 71, 3500)
+        reloadProbe.phase = 1
+        Quickshell.reload(false)
+    }
+
+    function _resume(): void {
+        if (reloadProbe.phase === 0) {
+            root._run()
+            return
+        }
+        if (reloadProbe.phase === 1) {
+            root._check(Notifications.historyCount === 1
+                    && Notifications.historyModel.get(0).summary === "Before engine reload"
+                    && Notifications.historyModel.get(0).sessionCurrent,
+                "an actual QML engine reload restores history and its session marker")
+            Notifications._archiveNotification({ summary: "After engine reload" }, 71, 3500)
+            root._check(Notifications.historyCount === 1
+                    && Notifications.historyModel.get(0).summary === "After engine reload",
+                "a replacement after an engine reload coalesces current history")
+            ShellSettings.notifHistoryPersistent = false
+            Notifications._archiveNotification({ summary: "Not retained" }, 72, 3600)
+            reloadProbe.phase = 2
+            Quickshell.reload(false)
+            return
+        }
+        root._check(Notifications.historyCount === 0,
+            "an actual QML engine reload discards history when retention is off")
         if (root._failures === 0)
             console.warn("PROBE-LOGIC passed " + root._checks + " checks")
         else
@@ -1930,5 +1985,5 @@ ShellRoot {
         Qt.exit(root._failures === 0 ? 0 : 1)
     }
 
-    Component.onCompleted: Qt.callLater(root._run)
+    Component.onCompleted: Qt.callLater(root._resume)
 }

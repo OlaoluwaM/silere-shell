@@ -3,7 +3,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import Quickshell.Services.Notifications
 
 Singleton {
@@ -24,8 +23,6 @@ Singleton {
     readonly property int _maxBodyChars: 16384
     readonly property int _maxSourceChars: IconResolver.maxSourceChars
     readonly property int activeCount: Array.isArray(list) ? list.length : 0
-    readonly property string _serverLifetimeId: root._serverLifetimeToken(
-        _bootIdFile.text(), Quickshell.processId, _processStatFile.text())
 
     // reassigning a var array resets the view — every delegate rebuilt, scroll to top, expanded card collapsed
     ListModel { id: _history }
@@ -56,27 +53,9 @@ Singleton {
                 ? Math.max(0, Math.min(2, Math.round(rawUrgency))) : 1,
             time:         isFinite(rawTime) && rawTime >= 0 && rawTime <= 8.64e15
                 ? rawTime : 0,
-            // coalesces replaces_id within one server lifetime; never persisted
+            // PersistentProperties and the server share one process lifetime.
             sessionCurrent: e.sessionCurrent === true
         }
-    }
-
-    function _serverLifetimeToken(bootId, processId, processStat): string {
-        const boot = String(bootId ?? "").trim().toLowerCase()
-        const pid = Number(processId)
-        const stat = String(processStat ?? "")
-        const commEnd = stat.lastIndexOf(")")
-        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(boot)
-                || !Number.isInteger(pid) || pid <= 0 || commEnd < 0) return ""
-        // Fields after comm start at proc stat field 3; process start time is field 22.
-        const fields = stat.slice(commEnd + 1).trim().split(/\s+/)
-        const startTicks = fields.length > 19 ? fields[19] : ""
-        return /^\d+$/.test(startTicks) ? `${boot}:${pid}:${startTicks}` : ""
-    }
-
-    function _restoredSessionCurrent(entry): bool {
-        const marker = String(entry?.serverLifetimeId ?? "")
-        return marker.length > 0 && marker === root._serverLifetimeId
     }
 
     function _trimHistory(): void {
@@ -94,9 +73,7 @@ Singleton {
     function _pruneOrphanState(activeNotifications): void {
         const keep = Object.create(null)
         for (let i = 0; i < _history.count; i++) keep[String(_history.get(i).id)] = true
-        // On a hot reload NotificationServer already owns its kept objects, but
-        // root.list is rebuilt only after persisted timestamps are restored.
-        // Include those objects now or their original age/read state is lost.
+        // Callers can include server-owned objects not yet in root.list.
         const active = Array.isArray(activeNotifications) ? activeNotifications : []
         for (let i = 0; i < active.length; i++) {
             const entry = active[i]
@@ -150,7 +127,7 @@ Singleton {
             out.push({
                 id: h.id, appName: h.appName, appIcon: h.appIcon, desktopEntry: h.desktopEntry,
                 summary: h.summary, body: h.body, urgency: h.urgency, time: h.time,
-                serverLifetimeId: h.sessionCurrent ? root._serverLifetimeId : ""
+                sessionCurrent: h.sessionCurrent
             })
         }
         _persist.historyJson = ShellSettings.notifHistoryPersistent
@@ -203,7 +180,7 @@ Singleton {
         return out
     }
 
-    function _restorePersistentState(activeNotifications): void {
+    function _restorePersistentState(): void {
         const savedHistory = ShellSettings.notifHistoryPersistent
             ? root._parsePersistentJson(_persist.historyJson, []) : []
         const savedSeen = root._parsePersistentJson(_persist.seenJson, Object.create(null))
@@ -211,21 +188,14 @@ Singleton {
         _history.clear()
         if (Array.isArray(savedHistory)) {
             for (let i = 0; i < savedHistory.length && i < root._maxHistory; i++) {
-                const savedEntry = savedHistory[i]
-                const e = root._normalizeEntry(savedEntry)
-                if (e) {
-                    // The notification server survives a QML reload but not this process.
-                    // Keep its ids current across the former and stale across the latter.
-                    e.sessionCurrent = root._restoredSessionCurrent(savedEntry)
-                    _history.append(e)
-                }
+                const e = root._normalizeEntry(savedHistory[i])
+                if (e) _history.append(e)
             }
         }
         root._seen = root._normalizeSeenMap(savedSeen)
         root._times = root._normalizeTimesMap(savedTimes)
         root._ensurePersistentState()
         root._persistentReady = true
-        root._pruneOrphanState(activeNotifications)
         root._saveHistory()
     }
 
@@ -240,7 +210,8 @@ Singleton {
             root._saveHistory()
         }
         function onNotifHistoryPersistentChanged() {
-            // privacy-first: turning persistence off removes text restored from an earlier session. New entries still form an in-memory history
+            // Turning reload retention off clears existing text; new arrivals
+            // still form a history until the next reload.
             if (!ShellSettings.notifHistoryPersistent) {
                 _history.clear()
                 root._pruneOrphanState()
@@ -328,26 +299,12 @@ Singleton {
         // dies with the shell, so a deadline that outlived it could only clear a
         // switch that no longer exists -- the two live and die together instead
         property double dndUntilMs: 0
-        // PersistentProperties survives an engine replacement; keep JS arrays serialized so values never cross engines
+        // This survives QML reloads only. Serialize arrays so JS values never
+        // cross engines; a new process starts with the empty defaults below.
         property string historyJson: "[]"
         property string seenJson:  "{}"
         property string timesJson: "{}"
-    }
-
-    FileView {
-        id: _bootIdFile
-        path: "/proc/sys/kernel/random/boot_id"
-        blockLoading: true
-        blockAllReads: true
-        printErrors: false
-    }
-
-    FileView {
-        id: _processStatFile
-        path: "/proc/self/stat"
-        blockLoading: true
-        blockAllReads: true
-        printErrors: false
+        onLoaded: root._restorePersistentState()
     }
 
     signal sourcePulse(int wsId, bool critical)
@@ -705,45 +662,7 @@ Singleton {
         return true
     }
 
-    Component.onCompleted: {
-        ConfigStore.hardenQuickshellState()
-        const vals = notifServer.trackedNotifications.values ?? []
-        root._restorePersistentState(vals)
-        root._ensurePersistentState()
-        const rebuilt = []
-        const live = {}
-        const nextTimes = root._cloneMap(root._times)
-        let timesChanged = false
-        for (let i = 0; i < vals.length; i++) {
-            const n = vals[i]
-            if (!n) continue
-            if (nextTimes[n.id] === undefined) {
-                nextTimes[n.id] = Date.now()
-                timesChanged = true
-            }
-            live[n.id] = true
-            rebuilt.push({ notification: n, id: n.id, time: nextTimes[n.id] })
-            n.closed.connect(() => root._onClosed(n.id, n))
-        }
-        if (rebuilt.length > 0) root.list = rebuilt
-        const nextSeen = root._cloneMap(root._seen)
-        let seenChanged = false
-        for (const id in nextSeen) {
-            if (!live[id]) {
-                delete nextSeen[id]
-                seenChanged = true
-            }
-        }
-        for (const id in nextTimes) {
-            if (!live[id]) {
-                delete nextTimes[id]
-                timesChanged = true
-            }
-        }
-        if (seenChanged) root._seen = nextSeen
-        if (timesChanged) root._times = nextTimes
-        if (root._fullscreenWatchWanted) Compositor.refreshToplevels()
-    }
+    Component.onCompleted: if (root._fullscreenWatchWanted) Compositor.refreshToplevels()
 
     NotificationServer {
         id: notifServer
@@ -754,6 +673,10 @@ Singleton {
         imageSupported:       true
         inlineReplySupported: true
         persistenceSupported: true
+
+        // Post-reload waits for the old engine to die, then re-emits kept objects
+        // synchronously after this signal. Only then is root.list safe to prune.
+        onTrackedNotificationsChanged: Qt.callLater(root._pruneOrphanState)
 
         onNotification: (n) => {
             root._ensurePersistentState()
