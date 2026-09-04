@@ -308,6 +308,16 @@ else
   fail "release.json must match the settings schema, Quickshell floor, supported compositors, and updater gate"
 fi
 
+# The schema number is a promise made to users too: README tells them which __version a
+# hand-written settings.json needs. Nothing else ties that prose to the number above.
+if [ -z "$settings_schema" ]; then
+  fail "could not read _settingsVersion from services/ShellSettings.qml"
+elif grep -qF "{ \"__version\": $settings_schema }" README.md; then
+  ok "schema prose" "README states the __version $settings_schema reset file"
+else
+  fail "README.md must state '{ \"__version\": $settings_schema }' for the settings reset file"
+fi
+
 section "optional tool detection"
 # The status of the final command in a shell `for` loop becomes the loop's
 # status. Since fc-list is optional and currently last, an explicit success is
