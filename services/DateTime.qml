@@ -27,7 +27,6 @@ Singleton {
     property string _lastMinute:    ""
     property string cachedDayName:  ""
     property string cachedDateCore: ""
-    property string cachedLongDate: ""
     property string cachedWeekday:  ""
     property string cachedMonthDay: ""
     property string cachedWeek:     ""
@@ -115,7 +114,6 @@ Singleton {
                 _lastDay        = day
                 cachedDayName   = Qt.formatDateTime(current, "ddd ")
                 cachedDateCore  = Qt.formatDateTime(current, "MMM dd")
-                cachedLongDate  = Qt.formatDateTime(current, "dddd, MMMM d")
                 cachedWeekday   = Qt.formatDateTime(current, "dddd")
                 cachedMonthDay  = Qt.formatDateTime(current, "MMMM d")
                 cachedWeek      = String(isoWeek(current))

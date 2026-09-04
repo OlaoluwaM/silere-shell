@@ -12,6 +12,7 @@ Pill {
     property real _baseOpacity: show ? 1.0 : 0.0
     readonly property bool layoutVisible: show || _baseOpacity > 0.001
     readonly property bool _live: Audio.micActive && !Audio.micMuted
+    readonly property bool _canSwitch: Audio.sourceCount > 1
 
     collapsed: !show
     opacity: _baseOpacity
@@ -41,6 +42,7 @@ Pill {
         if (Audio.captureSummary.length > 0) parts.push(Audio.captureSummary)
         if (Audio.sourceName.length > 0) parts.push(Audio.sourceName)
         parts.push(Audio.micMuted ? "click unmute" : "click mute", "scroll level")
+        if (root._canSwitch) parts.push("middle-click next input")
         if (Audio.hasSoundSettings) parts.push("right-click settings")
         return parts.join(" · ")
     }
@@ -85,9 +87,13 @@ Pill {
     }
 
     TapHandler {
-        enabled: root.interactive && Audio.hasSoundSettings
-        acceptedButtons: Qt.RightButton
+        enabled: root.interactive && (Audio.hasSoundSettings || root._canSwitch)
+        acceptedButtons: (Audio.hasSoundSettings ? Qt.RightButton : Qt.NoButton)
+            | (root._canSwitch ? Qt.MiddleButton : Qt.NoButton)
         gesturePolicy: TapHandler.ReleaseWithinBounds
-        onSingleTapped: Audio.openSoundSettings()
+        onSingleTapped: (point, button) => {
+            if (button === Qt.RightButton) Audio.openSoundSettings()
+            else Audio.cycleSource()
+        }
     }
 }

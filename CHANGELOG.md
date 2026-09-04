@@ -21,8 +21,8 @@ settings file carries its own `__version` and migrates separately.
   stays out of the way of apps recording system output; Widgets › Show & order turns it off.
 - The expanded volume control names the apps holding the microphone open, and carries a row
   that opens Sound settings.
-- Right-clicking the volume or microphone widget opens Sound settings; middle-clicking the
-  volume widget moves to the next output.
+- Right-clicking the volume or microphone widget opens Sound settings; middle-clicking moves
+  the volume widget to the next output and the microphone widget to the next input.
 
 #### Bar and menu
 

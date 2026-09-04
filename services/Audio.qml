@@ -207,6 +207,13 @@ Singleton {
         root.setSink(list[(i + 1) % list.length])
     }
 
+    function cycleSource(): void {
+        const list = root.sources
+        if (list.length < 2) return
+        const i = list.indexOf(root.source)
+        root.setSource(list[(i + 1) % list.length])
+    }
+
     function openSoundSettings(): bool {
         const argv = Settings.soundSettingsCommand
         if (argv.length === 0) return false

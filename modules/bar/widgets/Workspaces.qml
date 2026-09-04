@@ -58,40 +58,6 @@ Item {
     property bool _initialized: false
 
     readonly property bool dynamicMode: ShellSettings.wsDynamic
-    // no compositor numbers a workspace 0, so it is free to stand for the one that does not exist yet
-    readonly property int newWorkspaceId: 0
-    // a bar is not a workspace manager; past this the strip is wider than it is readable
-    readonly property int maxDynamicSlots: 12
-
-    // occupancy comes from the compositor's own count; the app-icon map is keyed on these ids
-    function dynamicIds(own: var, activeId: int, wantNew: bool, limit: int): var {
-        const seen = Object.create(null)
-        const ids = []
-        let activeOccupied = false
-        for (let i = 0; i < own.length; i++) {
-            const ws = own[i]
-            if (!ws || ws.wsId < 1) continue
-            if (ws.wsId === activeId && ws.occupied) activeOccupied = true
-            if (!ws.occupied && !ws.urgent && ws.wsId !== activeId) continue
-            if (seen[ws.wsId] === true) continue
-            seen[ws.wsId] = true
-            ids.push(ws.wsId)
-        }
-        if (activeId > 0 && seen[activeId] !== true) ids.push(activeId)
-        ids.sort(function(a, b) { return a - b })
-        if (limit > 0 && ids.length > limit) {
-            // window the overflow around the active cell; trimming the tail hides the one in view
-            const at = ids.indexOf(activeId)
-            const start = at < 0 ? 0
-                : Math.max(0, Math.min(ids.length - limit,
-                    at - Math.floor((limit - 1) / 2)))
-            ids.splice(0, start)
-            ids.length = limit
-        }
-        // a fresh workspace is already in hand when the one in view is empty
-        if (wantNew && activeOccupied) ids.push(root.newWorkspaceId)
-        return ids
-    }
 
     implicitWidth:  wsRow.implicitWidth + (urgentOffPage > 0 ? 12 : 0)
     implicitHeight: btnH
@@ -112,51 +78,46 @@ Item {
 
     readonly property bool inSpecial: Compositor.hasSpecialWorkspaces && Compositor.specialOutput === root.monitorName
 
-    // one pass feeds ownership, lookup, page anchoring and the per-output id cap
-    readonly property var _workspaceIndex: {
-        const owners = Object.create(null)
-        const byId = Object.create(null)
-        const own = []
-        let first = 0
-        let last = 0
-        const perOutputIds = Compositor.perOutputWorkspaceIds
-        const vals = Compositor.workspaces
-        for (let i = 0; i < vals.length; i++) {
-            const ws = vals[i]
-            if (!ws) continue
-            if (ws.output === root.monitorName) {
-                byId[ws.wsId] = ws
-                own.push(ws)
-                if (ws.wsId > 0) {
-                    first = first === 0 ? ws.wsId : Math.min(first, ws.wsId)
-                    last = Math.max(last, ws.wsId)
-                }
-            }
-            // hyprland reports a workspace before its monitor resolves; an empty output is
-            // unknown, not "elsewhere", and recording it drops the id off this bar's page
-            if (!perOutputIds && ws.wsId > 0 && ws.output.length > 0)
-                owners[ws.wsId] = ws.output
-        }
-        return { owners: owners, byId: byId, own: own, first: first, last: last }
-    }
-    readonly property var _workspaceOwners: root._workspaceIndex.owners
-    readonly property int _monitorAnchorId: {
-        let first = root.activeId > 0 ? root.activeId : 1
-        if (root._workspaceIndex.first > 0)
-            first = Math.min(first, root._workspaceIndex.first)
-        return first
+    WorkspaceSlotModel {
+        id: slotModel
+        monitorName: root.monitorName
+        activeId: root.activeId
+        effectiveWsCount: root.effectiveWsCount
+        dynamicMode: root.dynamicMode
+        wantNewWorkspace: ShellSettings.wsDynamicNew
+        perOutputWorkspaceIds: Compositor.perOutputWorkspaceIds
+        workspaces: Compositor.workspaces
     }
 
+    WorkspaceAppModel {
+        id: appModel
+        monitorName: root.monitorName
+        visibleIdsKey: slotModel.visibleIdsKey
+        visibleIds: slotModel.visibleIds
+        workspaceToplevels: Compositor.workspaceToplevels
+    }
+
+    readonly property int newWorkspaceId: slotModel.newWorkspaceId
+    readonly property int maxDynamicSlots: slotModel.maxDynamicSlots
+    readonly property var _workspaceIndex: slotModel.workspaceIndex
+    readonly property var _workspaceOwners: slotModel.workspaceOwners
+    readonly property int _monitorAnchorId: slotModel.monitorAnchorId
+    readonly property var _wsMap: slotModel.workspaceMap
+    readonly property int _idCap: slotModel.idCap
+    readonly property string _visibleIdsKey: slotModel.visibleIdsKey
+    readonly property var visibleIds: slotModel.visibleIds
+    readonly property int slotCount: slotModel.slotCount
+
+    function dynamicIds(own: var, activeId: int, wantNew: bool, limit: int): var {
+        return slotModel.dynamicIds(own, activeId, wantNew, limit)
+    }
     function _knownOnOtherMonitor(id: int): bool {
-        if (root.monitorName.length === 0) return false
-        const owner = root._workspaceOwners[id]
-        return owner !== undefined && owner !== root.monitorName
+        return slotModel.knownOnOtherMonitor(id)
     }
-
-    readonly property var _wsMap: root._workspaceIndex.byId
+    function _visibleIndex(wsId: int): int { return slotModel.visibleIndex(wsId) }
 
     function wsObjFor(id: int): var { return root._wsMap[id] ?? null }
-    function appsFor(id: int): var { return root._wsApps[id] ?? [] }
+    function appsFor(id: int): var { return appModel.appsFor(id) }
     function occupied(id: int): bool {
         const ws = root.wsObjFor(id)
         return (ws !== null && ws.occupied) || root.appsFor(id).length > 0
@@ -182,30 +143,6 @@ Item {
         if (root.urgentOffPage !== next) root.urgentOffPage = next
     }
 
-    // Window classes are compositor-supplied, so they must not inherit keys such as "constructor" from Object.prototype
-    property var _appMetaCache: Object.create(null)
-    property int _appMetaCacheSize: 0
-    readonly property int _appMetaCacheLimit: 256
-
-    function _clearAppMetaCache(): void {
-        root._appMetaCache = Object.create(null)
-        root._appMetaCacheSize = 0
-    }
-
-    function _appMeta(cls: string): var {
-        const raw = SafeText.singleLineText(
-            cls, Compositor.maxWindowIdentityChars).trim()
-        const key = raw.toLowerCase()
-        if (!key) return null
-        if (root._appMetaCache[key] !== undefined) return root._appMetaCache[key]
-        if (root._appMetaCacheSize >= root._appMetaCacheLimit)
-            root._clearAppMetaCache()
-        const meta = IconResolver.appMeta(raw)
-        root._appMetaCache[key] = meta
-        root._appMetaCacheSize++
-        return meta
-    }
-    property int _wsAppsTick: 0
     Connections {
         target: ShellSettings
         function onWsShowAppIconsChanged() {
@@ -243,63 +180,6 @@ Item {
         }
     }
 
-    // DesktopEntries loads async: a class resolved before it's ready caches an empty entry, so drop the cache once entries land
-    Connections {
-        target: ShellSettings.wsShowAppIcons ? DesktopEntries : null
-        function onApplicationsChanged() {
-            root._clearAppMetaCache()
-            root._wsAppsTick++
-        }
-    }
-
-    // niri refreshes its whole window snapshot on a title change; key off identity
-    readonly property string _wsAppsKey: {
-        if (!ShellSettings.wsShowAppIcons) return ""
-        const parts = [root._wsAppsTick, root.monitorName, root._visibleIdsKey]
-        const tops = Compositor.workspaceToplevels
-        for (let i = 0; i < tops.length; i++) {
-            const t = tops[i]
-            if (!t || t.output !== root.monitorName) continue
-            parts.push((t.wsId ?? 0) + ":" + SafeText.singleLineText(
-                t.appId, Compositor.maxWindowIdentityChars))
-        }
-        return parts.join("|")
-    }
-
-    property var _wsApps: Object.create(null)
-    on_WsAppsKeyChanged: root._rebuildWsApps()
-
-    function _rebuildWsApps(): void {
-        const map = Object.create(null)
-        if (!ShellSettings.wsShowAppIcons) { root._wsApps = map; return }
-        const seen = Object.create(null)
-        const tops = Compositor.workspaceToplevels
-        for (let i = 0; i < tops.length; i++) {
-            const t = tops[i]
-            if (!t || t.output !== root.monitorName) continue
-            const wid = t.wsId ?? 0
-            if (root._visibleIndex(wid) < 0) continue
-            const rawCls = SafeText.singleLineText(
-                t.appId, Compositor.maxWindowIdentityChars)
-            const cls = rawCls.toLowerCase()
-            if (!cls) continue
-            if (!map[wid]) map[wid] = []
-            const key = wid + "|" + cls
-            if (seen[key] !== undefined) { map[wid][seen[key]].count++; continue }
-            if (map[wid].length >= 3) continue
-            const meta = root._appMeta(rawCls)
-            if (!meta) continue
-            seen[key] = map[wid].length
-            map[wid].push({
-                icon: meta.icon,
-                name: meta.name,
-                fallback: meta.fallback,
-                count: 1
-            })
-        }
-        root._wsApps = map
-    }
-
     readonly property bool markerCovers: ShellSettings.wsActiveMarker !== "bar"
 
     function _btnW(wsId: int): int {
@@ -323,65 +203,6 @@ Item {
     }
     function _markerX(markerW: real): real {
         return root._cellCenterX(root.activeId) - markerW / 2
-    }
-
-    // per-output ids are dynamic and always keep one trailing empty workspace;
-    // padding past the last one renders slots focus-workspace cannot resolve. 0 = no cap
-    readonly property int _idCap: {
-        if (!Compositor.perOutputWorkspaceIds) return 0
-        return root._workspaceIndex.last
-    }
-
-    // hyprland ids are global: skip ids owned by another output or a wide page turns a monitor-local bar into a cross-monitor switcher
-    readonly property string _visibleIdsKey: {
-        if (root.dynamicMode)
-            return root.dynamicIds(root._workspaceIndex.own, root.activeId,
-                ShellSettings.wsDynamicNew, root.maxDynamicSlots).join(",")
-        const ids = []
-        const anchor = Math.max(1, root._monitorAnchorId)
-        const active = Math.max(anchor, root.activeId)
-        const cap = root._idCap
-        let activeLogicalIndex = 0
-        for (let id = anchor; id < active; id++)
-            if (!root._knownOnOtherMonitor(id)) activeLogicalIndex++
-        const pageStart = Math.floor(activeLogicalIndex / root.effectiveWsCount)
-            * root.effectiveWsCount
-        let logicalIndex = 0
-        for (let id = anchor; ids.length < root.effectiveWsCount; id++) {
-            if (cap > 0 && id > cap) break
-            if (root._knownOnOtherMonitor(id)) continue
-            if (logicalIndex >= pageStart) ids.push(id)
-            logicalIndex++
-        }
-        return ids.join(",")
-    }
-    readonly property var visibleIds: {
-        if (root._visibleIdsKey.length === 0) return []
-        const parts = root._visibleIdsKey.split(",")
-        const ids = []
-        for (let i = 0; i < parts.length; i++) {
-            const id = Number(parts[i])
-            if (isFinite(id)) ids.push(id)
-        }
-        return ids
-    }
-    // a Repeater over an id array rebuilds every delegate on any change, destroying the cells the motion is meant to show
-    readonly property int slotCount: root.dynamicMode
-        ? root.maxDynamicSlots + 1 : root.effectiveWsCount
-
-    // events arrive by id; Repeater.itemAt is index-based
-    readonly property var _visibleIndexById: {
-        const indexes = Object.create(null)
-        const ids = root.visibleIds
-        for (let i = 0; i < ids.length; i++) indexes[ids[i]] = i
-        return indexes
-    }
-    function _visibleIndex(wsId: int): int {
-        // a compositor signal can land mid-teardown, when the map reads back undefined
-        const byId = root._visibleIndexById
-        if (!byId) return -1
-        const index = byId[wsId]
-        return index === undefined ? -1 : index
     }
 
     readonly property int activeIndex: root._visibleIndex(root.activeId)
@@ -429,7 +250,6 @@ Item {
         _prevPageKey = pageKey
         _initialized = monitorReady
         root._syncUrgentOffPage()
-        root._rebuildWsApps()
         root._reclaimPopupAnchors()
     }
     Component.onDestruction: MenuState.cancelWarm(root)

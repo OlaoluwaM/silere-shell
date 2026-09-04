@@ -189,10 +189,12 @@ Singleton {
         "chrome", "chromium", "brave", "edge", "opera", "vivaldi", "thorium"
     ]
 
-    function _resolveByDesktopEntry(clients, name): var {
+    function _resolveByDesktopEntry(clients, name, lookup): var {
         const identity = root._norm(name)
         if (identity.length === 0) return null
-        const de = DesktopEntries.heuristicLookup(identity)
+        // The optional lookup keeps this matching layer probeable without loading a desktop
+        // database; production callers continue to use the shared resolver.
+        const de = lookup ? lookup(identity) : DesktopEntries.heuristicLookup(identity)
         const startupClass = de?.startupClass ? String(de.startupClass) : ""
         const desktopId    = de?.id ? String(de.id) : ""
         let best = null

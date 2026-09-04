@@ -27,6 +27,10 @@ ShellRoot {
         property real menuAnchorX: 42
     }
     QtObject {
+        id: invalidProbeAnchor
+        property string menuAnchorX: "not-a-number"
+    }
+    QtObject {
         id: pulseTarget
         property real value: 1
     }
@@ -375,6 +379,58 @@ ShellRoot {
         root._check(!MenuState.warmRequested && MenuState.warmScreen === null,
             "releasing the warm owner returns the menu loader to idle")
         workspaceStrip.destroy()
+
+        root._check(WindowActions._norm("  Org.Example.App.desktop  ") === "org.example.app"
+                && WindowActions._norm(null) === "",
+            "window matching normalizes desktop ids and empty hints")
+        root._check(WindowActions._compact("Org.Example-App.desktop") === "orgexampleapp",
+            "window matching compacts punctuation after normalizing desktop ids")
+        root._check(WindowActions._toPid("42.9") === 42
+                && WindowActions._toPid(0) === -1
+                && WindowActions._toPid("not-a-pid") === -1,
+            "window matching accepts only positive numeric process ids")
+
+        const hereRef = WindowActions._hereWorkspaceRef()
+        const elsewhereRef = hereRef === 2147483647 ? hereRef - 1 : hereRef + 1
+        const matchingClients = [
+            { ref: "hidden", wsId: -1, wsRef: elsewhereRef, focusRank: 0 },
+            { ref: "here", wsId: 1, wsRef: hereRef, focusRank: 1,
+                pid: "77", cls: "org.example.App", initialClass: "" },
+            { ref: "elsewhere", wsId: 2, wsRef: elsewhereRef, focusRank: 9,
+                pid: 77, cls: "Example-App", initialClass: "org.example.Startup" },
+            { wsId: 3, wsRef: elsewhereRef, focusRank: -1 }
+        ]
+        root._check(WindowActions._chooseMatchingSource(
+                    matchingClients, function() { return true }).ref === "elsewhere",
+            "window matching prefers the best client away from the current workspace")
+        root._check(WindowActions._chooseMatchingSource(
+                    matchingClients, function(c) { return c.ref === "here" }).ref === "here",
+            "window matching falls back to the current workspace when it is the only match")
+        const pidMatches = WindowActions._pidMatches(matchingClients, 77)
+        root._check(pidMatches.length === 2 && pidMatches[0].ref === "here"
+                && pidMatches[1].ref === "elsewhere",
+            "window matching collects every client for a normalized process id")
+        root._check(WindowActions._classMatches(matchingClients[1], "ORG.EXAMPLE.APP.desktop")
+                && WindowActions._classMatches(matchingClients[2], "org-example-startup")
+                && !WindowActions._classMatches(matchingClients[1], "different"),
+            "window matching compares exact and punctuation-compacted classes")
+        root._check(WindowActions._appMatches(matchingClients[1], "Example App")
+                && WindowActions._appMatches(matchingClients[2], "Launcher Example App")
+                && !WindowActions._appMatches(matchingClients[1], "Ex"),
+            "window matching accepts bounded app-name suffixes without tiny fuzzy matches")
+        const byStartup = WindowActions._resolveByDesktopEntry(
+            matchingClients, "Probe.desktop", function(identity) {
+                return identity === "probe"
+                    ? { startupClass: "org.example.Startup", id: "missing" } : null
+            })
+        const byDesktopId = WindowActions._resolveByDesktopEntry(
+            matchingClients, "Probe", function() {
+                return { startupClass: "missing", id: "org.example.App.desktop" }
+            })
+        root._check(byStartup?.ref === "elsewhere" && byDesktopId?.ref === "here"
+                && WindowActions._resolveByDesktopEntry(
+                    matchingClients, "", function() { return ({}) }) === null,
+            "desktop-entry matching tries startup class, desktop id and empty input safely")
 
         root._check(Motion.allowsMotion(false, false)
                 && !Motion.allowsMotion(true, false)
@@ -2197,7 +2253,46 @@ ShellRoot {
         Hooks._queued = ({})
         Hooks._queueOrder = []
 
-        root._startAnchorTeardown()
+        root._startDirectAnchorProbe()
+    }
+
+    function _startDirectAnchorProbe(): void {
+        const popup = TrayMenuState
+        popup.close()
+        popup.openAt(17, null, invalidProbeAnchor)
+        root._check(popup.open && popup.effectiveAnchorX === 17,
+            "an invalid live popup anchor falls back to its captured x")
+        popup._setAnchor(probeAnchor)
+        root._check(popup.anchorSource === probeAnchor,
+            "setting a popup anchor retains the requested live object")
+        root._check(popup.effectiveAnchorX === probeAnchor.menuAnchorX,
+            "a popup reads the current x from its live anchor")
+        popup.adoptAnchor(invalidProbeAnchor)
+        root._check(popup.anchorSource === probeAnchor,
+            "a second widget cannot steal an adopted popup anchor")
+
+        popup.close()
+        popup.anchorX = 23
+        popup.openUnanchored()
+        root._check(popup.open && popup.anchorSource === null
+                && popup.triggerScreen === null && popup.effectiveAnchorX === 23,
+            "an unanchored popup opens on its retained fallback without a trigger screen")
+        popup.adoptAnchor(probeAnchor)
+        root._check(popup.anchorSource === probeAnchor,
+            "the first live widget can adopt an unanchored open popup")
+        // Simulate QObject destruction, which clears the property without calling _setAnchor().
+        popup.anchorSource = null
+        _directAnchorRegrabSettle.restart()
+    }
+
+    Timer {
+        id: _directAnchorRegrabSettle
+        interval: 220
+        onTriggered: {
+            root._check(!TrayMenuState.open && TrayMenuState.anchorSource === null,
+                "an open popup closes when no widget reclaims its dropped anchor")
+            root._startAnchorTeardown()
+        }
     }
 
     // A zone's Repeater renders a plain JS array, so writing a new order regenerates it:
