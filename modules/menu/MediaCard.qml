@@ -25,7 +25,7 @@ ClippingRectangle {
 
     function _focusPlayer(): void {
         MenuState.close()
-        HyprActions.focusMediaPlayer(Media.playerName, Media.title)
+        WindowActions.focusMediaPlayer(Media.playerName, Media.title)
     }
 
     function settleMediaVisual(): void {

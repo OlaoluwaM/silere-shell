@@ -685,7 +685,7 @@ Singleton {
                 n.urgency === NotificationUrgency.Critical)
 
             if (ShellSettings.wsNotifPulse) {
-                const srcWs = HyprActions.notificationSourceWorkspace(n)
+                const srcWs = WindowActions.notificationSourceWorkspace(n)
                 if (srcWs > 0) root.sourcePulse(srcWs, n.urgency === NotificationUrgency.Critical)
             }
         }

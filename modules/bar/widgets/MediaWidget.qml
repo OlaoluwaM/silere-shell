@@ -256,7 +256,7 @@ Item {
         acceptedButtons: Qt.LeftButton | Qt.MiddleButton
         onTapped: (eventPoint, button) => {
             if (button === Qt.MiddleButton)
-                HyprActions.focusMediaPlayer(Media.playerName, Media.title)
+                WindowActions.focusMediaPlayer(Media.playerName, Media.title)
             else
                 Media.togglePlay()
         }

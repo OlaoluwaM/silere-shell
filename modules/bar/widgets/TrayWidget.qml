@@ -56,7 +56,7 @@ Item {
     }
 
     function _activateItem(item, tile): void {
-        if (!HyprActions.focusTrayItem(item.id, item.title, item.tooltipTitle)) {
+        if (!WindowActions.focusTrayItem(item.id, item.title, item.tooltipTitle)) {
             if (item.onlyMenu) root._openMenu(item, tile)
             else item.activate()
         }
