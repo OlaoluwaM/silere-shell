@@ -36,8 +36,28 @@ QtObject {
         else HyprDispatch.dispatch("workspace", wsId)
     }
 
-    function moveActiveToWorkspace(wsId): void {
+    // "emptynm" is hyprland's own selector: there is no workspace object to focus
+    // until a window opens on it, so an id cannot stand in for this
+    function focusNewWorkspace(output): void {
+        if (output.length > 0) HyprDispatch.dispatchPair("focusmonitor", output, "workspace", "emptynm")
+        else HyprDispatch.dispatch("workspace", "emptynm")
+    }
+
+    function moveActiveToWorkspace(wsId, output): void {
         HyprDispatch.dispatch("movetoworkspacesilent", wsId)
+    }
+
+    function moveActiveToNewWorkspace(output): void {
+        const active = root.activeToplevel
+        const ref = active && active.ref ? String(active.ref) : ""
+        const addr = ref.length > 0
+            ? (ref.startsWith("address:") ? ref : "address:" + ref) : ""
+        const sourceOutput = active ? String(active.output || "") : ""
+        if (output.length > 0 && output !== sourceOutput && addr.length > 0)
+            HyprDispatch.moveWindowToWorkspaceOnMonitor(
+                output, sourceOutput, "emptynm", addr)
+        else
+            HyprDispatch.dispatch("movetoworkspacesilent", "emptynm")
     }
 
     function focusToplevel(c): void {

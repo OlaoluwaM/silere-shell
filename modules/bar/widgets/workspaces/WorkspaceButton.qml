@@ -9,6 +9,7 @@ Item {
     id: root
 
     required property int wsId
+    required property bool isNew
     required property bool monitorReady
     required property bool active
     required property bool occupied
@@ -25,6 +26,7 @@ Item {
     required property var screen
 
     signal activateRequested()
+    signal moveWindowRequested()
     signal anchorMenuRequested()
     signal quickActionsRequested()
     signal markerPulseRequested()
@@ -32,12 +34,23 @@ Item {
 
     readonly property bool hovered: _hover.hovered
     readonly property bool _hoverFx: hovered && ShellSettings.barHoverHighlight
+    // a slot with no workspace behind it collapses instead of being destroyed, so the
+    // strip can grow and shrink without the row rebuilding under the motion
+    readonly property bool present: wsId >= 0
     // an underline marker leaves the cell centre free, so the active workspace keeps its own content
     readonly property bool _blanked: active && markerCovers
-    readonly property bool _showIcons: ShellSettings.wsShowAppIcons && !_blanked && apps.length > 0
+    readonly property bool _showIcons: ShellSettings.wsShowAppIcons && !_blanked
+        && !isNew && apps.length > 0
 
-    width:  cellWidth
+    width:  present ? cellWidth : 0
     height: rowHeight
+    // the centred glyph is not clipped by a narrowing cell, so it has to be gone before
+    // the cell is: the fade runs shorter than the collapse on purpose
+    property real _presence: present ? 1 : 0
+    MotionBehavior on _presence {
+        NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic }
+    }
+    visible: root.width > 0.5 || root._presence > 0.01
 
     function _motionAllowed(): bool {
         return root.barActive
@@ -45,7 +58,8 @@ Item {
     }
 
     function _settleMotion(): void {
-        _enterAnim.stop()
+        _swapAnim.stop()
+        root._swapFade = 1
         _dropPulse.stop()
         _dotFadeOut.stop()
         _dotFadeIn.stop()
@@ -60,18 +74,36 @@ Item {
 
     Component.onCompleted: {
         _dotFade = _blanked ? 0 : 1
-        if (!initialized || !root._motionAllowed() || paging) return
-        scale = 0
-        _enterAnim.start()
+        _prevWsId = wsId
     }
     Component.onDestruction: {
         if (root.hovered) root.hoverReported(root.wsId, false)
         BarHintState.release(root)
     }
 
+    // slots are index-keyed, so a workspace opening mid-strip renumbers every cell after
+    // it. Without this the labels change between two frames with nothing to read as motion.
+    property real _swapFade: 1
+    property int _prevWsId: -1
+    readonly property bool swapFading: _swapAnim.running
+    onWsIdChanged: {
+        const previous = root._prevWsId
+        root._prevWsId = root.wsId
+        // a fixed strip only renumbers on a page turn, which the whole row already fades;
+        // an arrival or a departure is carried by the collapse
+        if (previous < 0 || root.wsId < 0 || !root.initialized
+                || !ShellSettings.wsDynamic || !root._motionAllowed()) {
+            _swapAnim.stop()
+            root._swapFade = 1
+            return
+        }
+        _swapAnim.restart()
+    }
+
     SequentialAnimation {
-        id: _enterAnim
-        NumberAnimation { target: root; property: "scale"; to: 1.0; duration: Motion.ms(130); easing.type: Easing.OutCubic }
+        id: _swapAnim
+        NumberAnimation { target: root; property: "_swapFade"; to: 0.25; duration: Motion.ms(70);  easing.type: Easing.OutCubic }
+        NumberAnimation { target: root; property: "_swapFade"; to: 1.0;  duration: Motion.ms(130); easing.type: Easing.OutCubic }
     }
 
     SequentialAnimation {
@@ -96,7 +128,7 @@ Item {
     }
 
     Accessible.role: Accessible.Button
-    Accessible.name: "Workspace " + root.wsId
+    Accessible.name: root.isNew ? "New workspace" : "Workspace " + root.wsId
     Accessible.selected: root.active
     Accessible.focusable: true
     Accessible.onPressAction: root._activate()
@@ -108,7 +140,9 @@ Item {
         }
         const point = root.mapToItem(null, root.width / 2, 0)
         const scroll = ShellSettings.wsScrollSwitch ? " · scroll workspaces" : ""
-        const actions = root.active
+        const actions = root.isNew
+            ? "Click open a new workspace · middle-click move window there" + scroll
+            : root.active
             ? "Click menu · right-click quick actions" + scroll
             : "Click switch · middle-click move window" + scroll
         BarHintState.request(root, root.screen, point.x, actions)
@@ -128,7 +162,7 @@ Item {
         onTapped: (eventPoint, button) => {
             if (button === Qt.MiddleButton) {
                 if (!Compositor.activeToplevel) return
-                Compositor.moveActiveToWorkspace(root.wsId)
+                root.moveWindowRequested()
                 if (root._motionAllowed()) _dropPulse.restart()
                 return
             }
@@ -261,13 +295,15 @@ Item {
 
     Item {
         anchors.fill: parent
-        opacity: 1 - root._markerPassCover
+        opacity: (1 - root._markerPassCover) * root._presence * root._swapFade
 
         ShellText {
             anchors.centerIn: parent
             transform: Translate { x: root._shakeX }
-            text:    root.wsId
-            opacity: (root._showIcons
+            text:    root.isNew ? "󰐕" : root.wsId
+            opacity: (root.isNew
+                    ? 1
+                    : root._showIcons
                     ? root._revealAmt
                     : Math.max(ShellSettings.wsShowNumbers ? 1 : 0, root._revealAmt))
                 * (root._blanked ? 0 : 1) * root._pulseOpacity * ShellSettings.wsMarkerOpacity
@@ -276,6 +312,8 @@ Item {
                 ? Theme.warning
                 : root.active
                 ? Theme.accent
+                : root.isNew
+                ? (root._hoverFx ? Theme.accent : Theme.withAlpha(Theme.subtext, 0.5))
                 : (root.occupied
                     ? (root._hoverFx ? Theme.accent : Theme.withAlpha(Theme.text, 0.85))
                     : (root._hoverFx ? Theme.withAlpha(Theme.accent, 0.65) : Theme.withAlpha(Theme.subtext, 0.45)))
@@ -293,7 +331,7 @@ Item {
             height: width
             radius: width / 2
             antialiasing: true
-            visible: !ShellSettings.wsShowNumbers && !root._showIcons
+            visible: !ShellSettings.wsShowNumbers && !root._showIcons && !root.isNew
             opacity: (1 - root._revealAmt) * root._dotFade
                 * (root._hoverFx && !root.urgent ? Math.min(1, root._dotAlpha + 0.18)
                     : root._dotAlpha)

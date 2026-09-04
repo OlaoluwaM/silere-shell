@@ -36,6 +36,9 @@ settings file carries its own `__version` and migrates separately.
 - Feedback › Notifications › Let critical through decides whether urgent alerts ignore do not disturb.
 - System › Maintenance chooses the lock program: hyprlock, swaylock, gtklock, or a command of your own.
 - The Bluetooth row in the menu shows the icon of the device that is connected.
+- Workspaces › Dynamic workspaces lists only the workspaces in use, growing and shrinking
+  as they come and go. A trailing slot opens the next empty one, and middle-clicking it
+  moves the focused window there.
 
 ### Changed
 

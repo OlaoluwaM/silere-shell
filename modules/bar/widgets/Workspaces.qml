@@ -57,6 +57,42 @@ Item {
     property int _lastNormalActiveId: 1
     property bool _initialized: false
 
+    readonly property bool dynamicMode: ShellSettings.wsDynamic
+    // no compositor numbers a workspace 0, so it is free to stand for the one that does not exist yet
+    readonly property int newWorkspaceId: 0
+    // a bar is not a workspace manager; past this the strip is wider than it is readable
+    readonly property int maxDynamicSlots: 12
+
+    // occupancy comes from the compositor's own count; the app-icon map is keyed on these ids
+    function dynamicIds(own: var, activeId: int, wantNew: bool, limit: int): var {
+        const seen = Object.create(null)
+        const ids = []
+        let activeOccupied = false
+        for (let i = 0; i < own.length; i++) {
+            const ws = own[i]
+            if (!ws || ws.wsId < 1) continue
+            if (ws.wsId === activeId && ws.occupied) activeOccupied = true
+            if (!ws.occupied && !ws.urgent && ws.wsId !== activeId) continue
+            if (seen[ws.wsId] === true) continue
+            seen[ws.wsId] = true
+            ids.push(ws.wsId)
+        }
+        if (activeId > 0 && seen[activeId] !== true) ids.push(activeId)
+        ids.sort(function(a, b) { return a - b })
+        if (limit > 0 && ids.length > limit) {
+            // window the overflow around the active cell; trimming the tail hides the one in view
+            const at = ids.indexOf(activeId)
+            const start = at < 0 ? 0
+                : Math.max(0, Math.min(ids.length - limit,
+                    at - Math.floor((limit - 1) / 2)))
+            ids.splice(0, start)
+            ids.length = limit
+        }
+        // a fresh workspace is already in hand when the one in view is empty
+        if (wantNew && activeOccupied) ids.push(root.newWorkspaceId)
+        return ids
+    }
+
     implicitWidth:  wsRow.implicitWidth + (urgentOffPage > 0 ? 12 : 0)
     implicitHeight: btnH
 
@@ -180,6 +216,10 @@ Item {
             root._paging = true
             _pagingReset.restart()
         }
+        function onWsDynamicChanged() {
+            root._paging = true
+            _pagingReset.restart()
+        }
         function onWorkspaceShiftChanged() {
             if (!ShellSettings.workspaceShift) {
                 root._clearWorkspaceHandoffs()
@@ -263,6 +303,7 @@ Item {
     readonly property bool markerCovers: ShellSettings.wsActiveMarker !== "bar"
 
     function _btnW(wsId: int): int {
+        if (wsId < 0) return 0
         if (ShellSettings.wsShowAppIcons && !(wsId === activeId && root.markerCovers)) {
             const apps = root.appsFor(wsId)
             if (apps && apps.length > 0)
@@ -293,6 +334,9 @@ Item {
 
     // hyprland ids are global: skip ids owned by another output or a wide page turns a monitor-local bar into a cross-monitor switcher
     readonly property string _visibleIdsKey: {
+        if (root.dynamicMode)
+            return root.dynamicIds(root._workspaceIndex.own, root.activeId,
+                ShellSettings.wsDynamicNew, root.maxDynamicSlots).join(",")
         const ids = []
         const anchor = Math.max(1, root._monitorAnchorId)
         const active = Math.max(anchor, root.activeId)
@@ -321,6 +365,10 @@ Item {
         }
         return ids
     }
+    // a Repeater over an id array rebuilds every delegate on any change, destroying the cells the motion is meant to show
+    readonly property int slotCount: root.dynamicMode
+        ? root.maxDynamicSlots + 1 : root.effectiveWsCount
+
     // events arrive by id; Repeater.itemAt is index-based
     readonly property var _visibleIndexById: {
         const indexes = Object.create(null)
@@ -337,7 +385,10 @@ Item {
     }
 
     readonly property int activeIndex: root._visibleIndex(root.activeId)
-    readonly property int pageKey: visibleIds.length > 0 ? visibleIds[0] : _monitorAnchorId
+    // a dynamic strip has no pages: the lowest id shifting is a workspace closing, and
+    // turning that into a page fade flashes the whole row over one cell going away
+    readonly property int pageKey: root.dynamicMode ? 0
+        : (visibleIds.length > 0 ? visibleIds[0] : _monitorAnchorId)
 
     onVisibleIdsChanged: root._syncUrgentOffPage()
     onMonitorNameChanged: root._syncUrgentOffPage()
@@ -508,8 +559,19 @@ Item {
     }
 
     function activate(id: int): void {
-        if (!monitorReady || id < 1 || id === activeId || root._knownOnOtherMonitor(id)) return
+        if (!monitorReady) return
+        if (id === root.newWorkspaceId) {
+            Compositor.focusNewWorkspace(root.monitorName)
+            return
+        }
+        if (id < 1 || id === activeId || root._knownOnOtherMonitor(id)) return
         Compositor.focusWorkspace(id, root.monitorName)
+    }
+
+    function moveWindowTo(id: int): void {
+        if (!Compositor.activeToplevel) return
+        if (id === root.newWorkspaceId) Compositor.moveActiveToNewWorkspace(root.monitorName)
+        else if (id > 0) Compositor.moveActiveToWorkspace(id, root.monitorName)
     }
 
     function _scrollTarget(delta: int): int {
@@ -630,13 +692,14 @@ Item {
 
         Repeater {
             id: _wsRepeater
-            model: root.visibleIds
+            model: root.slotCount
 
             WorkspaceButton {
                 id: ws
-                required property int modelData
+                required property int index
 
-                wsId:         modelData
+                wsId:         root.visibleIds[index] ?? -1
+                isNew:        wsId === root.newWorkspaceId
                 monitorReady: root.monitorReady
                 active:       root.monitorReady && root.activeId === wsId
                 occupied:     root.occupied(wsId)
@@ -653,6 +716,7 @@ Item {
                 screen:       root.screen
 
                 onActivateRequested:      root.activate(wsId)
+                onMoveWindowRequested:     root.moveWindowTo(wsId)
                 onAnchorMenuRequested:     root.openAnchorMenu()
                 onQuickActionsRequested:   root.openQuickActions()
                 onMarkerPulseRequested:    marker.pulse()

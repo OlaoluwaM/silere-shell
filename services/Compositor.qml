@@ -54,9 +54,21 @@ Singleton {
         root._be.focusWorkspace(wsId, output || "")
     }
 
-    function moveActiveToWorkspace(wsId): void {
+    // the trailing slot has no id to focus until the compositor makes one; each
+    // backend resolves its own idea of "the next empty workspace on this output"
+    function focusNewWorkspace(output): void {
+        if (!root._be) return
+        root._be.focusNewWorkspace(output || "")
+    }
+
+    function moveActiveToWorkspace(wsId, output): void {
         if (wsId === undefined || wsId === null || wsId < 1 || !root._be) return
-        root._be.moveActiveToWorkspace(wsId)
+        root._be.moveActiveToWorkspace(wsId, output || "")
+    }
+
+    function moveActiveToNewWorkspace(output): void {
+        if (!root._be) return
+        root._be.moveActiveToNewWorkspace(output || "")
     }
 
     function focusToplevel(c): void {

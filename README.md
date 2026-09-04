@@ -80,7 +80,7 @@ long to fit. Widgets › Indicators › Bar tooltips turns that off.
 
 | area | pointer |
 |---|---|
-| workspaces | **click** switches · on the active diamond, **click** opens the menu and **right-click** opens quick actions · **middle-click** sends the focused window there · **scroll** switches too, once you turn it on under Settings › Workspaces |
+| workspaces | **click** switches · on the active diamond, **click** opens the menu and **right-click** opens quick actions · **middle-click** sends the focused window there · on the trailing **+**, **click** opens the next empty workspace · **scroll** switches too, once you turn it on under Settings › Workspaces |
 | clock | **click** opens the calendar · **middle-click** cycles seconds and date |
 | calendar | **scroll** changes the month · **click** the header to jump back to today |
 | media | **click** plays or pauses · **scroll** changes track · **middle-click** jumps to the player |

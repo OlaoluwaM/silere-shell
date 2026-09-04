@@ -76,6 +76,19 @@ Singleton {
             ? dispatcher + " " + String(args) : dispatcher
     }
 
+    function _moveText(workspace, window): string {
+        const target = String(workspace)
+        const selector = String(window || "")
+        if (root.useLua) {
+            return "hl.dsp.window.move({ workspace = " + root._value(target)
+                + ", follow = false"
+                + (selector.length > 0 ? ", window = " + root._quote(selector) : "")
+                + " })"
+        }
+        return "movetoworkspacesilent " + target
+            + (selector.length > 0 ? "," + selector : "")
+    }
+
     function dispatch(dispatcher, args): void {
         if (!SystemTools.ready || !SystemTools.hasHyprctl) return
         if (root.useLua && (dispatcher === "focusmonitor" || dispatcher === "workspace"
@@ -97,5 +110,26 @@ Singleton {
         Quickshell.execDetached(["sh", "-c",
             "hyprctl dispatch \"$1\" >/dev/null && hyprctl dispatch \"$2\"",
             "sh", root._text(d1, a1), root._text(d2, a2)])
+    }
+
+    // emptynm is relative to the focused monitor. Focus the clicked output only
+    // for long enough to resolve it, address the original window explicitly, and
+    // return focus to the source output when there is one.
+    function moveWindowToWorkspaceOnMonitor(output, sourceOutput, workspace, window): void {
+        if (!SystemTools.ready || !SystemTools.hasHyprctl) return
+        const targetCall = root._text("focusmonitor", output)
+        const moveCall = root._moveText(workspace, window)
+        const restore = String(sourceOutput || "")
+        if (restore.length > 0 && restore !== String(output)) {
+            Quickshell.execDetached(["sh", "-c",
+                "hyprctl dispatch \"$1\" >/dev/null "
+                    + "&& hyprctl dispatch \"$2\" >/dev/null "
+                    + "&& hyprctl dispatch \"$3\"",
+                "sh", targetCall, moveCall, root._text("focusmonitor", restore)])
+        } else {
+            Quickshell.execDetached(["sh", "-c",
+                "hyprctl dispatch \"$1\" >/dev/null && hyprctl dispatch \"$2\"",
+                "sh", targetCall, moveCall])
+        }
     }
 }
