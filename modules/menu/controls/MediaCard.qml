@@ -193,7 +193,7 @@ ClippingRectangle {
             _pendingLayer = null
             const dead = _curUrl
             _curUrl = ""
-            Media.artFailed(dead)
+            if (root.hostOpen) Media.artFailed(dead)
             // the service already moved the card onto the next cover it knows about
             if (_curUrl.length > 0) return
             if (root.hostOpen && _retries < 3) { _retries++; _artRetry.restart() }

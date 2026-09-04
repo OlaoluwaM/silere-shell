@@ -88,6 +88,8 @@ so resurrecting one on purpose means removing its line in the same commit.
 - The fork's media card lives at `modules/menu/controls/MediaCard.qml` and its
   redesign wins. Never restore the obsolete `modules/menu/MediaCard.qml` path;
   port compatible upstream privacy and metadata fixes into the controls file.
+  Only an open media host may advance the shared artwork candidate after a
+  load failure; a closed card retained during its exit must not change it.
 
 ## What belongs here
 
