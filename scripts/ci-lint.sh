@@ -1693,6 +1693,24 @@ else
   ok "surfaces" "no service enumerates panel state singletons"
 fi
 
+section "boot arming"
+# A singleton is only created once something reads a member of it, so a watcher nothing
+# else references never starts and its events are silently lost. The armed marker is how
+# a service declares it needs that read, and shell.qml is the only place it happens.
+unarmed_services=""
+for f in services/*.qml; do
+  grep -qE '^[[:space:]]*readonly property bool armed' "$f" || continue
+  svc="$(basename "$f" .qml)"
+  if ! grep -qE "(^|[^A-Za-z0-9_])${svc}\.armed" shell.qml; then
+    unarmed_services="$unarmed_services $svc"
+  fi
+done
+if [ -n "$unarmed_services" ]; then
+  fail "these services declare an armed marker shell.qml never reads:$unarmed_services"
+else
+  ok "arming" "every armed service is read at startup"
+fi
+
 section "pointer-only interaction"
 # Silere is pointer-driven by decision: app-wide keyboard navigation was removed
 # wholesale. Keep this invariant about that interaction model, not accessibility
