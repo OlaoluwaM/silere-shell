@@ -352,7 +352,9 @@ ClippingRectangle {
             id: _seekRail
             anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
             height: _seekArea.containsMouse || _seekArea.pressed ? 7 : 5
-            color: Theme.withAlpha(Theme.text, 0.18)
+            color: Theme.controlTrackFill(Theme.accent, false,
+                _seekArea.containsMouse, _seekArea.pressed)
+            ColorFade on color {}
             MotionBehavior on height {
                 NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic }
             }
@@ -360,7 +362,9 @@ ClippingRectangle {
             Rectangle {
                 anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
                 width: Math.round(parent.width * _seek._ratio)
-                color: Theme.accent
+                color: Theme.controlTrackFill(Theme.accent, true,
+                    _seekArea.containsMouse, _seekArea.pressed)
+                ColorFade on color {}
             }
         }
 
