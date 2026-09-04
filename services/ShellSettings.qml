@@ -259,11 +259,11 @@ Singleton {
     property bool   wsShowAppIcons:      false
     property bool   wsNotifPulse:        false
     property bool   wsUrgentPulse:       true
-    property bool   wsMenuPulse:         true
+    property bool   wsMenuPulse:         false
     property real   wsMarkerOpacity:     1.0
     property real   wsIconOpacity:       0.68
     property bool   wsIconMono:          true
-    property string wsActiveMarker:      "gem"
+    property string wsActiveMarker:      "dot"
 
     property bool _loaded: false
     property string _readError: ""
