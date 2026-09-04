@@ -62,6 +62,9 @@ _package_for() {
         apt:checkupdates|dnf:checkupdates|zypper:checkupdates|xbps:checkupdates) return 1 ;;
         *:powerprofilesctl) printf 'power-profiles-daemon' ;;
         *:inotifywait)      printf 'inotify-tools' ;;
+        pacman:ssh-keygen|zypper:ssh-keygen|xbps:ssh-keygen) printf 'openssh' ;;
+        apt:ssh-keygen)     printf 'openssh-client' ;;
+        dnf:ssh-keygen)     printf 'openssh-clients' ;;
         pacman:nmcli)       printf 'networkmanager' ;;
         apt:nmcli)          printf 'network-manager' ;;
         dnf:nmcli|zypper:nmcli) printf 'NetworkManager' ;;
@@ -222,6 +225,13 @@ optional_any "sound settings" "per-app routing UI" pwvucontrol pavucontrol
 optional_tool cava "audio visualizer"
 optional_tool notify-send "desktop alerts"
 optional_tool fc-list "font verification"
+optional_tool inotifywait "screenshot feedback"
+optional_tool nmcli "VPN name fallback"
+optional_tool busctl "notification daemon check"
+optional_any "power actions" "suspend, reboot, shut down" systemctl loginctl
+optional_any "updates" "update count widget" checkupdates apt dnf zypper xbps-install
+[ "$package_family" != pacman ] \
+    || optional_any "AUR helper" "AUR update count" paru yay
 
 section "Integration"
 config_home="$(_silere_xdg_home "${XDG_CONFIG_HOME:-}" .config 2>/dev/null || true)"
@@ -236,6 +246,18 @@ fi
 if [ -r "$ROOT/security/update-signers" ]; then ok "release trust" "installed signer list is readable"
 elif [ "$git_install" -eq 1 ]; then fail "release trust" "security/update-signers is missing"
 else info "release trust" "package manager owns updates"
+fi
+
+# update.sh refuses to apply a release it cannot verify, so a git install without
+# ssh-keygen has a trust chain that ends here rather than at the signer list
+if [ "$git_install" -eq 1 ]; then
+    if command -v ssh-keygen >/dev/null 2>&1; then
+        ok "ssh-keygen" "release signatures can be verified"
+    else
+        warn "ssh-keygen" "signed updates cannot be verified (optional)"
+        optional_missing=$((optional_missing + 1))
+        _remember_package ssh-keygen
+    fi
 fi
 
 if [ "$git_install" -eq 1 ]; then

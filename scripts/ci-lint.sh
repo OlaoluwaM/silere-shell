@@ -1240,6 +1240,30 @@ else
     ok "installer" "every probed optional tool is named in install.sh"
 fi
 
+# `install.sh --check` execs the doctor, so the doctor is the only report a user
+# sees after the install and has to cover the same table. Read the doctor's own
+# check calls and command guards, not the whole file: a name left in a comment
+# would otherwise pass for a check that is no longer made.
+doctor_tools="$({
+    grep -oE '(optional_tool|optional_any|required_tool) .*' scripts/doctor.sh \
+        | sed -E 's/^(optional_tool|optional_any|required_tool) //; s/"[^"]*"//g'
+    grep -oE 'command -v [a-z0-9-]+' scripts/doctor.sh | sed 's/command -v //'
+} | tr -s ' ' '\n' | sed '/^$/d' | sort -u)"
+undoctored_tools=""
+while read -r _tool; do
+    [ -z "$_tool" ] && continue
+    # procps and coreutils ship on every system Silere runs on; a doctor line for
+    # them reports nothing a user can act on
+    case "$_tool" in pgrep|pkill|timeout) continue ;; esac
+    printf '%s\n' "$doctor_tools" | grep -qxF -- "$_tool" \
+        || undoctored_tools="$undoctored_tools $_tool"
+done < <(printf '%s\n' "$optdep_tools")
+if [ -n "$undoctored_tools" ]; then
+    fail "silere doctor never checks optional tools install.sh names:$undoctored_tools"
+else
+    ok "doctor" "every optional tool the installer names is checked by the doctor"
+fi
+
 xdg_path_bypass="$(grep -RInE --include='*.qml' \
   'Quickshell\.env\("(XDG_(CONFIG|CACHE|STATE)_HOME|XDG_RUNTIME_DIR)"\)' \
   shell.qml modules services config \
