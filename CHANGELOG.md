@@ -58,6 +58,7 @@ settings file carries its own `__version` and migrates separately.
 - The calendar header runs the width of the card, with today's date at one end and the week number at the other. The month name now sits over the days it names.
 - Releasing a version records cold and warm performance rows before the tag.
 - Settings opens with every category expanded. Interface › Keep groups open still returns to one group at a time.
+- The category groups in the settings rail are set as headings over their pages rather than rows beside them.
 - The active workspace marker starts as the dot, and holds still when the menu opens.
 
 ### Fixed

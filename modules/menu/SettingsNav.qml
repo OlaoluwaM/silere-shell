@@ -36,7 +36,7 @@ Item {
     readonly property int _navTop:      42
     readonly property int _navBottom:    8
     readonly property int _groupH:      Metrics.rowHeightFor(28)
-    readonly property int _groupGap:     2
+    readonly property int _groupGap:     6
     readonly property int _childrenPad:  2
     readonly property int _navRowH:     Metrics.rowHeightFor(28)
     readonly property int _navRowGap:    1
@@ -390,12 +390,19 @@ Item {
                                 anchors.rightMargin: 6
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: _grp.modelData.label
-                                color: _grp.groupActive
-                                    ? Theme.text
-                                    : Theme.withAlpha(Theme.menuTextMuted,
-                                        _headerHover.hovered ? 0.94 : 0.80)
-                                font.pixelSize: Settings.fontLabel
-                                font.weight: _grp.groupActive ? Font.DemiBold : Font.Normal
+                                // collapsed, the header is the only marker the selection has
+                                color: !_grp.groupActive
+                                    ? Theme.withAlpha(Theme.menuTextMuted,
+                                        _headerHover.hovered ? 0.88 : 0.62)
+                                    : _grp.expanded
+                                        ? Theme.withAlpha(Theme.mix(
+                                            Theme.menuTextMuted, Theme.accent, 0.34), 0.96)
+                                        : Theme.withAlpha(Theme.mix(
+                                            Theme.text, Theme.accent, 0.22), 0.98)
+                                font.pixelSize: Settings.fontCaption
+                                font.letterSpacing: 0.65
+                                font.weight: Font.DemiBold
+                                font.capitalization: Font.AllUppercase
                                 elide: Text.ElideRight
                             }
 
