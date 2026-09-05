@@ -16,6 +16,18 @@ one of the three files, so follow the pointers instead of restating.
 - An upstream merge starts only when the maintainer explicitly says go.
   Never start one because the context seems to point that way.
 
+## Compositor priority
+
+- Hyprland is the maintainer's primary desktop. Prioritize its behavior,
+  implementation, and live desktop validation.
+- Niri support is secondary but retained for possible future use. Preserve
+  its backend and the shared compositor boundary; do not discard support
+  or replace production behavior with stubs merely to simplify a task.
+- Niri checks may use mocks, fixtures, or static inspection as appropriate.
+  A live Niri session is not required to complete Hyprland-focused work.
+  Label that coverage accurately; mocks do not establish compositor-level
+  behavior. Do not pursue full Niri parity unless the maintainer asks.
+
 ## Git discipline
 
 - `custom-branch` history is never rewritten: no amend, no rebase, no
