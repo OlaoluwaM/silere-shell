@@ -669,6 +669,11 @@ ShellRoot {
                 && Object.keys(restoredTimes).length === 2,
             "notification restore keeps only finite timestamps for valid ids")
 
+        const historySettingsReady = ShellSettings._loaded
+        const historyServerReady = Notifications._serverReady
+        // These synchronous model checks stand in for a completed server handoff.
+        ShellSettings._loaded = true
+        Notifications._serverReady = true
         const savedLimit = ShellSettings.notifHistoryLimit
         Notifications.clearHistory()
         ShellSettings.notifHistoryLimit = 5
@@ -1729,6 +1734,8 @@ ShellRoot {
         root._check(Notifications.historyCount === 2,
             "a batched popup clear archives every notification")
         Notifications.clearHistory()
+        ShellSettings._loaded = historySettingsReady
+        Notifications._serverReady = historyServerReady
 
         const closedAdapter = { pairable: false, pairableTimeout: 0 }
         Bluetooth._armPairable(closedAdapter)

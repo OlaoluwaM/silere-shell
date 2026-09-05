@@ -17,7 +17,10 @@ Singleton {
     property var _times: Object.create(null)
     property var _updateTimes: Object.create(null)
     property bool _persistentReady: false
-    readonly property int _maxHistory: Math.max(5, ShellSettings.notifHistoryLimit)
+    property bool _serverReady: false
+    // Settings load asynchronously after the reload state. Keep the schema's
+    // full capacity until the configured limit is known, including new arrivals.
+    readonly property int _historyCapacity: ShellSettings.schemaFor("notifHistoryLimit").max
     readonly property int _maxIdentityChars: 512
     readonly property int _maxSummaryChars: 2048
     readonly property int _maxBodyChars: 16384
@@ -59,8 +62,10 @@ Singleton {
     }
 
     function _trimHistory(): void {
+        const limit = ShellSettings.ready
+            ? Math.max(5, ShellSettings.notifHistoryLimit) : root._historyCapacity
         const dropped = []
-        while (_history.count > root._maxHistory) {
+        while (_history.count > limit) {
             const id = _history.get(_history.count - 1).id
             if (id !== undefined) dropped.push(String(id))
             _history.remove(_history.count - 1)
@@ -90,7 +95,9 @@ Singleton {
     // history is capped but these maps were not: an id that rolled off kept its seen
     // flag and timestamps for the life of the process, and every arrival re-serialized them
     function _forgetTrimmed(keys): void {
-        if (keys.length === 0) return
+        // An empty list before the server handoff does not mean no live objects.
+        // The deferred handoff cleanup will collect any orphaned state later.
+        if (!root._serverReady || keys.length === 0) return
         const live = Object.create(null)
         for (let i = 0; i < root.list.length; i++) live[String(root.list[i].id)] = true
 
@@ -120,7 +127,7 @@ Singleton {
     }
 
     function _saveHistory(): void {
-        if (!root._persistentReady) return
+        if (!root._persistentReady || !ShellSettings.ready) return
         const out = []
         for (let i = 0; i < _history.count; i++) {
             const h = _history.get(i)
@@ -187,7 +194,7 @@ Singleton {
         const savedTimes = root._parsePersistentJson(_persist.timesJson, Object.create(null))
         _history.clear()
         if (Array.isArray(savedHistory)) {
-            for (let i = 0; i < savedHistory.length && i < root._maxHistory; i++) {
+            for (let i = 0; i < savedHistory.length && i < root._historyCapacity; i++) {
                 const e = root._normalizeEntry(savedHistory[i])
                 if (e) _history.append(e)
             }
@@ -196,27 +203,35 @@ Singleton {
         root._times = root._normalizeTimesMap(savedTimes)
         root._ensurePersistentState()
         root._persistentReady = true
+        root._applyHistorySettings()
+    }
+
+    function _applyHistorySettings(): void {
+        if (!root._persistentReady || !ShellSettings.ready) return
+        if (!ShellSettings.notifHistoryPersistent) {
+            _history.clear()
+            root._pruneOrphanState()
+        }
+        root._trimHistory()
         root._saveHistory()
     }
 
     Connections {
         target: ShellSettings
+        function onReadyChanged() { root._applyHistorySettings() }
         function onNotifPopupEnabledChanged() {
             if (!ShellSettings.notifPopupEnabled)
                 root._retireActiveNotifications()
         }
         function onNotifHistoryLimitChanged() {
+            if (!ShellSettings.ready) return
             root._trimHistory()
             root._saveHistory()
         }
         function onNotifHistoryPersistentChanged() {
             // Turning reload retention off clears existing text; new arrivals
             // still form a history until the next reload.
-            if (!ShellSettings.notifHistoryPersistent) {
-                _history.clear()
-                root._pruneOrphanState()
-            }
-            root._saveHistory()
+            root._applyHistorySettings()
         }
     }
 
@@ -676,7 +691,10 @@ Singleton {
 
         // Post-reload waits for the old engine to die, then re-emits kept objects
         // synchronously after this signal. Only then is root.list safe to prune.
-        onTrackedNotificationsChanged: Qt.callLater(root._pruneOrphanState)
+        onTrackedNotificationsChanged: Qt.callLater(function() {
+            root._serverReady = true
+            root._pruneOrphanState()
+        })
 
         onNotification: (n) => {
             root._ensurePersistentState()

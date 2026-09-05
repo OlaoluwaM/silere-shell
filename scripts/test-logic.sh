@@ -57,3 +57,5 @@ fi
 grep -oE 'PROBE-LOGIC passed [0-9]+ checks' "$log" | tail -1
 _probe_stop "$probe_pid"
 probe_pid=""
+
+bash scripts/test-notification-reload.sh

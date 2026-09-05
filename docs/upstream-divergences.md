@@ -79,7 +79,10 @@ so resurrecting one on purpose means removing its line in the same commit.
   retains `sessionCurrent` through `PersistentProperties`, which survives QML
   reloads but not process exits. Restore on its `loaded` signal, before the
   server re-emits kept notifications; defer pruning until those arrivals have
-  rebuilt the live list. Keep the settings label scoped to reloads and the
+  rebuilt the live list, including cleanup triggered by settings changes.
+  Until settings are ready, restore and trim against the schema maximum;
+  apply the configured limit and retention only after the settings read.
+  Keep the settings label scoped to reloads and the
   unused `ConfigStore` hardening for `quickshell/states.json` removed: this
   storage path writes no file. Disk persistence needs a separate decision.
 - The Bluetooth bar widget stays an actionable `StatusActionPill` that opens

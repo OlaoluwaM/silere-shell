@@ -41,6 +41,7 @@
               matugen # regenerate the palette JSON while testing theming
               brightnessctl # Brightness.qml backend
               libnotify # notify-send paths in SystemTools.qml
+              dbus # isolated notification reload probes
               inotify-tools # Screenshot.qml's file watcher
               shellcheck # for edits under scripts/
             ];
