@@ -192,77 +192,19 @@ PanelWindow {
         readonly property int activeTab: MenuState.activeTab
 
         property bool powerOpen: false
-        property bool _loadedDeferred: false
         property bool _geometryReady:  false
         property bool _outerHeightMotion: false
         property bool _tabHeightHeld: false
         property int  _tabHeldH: idealMinH
-        property bool _homeRetained:    false
-        property bool _settingsRetained: false
-        property bool _recentRetained:  false
-        property bool _systemRetained:  false
-        property bool _settingsNavRetained: false
+
+        MenuPageLifecycle {
+            id: _pageLifecycle
+            activeTab: panel.activeTab
+            menuOpen: MenuState.open
+        }
 
         Component.onCompleted: {
-            if (activeTab === 1) _settingsNavRetained = true
-            panel._syncPageRetention()
             Qt.callLater(function() { panel._geometryReady = true })
-        }
-
-        function _syncPageRetention(): void {
-            if (activeTab === 0) {
-                _homeUnload.stop()
-                _homeRetained = true
-            } else if (_homeRetained) {
-                _homeUnload.restart()
-            }
-
-            if (activeTab === 1)
-                _settingsNavRetained = true
-
-            if (!_loadedDeferred) {
-                _settingsUnload.stop()
-                _recentUnload.stop()
-                _systemUnload.stop()
-                _settingsRetained = false
-                _recentRetained = false
-                _systemRetained = false
-                return
-            }
-
-            if (activeTab === 1) {
-                _settingsWarmUnload.stop()
-                _settingsUnload.stop()
-                _settingsRetained = true
-            } else if (_settingsRetained) {
-                _settingsUnload.restart()
-            }
-
-            if (activeTab === 2) {
-                _recentUnload.stop()
-                _recentRetained = true
-            } else if (_recentRetained) {
-                _recentUnload.restart()
-            }
-
-            if (activeTab === 3) {
-                _systemUnload.stop()
-                _systemRetained = true
-            } else if (_systemRetained) {
-                _systemUnload.restart()
-            }
-        }
-
-        on_LoadedDeferredChanged: _syncPageRetention()
-
-        // settings costs ~60ms to build and it lands on the tap that starts the widen
-        function warmSettings(): void {
-            if (!MenuState.open || panel.activeTab === 1
-                    || panel._settingsRetained) return
-            panel._loadedDeferred = true
-            panel._settingsRetained = true
-            panel._settingsNavRetained = true
-            _settingsWarmUnload.restart()
         }
 
         function _settlePageVisuals(): void {
@@ -318,7 +260,7 @@ PanelWindow {
         Connections {
             target: MenuState
             function onTabRequested(index) {
-                if (index !== 0) panel._loadedDeferred = true
+                if (index !== 0) _pageLifecycle.activateDeferred()
                 panel.switchTab(index)
             }
             function onActiveTabChanged() {
@@ -326,7 +268,6 @@ PanelWindow {
                 // so capture here as well as in switchTab.
                 if (!panel._tabHeightHeld) panel._beginTabHeightHold()
                 contentFlick.contentY = 0
-                panel._syncPageRetention()
                 panel._scheduleTabHeightRelease()
                 if (!MenuState.open) panel._settlePageVisuals()
             }
@@ -335,7 +276,6 @@ PanelWindow {
             }
             function onOpenChanged() {
                 if (MenuState.open) {
-                    _closedUnload.stop()
                     // closeFinished is canceled when a close animation reverses; transient drawer state must not depend on that callback
                     panel.powerOpen = false
                     panel._outerHeightMotion = false
@@ -345,68 +285,7 @@ PanelWindow {
                     contentFlick.contentY = 0
                 } else {
                     _settingsWarmDelay.stop()
-                    _closedUnload.restart()
                 }
-            }
-        }
-
-        Timer {
-            id: _homeUnload
-            interval: Math.max(Motion.pageOut, Motion.ms(100)) + 30
-            onTriggered: if (panel.activeTab !== 0) panel._homeRetained = false
-        }
-
-        Timer {
-            id: _settingsUnload
-            // keep Settings warm briefly for quick comparisons, then release both the page and its category delegates together
-            interval: 8000
-            onTriggered: {
-                if (panel.activeTab === 1) return
-                panel._settingsRetained = false
-                panel._settingsNavRetained = false
-            }
-        }
-
-        Timer {
-            id: _settingsWarmUnload
-            // A hover preload is speculative. Keep it long enough to cover an
-            // intentional pause before clicking, but do not retain a whole
-            // settings tree for the normal eight-second comparison window.
-            interval: 2500
-            onTriggered: {
-                if (panel.activeTab === 1) return
-                _settingsUnload.stop()
-                panel._settingsRetained = false
-                panel._settingsNavRetained = false
-            }
-        }
-
-        Timer {
-            id: _recentUnload
-            interval: Math.max(Motion.pageOut, Motion.ms(100)) + 30
-            onTriggered: if (panel.activeTab !== 2) panel._recentRetained = false
-        }
-
-        Timer {
-            id: _systemUnload
-            interval: Math.max(Motion.pageOut, Motion.ms(100)) + 30
-            onTriggered: if (panel.activeTab !== 3) panel._systemRetained = false
-        }
-
-        Timer {
-            id: _closedUnload
-            interval: Math.max(Motion.pageOut, Motion.ms(100)) + 120
-            onTriggered: {
-                if (MenuState.open) return
-                _settingsWarmDelay.stop()
-                _settingsWarmUnload.stop()
-                _settingsUnload.stop()
-                _recentUnload.stop()
-                _systemUnload.stop()
-                panel._settingsRetained = false
-                panel._recentRetained = false
-                panel._systemRetained = false
-                panel._settingsNavRetained = false
             }
         }
 
@@ -464,10 +343,10 @@ PanelWindow {
         }
 
         onFullyShownChanged: {
-            if (fullyShown && !panel._loadedDeferred) {
+            if (fullyShown && !_pageLifecycle.loadedDeferred) {
                 Qt.callLater(function() {
                     if (panel && panel.fullyShown)
-                        panel._loadedDeferred = true
+                        _pageLifecycle.activateDeferred()
                 })
             }
         }
@@ -549,7 +428,7 @@ PanelWindow {
                     Loader {
                         id: _settingsNavLoader
                         anchors.fill: parent
-                        active: panel._settingsNavRetained
+                        active: _pageLifecycle.settingsNavRetained
                             || (MenuState.open && panel.activeTab === 1)
                         asynchronous: !panel._settingsNavVisible
                         sourceComponent: Component {
@@ -617,7 +496,7 @@ PanelWindow {
                 // intent detection, not visual motion, so reduce-motion does not
                 // collapse the delay to zero.
                 interval: 90
-                onTriggered: if (_railSettings.hovered) panel.warmSettings()
+                onTriggered: if (_railSettings.hovered) _pageLifecycle.warmSettings()
             }
 
             Column {
@@ -949,7 +828,7 @@ PanelWindow {
                     Loader {
                         id: homeLoader
                         width: parent.width
-                        active: panel._homeRetained
+                        active: _pageLifecycle.homeRetained
                         asynchronous: false
                         onStatusChanged: panel._scheduleTabHeightRelease()
                         sourceComponent: Component {
@@ -965,7 +844,8 @@ PanelWindow {
                     Loader {
                         id: settingsLoader
                         width: parent.width
-                        active: panel._loadedDeferred && panel._settingsRetained
+                        active: _pageLifecycle.loadedDeferred
+                            && _pageLifecycle.settingsRetained
                         asynchronous: true
                         onStatusChanged: panel._scheduleTabHeightRelease()
                         sourceComponent: Component {
@@ -984,7 +864,8 @@ PanelWindow {
                     Loader {
                         id: recentLoader
                         width: parent.width
-                        active: panel._loadedDeferred && panel._recentRetained
+                        active: _pageLifecycle.loadedDeferred
+                            && _pageLifecycle.recentRetained
                         asynchronous: true
                         onStatusChanged: panel._scheduleTabHeightRelease()
                         sourceComponent: Component {
@@ -1001,7 +882,8 @@ PanelWindow {
                     Loader {
                         id: systemLoader
                         width: parent.width
-                        active: panel._loadedDeferred && panel._systemRetained
+                        active: _pageLifecycle.loadedDeferred
+                            && _pageLifecycle.systemRetained
                         asynchronous: true
                         onStatusChanged: panel._scheduleTabHeightRelease()
                         sourceComponent: Component {

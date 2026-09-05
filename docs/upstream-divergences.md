@@ -69,6 +69,9 @@ so resurrecting one on purpose means removing its line in the same commit.
 
 ## Feature collisions — standing resolutions
 
+- Menu pages restore retention for the active tab whenever the menu reopens.
+  A hover-warmed window can survive its close grace after releasing that page;
+  reopening the same tab must rebuild it even when the tab id has not changed.
 - Notifications keep the fork's `ExpandableBody` interaction and the popup
   layer's constant screen-sized height. Take upstream delivery features such
   as grouping, inline replies, batch retirement, and sender-image hardening
