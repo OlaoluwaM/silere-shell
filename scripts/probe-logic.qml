@@ -1964,6 +1964,10 @@ ShellRoot {
     }
 
     function _resume(): void {
+        if (Quickshell.env("SILERE_NIRI_FOCUS_PROBE") === "1") {
+            root._runNiriFocusChecks()
+            return
+        }
         if (reloadProbe.phase === 0) {
             root._run()
             return
@@ -1990,6 +1994,108 @@ ShellRoot {
         else
             console.warn("PROBE-LOGIC failed " + root._failures + "/" + root._checks + " checks")
         Qt.exit(root._failures === 0 ? 0 : 1)
+    }
+
+    property var _niriFocusCases: []
+    property int _niriFocusCase: 0
+    property var _niriExpectedDispatches: []
+
+    FileView {
+        id: niriFocusLog
+        path: Quickshell.env("SILERE_NIRI_FOCUS_LOG") || ""
+        blockLoading: true
+        blockAllReads: true
+        printErrors: false
+    }
+
+    function _runNiriFocusChecks(): void {
+        root._check(Compositor.isNiri && Compositor._be !== null,
+            "mock focus probe selects the real Niri adapter")
+        const backend = Compositor._be
+        if (!Compositor.isNiri || !backend) {
+            console.warn("PROBE-NIRI-FOCUS failed: no Niri adapter")
+            return
+        }
+        // Only the external boundary is mocked. The socket path is private and
+        // absent; incoming events use the same parser as the existing Niri probe.
+        backend._reconnectTimer.stop()
+        backend._eventSocket.connected = false
+        backend._onLine(JSON.stringify({ WorkspacesChanged: { workspaces: [
+            { id: 11, idx: 1, output: "DP-1", is_active: true, is_focused: true },
+            { id: 22, idx: 1, output: "DP-2", is_active: true, is_focused: false },
+            { id: 33, idx: 2, output: "DP-2", is_active: false, is_focused: false }
+        ]}}))
+        backend._onLine(JSON.stringify({ WindowsChanged: { windows: [
+            { id: 901, workspace_id: 11, app_id: "spotify", title: "Spotify",
+              is_focused: true, focus_timestamp: { secs: 99 } },
+            { id: 902, workspace_id: 22, app_id: "spotify", title: "Spotify",
+              focus_timestamp: { secs: 10 } },
+            { id: 903, workspace_id: 22, app_id: "spotify", title: "Spotify",
+              focus_timestamp: { secs: 20 } },
+            { id: 904, workspace_id: 999, app_id: "spotify", title: "Spotify",
+              focus_timestamp: { secs: 1000 } },
+            { id: 910, workspace_id: 22, app_id: "org.signal.Signal", title: "Signal" },
+            { id: 920, workspace_id: 22, app_id: "firefox", title: "Music tab" },
+            { id: 930, workspace_id: 33, app_id: "probe.player", title: "A long song title" }
+        ]}}))
+        root._check(Compositor.focusedWorkspaceRef === 11
+                && Compositor.toplevels.find(c => c.ref === 903).wsId === 1,
+            "Niri workspace references distinguish equal per-output indices")
+        root._niriFocusCases = [
+            { label: "tray desktop identity chooses the recent off-workspace window", id: 903,
+              run: () => root._check(WindowActions.focusTrayItem("SPOTIFY.desktop", "", ""),
+                  "matched tray identity reports success") },
+            { label: "tray title fallback selects its application", id: 910,
+              run: () => WindowActions.focusTrayItem("probe.missing", "org.signal.Signal", "") },
+            { label: "tray tooltip fallback selects its application", id: 910,
+              run: () => WindowActions.focusTrayItem("", "", "org.signal.Signal.desktop") },
+            { label: "media identity respects workspace and recency preference", id: 903,
+              run: () => WindowActions.focusMediaPlayer("Spotify", "") },
+            { label: "browser media fallback selects a browser", id: 920,
+              run: () => WindowActions.focusMediaPlayer("Chromium", "") },
+            { label: "media song-title fallback selects the matching window", id: 930,
+              run: () => WindowActions.focusMediaPlayer("", "A long song title") },
+            { label: "unmatched tray item emits no focus command", id: -1,
+              run: () => root._check(!WindowActions.focusTrayItem("probe.missing", "", ""),
+                  "unmatched tray identity reports failure") },
+            { label: "unmatched media with a short song title emits no command", id: -1,
+              run: () => WindowActions.focusMediaPlayer("probe.missing", "abc") },
+            { label: "an empty window list emits no tray or media command", id: -1,
+              run: () => {
+                  backend._onLine(JSON.stringify({ WindowsChanged: { windows: [] } }))
+                  root._check(!WindowActions.focusTrayItem("spotify", "", ""),
+                      "tray focus reports failure without windows")
+                  WindowActions.focusMediaPlayer("Spotify", "A long song title")
+              } }
+        ]
+        root._nextNiriFocusCase()
+    }
+
+    function _nextNiriFocusCase(): void {
+        const test = root._niriFocusCases[root._niriFocusCase]
+        if (test.id >= 0)
+            root._niriExpectedDispatches.push("<msg><action><focus-window><--id><" + test.id + ">")
+        test.run()
+        niriFocusSettle.restart()
+    }
+
+    Timer {
+        id: niriFocusSettle
+        interval: 250
+        onTriggered: {
+            niriFocusLog.reload()
+            niriFocusLog.waitForJob()
+            const commands = niriFocusLog.text().trim()
+            root._check(commands === root._niriExpectedDispatches.join("\n"),
+                root._niriFocusCases[root._niriFocusCase].label)
+            root._niriFocusCase++
+            if (root._niriFocusCase < root._niriFocusCases.length) {
+                root._nextNiriFocusCase()
+                return
+            }
+            console.warn("PROBE-NIRI-FOCUS " + (root._failures === 0 ? "passed " : "failed ")
+                + root._checks + " checks (mock compositor)")
+        }
     }
 
     Component.onCompleted: Qt.callLater(root._resume)

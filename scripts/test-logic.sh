@@ -59,3 +59,4 @@ _probe_stop "$probe_pid"
 probe_pid=""
 
 bash scripts/test-notification-reload.sh
+bash scripts/test-niri-focus.sh
