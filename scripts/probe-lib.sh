@@ -10,6 +10,10 @@ SILERE_PROBE_ERRORS='Unable to assign .*|Cannot assign .*|is not a type|Referenc
 
 _probe_require_qs() {
     if ! command -v qs >/dev/null 2>&1; then
+        if [ "${SILERE_REQUIRE_QML_TOOLS:-0}" = "1" ]; then
+            echo "FAIL: quickshell (qs) not installed" >&2
+            exit 1
+        fi
         echo "SKIP: quickshell (qs) not installed" >&2
         exit 0
     fi

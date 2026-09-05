@@ -1,5 +1,4 @@
 import QtQuick
-import "../../../config"
 import "../../../services"
 
 // Third of the self-set session modes after caffeine and dnd: it rides the same

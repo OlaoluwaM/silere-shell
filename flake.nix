@@ -32,11 +32,20 @@
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
+          quickshellPackage = quickshell.packages.${system}.default;
+          jetbrainsMonoNerdFont = pkgs.nerd-fonts.jetbrains-mono;
+          fontsConf = pkgs.makeFontsConf {
+            fontDirectories = [ jetbrainsMonoNerdFont ];
+          };
+          qmlImportPath = "${quickshellPackage}/lib/qt-6/qml:${pkgs.qt6.qtdeclarative}/lib/qt-6/qml";
         in
         {
           default = pkgs.mkShell {
             packages = with pkgs; [
-              quickshell.packages.${system}.default # qs — v0.9.0 requires 0.3.1
+              quickshellPackage # qs — v0.9.0 requires 0.3.1
+              qt6.qtdeclarative # qmllint and qmlcachegen for the headless type-check
+              fontconfig # fc-match validates layout text metrics
+              jetbrainsMonoNerdFont # the shell's default UI font
               hyprland # hyprctl — scripts/check.sh probes it; night light IPC
               matugen # regenerate the palette JSON while testing theming
               brightnessctl # Brightness.qml backend
@@ -46,10 +55,17 @@
               shellcheck # for edits under scripts/
             ];
 
+            # Nix keeps qmlcachegen in Qt Declarative's libexec directory and
+            # Quickshell's wrapper normally adds these module roots only to the
+            # process it starts. The check scripts run the Qt tools directly.
+            QML2_IMPORT_PATH = qmlImportPath;
+            FONTCONFIG_FILE = fontsConf;
+            SILERE_REQUIRE_QML_TOOLS = "1";
+
             shellHook = ''
               echo "silere-shell dev shell"
               echo "  run:    qs -p shell.qml   (needs a running Wayland compositor)"
-              echo "  gates:  bash scripts/ci-lint.sh && bash scripts/check.sh"
+              echo "  gates:  bash scripts/ci-lint.sh && bash scripts/check.sh   (strict validation)"
             '';
           };
         }

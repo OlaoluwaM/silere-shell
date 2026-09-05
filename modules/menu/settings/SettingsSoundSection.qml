@@ -78,7 +78,7 @@ Column {
             glyph: "󰒓"
             title: "Advanced settings"
             status: SystemTools.hasPwvucontrol
-                ? "Per-app volumes, profiles, and ports in pwvucontrol"
+                ? "Volumes, profiles, and ports"
                 : "pwvucontrol not installed"
             valueText: "󰅂"
             available: SystemTools.hasPwvucontrol

@@ -2,7 +2,6 @@ import QtQuick
 import Quickshell
 import "../../../config"
 import "../../../services"
-import "../../common"
 
 // Three independent threshold chips, not one shared glyph slot: CPU/MEM/TEMP each has
 // its own value and its own hysteresis, so each needs to appear and disappear on its

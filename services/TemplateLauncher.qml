@@ -1,6 +1,5 @@
 import QtQuick
 import Quickshell
-import Quickshell.Io
 
 // Generic launch mechanics for a user-declared command template (e.g.
 // "nm-connection-editor --edit {uuid}" or plain "blueman-manager"): whitespace

@@ -47,12 +47,22 @@ find_qt6_tool() { # $1 = name, $@ = fallback paths distros hide it under
 }
 
 find_qmlcachegen() {
-    find_qt6_tool qmlcachegen \
+    local qmllint
+    local candidates=(
         /usr/lib/qt6/qmlcachegen \
         /usr/lib64/qt6/qmlcachegen \
         /usr/lib/x86_64-linux-gnu/qt6/libexec/qmlcachegen \
         /usr/lib/qt6/libexec/qmlcachegen \
         /usr/local/lib/qt6/qmlcachegen
+    )
+
+    # Nix exposes qmllint on PATH but keeps the matching qmlcachegen in the
+    # same Qt Declarative output's libexec directory.
+    qmllint="$(command -v qmllint 2>/dev/null || true)"
+    if [ -n "$qmllint" ]; then
+        candidates+=("${qmllint%/bin/qmllint}/libexec/qmlcachegen")
+    fi
+    find_qt6_tool qmlcachegen "${candidates[@]}"
 }
 
 find_qmllint() {

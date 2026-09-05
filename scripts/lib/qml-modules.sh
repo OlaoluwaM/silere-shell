@@ -44,8 +44,18 @@ SILERE_REQUIRED_QML_MODULES=(
 )
 
 _silere_qml_import_roots=()
+# Nix Qt wrappers use this variable for module roots. Keep it separate from
+# QML2_IMPORT_PATH so a direct tool invocation sees the same modules as qs.
+if [ -n "${NIXPKGS_QT6_QML_IMPORT_PATH:-}" ]; then
+    IFS=: read -r -a _silere_nix_qml_import_roots <<< "$NIXPKGS_QT6_QML_IMPORT_PATH"
+    _silere_qml_import_roots+=("${_silere_nix_qml_import_roots[@]}")
+    unset _silere_nix_qml_import_roots
+fi
 if [ -n "${QML2_IMPORT_PATH:-}" ]; then
-    IFS=: read -r -a _silere_qml_import_roots <<< "$QML2_IMPORT_PATH"
+    _silere_qml_extra_roots=()
+    IFS=: read -r -a _silere_qml_extra_roots <<< "$QML2_IMPORT_PATH"
+    _silere_qml_import_roots+=("${_silere_qml_extra_roots[@]}")
+    unset _silere_qml_extra_roots
 fi
 if [ -n "${QML_IMPORT_PATH:-}" ]; then
     _silere_qml_extra_roots=()

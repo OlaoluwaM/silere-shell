@@ -1,6 +1,5 @@
 import QtQuick
 import Quickshell.Services.SystemTray
-import "../../../config"
 import "../../../services"
 
 // StatusActionPill, not the inline SNI row TrayWidget.qml draws (this site keeps

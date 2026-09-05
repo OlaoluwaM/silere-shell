@@ -436,8 +436,8 @@ fi
 
 section "headless QML probe"
 ok "qml" "checking files; this can take a few seconds"
-# teed rather than captured: the probe streams progress over several seconds, and a
-# skip here still exits 0 while CI runs it under SILERE_REQUIRE_QML_TOOLS=1 and fails
+# teed rather than captured: the probe streams progress over several seconds
+# diagnostic runs may skip missing tools; the development shell requires them
 qml_log="$(mktemp "${TMPDIR:-/tmp}/silere-qml.XXXXXX.log")"
 bash scripts/test-qml-headless.sh 2>&1 | tee "$qml_log"
 qml_code=${PIPESTATUS[0]}

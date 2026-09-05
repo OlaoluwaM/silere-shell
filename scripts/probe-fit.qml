@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import "services"
 
 // Builds each surface at the width it actually ships at and reports any text Qt
 // itself marks as truncated. The surface probe proves a surface builds; this proves
@@ -40,7 +41,8 @@ ShellRoot {
             if (!child || child.visible === false) continue
             const label = String(child.text || "")
             if (label.length > 0) root.texts++
-            if (child.truncated === true && label.length > 0) {
+            if (child.truncated === true && label.length > 0
+                    && !root._deviceNameElides(child, path, label)) {
                 console.warn("FIT-TRUNC " + path + " :: \"" + label.slice(0, 48)
                     + "\" fits " + Math.round(child.width)
                     + " needs " + Math.round(child.implicitWidth))
@@ -50,6 +52,16 @@ ShellRoot {
             root._paintsWide(child, path, label)
             root._scan(child, path, depth + 1, child.clip === true ? child : clipItem)
         }
+    }
+
+    // Device names are external text and may exceed any fixed row width.
+    // Only their horizontal elision is expected; labels and clipping still fail.
+    function _deviceNameElides(child, path: string, label: string): bool {
+        if (path.split("|")[0] !== "modules/menu/settings/SettingsSoundSection.qml"
+                || child.elide !== Text.ElideRight || child.wrapMode !== Text.NoWrap
+                || child.contentHeight > child.height + 0.5) return false
+        return (Audio.ready && label === Audio.sinkName)
+            || (Audio.sourceReady && label === Audio.sourceLabel(Audio.source))
     }
 
     // Wrapped text whose longest line has no break opportunity overflows its own box
