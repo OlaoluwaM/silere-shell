@@ -22,9 +22,12 @@ PageShell {
 
     // three from one app in one day is where a repeat stops reading as separate events
     readonly property int foldAt: 3
-    // which stacks are open is view state, not model state: the menu is a glance surface,
-    // so every fresh open starts folded rather than restoring a session's worth of digging
-    property var _openRuns: ({})
+
+    HistoryGrouping {
+        id: _historyGrouping
+        model: Notifications.historyModel
+        foldAt: root.foldAt
+    }
 
     function _touchNow(): void {
         const nowMs = Date.now()
@@ -52,7 +55,7 @@ PageShell {
         _clearButton.disarm()
         // the refold happens under the page's own exit fade, so it snaps like a model change
         root._holdHeights()
-        root._openRuns = ({})
+        _historyGrouping.reset()
     }
 
     function formatTime(ms): string {
@@ -74,90 +77,6 @@ PageShell {
         return Qt.formatDateTime(d, ShellSettings.clock12h ? "h:mm ap" : "HH:mm")
     }
 
-    function dayKey(ms): string {
-        const d = new Date(Number(ms || root._nowMs || Date.now()))
-        return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate()
-    }
-
-    // the consecutive entries of one app inside one day section. Reading the model count
-    // is what makes every binding that calls this re-run on an insert or a removal
-    function runBounds(index: int): var {
-        const rows = Notifications.historyModel
-        const n = rows.count
-        if (index < 0 || index >= n) return { start: index, length: 1, critical: false }
-        const here = rows.get(index)
-        const app = String(here.appName)
-        const day = root.dayKey(here.time)
-        let start = index
-        while (start > 0) {
-            const above = rows.get(start - 1)
-            if (String(above.appName) !== app || root.dayKey(above.time) !== day) break
-            start--
-        }
-        let end = index
-        while (end + 1 < n) {
-            const below = rows.get(end + 1)
-            if (String(below.appName) !== app || root.dayKey(below.time) !== day) break
-            end++
-        }
-        let critical = false
-        for (let i = start; i <= end && !critical; i++)
-            critical = Number(rows.get(i).urgency) === 2
-        // the same app can run twice in a day with another app between, so the key needs
-        // more than app and day. Counted from the oldest run upward because arrivals land
-        // on top: a new run of the app does not renumber the ones already open
-        let ordinal = 1
-        let inRun = false
-        for (let i = end + 1; i < n; i++) {
-            const r = rows.get(i)
-            if (root.dayKey(r.time) !== day) break
-            const same = String(r.appName) === app
-            if (same && !inRun) ordinal++
-            inRun = same
-        }
-        return { start: start, length: end - start + 1, critical: critical,
-            key: app + "|" + day + "|" + ordinal }
-    }
-
-    // a fresh object, not a write into the old one: the reference is what bindings
-    // compare, so mutating in place changes nothing on screen
-    function setRunOpen(key: string, open: bool): void {
-        const next = {}
-        for (const k in root._openRuns) next[k] = root._openRuns[k]
-        if (open) next[key] = true
-        else delete next[key]
-        root._openRuns = next
-    }
-
-    // an open key outlives its run: rows removed one by one, trimmed off the tail, or
-    // cleared would leave a later run of the same app on the same day arriving already
-    // open. Pruning on every count change covers all of those paths at once
-    function _pruneOpenRuns(): void {
-        const rows = Notifications.historyModel
-        const runs = []
-        for (let i = 0; i < rows.count; i++) {
-            const r = rows.get(i)
-            const app = String(r.appName), day = root.dayKey(r.time)
-            const last = runs[runs.length - 1]
-            if (last && last.app === app && last.day === day) last.length++
-            else runs.push({ app: app, day: day, length: 1 })
-        }
-        const keep = {}
-        for (let i = 0; i < runs.length; i++) {
-            const run = runs[i]
-            if (run.length < root.foldAt) continue
-            // same numbering as runBounds: one plus the runs of this app below it in the day
-            let ordinal = 1
-            for (let j = i + 1; j < runs.length && runs[j].day === run.day; j++)
-                if (runs[j].app === run.app) ordinal++
-            const key = run.app + "|" + run.day + "|" + ordinal
-            if (root._openRuns[key] === true) keep[key] = true
-        }
-        let same = true
-        for (const k in root._openRuns) if (!keep[k]) { same = false; break }
-        if (!same) root._openRuns = keep
-    }
-
     // a row's height must not animate on a model change: the list lays the rows below
     // out from the height it sees at that moment and its displaced transition carries
     // them there, so a height still in flight leaves them overlapping or adrift once it
@@ -173,11 +92,8 @@ PageShell {
     }
 
     Connections {
-        target: Notifications.historyModel
-        function onRowsAboutToBeInserted() { root._holdHeights() }
-        function onRowsAboutToBeRemoved() { root._holdHeights() }
-        function onModelAboutToBeReset() { root._holdHeights() }
-        function onCountChanged() { root._pruneOpenRuns() }
+        target: _historyGrouping
+        function onModelAboutToChange() { root._holdHeights() }
     }
 
     function sectionLabel(ms): string {
@@ -392,17 +308,7 @@ PageShell {
                         when: _entry.index >= 0
                         restoreMode: Binding.RestoreNone
                         value: {
-                            const prev = _entry.index > 0
-                                ? Notifications.historyModel.get(_entry.index - 1) : null
-                            const section = !prev
-                                || root.dayKey(_entry.modelData.time) !== root.dayKey(prev.time)
-                            // a run of one app carries its name once; the rest of the run is just the messages
-                            const header = section
-                                || String(prev.appName) !== String(_entry.modelData.appName)
-                            const run = root.runBounds(_entry.index)
-                            return { first: _entry.index === 0, section: section, header: header,
-                                length: run.length, critical: run.critical, key: run.key,
-                                open: root._openRuns[run.key] === true }
+                            return _historyGrouping.shapeAt(_entry.index)
                         }
                     }
                     readonly property bool _showSection: _shape.section
@@ -639,7 +545,7 @@ PageShell {
                                 const p = _rightSlot.mapFromItem(_card, eventPoint.position.x, eventPoint.position.y)
                                 if (_rightSlot.contains(p)) return
                                 if (_entry._stacked) {
-                                    root.setRunOpen(_entry._runKey, true)
+                                    _historyGrouping.setOpen(_entry._runKey, true)
                                     return
                                 }
                                 _body.toggle()
@@ -758,7 +664,7 @@ PageShell {
                                         Accessible.role: Accessible.Button
                                         Accessible.name: "Collapse"
                                         Accessible.focusable: true
-                                        Accessible.onPressAction: root.setRunOpen(_entry._runKey, false)
+                                        Accessible.onPressAction: _historyGrouping.setOpen(_entry._runKey, false)
 
                                         ShellText {
                                             id: _collapseText
@@ -777,7 +683,7 @@ PageShell {
                                         TapHandler {
                                             enabled: !root._clearing && !_entry._removing
                                             gesturePolicy: TapHandler.ReleaseWithinBounds
-                                            onTapped: root.setRunOpen(_entry._runKey, false)
+                                            onTapped: _historyGrouping.setOpen(_entry._runKey, false)
                                         }
                                     }
 

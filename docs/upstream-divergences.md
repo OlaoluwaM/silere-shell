@@ -76,7 +76,11 @@ so resurrecting one on purpose means removing its line in the same commit.
   layer's constant screen-sized height. Take upstream delivery features such
   as grouping, inline replies, batch retirement, and sender-image hardening
   around those two constraints. The history page's stacked runs are the
-  fork's own: an upstream history grouping lands under that fold or not at all. The fork's duration-picker DND replaces
+  fork's own: an upstream history grouping lands under that fold or not at all.
+  Expansion belongs to a run's retained oldest entry, including its timestamp,
+  rather than its ordinal among the day's runs. Removing an older run must not
+  transfer expansion to another run; a merged run keeps its oldest entry's state.
+  The fork's duration-picker DND replaces
   upstream's scheduled quiet hours; keep `dndSchedule`, `dndFrom`, `dndTo`,
   their settings rows, and their service logic removed. Notification history
   retains `sessionCurrent` through `PersistentProperties`, which survives QML

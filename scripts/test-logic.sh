@@ -60,4 +60,5 @@ probe_pid=""
 
 bash scripts/test-notification-reload.sh
 bash scripts/test-niri-focus.sh
+bash scripts/test-history-grouping.sh
 bash scripts/test-popup-lifecycle.sh

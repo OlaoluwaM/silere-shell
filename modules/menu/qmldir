@@ -6,6 +6,7 @@ internal BluetoothDetails BluetoothDetails.qml
 internal BluetoothList BluetoothList.qml
 internal BrightnessRow BrightnessRow.qml
 internal HomePage HomePage.qml
+internal HistoryGrouping HistoryGrouping.qml
 internal MenuPageLifecycle MenuPageLifecycle.qml
 internal PowerRailContent PowerRailContent.qml
 internal PowerRailRow PowerRailRow.qml
