@@ -12,14 +12,14 @@ Silere holds two steady states.
 
 | State | PSS | What it is |
 |---|---|---|
-| cold | ~142 MB | Freshly started, menu never opened. Only the bar has drawn. |
-| warm | ~154 MB | The same session after the menu has been opened once. |
+| cold | ~87 MB | Freshly started, menu never opened. Only the bar has drawn. |
+| warm | ~96 MB | The same session after the menu has been opened once. |
 
 Both hold across a day of uptime. Warm is the number to quote.
 
 The gap is the menu building its pages on first open and keeping them, in trade for fast
 reopening. It is bounded: across more than 30 open and close cycles, PSS peaked between
-164 and 170 MB and returned to 154 MB once idle, while open file descriptors and threads
+164 and 170 MB and returned to its warm figure once idle, while open file descriptors and threads
 settled rather than climbing.
 
 An empty Quickshell panel doing nothing measured about **57 MB PSS** on the same machine,
@@ -27,7 +27,7 @@ so a large part of even the cold number is the Qt and GPU driver floor rather th
 On an AMD system Mesa's `radeonsi` driver and the LLVM shader compiler behind it account
 for about 11 MB PSS of that floor.
 
-Read PSS, not RSS. The same session reads 271-292 MB RSS, most of the difference being
+Read PSS, not RSS. The same session reads 179-191 MB RSS, most of the difference being
 shared Qt, Mesa and font pages other processes already pay for.
 
 Measure with nothing else running. A second Quickshell process maps the same Qt and driver
@@ -46,7 +46,7 @@ bash scripts/bench.sh 30 --warm     # after one menu cycle
 ```
 
 The number is how many seconds to sample. Thirty is the shortest window worth quoting —
-the same idle session measures 1.4% CPU over 30 seconds and 15.5% over 2. The report
+a session that measures 0% CPU over 30 seconds can read several percent over 2. The report
 tracks open file descriptors too, so a leak shows up as a climbing number while everything
 else stays flat.
 

@@ -29,9 +29,12 @@ Hardware not already listed takes a new letter.
 |---|---|---|---|---|---|---|---|---|
 | 0.9.0 | 2026-09-01 | A | cold | 142 MB | 271 MB | 1.4% | 31 | 51 |
 | 0.9.0 | 2026-09-01 | A | warm | 154 MB | 292 MB | 3.3% | 42 | 52 |
+| 1.0.0 | 2026-09-07 | A | cold | 87 MB | 179 MB | 0.1% | 21 | 46 |
+| 1.0.0 | 2026-09-07 | A | warm | 96 MB | 191 MB | 0.0% | 23 | 47 |
 
 0.9.0 was sampled one commit past the tag, with `fontFamily` set to `IosevkaTerm Nerd
-Font`. That font costs about 9 MB PSS over the JetBrainsMono Nerd Font default.
+Font`. That font costs about 9 MB PSS over the JetBrainsMono Nerd Font default, so the
+drop to 1.0.0 is about 9 MB smaller than the two rows read.
 
 While the menu was cycled repeatedly on that run, PSS peaked between 164 and 170 MB, file
 descriptors reached 59, and threads settled at 41-42. All three came back down once the
@@ -58,8 +61,8 @@ The restart is what makes the cold row cold. Without it `bench.sh` reports the s
 bash scripts/bench.sh 30 --warm --json --label 0.9.0 >> /tmp/silere-perf.jsonl
 ```
 
-Thirty seconds is the shortest window worth quoting. The same idle session measures 1.4%
-CPU over 30 seconds and 15.5% over 2.
+Thirty seconds is the shortest window worth quoting: a session that reads 0% over 30
+seconds can read several percent over 2.
 
 Only record a run the report calls `steady` and whose per-second median is near zero.
 `noisy` means input landed mid-sample; a `steady` run with a high median means the session
