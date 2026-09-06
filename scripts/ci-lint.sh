@@ -15,6 +15,7 @@ set -u
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT" || exit 1
 source "$ROOT/scripts/lib/qml-modules.sh"
+source "$ROOT/scripts/lib/xdg.sh"
 status=0
 seen_section=0
 section() {
@@ -761,9 +762,32 @@ if command -v shellcheck >/dev/null 2>&1; then
   # Warnings include mode/word-splitting mistakes that are real portability or
   # permission bugs. Intentional sourced-library false positives are suppressed
   # at their declaration so a new warning cannot disappear in the noise.
-  # one invocation, not per-file: shellcheck resolves assignments and uses across the whole set,
-  # so sharding it invents SC2154/SC2034 false positives
-  if shellcheck --severity=warning "${script_files[@]}"; then ok "shellcheck"; else fail "shellcheck reported warnings"; fi
+  # one invocation, not per-file: shellcheck resolves assignments and uses across the
+  # whole set, so sharding it invents SC2154/SC2034 false positives. That pooling is
+  # superlinear — measured at 36s together against 6s of per-file work — so a pass is
+  # remembered against the exact bytes that earned it instead of being paid for again.
+  shellcheck_stamp=""
+  if [ -z "${CI:-}" ] && [ -z "${SILERE_NO_LINT_CACHE:-}" ] \
+      && command -v sha256sum >/dev/null 2>&1; then
+    shellcheck_cache="$(_silere_xdg_home "${XDG_CACHE_HOME:-}" .cache 2>/dev/null || true)"
+    [ -n "$shellcheck_cache" ] && shellcheck_stamp="$shellcheck_cache/silere-shell/shellcheck.stamp"
+  fi
+  shellcheck_key=""
+  if [ -n "$shellcheck_stamp" ]; then
+    shellcheck_key="$({ shellcheck --version; sha256sum "${script_files[@]}"; } \
+      | sha256sum | cut -d' ' -f1)"
+  fi
+  if [ -n "$shellcheck_key" ] && [ "$shellcheck_key" = "$(cat "$shellcheck_stamp" 2>/dev/null)" ]; then
+    ok "shellcheck" "unchanged since the last pass"
+  elif shellcheck --severity=warning "${script_files[@]}"; then
+    ok "shellcheck"
+    if [ -n "$shellcheck_key" ] && mkdir -p "$(dirname "$shellcheck_stamp")" 2>/dev/null; then
+      printf '%s\n' "$shellcheck_key" > "$shellcheck_stamp" 2>/dev/null || true
+    fi
+  else
+    fail "shellcheck reported warnings"
+    [ -n "$shellcheck_stamp" ] && rm -f "$shellcheck_stamp" 2>/dev/null
+  fi
 else
   skip "shellcheck" "not installed"
 fi
