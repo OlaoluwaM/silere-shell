@@ -471,7 +471,7 @@ Item {
                     anchors.left:       _critIcon.visible ? _critIcon.right : parent.left
                     anchors.leftMargin: _critIcon.visible ? 6 : 0
                     anchors.right:      parent.right
-                    anchors.rightMargin: 18
+                    anchors.rightMargin: 30
                     text:           card.summaryText
                     // glyph, rim and ring already carry urgency; red text on the red-tinted fill only costs contrast
                     color:          Theme.text
@@ -746,8 +746,9 @@ Item {
         Rectangle {
             anchors.top:         parent.top
             anchors.right:       parent.right
-            anchors.topMargin:   7
-            anchors.rightMargin: 7
+            // the disc rides the content grid and centres on the summary's first line
+            anchors.topMargin:   13 + Math.round((_summary.implicitHeight - height) / 2)
+            anchors.rightMargin: 16
             width: 24; height: 24; radius: 12
             antialiasing: true
             color:        _closeHover.hovered ? Theme.withAlpha(Theme.error, 0.18) : Theme.menuControl

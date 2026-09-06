@@ -153,6 +153,8 @@ settings file carries its own `__version` and migrates separately.
   its id.
 - Notification ids reused after a server restart leave unrelated persisted history alone.
 - Notifications in the menu, and the button that removes one, reach a screen reader.
+- The dismiss button on a notification popup sits on the card's content edge, level with the
+  summary.
 - Notification history keeps every row the configured limit allows when the shell reloads.
 
 #### Motion fixes
