@@ -17,6 +17,18 @@ Singleton {
     property var _updateTimes: Object.create(null)
     property bool _persistentReady: false
     readonly property int _maxHistory: Math.max(5, ShellSettings.notifHistoryLimit)
+    // settings.json loads asynchronously: trimming to the default before it lands drops
+    // rows a larger configured limit keeps, and the trim is written straight back.
+    // Arguments, not live state, so the rule is testable.
+    function _capacityFor(limit: int, ceiling: int, settingsReady: bool): int {
+        const configured = Math.max(5, limit)
+        return settingsReady ? configured : Math.max(configured, ceiling)
+    }
+    readonly property int _historyCapacity: {
+        const schema = ShellSettings.schemaFor("notifHistoryLimit")
+        return root._capacityFor(ShellSettings.notifHistoryLimit,
+            schema ? schema.max : 0, ShellSettings.ready)
+    }
     readonly property int _maxIdentityChars: 512
     readonly property int _maxSummaryChars: 2048
     readonly property int _maxBodyChars: 16384
@@ -59,7 +71,7 @@ Singleton {
 
     function _trimHistory(): void {
         const dropped = []
-        while (_history.count > root._maxHistory) {
+        while (_history.count > root._historyCapacity) {
             const id = _history.get(_history.count - 1).id
             if (id !== undefined) dropped.push(String(id))
             _history.remove(_history.count - 1)
@@ -187,7 +199,7 @@ Singleton {
         const savedTimes = root._parsePersistentJson(_persist.timesJson, Object.create(null))
         _history.clear()
         if (Array.isArray(savedHistory)) {
-            for (let i = 0; i < savedHistory.length && i < root._maxHistory; i++) {
+            for (let i = 0; i < savedHistory.length && i < root._historyCapacity; i++) {
                 const e = root._normalizeEntry(savedHistory[i])
                 if (e) {
                     // ids restart with the server, so a saved one names nothing this session
@@ -224,6 +236,7 @@ Singleton {
         }
     }
 
+    on_HistoryCapacityChanged: if (_persistentReady) { root._trimHistory(); root._saveHistory() }
     on_SeenChanged:   if (_persistentReady) _persist.seenJson = JSON.stringify(_seen)
     on_TimesChanged:  if (_persistentReady) _persist.timesJson = JSON.stringify(_times)
 

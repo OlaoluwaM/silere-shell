@@ -870,6 +870,16 @@ ShellRoot {
                 && Object.keys(restoredTimes).length === 2,
             "notification restore keeps only finite timestamps for valid ids")
 
+        const historySchema = ShellSettings.schemaFor("notifHistoryLimit")
+        root._check(historySchema !== null && historySchema.max === 100,
+            "the notification history limit still declares a schema ceiling")
+        root._check(Notifications._capacityFor(20, 100, false) === 100
+                && Notifications._capacityFor(20, 100, true) === 20,
+            "history restores against the schema ceiling until settings load, then the limit")
+        root._check(Notifications._capacityFor(100, 100, false) === 100
+                && Notifications._capacityFor(1, 100, true) === 5,
+            "a configured limit is never widened past the ceiling nor trimmed below the floor")
+
         const savedLimit = ShellSettings.notifHistoryLimit
         Notifications.clearHistory()
         ShellSettings.notifHistoryLimit = 5
