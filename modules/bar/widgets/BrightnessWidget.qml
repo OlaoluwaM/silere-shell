@@ -23,7 +23,6 @@ Pill {
                  : (canControl ? Brightness.label : "—")
     textColor:   Theme.subtext
     interactive: canControl
-    hintText: canControl ? "Scroll brightness" : ""
     levelValue: canControl ? Brightness.pct : -1
     levelVisible: canControl && ShellSettings.valuesOnHover && ShellSettings.hoverLevelBar && !expanded
     levelColor: Theme.accent

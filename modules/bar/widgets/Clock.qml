@@ -33,11 +33,7 @@ Item {
 
     onXChanged: root._syncMenuAnchor()
     onYChanged: root._syncMenuAnchor()
-    onWidthChanged: {
-        root._syncMenuAnchor()
-        // seconds and the date are toggled from here, so the clock resizes under the pointer
-        if (_hover.hovered) root._syncHint()
-    }
+    onWidthChanged: root._syncMenuAnchor()
     Component.onCompleted: root._syncMenuAnchor()
 
     readonly property bool mirrored: ShellSettings.barWidgetOrderLeftKeys.indexOf("clock") !== -1
@@ -64,22 +60,10 @@ Item {
     readonly property color _cSec:   _hov ? Theme.mix(Theme.accent, Theme.text, 0.22)
                                           : Theme.withAlpha(Theme.accent, 0.82)
 
-    function _syncHint(): void {
-        if (!_hover.hovered) {
-            BarHintState.release(root)
-            return
-        }
-        const point = root.mapToItem(null, root.width / 2, 0)
-        BarHintState.request(root, root.screen, point.x,
-            "Click calendar · middle-click date and seconds")
-    }
-
     HoverHandler {
         id: _hover
         cursorShape: Qt.PointingHandCursor
-        onHoveredChanged: root._syncHint()
     }
-    Component.onDestruction: BarHintState.release(root)
 
     function _openCalendar(): void {
         root._syncMenuAnchor()

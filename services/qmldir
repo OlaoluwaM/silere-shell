@@ -2,7 +2,6 @@
 singleton Audio         1.0 Audio.qml
 PwVolumeControl         1.0 PwVolumeControl.qml
 singleton Battery       1.0 Battery.qml
-singleton BarHintState  1.0 BarHintState.qml
 singleton Bluetooth     1.0 Bluetooth.qml
 singleton Brightness    1.0 Brightness.qml
 singleton CpuTemp       1.0 CpuTemp.qml

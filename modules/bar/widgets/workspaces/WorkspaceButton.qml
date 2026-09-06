@@ -76,10 +76,7 @@ Item {
         _dotFade = _blanked ? 0 : 1
         _prevWsId = wsId
     }
-    Component.onDestruction: {
-        if (root.hovered) root.hoverReported(root.wsId, false)
-        BarHintState.release(root)
-    }
+    Component.onDestruction: if (root.hovered) root.hoverReported(root.wsId, false)
 
     // slots are index-keyed, so a workspace opening mid-strip renumbers every cell after
     // it. Without this the labels change between two frames with nothing to read as motion.
@@ -133,29 +130,8 @@ Item {
     Accessible.focusable: true
     Accessible.onPressAction: root._activate()
 
-    function _syncHint(): void {
-        if (!root.hovered) {
-            BarHintState.release(root)
-            return
-        }
-        const point = root.mapToItem(null, root.width / 2, 0)
-        const scroll = ShellSettings.wsScrollSwitch ? " · scroll workspaces" : ""
-        const actions = root.isNew
-            ? "Click open a new workspace · middle-click move window there" + scroll
-            : root.active
-            ? "Click menu · right-click quick actions" + scroll
-            : "Click switch · middle-click move window" + scroll
-        BarHintState.request(root, root.screen, point.x, actions)
-    }
-
     HoverHandler { id: _hover; cursorShape: Qt.PointingHandCursor }
-    onHoveredChanged: {
-        root.hoverReported(root.wsId, root.hovered)
-        root._syncHint()
-    }
-    // the cell eases to a new width when it takes the marker, and the row shifts around it
-    onWidthChanged: if (root.hovered) root._syncHint()
-    onXChanged:     if (root.hovered) root._syncHint()
+    onHoveredChanged: root.hoverReported(root.wsId, root.hovered)
 
     TapHandler {
         acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton

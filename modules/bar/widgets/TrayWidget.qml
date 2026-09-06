@@ -210,21 +210,12 @@ Item {
                     onHoveredChanged: {
                         if (hovered) {
                             _labelDwell.restart()
-                            const point = _tile.mapToItem(null, root.iconSize / 2, 0)
-                            const primary = _tile.modelData.onlyMenu ? "Click menu" : "Click open"
-                            const menu = _tile.modelData.hasMenu && !_tile.modelData.onlyMenu
-                                ? " · right-click menu" : ""
-                            BarHintState.request(_tile, root.screen, point.x,
-                                primary + menu + " · middle-click secondary · scroll action")
                         } else {
                             _labelDwell.stop()
                             _tile._dwelled = false
-                            BarHintState.release(_tile)
                         }
                     }
                 }
-
-                Component.onDestruction: BarHintState.release(_tile)
 
                 MouseArea {
                     id: _ma

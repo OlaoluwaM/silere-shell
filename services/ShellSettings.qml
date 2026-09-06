@@ -110,7 +110,6 @@ Singleton {
     property bool   barCompact:          false
     property bool   barCenterInGap:      false
     property bool   barHoverHighlight:   false
-    property bool   barTooltips:         true
     property int    barHeight:           36
     property int    barIconSize:         12
     property bool   barFloating:         false
@@ -374,7 +373,6 @@ Singleton {
         { k: "barCompact",          t: "bool", sec: "separators" },
         { k: "barCenterInGap",      t: "bool", sec: "separators" },
         { k: "barHoverHighlight",   t: "bool", sec: "indicators" },
-        { k: "barTooltips",         t: "bool", sec: "indicators" },
         { k: "barHeight",           t: "int",  min: 24,   max: 60, sec: "surface" },
         { k: "barIconSize",        t: "int",  min: 10,   max: 20, sec: "interface" },
         { k: "barFloating",         t: "bool", sec: "surface" },

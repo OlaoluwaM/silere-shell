@@ -91,8 +91,6 @@ settings file carries its own `__version` and migrates separately.
 - The volume widget shows a headphone glyph while output is on a headset.
 - The volume control's tabs move in the direction of the choice, and the tab row holds still
   while its contents change.
-- Hovering the volume or microphone widget names the device in use alongside the controls
-  that are not obvious.
 - The media card drops its seek row: position is a bar along the card's bottom edge, with the
   elapsed and total times beside the controls. Dragging the bar still scrubs.
 - Media controls lose their boxes. The glyphs are the buttons, with play carrying the accent.
@@ -122,8 +120,6 @@ settings file carries its own `__version` and migrates separately.
 
 #### Bar fixes
 
-- A bar widget shows its hover hint on the first pointer entry. Diagnosed in OlaoluwaM's
-  fork.
 - The menu and quick actions open against the workspace indicator on the first open after
   the shell starts. Also from OlaoluwaM's fork.
 - The bar returns to full width after a widget is moved between zones.
@@ -195,6 +191,11 @@ settings file carries its own `__version` and migrates separately.
   happened, and reloads its cache and checkout state after timeouts.
 - A successful Silere install queues its own service restart without blocking inside the
   process tree being restarted.
+
+### Removed
+
+- Bar tooltips, and the Widgets › Indicators toggle that turned them off. The pointer
+  controls are listed in the readme.
 
 ## Releases
 

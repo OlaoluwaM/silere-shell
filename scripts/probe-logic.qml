@@ -530,34 +530,6 @@ ShellRoot {
                 && OverlayCoordinator._environmentBlocksControls(false, true),
             "screen blanking and overview activation retire open control surfaces")
 
-        const hintScreen = Quickshell.screens[0] ?? null
-        if (hintScreen) {
-            const barTooltipsWas = ShellSettings.barTooltips
-            ShellSettings.barTooltips = true
-            BarHintState.request(probeAnchor, hintScreen, 42, "First hint")
-            BarHintState._showPending()
-            root._check(BarHintState.open && BarHintState.triggerScreen === hintScreen
-                    && BarHintState.anchorX === 42 && BarHintState.text === "First hint",
-                "a delayed bar hint publishes its screen, anchor and actions together")
-            BarHintState.request(root, hintScreen, 84, "Second hint")
-            BarHintState.release(probeAnchor)
-            root._check(BarHintState.open && BarHintState.anchorX === 84
-                    && BarHintState.text === "Second hint",
-                "a stale bar widget cannot close the hint that replaced its own")
-            BarHintState.close()
-            ShellSettings.barTooltips = false
-            BarHintState.request(probeAnchor, hintScreen, 42, "Blocked hint")
-            BarHintState._showPending()
-            root._check(!BarHintState.open && BarHintState.triggerScreen === null,
-                "turning off bar tooltips blocks and clears the shared hint surface")
-            root._check(BarHintState._dwellSurvives(true, true, true)
-                    && !BarHintState._dwellSurvives(false, true, true)
-                    && !BarHintState._dwellSurvives(true, false, true)
-                    && !BarHintState._dwellSurvives(true, true, false),
-                "only a moving anchor from the same widget keeps a pending hint's dwell")
-            ShellSettings.barTooltips = barTooltipsWas
-        }
-
         const settingsNavComponent = Qt.createComponent("file://"
             + Quickshell.shellDir + "/modules/menu/SettingsNav.qml")
         const settingsNav = settingsNavComponent.status === Component.Ready

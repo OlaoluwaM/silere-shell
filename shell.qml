@@ -176,17 +176,6 @@ ShellRoot {
     }
 
     PopupLoader {
-        id: _barHintPopup
-        wantOpen: BarHintState.open
-        requestedScreen: BarHintState.triggerScreen
-        // outlives the hint's exit animation, or the window is torn down mid-fade
-        unloadDelay: 200
-        surface: Component {
-            BarHintPopup { targetScreen: _barHintPopup.latchedScreen }
-        }
-    }
-
-    PopupLoader {
         id: _notificationPopup
         wantOpen: ShellSettings.notifPopupEnabled
             && Notifications.activeCount > 0

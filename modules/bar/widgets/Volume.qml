@@ -25,15 +25,6 @@ Pill {
     glyphColor: Audio.muted ? Theme.subtext : Theme.text
     textColor:  Theme.subtext
     interactive: Audio.ready
-    hintText: {
-        if (!Audio.ready) return ""
-        const parts = []
-        if (Audio.sinkName.length > 0) parts.push(Audio.sinkName)
-        parts.push("click mute", "scroll volume")
-        if (root._canSwitch) parts.push("middle-click next output")
-        if (Audio.hasSoundSettings) parts.push("right-click settings")
-        return parts.join(" · ")
-    }
     reserveText: "100%"
     text: !Audio.ready ? ""
         : (ShellSettings.valuesOnHover && !expanded) ? ""

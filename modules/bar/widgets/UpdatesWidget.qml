@@ -7,7 +7,6 @@ StatusActionPill {
 
     show: Updates.available || Updates.isChecking || Updates.checkBroken
     busy: Updates.isChecking
-    hintText: show && !busy ? "Click check for updates" : ""
 
     glyph: Updates.checkBroken ? "󰀦" : Updates.icon
     accessibleName: Updates.statusText.length > 0

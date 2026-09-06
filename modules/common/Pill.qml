@@ -34,8 +34,6 @@ Item {
     property bool   hoverActive: false
     readonly property bool hovered: _pillHover.hovered
     readonly property bool expanded: hoverActive
-    property var    hintScreen: null
-    property string hintText: ""
 
     property bool   pressed: false
     readonly property bool visualPressed: pressed
@@ -74,13 +72,7 @@ Item {
         _hoverRevealTimer.stop()
         _shrinkDelay.stop()
         hoverActive = false
-        BarHintState.release(root)
     }
-    onHintTextChanged: if (hovered) root._requestBarHint(root.hovered)
-    // hovering reveals the value and widens the pill, so an anchor taken on entry
-    // points well left of the centre the hint is finally shown against
-    onWidthChanged: if (root.hovered) root._requestBarHint(root.hovered)
-    Component.onDestruction: BarHintState.release(root)
     onMotionActiveChanged: if (!motionActive && _ready) _settleAnimatedContent()
     Timer {
         id: _shrinkDelay
@@ -113,15 +105,6 @@ Item {
         _glyphText.scale = 1.0
         _textEl.opacity = 1.0
         if (root.animateText) _textEl._shown = root.text
-    }
-
-    function _requestBarHint(hoveredNow: bool): void {
-        if (!hoveredNow || root.hintText.length === 0 || !root.hintScreen) {
-            BarHintState.release(root)
-            return
-        }
-        const point = root.mapToItem(null, root.width / 2, 0)
-        BarHintState.request(root, root.hintScreen, point.x, root.hintText)
     }
 
     onGlyphChanged: {
@@ -358,13 +341,9 @@ Item {
         onHoveredChanged: {
             if (hovered) {
                 _hoverRevealTimer.restart()
-                // the handler's signal fires before root.hovered's binding observes it,
-                // so pass the event's state instead of reading the binding back
-                root._requestBarHint(true)
             } else {
                 _hoverRevealTimer.stop()
                 root.hoverActive = false
-                BarHintState.release(root)
             }
         }
     }

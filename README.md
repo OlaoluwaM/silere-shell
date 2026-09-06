@@ -74,9 +74,8 @@ the maintenance command, unattended installs, Matugen wiring and removal:
 
 ## Controls
 
-Silere is pointer-driven: Escape and text fields are its keyboard paths. Hovering a bar widget
-shows its click, alternate-button and wheel controls, and the full text of a window title too
-long to fit. Widgets › Indicators › Bar tooltips turns that off.
+Silere is pointer-driven: Escape and text fields are its keyboard paths. Every widget's
+controls are listed below.
 
 | area | pointer |
 |---|---|
