@@ -146,6 +146,7 @@ settings file carries its own `__version` and migrates separately.
 
 - Cover art that will not load falls through to the other covers a track offers, including a
   cover file beside a local track.
+- A cover that fails while the menu is closed leaves the card on the cover it was showing.
 
 #### Notification fixes
 
