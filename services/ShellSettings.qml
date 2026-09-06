@@ -11,6 +11,7 @@ Singleton {
     id: root
 
     property bool   mediaProgress:       false
+    property bool   mediaRemoteArt:      false
     property bool   mediaWidgetHelper:   false
     property string mediaVisualizerPreset: "balanced"
     property string mediaVisualizerStyle:  "wave"
@@ -283,6 +284,7 @@ Singleton {
     readonly property var _schema: [
         { k: "mediaProgress",       t: "bool", sec: "media" },
         { k: "mediaWidgetHelper",   t: "bool", sec: "media" },
+        { k: "mediaRemoteArt",      t: "bool", sec: "media" },
         { k: "mediaVisualizerPreset", t: "enum", vals: ["eco", "balanced", "smooth"], sec: "media" },
         { k: "mediaVisualizerStyle",  t: "enum", vals: ["wave", "bars", "pulse"], sec: "media" },
         { k: "mediaVisualizerPosition", t: "enum", vals: ["media", "center"], sec: "media" },

@@ -19,6 +19,11 @@ Column {
             description: "Show play state and progress"
             key: "mediaWidgetHelper"
         }
+        ToggleRow {
+            glyph: "󰥶"; label: "Cover art from the web"
+            description: "Fetch art a player links off-machine"
+            key: "mediaRemoteArt"
+        }
     }
 
     SectionLabel { label: "VISUALIZER" }

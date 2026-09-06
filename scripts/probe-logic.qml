@@ -1122,9 +1122,17 @@ ShellRoot {
             "media service bounds player metadata")
         root._check(Media.artSource("data:image/png;base64,AAAA") === "",
             "media service rejects inline artwork data")
+        const remoteArtWas = ShellSettings.mediaRemoteArt
+        ShellSettings.mediaRemoteArt = false
+        root._check(Media.artSource("https://example.invalid/cover.jpg") === "",
+            "remote artwork stays unfetched while the setting is off")
+        ShellSettings.mediaRemoteArt = true
         root._check(Media.artSource("https://example.invalid/cover.jpg")
                 === "https://example.invalid/cover.jpg",
-            "media service keeps intentional HTTP artwork")
+            "remote artwork is fetched once the setting allows it")
+        root._check(Media.artSource("http://example.invalid/cover.jpg") === "",
+            "plaintext artwork urls are refused at either setting")
+        ShellSettings.mediaRemoteArt = remoteArtWas
         root._check(Media.artSource("file://example.invalid/cover.jpg") === "",
             "media service rejects remote file artwork")
         root._check(Media.artSource("https://example.invalid/bad\ncover.jpg") === "",

@@ -31,6 +31,11 @@ settings file carries its own `__version` and migrates separately.
   moves the focused window there.
 - The Bluetooth row in the menu shows the icon of the device that is connected.
 
+#### Media
+
+- Media › Cover art from the web decides whether artwork a player links off-machine is
+  fetched. Off by default.
+
 #### System
 
 - Night light runs on `wlsunset` where `hyprsunset` cannot. System › Maintenance chooses
