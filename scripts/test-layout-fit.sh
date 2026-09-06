@@ -55,8 +55,12 @@ modules/menu/SettingsNav.qml|160"
 
 scratch="$(mktemp -d)"
 probe_pid=""
+declare -A scale_pid=()
 cleanup() {
     _probe_stop "${probe_pid:-}"
+    # both scales run at once, so an interrupt has two children to answer for
+    local pid
+    for pid in "${scale_pid[@]}"; do _probe_stop "$pid"; done
     rm -rf "$scratch"
 }
 trap 'cleanup; exit 130' INT TERM
@@ -64,11 +68,12 @@ trap cleanup EXIT
 
 status=0
 # Both ends of the supported type range: labels are sized off font metrics, so the
-# largest scale is where a row first runs out of room.
-for scale in 1.0 1.15; do
+# largest scale is where a row first runs out of room. The two share nothing but the
+# read-only tree, so they measure at once rather than one after the other.
+scales=(1.0 1.15)
+for scale in "${scales[@]}"; do
     conf="$scratch/$scale"
     runtime="$conf/runtime"
-    log="$conf/layout.log"
     mkdir -p "$conf/silere-shell" "$conf/cache" "$conf/state" "$runtime"
     chmod 0700 "$runtime"
     printf '{ "__version": 1, "uiScale": %s }\n' "$scale" > "$conf/silere-shell/settings.json"
@@ -76,13 +81,19 @@ for scale in 1.0 1.15; do
     # Capture to a regular file, not command substitution. A component may launch
     # a detached helper which inherits stdout; that helper can keep a capture pipe
     # open forever even after the probe itself has reached FIT-DONE.
-    code=0
     FIT_ROOT="$ROOT" FIT_LIST="$list" FIT_W="$CONTENT_WIDTH" \
         XDG_CONFIG_HOME="$conf" XDG_CACHE_HOME="$conf/cache" \
         XDG_STATE_HOME="$conf/state" XDG_RUNTIME_DIR="$runtime" \
         QT_QPA_PLATFORM=offscreen QT_FORCE_STDERR_LOGGING=1 \
-        qs -p "$PROBE" --no-color >"$log" 2>&1 &
-    probe_pid=$!
+        qs -p "$PROBE" --no-color >"$conf/layout.log" 2>&1 &
+    scale_pid["$scale"]=$!
+done
+
+for scale in "${scales[@]}"; do
+    conf="$scratch/$scale"
+    log="$conf/layout.log"
+    code=0
+    probe_pid="${scale_pid[$scale]}"
     if ! _probe_wait "$log" "$probe_pid" 'FIT-DONE' 240 0.5; then
         if kill -0 "$probe_pid" 2>/dev/null; then
             code=124
@@ -91,6 +102,7 @@ for scale in 1.0 1.15; do
         fi
     fi
     _probe_stop "$probe_pid"
+    unset 'scale_pid[$scale]'
     probe_pid=""
     out="$(<"$log")"
 
