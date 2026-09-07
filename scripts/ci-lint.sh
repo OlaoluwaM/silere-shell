@@ -613,6 +613,50 @@ else
   fail "PulseLoop must stop when its live duration collapses to zero"
 fi
 
+# A rise-then-settle on one property is the shell's tactile acknowledgement, and it
+# drifted to five timings across seven copies before BumpAnimation owned it. Asymmetric
+# durations are what separate a bump from a symmetric one-shot breathe, which is a
+# different gesture and stays hand-rolled.
+hand_bump="$(find modules services -name '*.qml' -print0 \
+  | xargs -0 -r awk '
+  {
+    line = $0
+    sub(/\/\/.*/, "", line)
+    if (!inseq && line ~ /SequentialAnimation[[:space:]]*\{/) {
+      inseq = 1; depth = 0; n = 0; bad = 0
+    }
+    if (inseq) {
+      if (line ~ /NumberAnimation[[:space:]]*\{.*\}/) {
+        prop = line; dur = line
+        if (sub(/.*property:[[:space:]]*/, "", prop)) sub(/[;}].*/, "", prop); else prop = "?" n
+        if (sub(/.*duration:[[:space:]]*/, "", dur))  sub(/[;}].*/, "", dur);  else dur  = "?" n
+        n++
+        if (n == 1) { p1 = prop; d1 = dur; first = FNR }
+        else if (n == 2) { p2 = prop; d2 = dur }
+      } else if (line ~ /(Pause|Script|Color|Property|Parallel)[A-Za-z]*[[:space:]]*\{/) {
+        bad = 1
+      }
+      depth += gsub(/\{/, "{", line) - gsub(/\}/, "}", line)
+      if (depth <= 0) {
+        if (!bad && n == 2 && p1 == p2 && d1 != d2)
+          print FILENAME ":" first ": " p1
+        inseq = 0
+      }
+    }
+  }
+' || true)"
+if [ -n "$hand_bump" ]; then
+  fail "use BumpAnimation instead of a hand-rolled rise-then-settle:"
+  printf '%s\n' "$hand_bump"
+else
+  ok "motion" "every rise-then-settle routes through BumpAnimation"
+fi
+if grep -qF 'target[targetProperty] = rest' config/BumpAnimation.qml; then
+  ok "motion" "a stopped bump lands on rest"
+else
+  fail "BumpAnimation must return its target to rest when it stops"
+fi
+
 section "bar widget sleep state"
 # A widget that never learns the bar slept keeps rolling its text and swapping its
 # glyphs behind the overview and through a blanked screen. Every entry in the map

@@ -40,14 +40,11 @@ Item {
         _menuRipple.scale = 1
     }
     function _settleMotion(): void {
-        _specialPulse.stop()
+        _specialPulse.retire()
         _glintAnim.stop()
-        _moveAnim.stop()
-        _tapPulse.stop()
+        _moveAnim.retire()
+        _tapPulse.retire()
         root._settleMenuMotion()
-        root._specialScale = 1
-        root._moveScale = 1
-        root._tapScale = 1
         root._glint = -1.15
     }
     function pulse(): void {
@@ -174,7 +171,7 @@ Item {
         opacity: root.gem ? 0.28 + root._energy * 0.30 : root._energy * 0.60
         scale: 1.0 + root._energy * (root.gem ? 0.035 : 0.10)
         visible: !root._bar && opacity > 0.01
-        MotionBehavior on color   {ColorAnimation { duration: Motion.ms(150) } }
+        MotionBehavior on color   {ColorAnimation { duration: Motion.color } }
     }
 
     Rectangle {
@@ -223,7 +220,7 @@ Item {
         rotation: root.gem ? 45 : 0
         antialiasing: true
         color: root.tint
-        MotionBehavior on color {ColorAnimation { duration: Motion.ms(150) } }
+        MotionBehavior on color {ColorAnimation { duration: Motion.color } }
 
         Rectangle {
             anchors.fill: parent
@@ -286,10 +283,11 @@ Item {
         MotionBehavior on scale   {NumberAnimation { duration: Motion.ms(150); easing.type: Easing.OutCubic } }
     }
 
-    SequentialAnimation {
+    BumpAnimation {
         id: _specialPulse
-        NumberAnimation { target: root; property: "_specialScale"; to: 1.055; duration: Motion.ms(90);  easing.type: Easing.OutCubic }
-        NumberAnimation { target: root; property: "_specialScale"; to: 1.0;   duration: Motion.ms(185); easing.type: Easing.OutQuart }
+        target: root
+        targetProperty: "_specialScale"
+        peak: 1.055
     }
     property int _glintDir: 1
     SequentialAnimation {
@@ -324,16 +322,18 @@ Item {
         _moveAnim.restart()
     }
 
-    SequentialAnimation {
+    BumpAnimation {
         id: _moveAnim
-        NumberAnimation { target: root; property: "_moveScale"; to: 1.08; duration: Motion.ms(65);  easing.type: Easing.OutQuad }
-        NumberAnimation { target: root; property: "_moveScale"; to: 1.0;  duration: Motion.ms(140); easing.type: Easing.OutCubic }
+        target: root
+        targetProperty: "_moveScale"
+        peak: 1.08
     }
 
-    SequentialAnimation {
+    BumpAnimation {
         id: _tapPulse
-        NumberAnimation { target: root; property: "_tapScale"; to: 1.14; duration: Motion.ms(70);  easing.type: Easing.OutQuad }
-        NumberAnimation { target: root; property: "_tapScale"; to: 1.0;  duration: Motion.ms(145); easing.type: Easing.OutCubic }
+        target: root
+        targetProperty: "_tapScale"
+        peak: 1.14
     }
 
     ParallelAnimation {

@@ -28,6 +28,10 @@ Singleton {
     readonly property real hoverScale: 1.018
     readonly property real pressScale: 0.965
 
+    // one tactile acknowledgement for the whole shell; surfaces vary the amplitude, never the timing
+    readonly property int bumpRise:   _rm ? 0 : 70
+    readonly property int bumpSettle: _rm ? 0 : 140
+
     // shared curves keep surfaces, content and shadows on the same velocity profile. The trailing 1,1 is the bezier end point Qt requires
     readonly property var standard:        [0.2, 0.0, 0.0, 1.0, 1, 1]
     readonly property var standardDecel:   [0.0, 0.0, 0.0, 1.0, 1, 1]

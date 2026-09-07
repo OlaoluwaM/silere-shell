@@ -56,8 +56,7 @@ Item {
         function onIsIdleChanged() {
             root._sync()
             if (!Idle.isIdle) return
-            _bumpAnim.stop()
-            root._bump = 1
+            _bumpAnim.retire()
             _iconStamp.stop()
             _iconText.scale = 1
             if (OsdBarState.nextIcon !== OsdBarState.icon)
@@ -88,10 +87,10 @@ Item {
         }
     ]
 
-    SequentialAnimation {
+    BumpAnimation {
         id: _bumpAnim
-        NumberAnimation { target: root; property: "_bump"; to: 1.018; duration: Motion.ms(65);  easing.type: Easing.OutQuad }
-        NumberAnimation { target: root; property: "_bump"; to: 1.0;   duration: Motion.ms(125); easing.type: Easing.OutCubic }
+        target: root
+        targetProperty: "_bump"
     }
 
     TextMetrics {

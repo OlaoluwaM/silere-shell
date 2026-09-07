@@ -11,7 +11,10 @@ settings file carries its own `__version` and migrates separately.
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+- Workspace taps, window drops, special-workspace entries and OSD nudges settle on one
+  timing instead of five.
 
 ## Releases
 

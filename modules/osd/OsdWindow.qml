@@ -88,8 +88,7 @@ PanelWindow {
 
                 onClosingChanged: {
                     if (!closing) return
-                    _bumpAnim.stop()
-                    card._bump = 1.0
+                    _bumpAnim.retire()
                 }
 
                 width: pillW
@@ -145,10 +144,10 @@ PanelWindow {
                     }
                 ]
 
-                SequentialAnimation {
+                BumpAnimation {
                     id: _bumpAnim
-                    NumberAnimation { target: card; property: "_bump"; to: 1.018; duration: Motion.ms(70);  easing.type: Easing.OutQuad }
-                    NumberAnimation { target: card; property: "_bump"; to: 1.0;   duration: Motion.ms(130); easing.type: Easing.OutCubic }
+                    target: card
+                    targetProperty: "_bump"
                 }
 
                 MotionBehavior on width {

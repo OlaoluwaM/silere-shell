@@ -58,13 +58,11 @@ Item {
     }
 
     function _settleMotion(): void {
-        _swapAnim.stop()
-        root._swapFade = 1
-        _dropPulse.stop()
+        _swapAnim.retire()
+        _dropPulse.retire()
         _dotFadeOut.stop()
         _dotFadeIn.stop()
         root.clearMarkerPass()
-        root.scale = 1.0
         root._dotFade = root._blanked ? 0 : 1
     }
 
@@ -90,23 +88,25 @@ Item {
         // an arrival or a departure is carried by the collapse
         if (previous < 0 || root.wsId < 0 || !root.initialized
                 || !ShellSettings.wsDynamic || !root._motionAllowed()) {
-            _swapAnim.stop()
-            root._swapFade = 1
+            _swapAnim.retire()
             return
         }
         _swapAnim.restart()
     }
 
-    SequentialAnimation {
+    BumpAnimation {
         id: _swapAnim
-        NumberAnimation { target: root; property: "_swapFade"; to: 0.25; duration: Motion.ms(70);  easing.type: Easing.OutCubic }
-        NumberAnimation { target: root; property: "_swapFade"; to: 1.0;  duration: Motion.ms(130); easing.type: Easing.OutCubic }
+        target: root
+        targetProperty: "_swapFade"
+        peak: 0.25
+        riseEasing: Easing.OutCubic
     }
 
-    SequentialAnimation {
+    BumpAnimation {
         id: _dropPulse
-        NumberAnimation { target: root; property: "scale"; to: 1.12; duration: Motion.ms(70);  easing.type: Easing.OutQuad  }
-        NumberAnimation { target: root; property: "scale"; to: 1.0;  duration: Motion.ms(145); easing.type: Easing.OutCubic }
+        target: root
+        targetProperty: "scale"
+        peak: 1.12
     }
 
     // the menu is not a compositor feature, and this is the only pointer path into it:
