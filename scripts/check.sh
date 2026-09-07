@@ -484,12 +484,11 @@ if [ "$qs_usable" = 1 ]; then
     warn "startup" "timeout command unavailable; runtime smoke test skipped"
   else
     smoke_log=""
-    cov_log=""
-    cov_cfg=""
+    par_dir=""
     _smoke_cleanup() {
       if [ -n "$smoke_log" ]; then rm -f "$smoke_log"; fi
-      if [ -n "$cov_log" ]; then rm -f "$cov_log"; fi
-      if [ -n "$cov_cfg" ]; then rm -rf "$cov_cfg"; fi
+      # an interrupt leaves a whole fan-out of scratch configs behind, not just one
+      if [ -n "$par_dir" ]; then rm -rf "$par_dir"; fi
       return 0
     }
     trap _smoke_cleanup EXIT
@@ -518,31 +517,56 @@ if [ "$qs_usable" = 1 ]; then
       cov_keys="$(sed -n 's/.*property bool[[:space:]]\{1,\}\([A-Za-z_][A-Za-z0-9_]*\)[[:space:]]*:[[:space:]]*false.*/\1/p' \
         services/ShellSettings.qml \
         | grep -vxE '_loaded|nightLightAuto|neutralAccentAuto|reduceMotion' || true)"
+
+      # Each case below is a whole shell that must sit at its config for the full dwell.
+      # They share nothing but the checkout, so they dwell at the same time rather than
+      # costing one 5s wait each.
+      par_dir="$(mktemp -d "${TMPDIR:-/tmp}/silere-qs-par.XXXXXX")"
+      _smoke_case() {
+        mkdir -p "$par_dir/$1/silere-shell"
+        printf '%s' "$2" > "$par_dir/$1/silere-shell/settings.json"
+        _case_code=0
+        XDG_CONFIG_HOME="$par_dir/$1" timeout --kill-after=2s 5s qs -p shell.qml --no-color \
+          >"$par_dir/$1.log" 2>&1 || _case_code=$?
+        printf '%s' "$_case_code" > "$par_dir/$1.code"
+      }
+
       if [ -z "$cov_keys" ]; then
         warn "off-path load" "no default-off settings found; coverage pass skipped"
       else
-        cov_cfg="$(mktemp -d "${TMPDIR:-/tmp}/silere-qs-cov.XXXXXX")"
-        mkdir -p "$cov_cfg/silere-shell"
-        { printf '{\n'
+        _smoke_case cov "$({ printf '{\n'
           printf '%s\n' "$cov_keys" | sed '$!s/.*/  "&": true,/; $s/.*/  "&": true/'
-          printf '}\n'
-        } > "$cov_cfg/silere-shell/settings.json"
-        cov_log="$(mktemp "${TMPDIR:-/tmp}/silere-qs-cov.XXXXXX.log")"
-        code=0
-        XDG_CONFIG_HOME="$cov_cfg" timeout --kill-after=2s 5s qs -p shell.qml --no-color \
-          >"$cov_log" 2>&1 || code=$?
+          printf '}\n'; })" &
+      fi
+
+      # settings.json is hand-editable and the README says so, so a truncated or
+      # retyped file is a real user state, not a hypothetical. The loader must keep
+      # the shell up and leave a file it could not read alone.
+      bad_n=0
+      for _case in '{"barHeight": 3' '[1,2,3]' 'null' '' \
+        '{"barHeight":"tall","osdEnabled":42,"barPosition":"sideways"}' \
+        '{"__version":999,"unknownFutureKey":"keep","barHeight":40}'
+      do
+        bad_n=$((bad_n + 1))
+        printf '%s' "${_case:-<empty>}" > "$par_dir/bad$bad_n.desc"
+        _smoke_case "bad$bad_n" "$_case" &
+      done
+      wait || true
+
+      if [ -n "$cov_keys" ]; then
+        code="$(cat "$par_dir/cov.code" 2>/dev/null || echo 1)"
         if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then
-          cat "$cov_log"
+          cat "$par_dir/cov.log"
           fail "off-path load" "Quickshell exited with status $code with every option on"
-        elif grep -qE 'Failed to load configuration|Type [^ ]+ unavailable|Cannot assign to non-existent property|is not a type|Binding loop detected' "$cov_log"; then
-          cat "$cov_log"
+        elif grep -qE 'Failed to load configuration|Type [^ ]+ unavailable|Cannot assign to non-existent property|is not a type|Binding loop detected' "$par_dir/cov.log"; then
+          cat "$par_dir/cov.log"
           fail "off-path load" "a default-off code path failed to load"
         else
           # a script error does not fail the load, so this is the only pass that sees one.
           # warn rather than fail: absent hardware can make a path throw on machines this
           # one cannot stand in for
           cov_script="$(grep -oE 'ReferenceError: [^,]*|TypeError: [^,]*|Invalid write to global property "[^"]*"' \
-            "$cov_log" | sort -u | head -3 || true)"
+            "$par_dir/cov.log" | sort -u | head -3 || true)"
           if [ -n "$cov_script" ]; then
             printf '%s\n' "$cov_script" | sed 's/^/       /'
             warn "off-path load" "a default-off path loaded but threw at runtime"
@@ -552,34 +576,25 @@ if [ "$qs_usable" = 1 ]; then
         fi
       fi
 
-      # settings.json is hand-editable and the README says so, so a truncated or
-      # retyped file is a real user state, not a hypothetical. The loader must keep
-      # the shell up and leave a file it could not read alone.
-      bad_cfg="$(mktemp -d "${TMPDIR:-/tmp}/silere-qs-bad.XXXXXX")"
-      bad_log="$(mktemp "${TMPDIR:-/tmp}/silere-qs-bad.XXXXXX.log")"
       bad_failures=""
-      for _case in '{"barHeight": 3' '[1,2,3]' 'null' '' \
-        '{"barHeight":"tall","osdEnabled":42,"barPosition":"sideways"}' \
-        '{"__version":999,"unknownFutureKey":"keep","barHeight":40}'
-      do
-        mkdir -p "$bad_cfg/silere-shell"
-        printf '%s' "$_case" > "$bad_cfg/silere-shell/settings.json"
-        code=0
-        XDG_CONFIG_HOME="$bad_cfg" timeout --kill-after=2s 5s qs -p shell.qml --no-color \
-          >"$bad_log" 2>&1 || code=$?
+      _i=0
+      while [ "$_i" -lt "$bad_n" ]; do
+        _i=$((_i + 1))
+        code="$(cat "$par_dir/bad$_i.code" 2>/dev/null || echo 1)"
+        _desc="$(cat "$par_dir/bad$_i.desc" 2>/dev/null || echo '?')"
         if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then
-          bad_failures="$bad_failures  exited $code on: ${_case:-<empty>}"$'\n'
-        elif grep -qE 'Failed to load configuration|Type [^ ]+ unavailable|Binding loop detected' "$bad_log"; then
-          bad_failures="$bad_failures  failed to load on: ${_case:-<empty>}"$'\n'
+          bad_failures="$bad_failures  exited $code on: $_desc"$'\n'
+        elif grep -qE 'Failed to load configuration|Type [^ ]+ unavailable|Binding loop detected' "$par_dir/bad$_i.log"; then
+          bad_failures="$bad_failures  failed to load on: $_desc"$'\n'
         fi
       done
       if [ -n "$bad_failures" ]; then
         printf '%s' "$bad_failures"
         fail "bad settings" "a malformed settings.json took the shell down"
       else
-        ok "bad settings" "6 malformed settings files each left the shell running"
+        ok "bad settings" "$bad_n malformed settings files each left the shell running"
       fi
-      rm -rf "$bad_cfg"; rm -f "$bad_log"
+      rm -rf "$par_dir"
     fi
   fi
 else
