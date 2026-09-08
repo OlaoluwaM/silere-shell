@@ -40,10 +40,12 @@ Item {
 
     property real _pulse: 1.0
     property bool _pulseSettled: false
+    readonly property bool _motionActive: root.shown && !root._pulseSettled
+        && ShellSettings.wsUrgentPulse && root.barActive
+        && Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)
     onShownChanged: if (shown) _pulseSettled = false
     SequentialAnimation {
-        running: root.shown && !root._pulseSettled && ShellSettings.wsUrgentPulse
-            && root.barActive && !ShellSettings.reduceMotion && !Idle.isIdle
+        running: root._motionActive
         loops:   Animation.Infinite
         onRunningChanged: if (!running) root._pulse = 1.0
         NumberAnimation { target: root; property: "_pulse"; to: 0.35; duration: Motion.ms(550); easing.type: Easing.InOutSine }
@@ -51,8 +53,7 @@ Item {
     }
     Timer {
         interval: 15000
-        running: root.shown && !root._pulseSettled && ShellSettings.wsUrgentPulse
-            && root.barActive && !Idle.isIdle
+        running: root._motionActive
         onTriggered: root._pulseSettled = true
     }
 

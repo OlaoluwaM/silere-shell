@@ -393,6 +393,12 @@ PageShell {
                     // and a follower folded by a third arrival would reopen already expanded
                     on_FoldedChanged: if (_entry._folded) _body.expanded = false
 
+                    function _toggleExpand(): void {
+                        if (root._clearing || _entry._removing || _entry._folded) return
+                        if (_entry._stacked) _historyGrouping.setOpen(_entry._runKey, true)
+                        else _body.toggle()
+                    }
+
                     function removeSelf(): void {
                         if (_removing || root._clearing) return
                         const rowIndex = index
@@ -530,6 +536,14 @@ PageShell {
                         }
 
                         ColorFade on color { gate: _entry._heightReady }
+
+                        Accessible.role: Accessible.Notification
+                        Accessible.name: String(_entry.modelData.appName || "").length > 0
+                            ? _entry.modelData.appName + ": " + _summary.text : _summary.text
+                        Accessible.description: _body.bodyText
+                        Accessible.focusable: true
+                        Accessible.onPressAction: _entry._toggleExpand()
+
                         HoverHandler {
                             id: _entryHover
                             // a disabled ancestor stops presses but not hover on Qt 6, and a
@@ -544,11 +558,7 @@ PageShell {
                             onTapped: eventPoint => {
                                 const p = _rightSlot.mapFromItem(_card, eventPoint.position.x, eventPoint.position.y)
                                 if (_rightSlot.contains(p)) return
-                                if (_entry._stacked) {
-                                    _historyGrouping.setOpen(_entry._runKey, true)
-                                    return
-                                }
-                                _body.toggle()
+                                _entry._toggleExpand()
                             }
                         }
 
@@ -802,6 +812,11 @@ PageShell {
                                     ColorFade on outlineColor { gate: _entry._heightReady }
                                 }
                                 MotionBehavior on scale { gate: _entry._heightReady; NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic } }
+                                Accessible.role: Accessible.Button
+                                Accessible.name: "Remove notification"
+                                Accessible.focusable: true
+                                Accessible.onPressAction: _entry.removeSelf()
+
                                 HoverHandler { id: _removeHover; cursorShape: Qt.PointingHandCursor }
                                 TapHandler { id: _removeTap; enabled: !root._clearing && !_entry._removing; onTapped: _entry.removeSelf() }
 

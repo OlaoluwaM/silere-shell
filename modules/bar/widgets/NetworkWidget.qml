@@ -118,7 +118,7 @@ StatusActionPill {
     Timer {
         id: _pulseSettle
         interval: 30000
-        running: root.barActive && root._disconnected && !root._pulseSettled
+        running: root.barActive && root._isPulsing && !Idle.isIdle
         onTriggered: root._pulseSettled = true
     }
     Connections {

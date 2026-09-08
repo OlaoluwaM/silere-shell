@@ -45,11 +45,15 @@ QtObject {
     }
 
     function focusToplevel(c): void {
-        const hasWs = c.wsRef !== undefined && c.wsRef !== null && c.wsRef >= 0
+        // a special workspace has a negative id and is reachable only by its name
+        const special = String(c.wsName ?? "").startsWith("special:")
+        const target = special ? c.wsName : c.wsRef
+        const hasWs = special
+            || (c.wsRef !== undefined && c.wsRef !== null && c.wsRef >= 0)
         const addr = c.ref
             ? (String(c.ref).startsWith("address:") ? String(c.ref) : "address:" + c.ref) : ""
-        if (hasWs && addr.length > 0) HyprDispatch.dispatchPair("workspace", c.wsRef, "focuswindow", addr)
-        else if (hasWs) HyprDispatch.dispatch("workspace", c.wsRef)
+        if (hasWs && addr.length > 0) HyprDispatch.dispatchPair("workspace", target, "focuswindow", addr)
+        else if (hasWs) HyprDispatch.dispatch("workspace", target)
         else if (addr.length > 0) HyprDispatch.dispatch("focuswindow", addr)
     }
 
@@ -245,6 +249,7 @@ QtObject {
                 initialClass: root._identity(c.initialClass),
                 pid: c.pid ?? -1, ref: c.address,
                 wsRef: wsId, wsId: wsId, output: wsOut[wsId] ?? "",
+                wsName: c.workspace ? String(c.workspace.name ?? "") : "",
                 focused: !root._unfocused && !!(Hyprland.activeToplevel && Hyprland.activeToplevel === t),
                 focusRank: c.focusHistoryID ?? 9999,
                 fullscreen: !!c.fullscreen
@@ -265,7 +270,7 @@ QtObject {
                 title: liveTitle !== undefined ? liveTitle : "",
                 cls: t.cls, initialClass: t.initialClass,
                 pid: t.pid, ref: t.ref,
-                wsRef: t.wsRef, wsId: t.wsId, output: t.output,
+                wsRef: t.wsRef, wsId: t.wsId, wsName: t.wsName, output: t.output,
                 focused: t.focused,
                 focusRank: t.focusRank,
                 fullscreen: t.fullscreen

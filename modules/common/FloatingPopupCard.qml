@@ -71,7 +71,7 @@ Rectangle {
     function _startOpen(): void {
         _exitAnimation.stop()
         root._closing = false
-        if (ShellSettings.reduceMotion) root._snapOpen()
+        if (!Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)) root._snapOpen()
         else _enterAnimation.restart()
     }
 
@@ -82,7 +82,7 @@ Rectangle {
             return
         }
         root._closing = true
-        if (ShellSettings.reduceMotion) root._snapClosed(true)
+        if (!Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)) root._snapClosed(true)
         else _exitAnimation.restart()
     }
 
@@ -158,7 +158,8 @@ Rectangle {
             yScale: root.scaleAmt
         }
     ]
-    layer.enabled: root.animateScale && !ShellSettings.reduceMotion
+    layer.enabled: root.animateScale
+        && Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)
         && opacity > 0.001 && (scaleAmt < 0.999 || !root.open)
 
     MotionBehavior on x {
@@ -200,6 +201,19 @@ Rectangle {
     }
 
     Connections {
+        target: Idle
+        function onIsIdleChanged() {
+            if (!Idle.isIdle) return
+            _startupFrame.stop()
+            root._transitionReady = true
+            if (root.open) root._snapOpen()
+            else root._snapClosed(true)
+            _radiusReclamp.stop()
+            root.reclamp()
+        }
+    }
+
+    Connections {
         target: root.win
         function onWidthChanged() {
             if (!root.open) return
@@ -212,7 +226,7 @@ Rectangle {
         place()
         if (root.open) _placementSettle.restart()
         root._snapClosed(false)
-        if (ShellSettings.reduceMotion) {
+        if (!Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)) {
             root._transitionReady = true
             if (root.open) root._startOpen()
         } else if (root.open) {

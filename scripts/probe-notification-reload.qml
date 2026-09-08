@@ -92,9 +92,48 @@ ShellRoot {
             root._check(root.activeCount === 0 && Notifications.historyCount === expected + 1,
                 "dismissal after reload archives exactly once")
             root._checkReadinessOrders()
+            root._nextUrgencyCase()
+        }
+    }
+
+    property int urgencyCase: 0
+    readonly property var urgencyCases: [
+        { dnd: true, bypass: true, urgency: "normal", active: 0 },
+        { dnd: true, bypass: true, urgency: "critical", active: 1 },
+        { dnd: true, bypass: false, urgency: "normal", active: 0 },
+        { dnd: true, bypass: false, urgency: "critical", active: 0 },
+        { dnd: false, bypass: false, urgency: "normal", active: 1 },
+        { dnd: false, bypass: false, urgency: "critical", active: 1 }
+    ]
+
+    function _nextUrgencyCase(): void {
+        if (root.urgencyCase >= root.urgencyCases.length) {
             if (progress.failures === 0)
                 console.warn("PROBE-RELOAD passed " + progress.checks + " checks")
             console.warn("PROBE-RELOAD-DONE")
+            return
+        }
+        const test = root.urgencyCases[root.urgencyCase]
+        Notifications.dnd = test.dnd
+        ShellSettings.notifCriticalBypass = test.bypass
+        urgencySender.command = ["notify-send", "--print-id", "--expire-time=0",
+            "--urgency=" + test.urgency, "Urgency probe " + root.urgencyCase]
+        urgencySender.running = true
+    }
+
+    Process {
+        id: urgencySender
+        onExited: code => {
+            const test = root.urgencyCases[root.urgencyCase]
+            root._check(code === 0 && Notifications.activeCount === test.active,
+                "real " + test.urgency + " notification with DND=" + test.dnd
+                    + " and critical bypass=" + test.bypass)
+            while (Notifications.list.length > 0) {
+                const entry = Notifications.list[0]
+                Notifications.dismissObject(entry.id, entry.notification, false)
+            }
+            root.urgencyCase++
+            Qt.callLater(root._nextUrgencyCase)
         }
     }
 

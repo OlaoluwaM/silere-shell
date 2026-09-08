@@ -33,17 +33,8 @@ StatusActionPill {
     interactive: show && Bluetooth.managerAvailable
     hintText: interactive ? "Open Bluetooth manager" : ""
 
-    readonly property string _detailText: {
-        if (!Bluetooth.enabled) return "Off"
-        if (!_connected) return "Not connected"
-        if (Bluetooth.connectedCount === 1)
-            return Bluetooth.connectedName + (Bluetooth.connectedBattery >= 0
-                ? " · " + Bluetooth.connectedBattery + "%" : "")
-        return Bluetooth.connectedCount + " connected"
-    }
-
-    text: expanded ? _detailText : ""
-    accessibleName: "Bluetooth, " + _detailText
+    text: expanded ? Bluetooth.statusText : ""
+    accessibleName: "Bluetooth, " + Bluetooth.statusText
 
     onActivated: Bluetooth.launchManager()
 }

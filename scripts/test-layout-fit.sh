@@ -100,8 +100,8 @@ for scale in 1.0 1.15; do
         probe_pid=""
         continue
     fi
-    if grep -qE "FIT-TRUNC|FIT-CLIP|FIT-WIDE|FIT-FAIL" "$log"; then
-        grep -E "FIT-TRUNC|FIT-CLIP|FIT-WIDE|FIT-FAIL" "$log" | sed 's/^/  /' >&2
+    if grep -qE "FIT-TRUNC|FIT-CLIP|FIT-WIDE|FIT-SHRINK|FIT-FAIL" "$log"; then
+        grep -E "FIT-TRUNC|FIT-CLIP|FIT-WIDE|FIT-SHRINK|FIT-FAIL" "$log" | sed 's/^/  /' >&2
         status=1
     fi
     errs="$(_probe_errors "$log")"

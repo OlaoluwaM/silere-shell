@@ -7,7 +7,7 @@
 
 A personal fork of [s3rven/silere-shell](https://github.com/s3rven/silere-shell), a Quickshell/QML desktop shell. It serves as the only shell of a NixOS/Hyprland profile.
 
-Upstream v0.9.0 requires Quickshell 0.3.1 or newer. This repository's
+Upstream v1.0.0 requires Quickshell 0.3.1 or newer. This repository's
 development flake pins that release; the deploying NixOS configuration must
 supply the same minimum before it re-locks the fork.
 
@@ -83,6 +83,11 @@ After every merge, the same gates as any feature apply. They live in
 The v0.9.0 merge commit omitted its usual conflict narrative. Its
 [resolution record](docs/upstream-merge-v0.9.0.md) preserves those decisions
 without rewriting published branch history.
+
+The [v1.0.0 resolution record](docs/upstream-merge-v1.0.0.md) documents the
+next integration and its retained fork behavior. Upstream's `v1.0.0` and
+the older fork tag with the same name identify different commits; the
+record gives the exact upstream release commit.
 
 On 2026-09-04, the maintainer explicitly authorized a one-off selection of
 unreleased commits. The [selective integration record](docs/upstream-picks-2026-09-04.md)

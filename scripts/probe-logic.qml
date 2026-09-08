@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Io
 import "config"
 import "services"
+import "services/SettingsMigrations.js" as SettingsMigrations
 import "modules/bar"
 import "modules/common"
 import "modules/bar/widgets"
@@ -45,6 +46,8 @@ ShellRoot {
     Component { id: durationPickerFactory; DurationPickerColumn {} }
     Component { id: niriBackendFactory; CompositorNiri {} }
     Component { id: processFactory; Process {} }
+    Component { id: pulseLoopFactory; PulseLoop {} }
+    QtObject { id: pulseTarget; property real value: 1 }
     Component { id: supervisedProcessFactory; SupervisedProcess {} }
     Component { id: barUnderlineFactory; BarUnderline {} }
     Component {
@@ -132,7 +135,102 @@ ShellRoot {
         return Math.min(d, 360 - d)
     }
 
+    function _runReleaseChecks(): void {
+        const migratedV1 = ShellSettings._migrateSettingsObject({
+            windowTitleCenterGap: true,
+            underlineGlow: true,
+            barBorderVisible: true,
+            barCornerStyle: "flat",
+            untouchedFutureShape: "keep until known-key coercion"
+        }, 0)
+        root._check(migratedV1.version === 1
+                && migratedV1.applied.join(",") === "1"
+                && migratedV1.value.__version === 1,
+            "settings migrations apply each target version in order")
+        root._check(migratedV1.value.barCenterInGap === true
+                && migratedV1.value.windowTitleCenterGap === undefined
+                && migratedV1.value.underlineLastStyle === "glow"
+                && migratedV1.value.barBorderVisible === false
+                && migratedV1.value.barRadius === 0
+                && migratedV1.value.barCornerStyle === undefined,
+            "the v0 to v1 fixture produces the explicit compatibility shape")
+        root._check(migratedV1.value.untouchedFutureShape
+                === "keep until known-key coercion",
+            "a migration does not discard unrelated input before schema coercion")
+
+        // the engine is asserted directly so these hold after the schema number moves on:
+        // a registry gap must throw, because _applyText turns the throw into a refusal to
+        // write, and that is the only thing keeping a half-migrated file off disk
+        let migrationGapThrew = false
+        let migrationGapValue = null
+        try {
+            migrationGapValue = SettingsMigrations.migrate({ barHeight: 40 }, 0, 2)
+        } catch (e) {
+            migrationGapThrew = true
+        }
+        root._check(migrationGapThrew && migrationGapValue === null,
+            "a missing migration step throws instead of returning a half-migrated value")
+        const migrationHeld = SettingsMigrations.migrate({ barHeight: 40 }, 1, 1)
+        root._check(migrationHeld.applied.length === 0
+                && migrationHeld.version === 1
+                && migrationHeld.value.__version === undefined
+                && migrationHeld.value.barHeight === 40,
+            "migrating to the version already held stamps and changes nothing")
+        const migrationNewer = SettingsMigrations.migrate({ barHeight: 40 }, 3, 1)
+        root._check(migrationNewer.applied.length === 0 && migrationNewer.version === 3,
+            "a value newer than the target is carried through untouched")
+        root._check(ConfigStore.directoryRetryDelay(0) === 1000
+                && ConfigStore.directoryRetryDelay(2) === 2000
+                && ConfigStore.directoryRetryDelay(20) === 8000,
+            "configuration directory retries back off and remain bounded")
+        root._check(SystemTools._repairOutcome(0, false) === "done"
+                && SystemTools._repairOutcome(1, false) === "failed"
+                && SystemTools._repairOutcome(0, true) === "failed",
+            "a successful-looking exit cannot overwrite a repair timeout")
+        root._check(Battery.normalizedPercent(0.64, false) === 64
+                && Battery.normalizedPercent(64, false) === 64
+                && Battery.normalizedPercent(140, true) === 100
+                && Battery.normalizedPercent(-1, false) === 0
+                && Battery.normalizedPercent(NaN, false) === 0,
+            "battery readings stay bounded before scale detection settles")
+        root._check(SystemAlerts.batteryWarningLevel(true, true) === "critical"
+                && SystemAlerts.batteryWarningLevel(true, false) === "low"
+                && SystemAlerts.batteryWarningLevel(false, false) === "",
+            "crossing both battery thresholds selects only the critical warning")
+        const generationWas = CpuTemp._detectGeneration
+        CpuTemp._detectGeneration = 41
+        root._check(CpuTemp._detectionIsCurrent(41)
+                && !CpuTemp._detectionIsCurrent(40),
+            "a canceled sensor probe cannot publish into a newer request")
+        CpuTemp._detectGeneration = generationWas
+        const special = { ref: "special-client", wsId: -99, wsRef: -99,
+            wsName: "special:probe", cls: "probe", focusRank: 0 }
+        root._check(WindowActions._chooseMatchingSource([
+                { ref: "invalid", wsId: -1, wsRef: -1, focusRank: 0 }, special
+            ], () => true) === special,
+            "window actions retain named special workspaces and reject the invalid sentinel")
+        root._check(WindowActions._resolveByDesktopEntry([special], "Probe",
+                () => ({ id: "probe.desktop", startupClass: "" })) === special,
+            "desktop-entry lookup can resolve an application on a special workspace")
+    }
+
     function _run(): void {
+        root._runReleaseChecks()
+        const pulseReduceWas = ShellSettings.reduceMotion
+        ShellSettings.reduceMotion = false
+        const pulseLoop = pulseLoopFactory.createObject(root, {
+            target: pulseTarget, targetProperty: "value", active: true,
+            duration: 50, restValue: 1
+        })
+        root._check(pulseLoop !== null && pulseLoop.running,
+            "a positive-duration pulse starts while motion is allowed")
+        pulseLoop.duration = 0
+        root._check(!pulseLoop.running && pulseTarget.value === 1,
+            "a live pulse settles instead of restarting as a zero-duration infinite loop")
+        pulseLoop.destroy()
+        ShellSettings.reduceMotion = pulseReduceWas
+
+
         const palette = MatugenTheme._parsePalette(
             "{\"background\":\"#101116\",\"surface\":\"#1d1f26\","
             + "\"text\":\"#e9eaf0\",\"subtext\":\"#a0a4b0\","
@@ -336,6 +434,13 @@ ShellRoot {
         root._check(!notificationCard._sendInlineReply("   ")
                 && root._sentInlineReply.length === 0,
             "an empty inline notification reply is not sent")
+        let dismissCompletions = 0
+        notificationCard.dismissRequested.connect(() => dismissCompletions++)
+        notificationCard.dismiss(false)
+        notificationCard.visible = false
+        notificationCard._completeDismiss()
+        root._check(dismissCompletions === 1 && !notificationCard._leaving,
+            "a hidden or interrupted notification completes its dismissal exactly once")
         notificationCard.destroy()
 
         root._check(OsdBarState._presentationAllowed(false, true)
@@ -477,6 +582,16 @@ ShellRoot {
         crossingCell.playMarkerPass(0)
         root._check(!crossingCell.markerPassActive,
             "a bar marker leaves the cells it crosses alone")
+        crossingCell.markerCovers = true
+        crossingCell.playMarkerPass(0)
+        crossingCell.scale = 0.7
+        crossingCell._dotFade = 0.4
+        crossingCell.barActive = false
+        root._check(!crossingCell.markerPassActive
+                && crossingCell._markerPassCover === 0
+                && crossingCell.scale === 1
+                && crossingCell._dotFade === 1,
+            "a sleeping workspace cell retires transient motion at its bound state")
         crossingCell.destroy()
         ShellSettings.workspaceShift = shiftWas
         ShellSettings.reduceMotion = reduceMotionWas
@@ -954,11 +1069,18 @@ ShellRoot {
         root._check(SafeText.singleLineText(longMediaText, Media.maxMetadataChars).length
                 === Media.maxMetadataChars,
             "media service bounds player metadata")
+        const remoteArtWas = ShellSettings.mediaRemoteArt
+        ShellSettings.mediaRemoteArt = false
+        root._check(Media.artSource("https://example.invalid/cover.jpg") === "",
+            "remote covers require an explicit opt-in")
+        ShellSettings.mediaRemoteArt = true
+        root._check(Media.artSource("http://example.invalid/cover.jpg") === "",
+            "unencrypted remote covers remain rejected after opt-in")
         root._check(Media.artSource("data:image/png;base64,AAAA") === "",
             "media service rejects inline artwork data")
         root._check(Media.artSource("https://example.invalid/cover.jpg")
                 === "https://example.invalid/cover.jpg",
-            "media service keeps intentional HTTP artwork")
+            "media service accepts HTTPS artwork after opt-in")
         root._check(Media.artSource("file://example.invalid/cover.jpg") === "",
             "media service rejects remote file artwork")
         root._check(Media.artSource("https://example.invalid/bad\ncover.jpg") === "",
@@ -983,6 +1105,7 @@ ShellRoot {
                 && Media.trackDirectory("https://example.invalid/song.mp3") === ""
                 && Media.trackDirectory("file:///home/u/../etc/song.mp3") === "",
             "media artwork resolves a local album directory without climbing out of it")
+        ShellSettings.mediaRemoteArt = remoteArtWas
         root._check(Media.privacyPlaceholderSource("Zen is playing media") === "Zen"
                 && Media.privacyPlaceholderSource("Song is playing") === "",
             "media recognises a browser's generic playback placeholder")

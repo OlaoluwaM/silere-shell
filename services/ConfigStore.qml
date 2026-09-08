@@ -16,14 +16,40 @@ Singleton {
     property bool ready: false
     property string _error: ""
     readonly property string error: _error
+    readonly property int maxDirectoryAttempts: 4
 
-    function ensureDirectory(): void {
-        if (root.ready || _mkdir.running) return
+    property int _directoryFailures: 0
+
+    function directoryRetryDelay(attempt: int): int {
+        return Math.min(8000, 1000 * Math.pow(2, Math.max(0, attempt - 1)))
+    }
+
+    function _startDirectoryAttempt(): void {
+        if (_mkdir.running) return
         if (root.directory.length === 0) {
             root._error = "No configuration directory is available."
             return
         }
+        // a forced recheck follows a failed write: stop advertising readiness while it reruns
+        root.ready = false
         _mkdir.running = true
+    }
+
+    function ensureDirectory(force): void {
+        if (_mkdir.running || (root.ready && force !== true)) return
+        if (_mkdirRetry.running && force !== true) return
+        if (force === true || root._directoryFailures >= root.maxDirectoryAttempts) {
+            _mkdirRetry.stop()
+            root._directoryFailures = 0
+        }
+        root._startDirectoryAttempt()
+    }
+
+    Timer {
+        id: _mkdirRetry
+        interval: root.directoryRetryDelay(root._directoryFailures)
+        repeat: false
+        onTriggered: root._startDirectoryAttempt()
     }
 
     function _owned(path: string): bool {
@@ -57,17 +83,28 @@ Singleton {
         id: _mkdir
         timeoutMs: 10000
         command: ["bash", "-c",
-            "umask 077; mkdir -m 0700 -p -- \"$1\" && chmod 0700 -- \"$1\"; " +
+            // without the exits, the trailing file check's status hides a failed mkdir
+            "umask 077; mkdir -m 0700 -p -- \"$1\" || exit $?; " +
+            "chmod 0700 -- \"$1\" || exit $?; " +
             "for f in \"$2\" \"$3\"; do " +
-            "[ ! -e \"$f\" ] || [ -L \"$f\" ] || chmod 0600 -- \"$f\"; done",
+            "[ ! -e \"$f\" ] || [ -L \"$f\" ] || chmod 0600 -- \"$f\" || exit $?; done",
             "bash", root.directory, root.settingsPath, root.calendarMarksPath]
         onExited: code => {
-            root.ready = code === 0
-            root._error = code === 0 ? ""
-                : "Could not create " + root.directory + "."
-            if (code !== 0)
-                console.warn("silere-shell: failed to create config directory:",
-                    root.directory)
+            if (code === 0) {
+                _mkdirRetry.stop()
+                root._directoryFailures = 0
+                root.ready = true
+                root._error = ""
+                return
+            }
+
+            root.ready = false
+            root._error = "Could not create " + root.directory + "."
+            root._directoryFailures++
+            if (root._directoryFailures < root.maxDirectoryAttempts)
+                _mkdirRetry.restart()
+            console.warn("silere-shell: failed to create config directory:",
+                root.directory)
         }
     }
 

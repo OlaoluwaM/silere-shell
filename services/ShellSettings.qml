@@ -5,11 +5,13 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "../config"
+import "SettingsMigrations.js" as SettingsMigrations
 
 Singleton {
     id: root
 
     property bool   mediaProgress:       false
+    property bool   mediaRemoteArt:      false
     property bool   mediaWidgetHelper:   false
     property string mediaVisualizerPreset: "balanced"
     property string mediaVisualizerStyle:  "wave"
@@ -108,6 +110,7 @@ Singleton {
     property string notifPosition:       "top-right"
     property int    notifMaxVisible:     3
     property bool   notifHistoryPersistent: true
+    property bool   notifCriticalBypass: true
     property int    notifHistoryLimit:   20
     property string mediaWidgetFormat:   "title"
     property int    tempHotThreshold:    GeneratedDefaults.tempHotThreshold
@@ -357,6 +360,7 @@ Singleton {
     // drives load/save/change-tracking. t: bool|int|real|enum|re — int/real use min/max, enum vals, re a pattern
     readonly property var _schema: [
         { k: "mediaProgress",       t: "bool", sec: "media" },
+        { k: "mediaRemoteArt",      t: "bool", sec: "media" },
         { k: "mediaWidgetHelper",   t: "bool", sec: "media" },
         { k: "mediaVisualizerPreset", t: "enum", vals: ["eco", "balanced", "smooth"], sec: "media" },
         { k: "mediaVisualizerStyle",  t: "enum", vals: ["wave", "bars", "pulse"], sec: "media" },
@@ -427,6 +431,7 @@ Singleton {
         { k: "notifMaxVisible",     t: "int",  min: 0, max: 20, sec: "popups" },
         { k: "notifHistoryPersistent", t: "bool", sec: "popups" },
         { k: "notifHistoryLimit",   t: "int",  min: 5, max: 100, sec: "popups" },
+        { k: "notifCriticalBypass", t: "bool", sec: "popups" },
         { k: "mediaWidgetFormat",   t: "enum", vals: ["title", "artist-title"], sec: "media" },
         { k: "tempHotThreshold",    t: "int",  min: 50,   max: 105, sec: "warnings" },
         { k: "cpuHotPercent",       t: "int",  min: 30,   max: 100, sec: "warnings" },
@@ -816,8 +821,13 @@ Singleton {
         }
     }
 
+    function _migrateSettingsObject(value, fromVersion: int): var {
+        return SettingsMigrations.migrate(value, fromVersion, root._settingsVersion)
+    }
+
     function _applyText(t: string): void {
         const raw = (t || "").trim()
+        let migrationApplied = false
         // our own atomic write echoes back through the watcher; skip it
         if (_store.writeAllowed && raw === _store.lastSavedText) {
             root._appliedText = raw
@@ -828,14 +838,18 @@ Singleton {
         // every setting through its default and back, rebuilding the bar on the way
         if (_loaded && raw === root._appliedText) return
         try {
-            const parsed = JSON.parse(raw || "{}")
+            let parsed = JSON.parse(raw || "{}")
             if (parsed === null || Array.isArray(parsed) || typeof parsed !== "object")
                 throw new Error("settings root must be an object")
             const rawVersion = typeof parsed.__version === "number" && isFinite(parsed.__version)
                 ? parsed.__version : 0
             const onDiskVersion = Math.max(0, Math.floor(rawVersion))
-            if (onDiskVersion < _settingsVersion && Object.keys(parsed).length > 0)
+            if (onDiskVersion < _settingsVersion && Object.keys(parsed).length > 0) {
                 _backupSettings("v" + onDiskVersion)
+                const migration = root._migrateSettingsObject(parsed, onDiskVersion)
+                parsed = migration.value
+                migrationApplied = migration.applied.length > 0
+            }
             const fromFuture = onDiskVersion > _settingsVersion
             _loadedVersion = fromFuture ? onDiskVersion : _settingsVersion
             _futureSettings = fromFuture ? parsed : ({})
@@ -878,11 +892,6 @@ Singleton {
                 root.barWidgetOrderCenter = root._defaults.barWidgetOrderCenter
                 root.barWidgetOrderRight = root._defaults.barWidgetOrderRight
             }
-            // the same choice, back when it only placed the window title
-            if (parsed.barCenterInGap === undefined
-                    && parsed.windowTitleCenterGap !== undefined)
-                root._coerce(root.schemaFor("barCenterInGap"),
-                    parsed.windowTitleCenterGap)
             // The two legacy booleans represent one mode. Prefer reactive if
             // hand-edited JSON enables both, and seed the persisted restore mode
             // for settings files written before underlineLastStyle existed.
@@ -890,8 +899,6 @@ Singleton {
                 root.barBorderVisible = false
             if (root.underlineGlow) root.underlineLastStyle = "glow"
             else if (root.barBorderVisible) root.underlineLastStyle = "static"
-            // barCornerStyle folded into barRadius, where 0 is flat; carry the old choice over
-            if (parsed.barCornerStyle === "flat") root.barRadius = 0
             root._appliedText = raw
             root._readError = ""
             _store.writeAllowed = true
@@ -906,6 +913,7 @@ Singleton {
             root._scrubLockedOrder = false
             _store.queue()
         }
+        if (migrationApplied && _store.writeAllowed) _store.flush(false)
     }
 
     function _serialize(): string {

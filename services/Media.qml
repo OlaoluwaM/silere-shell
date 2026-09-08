@@ -18,11 +18,15 @@ Singleton {
         return isFinite(number) && number > 0 ? number : 0
     }
 
+    // any process on the bus can set artUrl, and Qt loads a remote one on the pixmap
+    // thread, where a QNetworkAccessManager first use has crashed the shell in OpenSSL
     function artSource(raw): string {
         const value = String(raw ?? "").trim()
         if (value.length === 0 || value.length > root.maxArtSourceChars) return ""
         if (/[\u0000-\u001F\u007F]/.test(value)) return ""
-        if (/^https?:\/\//i.test(value)) return value
+        if (/^https:\/\//i.test(value))
+            return ShellSettings.mediaRemoteArt ? value : ""
+        if (/^http:\/\//i.test(value)) return ""
         return IconResolver.safeLocalSource(value)
     }
 

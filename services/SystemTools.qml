@@ -47,6 +47,10 @@ Singleton {
     // "" | working | done | failed
     property string matugenRepairState: ""
 
+    function _repairOutcome(code: int, timedOut: bool): string {
+        return !timedOut && code === 0 ? "done" : "failed"
+    }
+
     // the repair outlives the settings section that starts it; a page unload must not orphan the process or drop its result
     function repairMatugen(): void {
         if (root.matugenRepairState === "working") return
@@ -58,7 +62,9 @@ Singleton {
         id: _matugenRepair
         timeoutMs: 15000
         command: ["bash", Quickshell.shellDir + "/scripts/install.sh", "--repair-matugen"]
-        onExited: code => root.matugenRepairState = code === 0 ? "done" : "failed"
+        // a killed process still emits exited, sometimes with a successful-looking status
+        onExited: code => root.matugenRepairState = root._repairOutcome(
+            code, _matugenRepair.timedOut)
         onTimeoutReached: root.matugenRepairState = "failed"
         Component.onDestruction: running = false
     }

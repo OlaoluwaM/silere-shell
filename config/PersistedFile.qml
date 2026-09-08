@@ -24,7 +24,7 @@ Scope {
     // owner-supplied, returns the text to persist
     property var serialize: null
 
-    readonly property bool pending: _debounce.running || _retry.running
+    readonly property bool pending: root._pendingForDir || _debounce.running || _retry.running
 
     signal loaded(string raw)
     signal loadFailed(var error)
@@ -94,6 +94,7 @@ Scope {
             // clear the candidate on failure, or the same text stays mistaken for an already-persisted value forever
             root.lastSavedText = ""
             root.failureCount++
+            if (root.failureCount === 1) ConfigStore.ensureDirectory(true)
             if (root.failureCount <= root.maxRetries) _retry.restart()
             root.saveFailed(error)
         }

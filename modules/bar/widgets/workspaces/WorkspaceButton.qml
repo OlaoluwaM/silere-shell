@@ -40,6 +40,21 @@ Item {
     width:  cellWidth
     height: rowHeight
 
+    function _motionAllowed(): bool {
+        return root.barActive
+            && Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)
+    }
+
+    function _settleMotion(): void {
+        _enterAnim.stop()
+        _dropPulse.stop()
+        _dotFadeOut.stop()
+        _dotFadeIn.stop()
+        root.clearMarkerPass()
+        root.scale = 1.0
+        root._dotFade = root._blanked ? 0 : 1
+    }
+
     Accessible.role: Accessible.Button
     Accessible.name: "Workspace " + root.wsId
     Accessible.selected: root.active
@@ -52,7 +67,7 @@ Item {
 
     Component.onCompleted: {
         _dotFade = _blanked ? 0 : 1
-        if (!initialized || ShellSettings.reduceMotion || paging) return
+        if (!initialized || !root._motionAllowed() || paging) return
         scale = 0
         _enterAnim.start()
     }
@@ -102,7 +117,10 @@ Item {
         root.hoverReported(root.wsId, root.hovered)
         root._syncHint()
     }
-    onBarActiveChanged: root._syncHint()
+    onBarActiveChanged: {
+        root._syncHint()
+        if (!root.barActive) root._settleMotion()
+    }
     // the cell eases to a new width when it takes the marker, and the row shifts around it
     onWidthChanged: if (root.hovered) root._syncHint()
     onXChanged:     if (root.hovered) root._syncHint()
@@ -113,7 +131,7 @@ Item {
             if (button === Qt.MiddleButton) {
                 if (!Compositor.activeToplevel) return
                 Compositor.moveActiveToWorkspace(root.wsId)
-                if (!ShellSettings.reduceMotion) _dropPulse.restart()
+                if (root._motionAllowed()) _dropPulse.restart()
                 return
             }
             if (button === Qt.RightButton) {
@@ -128,7 +146,7 @@ Item {
     }
 
     on_BlankedChanged: {
-        if (ShellSettings.reduceMotion) { _dotFade = _blanked ? 0 : 1; return }
+        if (!root._motionAllowed()) { _dotFade = _blanked ? 0 : 1; return }
         _dotFadeOut.stop(); _dotFadeIn.stop()
         if (_blanked) _dotFadeOut.restart()
         else          _dotFadeIn.restart()
@@ -139,6 +157,19 @@ Item {
         root._syncHint()
     }
     onPagingChanged: if (root.paging) root.clearMarkerPass()
+
+    Connections {
+        target: ShellSettings
+        function onReduceMotionChanged() {
+            if (ShellSettings.reduceMotion) root._settleMotion()
+        }
+    }
+    Connections {
+        target: Idle
+        function onIsIdleChanged() {
+            if (Idle.isIdle) root._settleMotion()
+        }
+    }
 
     readonly property real _pulseOpacity: _urgentFx.item ? _urgentFx.item.pulseOpacity : 1.0
     readonly property real _shakeX: _urgentFx.item ? _urgentFx.item.shakeX : 0

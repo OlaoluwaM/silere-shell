@@ -18,6 +18,8 @@ MenuRow {
     property bool   expandable:   false
     property bool   expanded:     false
     property bool   passive:      false
+    // a value that is a call to action, not a datum: it reads as accent like an armed row does
+    property bool   valueIsAction: false
 
     rowHovered:     _hover.hovered
     rowPressed:     _tap.pressed
@@ -164,8 +166,9 @@ MenuRow {
             horizontalAlignment: Text.AlignRight
             elide:          Text.ElideRight
             text:           root.valueText
-            color:          root.active ? Theme.mix(root.accentColor, Theme.text, 0.18)
-                                        : Theme.withAlpha(Theme.text, 0.60)
+            color:          (root.active || (root.valueIsAction && root._canTap))
+                                ? Theme.mix(root.accentColor, Theme.text, 0.18)
+                                : Theme.withAlpha(Theme.text, 0.60)
             font.pixelSize: Settings.fontLabel
             font.weight:    Font.Medium
             ColorFade on color {}

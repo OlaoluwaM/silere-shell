@@ -542,6 +542,12 @@ if [ -n "$bare_behaviors" ]; then
 else
   ok "motion" "every Behavior carries the reduce-motion gate"
 fi
+if grep -qF 'enabled: gate && !ShellSettings.reduceMotion && !Idle.isIdle' \
+    config/MotionBehavior.qml; then
+  ok "motion" "shared Behaviors settle while the display is blanked"
+else
+  fail "MotionBehavior must suppress one-shot background motion while Idle.isIdle"
+fi
 # PulseLoop derives running from `active` so the gate cannot be bypassed. Setting
 # running: directly reintroduces an infinite loop that spins at zero duration.
 # -print0/xargs: an unquoted $(find) word-splits on a path containing a space,
@@ -565,6 +571,13 @@ if [ -n "$pulse_running" ]; then
   printf '%s\n' "$pulse_running"
 else
   ok "motion" "PulseLoop gating stays on active"
+fi
+
+if grep -qF 'if (duration <= 0 || ShellSettings.reduceMotion)' config/PulseLoop.qml \
+    && grep -qF 'if (running) stop()' config/PulseLoop.qml; then
+  ok "motion" "infinite pulses stop before a zero-duration restart"
+else
+  fail "PulseLoop must stop when its live duration collapses to zero"
 fi
 
 section "bar widget sleep state"
@@ -1024,6 +1037,30 @@ else
     ok "config store" "paths and directory readiness have one owner"
 fi
 
+if grep -qF 'root._pendingForDir || _debounce.running || _retry.running' config/PersistedFile.qml \
+    && grep -qF 'ConfigStore.ensureDirectory(true)' config/PersistedFile.qml \
+    && grep -qF 'mkdir -m 0700 -p -- \"$1\" || exit $?' services/ConfigStore.qml \
+    && grep -qF 'chmod 0700 -- \"$1\" || exit $?' services/ConfigStore.qml; then
+    ok "config recovery" "waiting writes and failed directory setup stay failed until repaired"
+else
+    fail "config writes must track directory waits, recheck failures, and preserve setup exit status"
+fi
+
+# Text.HorizontalFit shrinks rather than truncates, so probe-fit's Text.truncated scan
+# cannot see a chip row whose cap stopped growing with the type
+if grep -qF 'Math.max(236, Settings.fontLabel * 22)' modules/menu/controls/ChoiceChipRow.qml; then
+    ok "chip width" "the segmented-control cap grows with its label font"
+else
+    fail "ChoiceChipRow's width cap must scale with Settings.fontLabel, or its chips lose their padding at the largest type"
+fi
+
+if grep -qF '_detectProc._generation = root._detectGeneration' services/CpuTemp.qml \
+    && grep -qF '!root._detectionIsCurrent(_detectProc._generation)' services/CpuTemp.qml; then
+    ok "temperature probe" "canceled sensor discovery results are generation-guarded"
+else
+    fail "CpuTemp must reject sensor-discovery results from canceled generations"
+fi
+
 xdg_path_bypass="$(grep -RInE --include='*.qml' \
   'Quickshell\.env\("(XDG_(CONFIG|CACHE|STATE)_HOME|XDG_RUNTIME_DIR)"\)' \
   shell.qml modules services config \
@@ -1421,6 +1458,24 @@ if [ -n "$multi_surface_services" ]; then
   fail "these services enumerate panels instead of gating on ControlSurfaces:$multi_surface_services"
 else
   ok "surfaces" "no service enumerates panel state singletons"
+fi
+
+section "boot arming"
+# A singleton is only created once something reads a member of it, so a watcher nothing
+# else references never starts and its events are silently lost. The armed marker is how
+# a service declares it needs that read, and shell.qml is the only place it happens.
+unarmed_services=""
+for f in services/*.qml; do
+  grep -qE '^[[:space:]]*readonly property bool armed' "$f" || continue
+  svc="$(basename "$f" .qml)"
+  if ! grep -qE "(^|[^A-Za-z0-9_])${svc}\.armed" shell.qml; then
+    unarmed_services="$unarmed_services $svc"
+  fi
+done
+if [ -n "$unarmed_services" ]; then
+  fail "these services declare an armed marker shell.qml never reads:$unarmed_services"
+else
+  ok "arming" "every armed service is read at startup"
 fi
 
 section "pointer-only interaction"

@@ -54,15 +54,41 @@ Singleton {
         return -1
     }
 
+    // BlueZ reports a speaker as audio-card, so the generic audio branch has to come last
     function deviceGlyph(icon): string {
         const s = (icon || "").toLowerCase()
-        if (s.indexOf("headset") >= 0 || s.indexOf("headphone") >= 0 || s.indexOf("audio") >= 0) return "󰋋"
+        if (s.indexOf("headset") >= 0 || s.indexOf("headphone") >= 0) return "󰋋"
+        if (s.indexOf("speaker") >= 0 || s.indexOf("audio-card") >= 0) return "󰓃"
         if (s.indexOf("mouse") >= 0)    return "󰍽"
         if (s.indexOf("keyboard") >= 0) return "󰌌"
+        if (s.indexOf("gaming") >= 0)   return "󰊴"
+        if (s.indexOf("tablet") >= 0)   return "󰓷"
         if (s.indexOf("phone") >= 0)    return "󰏳"
-        if (s.indexOf("speaker") >= 0)  return "󰓃"
         if (s.indexOf("watch") >= 0)    return "󰖉"
+        if (s.indexOf("computer") >= 0) return "󰌢"
+        if (s.indexOf("printer") >= 0)  return "󰐪"
+        if (s.indexOf("display") >= 0 || s.indexOf("television") >= 0) return "󰔂"
+        if (s.indexOf("camera") >= 0)   return "󰄀"
+        if (s.indexOf("player") >= 0)   return "󰎇"
+        if (s.indexOf("audio") >= 0)    return "󰋋"
         return "󰂱"
+    }
+
+    readonly property string statusText: {
+        if (!root.enabled) return "Off"
+        if (root.connectedCount === 0) return "Not connected"
+        if (root.connectedCount > 1) return root.connectedCount + " connected"
+        return root.connectedBattery >= 0
+            ? root.connectedName + "  " + root.connectedBattery + "%"
+            : root.connectedName
+    }
+
+    readonly property string connectedGlyph: {
+        for (let i = 0; i < _devices.length; i++) {
+            const d = _devices[i]
+            if (d && d.connected) return root.deviceGlyph(d.icon)
+        }
+        return ""
     }
 
     function _sortedDevices(): var {

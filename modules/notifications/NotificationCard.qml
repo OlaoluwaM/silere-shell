@@ -28,8 +28,17 @@ Item {
         : card.stackSize <= 4 ? 50 : 66
 
     property bool _expired: false
+    property bool _leaving: false
     // dismiss-all clears this: every card is leaving, so collapsing heights only drags the lower ones through their own exit
     property bool collapseOnDismiss: true
+
+    function _completeDismiss(): void {
+        if (!card._leaving) return
+        _exitTimer.stop()
+        _collapseAnim.stop()
+        card._leaving = false
+        card.dismissRequested(card.notifId, card.notification, card._expired)
+    }
 
     readonly property var _defaultAction: {
         const acts = notification.actions ?? []
@@ -95,6 +104,7 @@ Item {
         if (!card.enabled) return
         card.cancelReply()
         card._expired = expired === true
+        card._leaving = true
         card.leaving()
         card._collapseBasis = cardRect.height
         _autoClose.stop()
@@ -104,7 +114,7 @@ Item {
         card.enabled = false
         if (!Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)
                 || !card.visible) {
-            card.dismissRequested(card.notifId, card.notification, card._expired)
+            card._completeDismiss()
             return
         }
         if (card.collapseOnDismiss) _collapseAnim.restart()
@@ -185,7 +195,7 @@ Item {
         to: 0; duration: Motion.ms(190); easing.type: Easing.InOutCubic
     }
 
-    Timer { id: _exitTimer; interval: Motion.ms(210) + 10; onTriggered: card.dismissRequested(card.notifId, card.notification, card._expired) }
+    Timer { id: _exitTimer; interval: Motion.ms(210) + 10; onTriggered: card._completeDismiss() }
 
     readonly property var   _rawProgress: notification.hints ? notification.hints["value"] : undefined
     readonly property real  _progressNumber: Number(_rawProgress)
@@ -209,7 +219,10 @@ Item {
     }
 
     Component.onCompleted: _updateTime()
-    onVisibleChanged: if (visible) _updateTime()
+    onVisibleChanged: {
+        if (!visible && card._leaving) card._completeDismiss()
+        else if (visible) card._updateTime()
+    }
 
     Timer {
         id: _timeUpdate
@@ -307,10 +320,19 @@ Item {
             // an open reply holds the countdown, so nothing else would ever retire this card
             if (Idle.isIdle) {
                 card.cancelReply()
+                // this can remove the delegate synchronously: keep it last
+                card._completeDismiss()
                 return
             }
             card._updateTime()
             card._syncCountdown()
+        }
+    }
+
+    Connections {
+        target: ShellSettings
+        function onReduceMotionChanged() {
+            if (ShellSettings.reduceMotion) card._completeDismiss()
         }
     }
 
@@ -439,7 +461,7 @@ Item {
                     anchors.left:       _critIcon.visible ? _critIcon.right : parent.left
                     anchors.leftMargin: _critIcon.visible ? 6 : 0
                     anchors.right:      parent.right
-                    anchors.rightMargin: 18
+                    anchors.rightMargin: 30
                     text:           card.summaryText
                     // glyph, rim and ring already carry urgency; red text on the red-tinted fill only costs contrast
                     color:          Theme.text
@@ -711,8 +733,9 @@ Item {
         Rectangle {
             anchors.top:         parent.top
             anchors.right:       parent.right
-            anchors.topMargin:   7
-            anchors.rightMargin: 7
+            // the disc rides the content grid and centres on the summary's first line
+            anchors.topMargin:   13 + Math.round((_summary.implicitHeight - height) / 2)
+            anchors.rightMargin: 16
             width: 24; height: 24; radius: 12
             antialiasing: true
             color:        _closeHover.hovered ? Theme.withAlpha(Theme.error, 0.18) : Theme.menuControl

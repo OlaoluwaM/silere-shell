@@ -157,7 +157,8 @@ Item {
                 Timer {
                     interval: 15000
                     running: root.barActive && _tile.needsAttention
-                        && !_tile._attentionSettled && !Idle.isIdle
+                        && !_tile._attentionSettled
+                        && Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)
                     onTriggered: _tile._attentionSettled = true
                 }
 

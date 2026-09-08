@@ -52,7 +52,7 @@ Singleton {
 
         for (let i = 0; i < clients.length; i++) {
             const c = clients[i]
-            if (!c || !c.ref || c.wsId < 0 || !matches(c)) continue
+            if (!c || !c.ref || c.wsId === -1 || !matches(c)) continue
 
             const rank = c.focusRank ?? 9999
             if (!bestAny || rank < (bestAny.focusRank ?? 9999))
@@ -189,10 +189,12 @@ Singleton {
         "chrome", "chromium", "brave", "edge", "opera", "vivaldi", "thorium"
     ]
 
-    function _resolveByDesktopEntry(clients, name): var {
+    function _resolveByDesktopEntry(clients, name, lookup): var {
         const identity = root._norm(name)
         if (identity.length === 0) return null
-        const de = DesktopEntries.heuristicLookup(identity)
+        // The optional lookup keeps this matching layer probeable without loading a desktop
+        // database; production callers continue to use the shared resolver.
+        const de = lookup ? lookup(identity) : DesktopEntries.heuristicLookup(identity)
         const startupClass = de?.startupClass ? String(de.startupClass) : ""
         const desktopId    = de?.id ? String(de.id) : ""
         let best = null
@@ -214,11 +216,11 @@ Singleton {
         const deHint  = root._norm(notification.desktopEntry || hints["desktop-entry"] || "")
 
         const pidMatch = root._clientFromPidChain(clients, pidHint, followPidParents)
-        if (pidMatch && pidMatch.wsId >= 0) return pidMatch
+        if (pidMatch && pidMatch.wsId !== -1) return pidMatch
 
         if (deHint.length > 0) {
             const bestDesktop = root._chooseMatchingSource(clients, c => root._classMatches(c, deHint))
-            if (bestDesktop && bestDesktop.wsId >= 0) return bestDesktop
+            if (bestDesktop && bestDesktop.wsId !== -1) return bestDesktop
         }
 
         const appName = root._norm(notification.appName)
@@ -229,7 +231,7 @@ Singleton {
         if (!bestApp)
             bestApp = root._resolveByDesktopEntry(clients, appName)
 
-        return (bestApp && bestApp.wsId >= 0) ? bestApp : null
+        return (bestApp && bestApp.wsId !== -1) ? bestApp : null
     }
 
     function focusNotificationSource(notification): void {

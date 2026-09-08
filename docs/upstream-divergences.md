@@ -39,6 +39,7 @@ docs/releasing.md
 docs/releases
 docs/install.md
 docs/performance.md
+docs/perf-history.md
 docs/scripting.md
 docs/troubleshooting.md
 .github/workflows
@@ -50,6 +51,10 @@ modules/menu/controls/UpdateStatusCard.qml
 modules/menu/settings/SettingsUpdatesSection.qml
 services/ShellUpdate.qml
 services/Updates.qml
+release.json
+scripts/silere
+scripts/doctor.sh
+scripts/test-update.sh
 <!-- keep-deleted:end -->
 
 ci-lint enforces the list: a path here that exists again fails the gate,
@@ -69,6 +74,25 @@ so resurrecting one on purpose means removing its line in the same commit.
 
 ## Feature collisions — standing resolutions
 
+- Bar hover tooltips remain enabled and configurable. Keep `BarHintState`,
+  `BarHintPopup`, the popup host, and every widget's hint bindings together.
+- Palette changes keep the fork's central `MatugenTheme` transition and its
+  leaf-fade gate. Do not introduce upstream's parallel `PaletteFade` mechanism
+  or replace the fork's glass and control tokens with upstream's palette.
+- Sound keeps the fork's audio service, sound settings, privacy widget, and
+  `audio` IPC contract. Do not add a second microphone widget or replace its
+  controls with `PwVolumeControl`; compatible device and lifecycle fixes can
+  be adapted without changing those interfaces.
+- Dynamic workspaces keep the fork's occupied-workspace list and trailing
+  empty workspace. Upstream's slot/app-model extraction must not replace
+  those semantics or its marker behavior as a side effect of a merge.
+- Night light keeps the systemd service backend and the lock action keeps
+  its existing provider selection. Additional upstream provider settings
+  require a separate decision with their backend and UI consumers.
+- Settings keep backups before reset and migration, backup permission
+  hardening, locked widget-order scrubbing, and future-version preservation.
+  Ordered migrations may replace legacy transforms without removing those
+  protections; migration output is written only after successful loading.
 - Menu pages restore retention for the active tab whenever the menu reopens.
   A hover-warmed window can survive its close grace after releasing that page;
   reopening the same tab must rebuild it even when the tab id has not changed.

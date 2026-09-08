@@ -698,12 +698,14 @@ Singleton {
 
         onNotification: (n) => {
             root._ensurePersistentState()
-            if (root.dnd && n.urgency !== NotificationUrgency.Critical) {
+            const bypasses = ShellSettings.notifCriticalBypass
+                && n.urgency === NotificationUrgency.Critical
+            if (root.dnd && !bypasses) {
                 root._archiveNotification(n, n.id, Date.now())
                 n.tracked = false
                 return
             }
-            if (root.fullscreenSilenced && n.urgency !== NotificationUrgency.Critical) {
+            if (root.fullscreenSilenced && !bypasses) {
                 root._archiveNotification(n, n.id, Date.now())
                 n.tracked = false
                 return

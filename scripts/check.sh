@@ -484,7 +484,7 @@ if [ "$qs_usable" = 1 ]; then
     # plumbing must not drift between the smoke, coverage and bad-settings runs
     _run_shell_probe() { # logfile [ENV=val ...]
       local _log="$1"; shift
-      timeout 5s env "$@" qs -p shell.qml --no-color >"$_log" 2>&1
+      timeout --kill-after=2s 5s env "$@" qs -p shell.qml --no-color >"$_log" 2>&1
     }
 
     _smoke_cleanup() {

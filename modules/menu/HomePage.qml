@@ -280,13 +280,11 @@ PageShell {
                 id: _btRow
                 visible: root._btAvailable
                 active: Bluetooth.enabled
-                glyph: Bluetooth.enabled ? "󰂯" : "󰂲"
+                glyph: !Bluetooth.enabled ? "󰂲"
+                    : Bluetooth.connectedCount === 1 && Bluetooth.connectedGlyph.length > 0
+                        ? Bluetooth.connectedGlyph : "󰂯"
                 title: "Bluetooth"
-                status: Bluetooth.connectedCount > 0
-                    ? (Bluetooth.connectedCount === 1
-                        ? Bluetooth.connectedName + (Bluetooth.connectedBattery >= 0 ? "  " + Bluetooth.connectedBattery + "%" : "")
-                        : Bluetooth.connectedCount + " connected")
-                    : Bluetooth.enabled ? "Not connected" : "Off"
+                status: Bluetooth.statusText
                 showSwitch: true
                 expandable: Bluetooth.enabled
                 expanded: root._btPickerOpen

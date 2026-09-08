@@ -124,6 +124,7 @@ Column {
                 status: modelData.s
                 valueText: modelData.v
                 passive: !modelData.a
+                valueIsAction: !!modelData.a
                 onActivated: if (modelData.a === "matugen") SystemTools.repairMatugen()
             }
         }

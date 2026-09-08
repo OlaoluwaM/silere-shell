@@ -13,6 +13,11 @@ Singleton {
     property bool _battCritSent: false
     property bool _cpuCritSent:  false
 
+    function batteryWarningLevel(low: bool, critical: bool): string {
+        if (critical) return "critical"
+        return low ? "low" : ""
+    }
+
     function _send(summary: string, body: string, urgency: string): bool {
         if (!SystemTools.ready || !SystemTools.hasNotifySend) return false
         Quickshell.execDetached([
@@ -27,7 +32,9 @@ Singleton {
     }
 
     function _checkBattLow(): void {
-        if (Battery.low && ShellSettings.osdBatteryWarn && !_battLowSent) {
+        // one backend update can cross both thresholds; critical wins so the jump sends one
+        if (root.batteryWarningLevel(Battery.low, Battery.critical) === "low"
+                && ShellSettings.osdBatteryWarn && !_battLowSent) {
             if (_send("Battery Low",
                 Math.round(Battery.pct) + "% remaining — consider plugging in",
                 "normal")) _battLowSent = true
@@ -49,8 +56,9 @@ Singleton {
     }
 
     function _checkCurrentWarnings(): void {
-        if (Battery.critical) _checkBattCrit()
-        else _checkBattLow()
+        const level = root.batteryWarningLevel(Battery.low, Battery.critical)
+        if (level === "critical") _checkBattCrit()
+        else if (level === "low") _checkBattLow()
         _checkCpuCrit()
     }
 
