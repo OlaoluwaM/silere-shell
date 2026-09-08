@@ -71,9 +71,12 @@ one of the three files, so follow the pointers instead of restating.
 
 ## QML work
 
-- Load the `qt-development-skills:qt-qml` skill before editing QML. Run
-  `qt-development-skills:qt-qml-review` to completion after substantial
-  QML changes. If neither skill is available install them, then inform the user that the session needs to be reloaded before they can become available
+- Load `qt-qml` (Claude plugin: `qt-development-skills:qt-qml`) before
+  editing QML. Run the repository-local
+  [qt-qml-review](.agents/skills/qt-qml-review/SKILL.md) to completion after
+  substantial QML changes. Its references resolve relative to its skill folder.
+  If `qt-qml` is unavailable, install it and reload skill discovery. The review
+  skill is checked into this repository; do not install a global copy.
 - Colors come from `Theme` tokens only; no hex in widgets. Motion goes
   through `Motion`/`MotionBehavior`, never a bare `Behavior`. Row heights
   come from `Metrics.rowHeightFor()`. The lint scripts enforce all three.
