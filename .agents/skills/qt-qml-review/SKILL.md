@@ -60,6 +60,23 @@ all matched files.
 
 The review proceeds in three phases. **Never skip a phase.**
 
+For every verification command, retain the exact command, its output,
+and its own exit status. Run commands separately by default. If they
+must share one shell invocation, capture and label those three items
+for each command; a combined result cannot establish an individual
+result. Report each step as:
+
+- **completed**: its own result was captured; separately state whether
+  the output contains findings. Exit zero establishes successful
+  execution, not necessarily a clean lint result.
+- **failed**: its own result shows the command could not complete.
+- **skipped**: the tool was unavailable or the step did not run.
+- **inconclusive**: the command may have run, but its result cannot be
+  isolated or the captured evidence is insufficient.
+
+Include the reason for every non-completed status. Never infer one
+command's status from another command in the same shell invocation.
+
 ### Phase 1: Deterministic linting (Python script)
 
 Run the unified Python linter against the target files. Requires
@@ -79,6 +96,8 @@ deterministic and repeatable. The linter is authoritative -- do not
 second-guess its output.
 
 Collect all output before proceeding.
+
+Only merge findings from attributable linter output.
 
 **Rule categories** (47+ checks):
 - **IMP** (Imports) -- ordering, versioning, redundancy, deprecation
@@ -116,6 +135,10 @@ level checks (unresolved types, incompatible assignments, alias
 cycles). The Python linter is authoritative for style, ordering,
 and performance patterns that qmllint does not cover.
 
+Record `qmllint` separately from tool detection and runtime commands.
+An import-resolution error is a failed run, not a missing-tool skip.
+Only merge diagnostics from valid, attributable `qmllint` output.
+
 ### Phase 2: Agent-driven deep analysis (6 parallel agents)
 
 Launch six focused review agents in parallel. Name each agent
@@ -146,6 +169,11 @@ Merge lint script output, qmllint output (if available), and all
 agent findings. Deduplicate (same file+line+issue = one finding).
 Apply confidence scoring. Format the final report using the output
 format below.
+
+Track each agent mission independently. Report `6/6` only when all six
+return usable results; otherwise name every missing or partial mission.
+Consolidate usable findings without treating lint, runtime checks, or
+partial agent coverage as evidence that another category completed.
 
 ## Agent missions
 
@@ -338,7 +366,13 @@ Present the final report as follows. Use exactly this structure.
 **Scope**: [diff: `git diff HEAD~1..HEAD` | files: <paths>]
 **Files reviewed**: N
 **Issues found**: N (M from lint, K from deep analysis)
-**qmllint**: [ran / not available]
+**Python lint**: [completed: clean/findings | failed | skipped |
+inconclusive] -- [command, exit status, concise evidence or reason]
+**qmllint**: [completed: clean/findings | failed | skipped |
+inconclusive] -- [command, exit status, concise evidence or reason]
+**Runtime checks**: [not run | status, command, exit status, evidence]
+**Deep-analysis coverage**: [6/6 complete | N/6 complete; missing or
+partial: <mission names and limits>]
 
 ---
 
@@ -396,6 +430,9 @@ For each investigation target:
 | **Total**| **M**| **K**| **I**       | **N** |
 
 Findings below confidence 60 are suppressed entirely.
+
+Keep failed, skipped, or inconclusive checks and incomplete agent
+coverage visible even when no code issue was found.
 ```
 
 ## References
