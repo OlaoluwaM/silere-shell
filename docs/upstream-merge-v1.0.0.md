@@ -162,3 +162,9 @@ simulated idle transitions on a temporary Wayland surface and checks startup,
 pending entrance, interrupted exit, and reduced-motion endpoints (seven
 assertions). It does not blank the desktop or establish real compositor idle
 event delivery.
+
+Workspace activation also retains the missing-data menu fallback from upstream
+`38d4c2268a4b61f78825c845ece45e983e68448e`. The logic probe checks that
+unavailable monitor data opens the menu without activating a workspace or
+pulsing its marker, while ready active/inactive workspaces retain their
+existing behavior.

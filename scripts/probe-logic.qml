@@ -565,6 +565,26 @@ ShellRoot {
             initialized: true, paging: false, markerCovers: true,
             screen: Quickshell.screens[0] ?? null
         })
+        let menuRequests = 0
+        let workspaceRequests = 0
+        let markerRequests = 0
+        crossingCell.anchorMenuRequested.connect(() => menuRequests++)
+        crossingCell.activateRequested.connect(() => workspaceRequests++)
+        crossingCell.markerPulseRequested.connect(() => markerRequests++)
+        crossingCell.monitorReady = false
+        crossingCell._activate()
+        root._check(menuRequests === 1 && workspaceRequests === 0 && markerRequests === 0,
+            "a workspace button opens the menu while compositor data is unavailable")
+        menuRequests = 0
+        crossingCell.monitorReady = true
+        crossingCell._activate()
+        root._check(menuRequests === 0 && workspaceRequests === 1,
+            "an inactive workspace still activates once compositor data is ready")
+        crossingCell.active = true
+        crossingCell._activate()
+        root._check(menuRequests === 1 && workspaceRequests === 1 && markerRequests === 1,
+            "the active workspace still opens its menu and pulses the marker")
+        crossingCell.active = false
         crossingCell.playMarkerPass(0)
         root._check(crossingCell && crossingCell.markerPassActive,
             "a crossed workspace starts its fade hand-off")

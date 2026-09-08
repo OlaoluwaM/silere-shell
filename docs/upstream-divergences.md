@@ -88,6 +88,8 @@ so resurrecting one on purpose means removing its line in the same commit.
 - Dynamic workspaces keep the fork's occupied-workspace list and trailing
   empty workspace. Upstream's slot/app-model extraction must not replace
   those semantics or its marker behavior as a side effect of a merge.
+  Menu access must remain available when compositor workspace data is not
+  ready, without requesting workspace activation or a marker pulse.
 - Night light keeps the systemd service backend and the lock action keeps
   its existing provider selection. Additional upstream provider settings
   require a separate decision with their backend and UI consumers.

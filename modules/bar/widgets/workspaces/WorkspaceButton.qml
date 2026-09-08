@@ -88,7 +88,11 @@ Item {
     }
 
     function _activate(): void {
-        if (!root.monitorReady) return
+        // Opening the menu does not depend on compositor workspace data.
+        if (!root.monitorReady) {
+            root.anchorMenuRequested()
+            return
+        }
         if (root.active) {
             root.markerPulseRequested()
             root.anchorMenuRequested()
