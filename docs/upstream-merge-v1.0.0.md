@@ -142,3 +142,16 @@ interruptions use targeted probes rather than induced desktop conditions.
 The merge does not activate the packaged shell. Publishing the branch,
 creating the post-merge tag, updating the Nix input lock, and deployment
 validation remain the maintainer's steps in README order.
+
+## Review follow-ups
+
+The migration follow-up blocks persistence when the legacy-file backup fails.
+The same gate covers immediate migration, user edits, queued widget-order
+scrubbing, and reload teardown. A later load can retry the unchanged source;
+backup retries alternate trailing whitespace so FileView performs the write.
+The isolated regression covers failed backups with unlocked and locked widget
+orders, editing and reloading while blocked, recovery after repair, and
+unchanged current/future-version files. An accepted external replacement
+invalidates the previous save cache so equivalent migrated values still reach
+disk. The write block protects the loaded legacy source; replacing or removing
+that source follows the existing load policy.

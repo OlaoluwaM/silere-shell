@@ -790,18 +790,21 @@ Singleton {
     }
 
     property bool _backupWriteSucceeded: false
+    property bool _backupAlternate: false
 
     function _backupSettingsText(tag: string, text: string): bool {
         const body = (text || "").trim()
         if (body.length === 0) return false
         root._backupWriteSucceeded = false
         _backupFile.path = ConfigStore.directory + "/settings." + tag + ".bak.json"
-        _backupFile.setText(body)
+        // FileView coalesces identical text even after failure; a retry must reach disk.
+        root._backupAlternate = !root._backupAlternate
+        _backupFile.setText(body + (root._backupAlternate ? "\n" : "\n\n"))
         return root._backupWriteSucceeded
     }
 
-    function _backupSettings(tag: string): void {
-        root._backupSettingsText(tag, root._diskText)
+    function _backupSettings(tag: string): bool {
+        return root._backupSettingsText(tag, root._diskText)
     }
 
     FileView {
@@ -828,6 +831,7 @@ Singleton {
     function _applyText(t: string): void {
         const raw = (t || "").trim()
         let migrationApplied = false
+        let migrationBackupSucceeded = true
         // our own atomic write echoes back through the watcher; skip it
         if (_store.writeAllowed && raw === _store.lastSavedText) {
             root._appliedText = raw
@@ -836,7 +840,7 @@ Singleton {
         }
         // the startup chmod trips the watcher too: re-running the reload path below would bounce
         // every setting through its default and back, rebuilding the bar on the way
-        if (_loaded && raw === root._appliedText) return
+        if (_loaded && _store.writeAllowed && raw === root._appliedText) return
         try {
             let parsed = JSON.parse(raw || "{}")
             if (parsed === null || Array.isArray(parsed) || typeof parsed !== "object")
@@ -845,7 +849,9 @@ Singleton {
                 ? parsed.__version : 0
             const onDiskVersion = Math.max(0, Math.floor(rawVersion))
             if (onDiskVersion < _settingsVersion && Object.keys(parsed).length > 0) {
-                _backupSettings("v" + onDiskVersion)
+                migrationBackupSucceeded = root._backupSettings("v" + onDiskVersion)
+                if (!migrationBackupSucceeded)
+                    root._backupError = "Could not back up settings. Saving is paused; fix the backup path and reload the shell."
                 const migration = root._migrateSettingsObject(parsed, onDiskVersion)
                 parsed = migration.value
                 migrationApplied = migration.applied.length > 0
@@ -901,7 +907,10 @@ Singleton {
             else if (root.barBorderVisible) root.underlineLastStyle = "static"
             root._appliedText = raw
             root._readError = ""
-            _store.writeAllowed = true
+            // An external replacement invalidates the previous write's disk echo.
+            _store.lastSavedText = ""
+            // All writers, including queued changes and reload teardown, share this gate.
+            _store.writeAllowed = migrationBackupSucceeded
         } catch(e) {
             _store.writeAllowed = false
             root._readError = "Could not read settings.json. Current settings were kept."

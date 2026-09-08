@@ -92,7 +92,11 @@ so resurrecting one on purpose means removing its line in the same commit.
 - Settings keep backups before reset and migration, backup permission
   hardening, locked widget-order scrubbing, and future-version preservation.
   Ordered migrations may replace legacy transforms without removing those
-  protections; migration output is written only after successful loading.
+  protections; migration output is written only after successful loading and
+  backup. A failed migration backup blocks all settings writes, including
+  queued edits and reload teardown, while that legacy source remains loaded.
+  Retrying identical backup text must reach disk; an external replacement
+  invalidates the previous save cache and follows the normal load policy.
 - Menu pages restore retention for the active tab whenever the menu reopens.
   A hover-warmed window can survive its close grace after releasing that page;
   reopening the same tab must rebuild it even when the tab id has not changed.
