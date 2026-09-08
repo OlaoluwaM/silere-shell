@@ -64,3 +64,4 @@ bash scripts/test-history-grouping.sh
 bash scripts/test-popup-lifecycle.sh
 bash scripts/test-config-recovery.sh
 bash scripts/test-settings-migration.sh
+bash scripts/test-bar-hint-idle.sh

@@ -49,7 +49,7 @@ PanelWindow {
 
     on_ShownChanged: {
         if (!win._ready) return
-        if (ShellSettings.reduceMotion) {
+        if (!Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)) {
             win._settle()
         } else if (win._shown) {
             _exit.stop()
@@ -62,7 +62,7 @@ PanelWindow {
 
     Component.onCompleted: {
         win._rise = win._hiddenRise()
-        if (ShellSettings.reduceMotion) {
+        if (!Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)) {
             win._ready = true
             win._settle()
         } else {
@@ -74,6 +74,16 @@ PanelWindow {
         target: ShellSettings
         function onReduceMotionChanged() {
             if (!ShellSettings.reduceMotion) return
+            _startupFrame.stop()
+            win._ready = true
+            win._settle()
+        }
+    }
+
+    Connections {
+        target: Idle
+        function onIsIdleChanged() {
+            if (!Idle.isIdle) return
             _startupFrame.stop()
             win._ready = true
             win._settle()

@@ -76,6 +76,8 @@ so resurrecting one on purpose means removing its line in the same commit.
 
 - Bar hover tooltips remain enabled and configurable. Keep `BarHintState`,
   `BarHintPopup`, the popup host, and every widget's hint bindings together.
+  The retained popup must also take compatible upstream idle-settle fixes,
+  including cancellation of its pending startup frame.
 - Palette changes keep the fork's central `MatugenTheme` transition and its
   leaf-fade gate. Do not introduce upstream's parallel `PaletteFade` mechanism
   or replace the fork's glass and control tokens with upstream's palette.

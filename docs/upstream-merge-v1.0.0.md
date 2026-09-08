@@ -155,3 +155,10 @@ unchanged current/future-version files. An accepted external replacement
 invalidates the previous save cache so equivalent migrated values still reach
 disk. The write block protects the loaded legacy source; replacing or removing
 that source follows the existing load policy.
+
+The retained tooltip now includes the idle-settle changes from upstream
+`e0a5799cbebb13c3326462e8a8bb9570864d2177`. Its private regression drives
+simulated idle transitions on a temporary Wayland surface and checks startup,
+pending entrance, interrupted exit, and reduced-motion endpoints (seven
+assertions). It does not blank the desktop or establish real compositor idle
+event delivery.
