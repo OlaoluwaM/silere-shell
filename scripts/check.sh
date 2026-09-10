@@ -448,6 +448,26 @@ elif grep -q '^SKIP' "$qml_log"; then
 fi
 rm -f "$qml_log"
 
+section "bump animation"
+if [ "$qs_usable" != 1 ]; then
+  warn "bump" "not run: Quickshell will not start"
+elif [ -f scripts/test-bump-animation.sh ]; then
+  bump_out=""
+  if bump_out="$(bash scripts/test-bump-animation.sh 2>&1)"; then
+    if printf '%s' "$bump_out" | grep -q '^SKIP'; then
+      warn "bump" "$(printf '%s' "$bump_out" | sed -n 's/^SKIP: //p' | head -1)"
+    else
+      ok "bump" "$bump_out"
+    fi
+  else
+    status=1
+    fail "bump" "behavioral probe failed"
+    printf '%s\n' "$bump_out"
+  fi
+else
+  fail "bump" "scripts/test-bump-animation.sh missing"
+fi
+
 section "behavioral logic"
 if [ "$qs_usable" != 1 ]; then
   warn "logic" "not run: Quickshell will not start"

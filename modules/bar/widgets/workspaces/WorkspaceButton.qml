@@ -47,11 +47,10 @@ Item {
 
     function _settleMotion(): void {
         _enterAnim.stop()
-        _dropPulse.stop()
+        _dropPulse.retire()
         _dotFadeOut.stop()
         _dotFadeIn.stop()
         root.clearMarkerPass()
-        root.scale = 1.0
         root._dotFade = root._blanked ? 0 : 1
     }
 
@@ -81,10 +80,11 @@ Item {
         NumberAnimation { target: root; property: "scale"; to: 1.0; duration: Motion.ms(130); easing.type: Easing.OutCubic }
     }
 
-    SequentialAnimation {
+    BumpAnimation {
         id: _dropPulse
-        NumberAnimation { target: root; property: "scale"; to: 1.12; duration: Motion.ms(70);  easing.type: Easing.OutQuad  }
-        NumberAnimation { target: root; property: "scale"; to: 1.0;  duration: Motion.ms(145); easing.type: Easing.OutCubic }
+        target: root
+        targetProperty: "scale"
+        peak: 1.12
     }
 
     function _activate(): void {

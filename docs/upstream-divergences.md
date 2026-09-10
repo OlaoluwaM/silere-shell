@@ -88,11 +88,20 @@ so resurrecting one on purpose means removing its line in the same commit.
 - Dynamic workspaces keep the fork's occupied-workspace list and trailing
   empty workspace. Upstream's slot/app-model extraction must not replace
   those semantics or its marker behavior as a side effect of an import.
+  Shared bump helpers may replace the matching gestures while retaining the
+  fork's separate workspace entry animation; do not add upstream's slot-swap
+  fade as part of that consolidation.
+  Bump retriggering preserves the current value. Keep gate cleanup explicit
+  through `retire()`; upstream's reset-on-stop handler causes a jump during
+  rapid marker retriggering because `restart()` first stops the animation.
   Menu access must remain available when compositor workspace data is not
   ready, without requesting workspace activation or a marker pulse.
 - Night light keeps the systemd service backend and the lock action keeps
   its existing provider selection. Additional upstream provider settings
   require a separate decision with their backend and UI consumers.
+- The floating OSD keeps its height and slide transitions. Shared bump
+  consolidation applies to the bar OSD's existing nudge without adding
+  upstream's floating OSD bump to the fork.
 - Settings keep backups before reset and migration, backup permission
   hardening, locked widget-order scrubbing, and future-version preservation.
   Ordered migrations may replace legacy transforms without removing those

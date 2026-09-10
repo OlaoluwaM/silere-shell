@@ -10,6 +10,7 @@ singleton Metrics       1.0 Metrics.qml
 singleton Settings      1.0 Settings.qml
 
 # helpers
+BumpAnimation 1.0 BumpAnimation.qml
 ColorFade 1.0 ColorFade.qml
 Disclosure 1.0 Disclosure.qml
 MotionBehavior 1.0 MotionBehavior.qml

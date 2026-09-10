@@ -580,6 +580,93 @@ else
   fail "PulseLoop must stop when its live duration collapses to zero"
 fi
 
+# A rise-then-settle on one property is the shell's tactile acknowledgement, and it
+# drifted across five copies before BumpAnimation owned it. A bump's asymmetric durations
+# distinguish it from a symmetric one-shot breath, which is a different gesture and stays
+# hand-rolled.
+hand_bump="$(find modules services -name '*.qml' -print0 \
+  | xargs -0 -r awk '
+  {
+    line = $0
+    sub(/\/\/.*/, "", line)
+    if (!inseq && line ~ /SequentialAnimation[[:space:]]*\{/) {
+      inseq = 1; depth = 0; n = 0; bad = 0
+    }
+    if (inseq) {
+      if (line ~ /NumberAnimation[[:space:]]*\{.*\}/) {
+        prop = line; dur = line
+        if (sub(/.*property:[[:space:]]*/, "", prop)) sub(/[;}].*/, "", prop); else prop = "?" n
+        if (sub(/.*duration:[[:space:]]*/, "", dur))  sub(/[;}].*/, "", dur);  else dur  = "?" n
+        n++
+        if (n == 1) { p1 = prop; d1 = dur; first = FNR }
+        else if (n == 2) { p2 = prop; d2 = dur }
+      } else if (line ~ /(Pause|Script|Color|Property|Parallel)[A-Za-z]*[[:space:]]*\{/) {
+        bad = 1
+      }
+      depth += gsub(/\{/, "{", line) - gsub(/\}/, "}", line)
+      if (depth <= 0) {
+        if (!bad && n == 2 && p1 == p2 && d1 != d2)
+          print FILENAME ":" first ": " p1
+        inseq = 0
+      }
+    }
+  }
+' || true)"
+if [ -n "$hand_bump" ]; then
+  fail "use BumpAnimation instead of a hand-rolled rise-then-settle:"
+  printf '%s\n' "$hand_bump"
+else
+  ok "motion" "every rise-then-settle routes through BumpAnimation"
+fi
+if grep -qF 'target[targetProperty] = rest' config/BumpAnimation.qml; then
+  ok "motion" "a retired bump lands on rest"
+else
+  fail "BumpAnimation.retire() must return its target to rest"
+fi
+# A bare stop preserves a bump's value for continuous retriggering. Cleanup must
+# use retire instead. Match ids within each file, including calls before the declaration.
+if ! bump_stops="$(find shell.qml modules config services -name '*.qml' -print0 \
+  | xargs -0 -r awk '
+  FNR == 1 { inbump = 0; depth = 0 }
+  {
+    line = $0
+    sub(/\/\/.*/, "", line)
+    if (!inbump && line ~ /BumpAnimation[[:space:]]*\{/) { inbump = 1; depth = 0 }
+    if (inbump) {
+      if (match(line, /(^|[;{[:space:]])id:[[:space:]]*[_[:alpha:]][_[:alnum:]]*/)) {
+        prefix = substr(line, 1, RSTART)
+        iddepth = depth + gsub(/\{/, "{", prefix) - gsub(/\}/, "}", prefix)
+        if (iddepth == 1) {
+          id = substr(line, RSTART, RLENGTH)
+          sub(/.*id:[[:space:]]*/, "", id)
+          bumps[FILENAME, id] = 1
+        }
+      }
+      depth += gsub(/\{/, "{", line) - gsub(/\}/, "}", line)
+      if (depth <= 0) inbump = 0
+    }
+    while (match(line, /(^|[^[:alnum:]_$])[_[:alpha:]][_[:alnum:]]*[[:space:]]*\.[[:space:]]*stop[[:space:]]*\(/)) {
+      call = substr(line, RSTART, RLENGTH)
+      line = substr(line, RSTART + RLENGTH)
+      sub(/^[^_[:alpha:]]/, "", call)
+      sub(/[[:space:]]*\..*/, "", call)
+      keys[++n] = FILENAME SUBSEP call
+      locations[n] = FILENAME ":" FNR ":" $0
+    }
+  }
+  END {
+    for (i = 1; i <= n; i++)
+      if (keys[i] in bumps) print locations[i]
+  }
+')"; then
+  fail "could not check BumpAnimation cleanup calls"
+elif [ -n "$bump_stops" ]; then
+  fail "use retire() for BumpAnimation cleanup instead of stop():"
+  printf '%s\n' "$bump_stops"
+else
+  ok "motion" "bump cleanup uses explicit retirement"
+fi
+
 section "bar widget sleep state"
 # A widget that never learns the bar slept keeps rolling its text and swapping its
 # glyphs behind the overview and through a blanked screen. Every entry in the map
