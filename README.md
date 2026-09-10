@@ -28,71 +28,85 @@ All this while keeping upstream's token architecture and restraint intact.
 ## There are a couple important branches
 
 - **`custom-branch`** is where all our custom work lies. It is what `nixos-config`
-  pins and where every feature lands. It's history can only be rewritten manually. Syncs with upstream/main can only be reconciled through merges, never rebases
+  pins and where every feature lands. Agents never rewrite its history;
+  selected upstream changes land as new commits.
 - **`custom-branch-testing`** for experimental stuff
-- **`upstream/main`** is upstream's development branch. We read it. We sometimes sync with it. We never write to it.
-- **`main`** (this fork's, on origin) is a clean mirror of `upstream/main`. It exists so `git diff main...custom-branch` always
-  shows the fork's true divergence. It never merges with `custom-branch`; the two branches do different jobs and stay apart on purpose.
+- **`upstream/main`** is upstream's development branch. We read it to select
+  useful changes. We never write to it.
+- **`main`** (this fork's, on origin) is a clean mirror of `upstream/main`.
+  Compare its tree with the fork using `git diff main custom-branch`.
+  Selective imports do not advance the shared ancestor, so a three-dot diff
+  does not compare the current upstream and fork trees. `main` never merges
+  with `custom-branch`; the two branches do different jobs.
 
-## Merges, not rebases
+## Selective upstream integration
 
-We take upstream by merge, and only at upstream's release tags. Never from
-the tip of `upstream/main`, so unreleased work stays out until it ships.
-Each sync is one aggregate conflict pass that ends in one honest merge
-commit (`c7d1cbd` was v0.6.1, `e3bf109` was v0.7.0). Why merge and not
-rebase:
+Select useful upstream changes individually. Releases are review checkpoints,
+with no obligation to import the release. Prioritize applicable bug fixes,
+then improvements the fork actually needs. Selected commits may come from a
+release or development history; inspect exact commits and their dependencies
+before importing either. The rationale is in
+[ADR 0003](adrs/0003-integrate-upstream-changes-selectively.md).
 
-- Another repository pins `custom-branch` by commit hash. Rewriting
-  history would orphan every lockfile that points at it.
-- Undo stays simple. A bad merge still at the tip gets dropped with a
-  reset. Once commits have stacked on top of it, revert it instead with
-  `git revert -m 1 <merge>`. If you later re-merge a release you reverted,
-  you must revert the revert first, or git treats those changes as already
-  present. Or we can drop the commit entirely
-- In conflicts, the fork's extensions win. Upstream's fixes come in where
-  they don't fight a fork redesign. The standing resolutions — what stays
-  deleted, which files merge as unions, what happens when upstream ships a
-  feature the fork already has — live in the
-  [divergence ledger](docs/upstream-divergences.md). Resolve by the ledger,
-  then walk it and retire what the merge made moot, inside the merge
-  commit. A conflict no entry anticipates and that needs a real decision
-  pauses the merge until it's settled cold.
+For each integration:
 
-Before any merge work, the maintainer creates and publishes an annotated
-safety tag on the current `custom-branch` tip. Its name is
-`pre-upstream-<release-tag>`; for example, the v0.9.0 merge anchor is created
-with `git tag -a pre-upstream-v0.9.0 a4ecf7e -m "before upstream v0.9.0"`.
-The merge does not start until that tag exists on the remote. It makes the
-pre-merge tip easy to recover without changing the rule above: reset only
-while the merge is still at the tip, and revert once later commits exist.
+1. Inspect the upstream change against the current fork. Identify its benefit,
+   prerequisites, affected fork behavior, and validation before editing. Use
+   the [divergence ledger](docs/upstream-divergences.md) to resolve collisions;
+   a design decision outside its standing rules needs maintainer judgment.
+2. Keep the scope to one coherent change and its necessary dependencies.
+   Cherry-pick compatible implementations; port the relevant behavior into
+   redesigned areas. A clean application is not proof of compatibility.
+   If dependencies materially expand the agreed scope, reassess with the
+   maintainer before importing them.
+3. Record the upstream repository and full source SHA(s) in the commit message.
+   Use `git cherry-pick -x` for direct picks and verify the provenance survives
+   conflict resolution. Adapted commits name their sources and explain the
+   material adaptations. Keep one commit per task item, per AGENTS.md.
+4. Review the affected ledger entries and update or retire them in the commit
+   that changes the divergence. Run the repository gates in
+   [AGENTS.md](AGENTS.md), plus checks of the affected fork behavior. Validate
+   interactive Hyprland changes in a throwaway instance and label mock or
+   static coverage accurately.
 
-Once the merge, its resolution record, all merge-specific follow-up commits,
-and the repository gates are complete, the maintainer creates and publishes a
-second annotated tag on that final validated HEAD. Its name is
-`post-upstream-<release-tag>`. The pre-merge and post-merge tags bracket the
-complete integration. Create the post-merge tag before unrelated work resumes,
-and never move either tag.
+Periodically review upstream changes since the last review, including fixes
+in areas we previously adapted. Record the reviewed upstream SHA and selected,
+deferred, or rejected change groups with brief reasons in a dated integration
+record under `docs/`. Reviewing a release does not mark it as imported.
 
-Before the first conflict pass, enable rerere once per clone
-(`git config rerere.enabled true`): an aborted or repeated attempt then
-replays the hunks already resolved instead of presenting them again.
+History stays intact because nixos-config pins this branch by commit. Undo a
+landed selective import with a revert, accounting for any dependent follow-ups.
+Selective integration does not authorize rebases, amendments, or resets of
+`custom-branch` history.
 
-After every merge, the same gates as any feature apply. They live in
-[AGENTS.md](AGENTS.md).
+### Exceptional full merges
 
-The v0.9.0 merge commit omitted its usual conflict narrative. Its
-[resolution record](docs/upstream-merge-v0.9.0.md) preserves those decisions
-without rewriting published branch history.
+Full release merges require a separate, explicit maintainer decision after
+reassessing their benefit, scope, and reconciliation cost. Approval for a
+selective import does not authorize a full merge. If approved, target an exact
+upstream release commit and reconcile earlier picks and adaptations using
+their provenance and the ledger.
 
-The [v1.0.0 resolution record](docs/upstream-merge-v1.0.0.md) documents the
-next integration and its retained fork behavior. Upstream's `v1.0.0` and
-the older fork tag with the same name identify different commits; the
-record gives the exact upstream release commit.
+The maintainer creates and publishes an immutable annotated
+`pre-upstream-<release-tag>` before merge work starts, then an immutable
+`post-upstream-<release-tag>` after the merge, resolution record, follow-ups,
+and gates are complete, before unrelated work resumes. These tags bracket
+the complete integration. Agents never create or publish them. Enable
+`rerere` per clone (`git config rerere.enabled true`) before resolving
+conflicts. Walk the full ledger during resolution and validation.
 
-On 2026-09-04, the maintainer explicitly authorized a one-off selection of
-unreleased commits. The [selective integration record](docs/upstream-picks-2026-09-04.md)
-records their provenance and exclusions. This exception does not change the
-release-tag policy above or authorize further development-branch imports.
+Undo a landed merge with `git revert -m 1 <merge>`, accounting for separate
+follow-up commits. Re-merging a reverted release requires addressing the
+revert first; the original merge remains in history.
+
+### Historical integrations
+
+The [v0.9.0 resolution record](docs/upstream-merge-v0.9.0.md),
+[September 4 selective integration record](docs/upstream-picks-2026-09-04.md),
+and [v1.0.0 resolution record](docs/upstream-merge-v1.0.0.md) describe work
+under the previous release-tag policy. Their historical approvals do not
+authorize new imports. Upstream's `v1.0.0` and the older fork tag with that
+name identify different commits; the v1.0.0 record gives the exact source.
 
 ## Pinning from nixos-config
 
@@ -110,7 +124,7 @@ goes in this order:
 
 One coupling rule makes the order matter. When a fork commit adds or
 removes a settings key (a packaging-only key like `recordingStopCommand`
-or `wallpaperCommand`, or an upstream merge that changes the set), nothing
+or `wallpaperCommand`, or an upstream import that changes the set), nothing
 works until `nixos-config`'s silere module renders the same set into
 `GeneratedDefaults.qml`. So the fork push, the silere-module change, and
 the re-lock have to reach the machine in the same rebuild. Never

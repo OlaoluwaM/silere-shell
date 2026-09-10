@@ -1,7 +1,8 @@
 # Agent instructions
 
 Working rules for agents in this repository. What the fork *is* (branches,
-merge policy, the nixos-config re-lock ritual) is in [README.md](README.md).
+upstream integration policy, the nixos-config re-lock ritual) is in
+[README.md](README.md).
 How to change the shell (new settings, new bar widgets, renames) is
 upstream's [docs/forking.md](docs/forking.md). Each fact lives in exactly
 one of the three files, so follow the pointers instead of restating.
@@ -13,8 +14,9 @@ one of the three files, so follow the pointers instead of restating.
 - Never restart the running shell. Test in a throwaway dev instance
   instead: `nix develop . --command qs -p shell.qml`. Quickshell
   hot-reloads the checkout when a file saves.
-- An upstream merge starts only when the maintainer explicitly says go.
-  Never start one because the context seems to point that way.
+- Import upstream changes only when the maintainer authorizes the selected
+  scope. Read-only inspection needs no approval. Follow README.md's selective
+  integration policy and its separate authorization rule for full merges.
 
 ## Compositor priority
 

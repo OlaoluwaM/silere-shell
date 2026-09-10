@@ -1,27 +1,27 @@
 # Upstream divergences
 
 The standing differences between this fork and upstream, each with the
-action a merge takes when they collide. Read this before starting an
-upstream merge; walk it after resolving and retire anything the merge made
-moot, inside the merge commit. The merge ritual itself (tags only, one
-aggregate pass, the revert recipe) is README.md's; this file only holds the
-resolutions. The rationale and trade-offs behind the doctrine are recorded
-in ADR 0002.
+action an integration takes when they collide. Read this before importing
+upstream changes; review affected entries afterward and retire anything the
+integration made moot, inside the same commit. README.md owns the selection,
+provenance, validation, and exceptional full-merge workflow; this file holds
+the standing resolutions. The current rationale is recorded in
+[ADR 0003](../adrs/0003-integrate-upstream-changes-selectively.md), which
+retains the ledger protections introduced by ADR 0002.
 
 ## Default: the fork supersedes upstream
 
 In any conflict, the fork's version wins; upstream's fixes come in where
 they don't fight a fork redesign. One exception: when upstream ships its
 own take on something the fork already built, stop and review it case by
-case — that decision pauses the merge and gets made cold, never mid-
-conflict.
+case. Settle that decision before importing the conflicting implementation.
 
 ## Removed outright — keep deleted
 
 The fork is distributed by nixos-config and never publishes releases, so
 the release and distribution machinery is gone whole, and the package-
 updates/self-update stack went the same way (upstream still ships and
-iterates it, and each release merge deletes it again). The stack's
+iterates it). Imports must preserve those removals. The stack's
 consumers are pruned wherever upstream grows new ones: Hooks.qml carries
 no "update-available" event, probe-logic has no updater suite, and
 SystemTools has no packageFamily. Resolve delete/modify conflicts under
@@ -87,7 +87,7 @@ so resurrecting one on purpose means removing its line in the same commit.
   be adapted without changing those interfaces.
 - Dynamic workspaces keep the fork's occupied-workspace list and trailing
   empty workspace. Upstream's slot/app-model extraction must not replace
-  those semantics or its marker behavior as a side effect of a merge.
+  those semantics or its marker behavior as a side effect of an import.
   Menu access must remain available when compositor workspace data is not
   ready, without requesting workspace activation or a marker pulse.
 - Night light keeps the systemd service backend and the lock action keeps
@@ -138,7 +138,7 @@ so resurrecting one on purpose means removing its line in the same commit.
 
 ## What belongs here
 
-An entry exists only where a merge could go wrong non-obviously: a
+An entry exists only where an upstream import could go wrong non-obviously: a
 removal, a shared-file policy, or the feature-collision default above.
 Fork-only features never get entries — new files don't conflict, and their
 hooks into shared files are already covered by the union entries. A commit
