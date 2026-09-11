@@ -136,6 +136,8 @@ so resurrecting one on purpose means removing its line in the same commit.
 - The Bluetooth bar widget stays an actionable `StatusActionPill` that opens
   the configured manager. Take compatible upstream service, accessibility,
   hint, and lifecycle improvements without replacing it with a passive pill.
+  Details selection clears on the device's connection event; clearing it from
+  the derived expanded-state handler creates a binding loop on disconnect.
 - Power profiles keep the command backend and its `asusctl` fallback. Take
   backend-neutral upstream fixes, but do not replace this with a UPower-only
   implementation because the deploying machine runs `asusd`.

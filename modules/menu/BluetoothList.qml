@@ -18,11 +18,8 @@ Item {
 
     ArmConfirm { id: _confirm }
 
-    // only one device's details panel is open at a time, matched by address rather than
-    // index/identity — Bluetooth.devices resorts (and rebuilds delegates) on any device's
-    // connected/paired change, but this lives on root, not the delegate, so it survives that.
-    // Freezing Bluetooth's published list while this is set stops that resort from tearing
-    // the open row down mid-view (mirrors Network.setWifiListFrozen for the same reason).
+    // Match the open details by address so selection survives row moves. Freezing
+    // the published order keeps the row in place while its details are being read.
     property string _detailsAddr: ""
     on_DetailsAddrChanged: Bluetooth.setDevicesFrozen(root._detailsAddr !== "")
 
@@ -114,6 +111,16 @@ Item {
 
                 readonly property bool _detailsOpen: root._detailsAddr === modelData.address && modelData.connected
 
+                // Clear selection from the device event so expanded's binding
+                // never writes back into the state it is currently evaluating.
+                Connections {
+                    target: _entry.modelData
+                    function onConnectedChanged() {
+                        if (!_entry.modelData.connected && root._detailsAddr === _entry.modelData.address)
+                            root._detailsAddr = ""
+                    }
+                }
+
                 InlineOptionRow {
                     id: _row
                     width: parent.width
@@ -157,11 +164,6 @@ Item {
                     onTriggered: _activate()
                     onExpandToggled: root._detailsAddr = (root._detailsAddr === _entry.modelData.address)
                         ? "" : _entry.modelData.address
-                    // expanded is bound to _entry._detailsOpen, which already goes false the
-                    // instant this device disconnects; without this, _detailsAddr would keep
-                    // pointing at it and the panel would silently reopen on a later reconnect
-                    onExpandedChanged: if (!expanded && root._detailsAddr === _entry.modelData.address)
-                        root._detailsAddr = ""
                 }
 
                 Item {

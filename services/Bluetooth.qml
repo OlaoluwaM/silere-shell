@@ -113,9 +113,8 @@ Singleton {
     }
 
     property string _devicesKeySnapshot: ""
-    // set by BluetoothList while a device's details panel is open: a republish landing then
-    // would replace the array and tear down every delegate — including that open row — the
-    // same hazard Network.setWifiListFrozen guards against for the wifi list's details panel
+    // Keep the open details row in place while other devices change sort order.
+    // BluetoothList's ScriptModel preserves delegate identity across republishes.
     property bool _devicesFrozen: false
     function setDevicesFrozen(frozen: bool): void {
         if (root._devicesFrozen === frozen) return
@@ -123,12 +122,8 @@ Singleton {
         if (!frozen) root._refreshDevices()
     }
 
-    // devices used to be `readonly property var: {...sort...}`, a binding that reruns —
-    // new array, new ListView model reference — the instant any tracked device's connected/
-    // paired/name changes, which tears down and rebuilds every delegate even though that's
-    // rarer here than wifi's continuous signal churn. Polling on a bounded timer and only
-    // publishing when the structural key changes keeps an unrelated device's state flip from
-    // rebuilding a row whose details panel is open, mirroring Network.wifiNetworks.
+    // Publish only structural changes so the view need not reconcile an unchanged
+    // order on every poll. Device properties remain live on the retained objects.
     function _refreshDevices(): void {
         if (root._devicesFrozen) return
         const next = root._sortedDevices()
@@ -166,13 +161,9 @@ Singleton {
     // geometry stable while a row's drawer is open, it was never meant to keep a dead pointer
     // alive, so removal purges through it regardless.
     //
-    // This purge is also why no per-property null-guard was added to BluetoothList's delegate:
-    // the array reassignment below hands ListView a wholesale-different array, which tears down
-    // every delegate (see _refreshDevices' comment) before control returns to the event loop —
-    // before the deferred delete runs. A delegate over the removed device can't outlive this
-    // handler to read a since-freed property, and a `modelData && modelData.x` style guard
-    // wouldn't help anyway: dereferencing a truthiness check on a genuinely dangling (already
-    // freed) pointer is itself undefined behaviour, not a safe no-op the way it is for null.
+    // ScriptModel removes the purged device's row while retaining the other delegates.
+    // Publish the removal before the deferred delete; a property guard cannot make
+    // a retained pointer to an already deleted device safe to read.
     function _purgeRemovedDevice(object): void {
         const addr = object && object.address
         if (!addr) return
