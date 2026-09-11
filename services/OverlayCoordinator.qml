@@ -38,6 +38,7 @@ Singleton {
         if (name !== "quickActions") QuickActionsState.close()
         if (name !== "keybinds") KeybindsPopupState.close()
         if (name !== "wallpapers") WallpapersPopupState.close()
+        if (name !== "media") MediaPopupState.close()
     }
 
     Connections {
@@ -54,7 +55,7 @@ Singleton {
     }
     Connections {
         target: TrayPopupState
-        function onOpenChanged() { if (TrayPopupState.open) root._claim("traypopup") }
+        function onOpenChanged() { if (TrayPopupState.open) root._opened("traypopup") }
     }
     Connections {
         target: QuickActionsState
@@ -76,10 +77,14 @@ Singleton {
     }
     Connections {
         target: KeybindsPopupState
-        function onOpenChanged() { if (KeybindsPopupState.open) root._claim("keybinds") }
+        function onOpenChanged() { if (KeybindsPopupState.open) root._opened("keybinds") }
     }
     Connections {
         target: WallpapersPopupState
-        function onOpenChanged() { if (WallpapersPopupState.open) root._claim("wallpapers") }
+        function onOpenChanged() { if (WallpapersPopupState.open) root._opened("wallpapers") }
+    }
+    Connections {
+        target: MediaPopupState
+        function onOpenChanged() { if (MediaPopupState.open) root._opened("media") }
     }
 }

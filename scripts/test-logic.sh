@@ -65,3 +65,5 @@ bash scripts/test-popup-lifecycle.sh
 bash scripts/test-config-recovery.sh
 bash scripts/test-settings-migration.sh
 bash scripts/test-bar-hint-idle.sh
+bash scripts/test-overlay-coordinator.sh
+bash scripts/test-bluetooth-details.sh

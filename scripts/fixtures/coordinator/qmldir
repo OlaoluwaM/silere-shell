@@ -1,0 +1,2 @@
+singleton Idle 1.0 Idle.qml
+singleton OverviewState 1.0 OverviewState.qml

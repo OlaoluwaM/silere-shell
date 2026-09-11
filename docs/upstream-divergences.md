@@ -144,6 +144,11 @@ so resurrecting one on purpose means removing its line in the same commit.
   port compatible upstream privacy and metadata fixes into the controls file.
   Only an open media host may advance the shared artwork candidate after a
   load failure; a closed card retained during its exit must not change it.
+- Control popups keep one exclusive `OverlayCoordinator` claim: menu, calendar,
+  tray menu/list, quick actions, keybinds, wallpapers, and media all close their
+  peers and reject late opens while idle or in overview. Any upstream popup or
+  open-path change joins both `_claim()` and `_opened()`; retain the existing
+  tray-list child exception for a popup-sourced tray context menu.
 
 ## What belongs here
 
