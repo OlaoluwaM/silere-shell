@@ -35,11 +35,6 @@ Item {
     Component.onCompleted: root._syncMenuAnchor()
     onBarActiveChanged: root._syncHint()
     readonly property bool _onActiveBar: Monitors.isActive(root.screen)
-    readonly property bool _visualizerActive: ShellSettings.mediaProgress
-        && ShellSettings.mediaVisualizerPosition === "media"
-        && !ShellSettings.reduceMotion && !Idle.isQuiet
-        && root.barActive && root.show && Media.playing && Media.cavaReady && root._onActiveBar
-    readonly property bool _vizVisible: _visualizerActive
     readonly property bool _helperEnabled: ShellSettings.mediaWidgetHelper
     readonly property string _playGlyph: Media.playing ? "󰏤" : "󰐊"
     property real textBudget: -1
@@ -71,7 +66,7 @@ Item {
         anchors.left:   parent.left
         anchors.right:  parent.right
         height: 2
-        opacity: !root.show || !root._helperEnabled || root._vizVisible ? 0.0
+        opacity: !root.show || !root._helperEnabled ? 0.0
             : Media.lengthKnown ? 0.72
             : Media.playing ? 0.54 : 0.22
         visible: opacity > 0.01
@@ -98,33 +93,6 @@ Item {
             radius: height / 2
             antialiasing: true
             color: Theme.accent
-        }
-    }
-
-    Loader {
-        id: _vizLoader
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        anchors.horizontalCenter: parent.horizontalCenter
-        // snapped to an 8px grid: the Canvas backing this width drops and reallocates its texture on
-        // every resize, and parent.width tracks root.implicitWidth's own MotionBehavior every frame
-        width: 8 * Math.round(parent.width / 8)
-        // unloading in the same frame the opacity drops leaves the fade animating an empty Loader
-        readonly property bool _wanted: root._visualizerActive
-        active: _wanted || _vizHold.running
-        on_WantedChanged: if (_wanted) _vizHold.stop(); else _vizHold.restart()
-        Timer { id: _vizHold; interval: Motion.fast + 60 }
-        opacity: _wanted ? 1.0 : 0.0
-        visible: opacity > 0.001
-        MotionBehavior on opacity {
-            NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic }
-        }
-        sourceComponent: Component {
-            MediaVisualizer {
-                screen: root.screen
-                holdFrame: true
-                lowPower: root.compact
-            }
         }
     }
 

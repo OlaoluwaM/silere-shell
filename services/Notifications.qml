@@ -327,7 +327,6 @@ Singleton {
     signal notificationShown(string appName, string summary, bool critical)
 
     readonly property bool _fullscreenWatchWanted: ShellSettings.notifFullscreenSilence
-        || ShellSettings.mediaProgress
         || (ShellSettings.osdEnabled && ShellSettings.osdBarIntegrated)
     readonly property bool _fullscreenActive: _fullscreenWatchWanted && Compositor.activeFullscreen
     readonly property bool fullscreenActive: _fullscreenActive

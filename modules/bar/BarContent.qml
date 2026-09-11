@@ -37,7 +37,6 @@ Item {
         Math.max(_widgetLayoutWidth, _osdLayoutWidth) + Settings.hPad * 2
     readonly property real titleFreeLeft:  leftZone.implicitWidth + gap
     readonly property real titleFreeRight: width - rightZone.implicitWidth - gap
-    readonly property real titleAvailableWidth: Math.max(0, titleFreeRight - titleFreeLeft)
 
     // animate the axis, not the zone's x: a title resize recentres at once while a
     // side-widget change still carries the whole middle group
@@ -190,28 +189,8 @@ Item {
     }
 
     readonly property bool _isOverlayBar: root.screen && root.screen.name === Monitors.overlayBarName
-    readonly property bool _onActiveBar: Monitors.isActive(root.screen)
     readonly property bool _osdBarShowing: ShellSettings.osdEnabled && ShellSettings.osdBarIntegrated
         && root._isOverlayBar && OsdBarState.showing && !OsdBarState.barConcealed
-    readonly property bool _centerVizWanted: ShellSettings.centerVizConfigured
-        && !ShellSettings.reduceMotion && !Idle.isIdle
-        && root.barActive && root._onActiveBar && Media.shown && Media.playing && Media.cavaReady
-    readonly property bool _centerVizHasRoom: titleAvailableWidth >= 48
-    // center widgets keep their slot; the visualizer drops behind them instead of being suppressed
-    readonly property bool _centerVizBehind: root.centerHasWidgets
-    readonly property real _centerVizBehindOpacity: 0.30
-    readonly property bool _centerVizShowing: _centerVizWanted && _centerVizHasRoom
-        && !root._osdBarShowing
-    // snapped to an 8px grid: the Canvas backing this width drops and reallocates its texture on every resize,
-    // and titleAvailableWidth moves every frame during the bar's layout animations
-    readonly property int _centerVizWidth: 8 * Math.round(Math.max(48, Math.min(560,
-        titleAvailableWidth * 0.68
-    )) / 8)
-    // shares the widgets' axis when the slot is filled; centres in the free span when it is not
-    readonly property real _centerVizAnchor: root.centerHasWidgets
-        ? root.centerAxis : (titleFreeLeft + titleFreeRight) / 2
-    readonly property int _centerVizX: Metrics.centeredSpanX(
-        _centerVizAnchor, _centerVizWidth, titleFreeLeft, titleFreeRight)
 
     BarZone {
         id: centerZone
@@ -227,43 +206,6 @@ Item {
         onImplicitWidthChanged: root._queueAutoCompact()
 
         MotionBehavior on opacity {
-            NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic }
-        }
-    }
-
-    Loader {
-        id: _centerVisualizer
-        anchors.verticalCenter: parent.verticalCenter
-        x: root._centerVizX
-        width: root._centerVizWidth
-        height: parent.height
-        // unloading in the same frame the opacity drops leaves the fade animating an empty Loader
-        readonly property bool _wanted: root._centerVizWanted && root._centerVizHasRoom
-        active: _wanted || _vizHold.running
-        on_WantedChanged: if (_wanted) _vizHold.stop(); else _vizHold.restart()
-        Timer { id: _vizHold; interval: Motion.fast + 60 }
-        sourceComponent: Component {
-            MediaVisualizer {
-                screen: root.screen
-                presentationActive: root._centerVizShowing
-                holdFrame: true
-                // dimmed behind the title/widgets: full rate and bar count buy detail nobody can see
-                lowPower: root.effectiveCompact || root._centerVizWidth < 260
-                    || root._centerVizBehind
-            }
-        }
-        visible: opacity > 0.001
-        opacity: !root._centerVizShowing ? 0.0
-            : root._centerVizBehind ? root._centerVizBehindOpacity : 1.0
-        scale: root._centerVizShowing ? 1.0 : 0.94
-        transformOrigin: Item.Center
-        // behind the widgets and the title, still above the bar surface painted by Bar.qml
-        z: root._centerVizBehind ? -1 : 1
-
-        MotionBehavior on opacity {
-            NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic }
-        }
-        MotionBehavior on scale {
             NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic }
         }
     }

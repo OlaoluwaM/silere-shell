@@ -238,12 +238,10 @@ else
 fi
 
 threads="$(awk '/^Threads:/{print $2; exit}' "/proc/$pid/status")"
-visualizer="stopped"
 helpers=0
 while IFS= read -r child; do
     [ -n "$child" ] || continue
     helpers=$((helpers + 1))
-    [ "$(cat "/proc/$child/comm" 2>/dev/null || true)" = "cava" ] && visualizer="playing"
 done < <(descendants "$pid")
 
 allocator="unknown"
@@ -404,7 +402,6 @@ if $want_json; then
     printf ',"helpers":%s' "$(num "$helpers")"
     printf ',"fds":%s' "$(num "$fds2")"
     printf ',"fd_delta":%s' "$fd_delta"
-    printf ',"visualizer":"%s"' "$(esc "$visualizer")"
     printf ',"allocator":"%s"' "$(esc "$allocator")"
     printf ',"font_family":"%s"' "$(esc "$font_family")"
     printf ',"configured_widgets":"%s"' "$(esc "$configured_widgets")"
@@ -432,7 +429,6 @@ printf 'fds:        %s open (%s)\n' "$fds2" "$fd_trend"
 printf 'configured: %s\n' "$configured_widgets"
 printf 'conditional:%s\n' "$conditional_widgets"
 [ "$instances" -gt 0 ] && printf 'note:       %s other Quickshell instance(s) running; shared pages can affect PSS and USS\n' "$instances"
-printf 'visualizer: %s\n' "$visualizer"
 printf 'allocator:  %s\n' "$allocator"
 printf 'font:       %s\n' "$font_family"
 printf 'machine:    %s, kernel %s\n' "${cpu_model:-unknown}" "${kernel:-unknown}"

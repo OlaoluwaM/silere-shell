@@ -58,12 +58,7 @@ Item {
         readonly property real _activeGlowStrength: Math.min(1, 0.45 + 0.4 * ShellSettings.glowStrength)
         readonly property real _scaledGlow:  (_primaryGlow + _stackBonus) * _activeGlowStrength
         readonly property real _eventGlow:   Math.max(_scaledGlow, _batteryGlow, _tempGlow)
-        property real _mediaGlow: (ShellSettings.mediaProgress && Media.shown && Media.cavaReady) ? 0.18 : 0
-        MotionBehavior on _mediaGlow {
-            gate: !Idle.isIdle
-            NumberAnimation { duration: Motion.slow; easing.type: Easing.OutCubic }
-        }
-        readonly property real _combined:    Math.min(_ceiling, Math.max(_idleFloor, _eventGlow, _mediaGlow))
+        readonly property real _combined:    Math.min(_ceiling, Math.max(_idleFloor, _eventGlow))
 
         readonly property color _screenshotColor: Theme.text
         readonly property bool _batteryCritical: _batteryGlowEnabled && Battery.critical

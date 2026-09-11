@@ -23,7 +23,6 @@ Column {
         || (Battery.available && ShellSettings.underlineBattGlow)
         || (!CpuTemp.sensorMissing && ShellSettings.underlineTempGlow)
         || ShellSettings.underlineScreenshotGlow
-        || ShellSettings.mediaProgress
 
     function _setScreenshotStyle(style) {
         ShellSettings.batch(() => {

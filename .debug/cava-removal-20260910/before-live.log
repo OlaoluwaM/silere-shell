@@ -1,0 +1,5 @@
+  INFO: Launching config: "/tmp/silere-cava-removal/live-before/shell.qml"
+  INFO: Shell ID: "2220c41d2a9c264532ad1d1b38a6e126" Path ID "2220c41d2a9c264532ad1d1b38a6e126"
+  INFO: Saving logs to "/run/user/1000/quickshell/by-id/tfb3ifm6lt/log.qslog"
+  INFO: Configuration Loaded
+  WARN: Unable to determine system time zone: please check your system configuration.

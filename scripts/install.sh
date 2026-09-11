@@ -572,7 +572,6 @@ fi
 _optdep brightnessctl "brightness control + popup"
 _optdep inotifywait   "screenshot flash"
 _optdep nmcli         "VPN name fallback"
-_optdep cava          "audio visualizer (auto-configured at runtime)"
 _optdep busctl        "notification daemon check"
 _optdep upower        "battery percentage + warnings"
 _optdep hyprsunset    "night light toggle"

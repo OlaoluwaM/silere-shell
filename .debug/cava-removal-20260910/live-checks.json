@@ -1,0 +1,114 @@
+[
+  {
+    "check": "before starts without a player",
+    "passed": true
+  },
+  {
+    "check": "before real MPRIS path supplies length and seeking",
+    "passed": true
+  },
+  {
+    "check": "before pause through Media action",
+    "passed": true
+  },
+  {
+    "check": "before resume through Media action",
+    "passed": true
+  },
+  {
+    "check": "before next and previous actions",
+    "passed": true
+  },
+  {
+    "check": "before seek preserves track progress",
+    "passed": true
+  },
+  {
+    "check": "before media popup opens and closes",
+    "passed": true
+  },
+  {
+    "check": "before compact and reduced-motion settings preserve media helper",
+    "passed": true
+  },
+  {
+    "check": "before stopped player handled",
+    "passed": true
+  },
+  {
+    "check": "before player removal handled",
+    "passed": true
+  },
+  {
+    "check": "before creates no Cava profile in this environment",
+    "passed": true
+  },
+  {
+    "check": "before live QML runtime error scan",
+    "passed": true
+  },
+  {
+    "check": "after starts without a player",
+    "passed": true
+  },
+  {
+    "check": "after real MPRIS path supplies length and seeking",
+    "passed": true
+  },
+  {
+    "check": "after pause through Media action",
+    "passed": true
+  },
+  {
+    "check": "after resume through Media action",
+    "passed": true
+  },
+  {
+    "check": "after next and previous actions",
+    "passed": true
+  },
+  {
+    "check": "after seek preserves track progress",
+    "passed": true
+  },
+  {
+    "check": "after media popup opens and closes",
+    "passed": true
+  },
+  {
+    "check": "after compact and reduced-motion settings preserve media helper",
+    "passed": true
+  },
+  {
+    "check": "retired settings are absent with legacy JSON",
+    "passed": true
+  },
+  {
+    "check": "fullscreen demand false/false",
+    "passed": true
+  },
+  {
+    "check": "fullscreen demand true/false",
+    "passed": true
+  },
+  {
+    "check": "fullscreen demand false/true",
+    "passed": true
+  },
+  {
+    "check": "after stopped player handled",
+    "passed": true
+  },
+  {
+    "check": "after player removal handled",
+    "passed": true
+  },
+  {
+    "check": "after creates no Cava profile in this environment",
+    "passed": true
+  },
+  {
+    "check": "after live QML runtime error scan",
+    "passed": true
+  }
+]

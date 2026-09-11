@@ -852,6 +852,8 @@ fi
 # theme still sits untracked in config/ on upgraded checkouts.
 unpackaged=""
 while IFS= read -r f; do
+  # An unstaged deletion still appears in git ls-files, but needs no registration.
+  [ -f "$f" ] || continue
   dir="$(dirname "$f")"
   case "$dir" in .|./scripts|scripts) continue ;; esac
   [ -f "$dir/qmldir" ] || { unpackaged="$unpackaged $f(no-qmldir)"; continue; }

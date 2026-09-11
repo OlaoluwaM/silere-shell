@@ -800,31 +800,6 @@ ShellRoot {
         ShellSettings.nightLightTemp = savedNight
         ShellSettings._loaded = savedLoaded
 
-        // the visualizer table drives a live cava config; a wrong cell is a silent cost change
-        const vizExpect = ({
-            wave:  { eco: [10, 26], balanced: [16, 38], smooth: [22, 50] },
-            bars:  { eco: [10, 23], balanced: [14, 35], smooth: [18, 47] },
-            pulse: { eco: [8, 20],  balanced: [10, 32], smooth: [14, 44] }
-        })
-        let vizOk = true
-        for (const style in vizExpect)
-            for (const preset in vizExpect[style]) {
-                const p = Media.vizProfile(style, preset, false)
-                if (p.bars !== vizExpect[style][preset][0]
-                        || p.fps !== vizExpect[style][preset][1]) vizOk = false
-            }
-        root._check(vizOk, "every visualizer style and preset keeps its tuned bars and frame rate")
-        const vizLow = ({ eco: [6, 18], balanced: [8, 26], smooth: [10, 34] })
-        let vizLowOk = true
-        for (const preset in vizLow)
-            for (const style of ["wave", "bars", "pulse"]) {
-                const p = Media.vizProfile(style, preset, true)
-                if (p.bars !== vizLow[preset][0] || p.fps !== vizLow[preset][1]) vizLowOk = false
-            }
-        root._check(vizLowOk, "low power overrides the shape for every style")
-        root._check(Media.vizProfile("nonsense", "nonsense", false).bars === 16,
-            "an unknown style and preset land on the balanced wave profile")
-
         // history is restored from JSON an older release wrote, so entry shape is not given
         root._check(Notifications._normalizeEntry(null) === null,
             "a null history entry is dropped")
@@ -1204,13 +1179,6 @@ ShellRoot {
                     "A real video", "Creator", "", "Zen", "firefox",
                     "org.mpris.MediaPlayer2.firefox"),
             "media distinguishes privacy-redacted browser playback from real metadata")
-        root._check(Media._cavaNoiseReduction >= 0
-                && Media._cavaNoiseReduction <= 1
-                && Media._cavaConfigText.includes("method = pipewire")
-                && Media._cavaConfigText.includes("method = raw")
-                && Media._cavaConfigText.includes("data_format = ascii")
-                && Media._cavaConfigText.includes("ascii_max_range = 12"),
-            "media service emits a valid bounded Cava raw-output profile")
         root._check(Media.finiteNonnegative(NaN) === 0
                 && Media.finiteNonnegative(Infinity) === 0
                 && Media.finiteNonnegative(12.5) === 12.5,

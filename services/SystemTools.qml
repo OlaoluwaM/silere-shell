@@ -28,7 +28,6 @@ Singleton {
     readonly property bool hasBrightnessctl: _tools.brightnessctl ?? false
     readonly property bool hasInotifywait:   _tools.inotifywait ?? false
     readonly property bool hasNmcli:         _tools.nmcli ?? false
-    readonly property bool hasCava:          _tools.cava ?? false
     readonly property bool hasMatugen:       _tools.matugen ?? false
     readonly property bool hasHyprsunset:    _tools.hyprsunset ?? false
     readonly property bool hasHyprlock:      _tools.hyprlock ?? false
@@ -112,7 +111,7 @@ Singleton {
         checking = true
         lastError = ""
         _checkProc.exec(["bash", "-c",
-            "for t in brightnessctl inotifywait nmcli cava matugen hyprsunset hyprlock systemctl loginctl hyprctl notify-send " +
+            "for t in brightnessctl inotifywait nmcli matugen hyprsunset hyprlock systemctl loginctl hyprctl notify-send " +
             "busctl powerprofilesctl asusctl fc-list dbus-monitor pwvucontrol timeout; do " +
             "  command -v \"$t\" >/dev/null 2>&1 && echo \"$t\"; " +
             // the last lookup is optional; do not inherit its `command -v` status and discard every tool found before it

@@ -146,7 +146,6 @@ optional_tool upower "battery widget + warnings"
 optional_tool brightnessctl "brightness control + popup"
 optional_tool inotifywait "screenshot feedback"
 optional_tool nmcli "VPN name fallback"
-optional_tool cava "audio visualizer"
 optional_tool matugen "wallpaper-matched colors"
 optional_tool hyprsunset "night light toggle"
 optional_tool powerprofilesctl "power profile selector"
@@ -421,16 +420,6 @@ if command -v matugen >/dev/null 2>&1; then
     fi
   else
     warn "matugen output" "palette not generated yet — run matugen once"
-  fi
-fi
-
-if command -v cava >/dev/null 2>&1; then
-  if grep -qE 'case "eco":[[:space:]]+return 0\.[0-9]+' services/Media.qml \
-      && grep -qF '"method = raw\n"' services/Media.qml \
-      && grep -qF '"data_format = ascii\n"' services/Media.qml; then
-    ok "visualizer" "cava available; Silere supplies a bounded temporary raw profile"
-  else
-    fail "visualizer" "generated Cava profile is missing required bounded raw-output settings"
   fi
 fi
 

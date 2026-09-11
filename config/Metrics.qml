@@ -101,7 +101,6 @@ Singleton {
         return Math.round(Math.max(freeLeft, Math.min(axis - span / 2, freeRight - span)))
     }
 
-    // the track title sizes to its text and marquees past this; a reserved slot left the pill
-    // padded out on short titles and dragged the visualiser along with it
+    // size short titles to their text; longer titles marquee within this limit
     readonly property int mediaTrackWidth: 160
 }

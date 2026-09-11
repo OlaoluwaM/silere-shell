@@ -83,7 +83,6 @@ Column {
         const tool = (g, n, v) => out.push({ g: g, n: n, s: "Hidden until this is installed", v: v, p: true })
         if (!SystemTools.hasBrightnessctl)     tool("󰃟", "Brightness control", "brightnessctl")
         if (!SystemTools.hasHyprsunset)        tool("󰖙", "Night light", "hyprsunset")
-        if (!SystemTools.hasCava)              tool("󰝚", "Audio visualizer", "cava")
         if (!PowerProfiles.available)          tool("󰾅", "Power profiles", "power-profiles-daemon")
         if (!SystemTools.hasHyprlock)          tool("󰌾", "Screen lock", "hyprlock")
         // the warnings page stays visible and settable without notify-send, so this one is inert rather than hidden

@@ -51,6 +51,7 @@ modules/menu/controls/UpdateStatusCard.qml
 modules/menu/settings/SettingsUpdatesSection.qml
 services/ShellUpdate.qml
 services/Updates.qml
+modules/bar/widgets/MediaVisualizer.qml
 release.json
 scripts/silere
 scripts/doctor.sh
@@ -150,6 +151,10 @@ so resurrecting one on purpose means removing its line in the same commit.
   port compatible upstream privacy and metadata fixes into the controls file.
   Only an open media host may advance the shared artwork candidate after a
   load failure; a closed card retained during its exit must not change it.
+- The Cava audio visualizer stays removed, including its bar placements, process
+  and profile management, settings, fullscreen demand, and underline glow.
+  Compatible media fixes must preserve playback controls and track progress
+  without restoring the visualizer or its tool dependency.
 - Control popups keep one exclusive `OverlayCoordinator` claim: menu, calendar,
   tray menu/list, quick actions, keybinds, wallpapers, and media all close their
   peers and reject late opens while idle or in overview. Any upstream popup or

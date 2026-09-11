@@ -10,15 +10,8 @@ import "SettingsMigrations.js" as SettingsMigrations
 Singleton {
     id: root
 
-    property bool   mediaProgress:       false
     property bool   mediaRemoteArt:      false
     property bool   mediaWidgetHelper:   false
-    property string mediaVisualizerPreset: "balanced"
-    property string mediaVisualizerStyle:  "wave"
-    property string mediaVisualizerPosition: "media"
-    // configuration only; BarContent adds playback, space and lifecycle gates
-    readonly property bool centerVizConfigured: mediaProgress
-        && mediaVisualizerPosition === "center"
     property bool   workspaceShift:      true
     property bool   neutralTheme:        GeneratedDefaults.neutralTheme
     property bool   neutralAccentAuto:   false
@@ -359,12 +352,8 @@ Singleton {
 
     // drives load/save/change-tracking. t: bool|int|real|enum|re — int/real use min/max, enum vals, re a pattern
     readonly property var _schema: [
-        { k: "mediaProgress",       t: "bool", sec: "media" },
         { k: "mediaRemoteArt",      t: "bool", sec: "media" },
         { k: "mediaWidgetHelper",   t: "bool", sec: "media" },
-        { k: "mediaVisualizerPreset", t: "enum", vals: ["eco", "balanced", "smooth"], sec: "media" },
-        { k: "mediaVisualizerStyle",  t: "enum", vals: ["wave", "bars", "pulse"], sec: "media" },
-        { k: "mediaVisualizerPosition", t: "enum", vals: ["media", "center"], sec: "media" },
         { k: "workspaceShift",      t: "bool", sec: "workspaces" },
         { k: "neutralTheme",        t: "bool", sec: "theme" },
         { k: "neutralAccentAuto",   t: "bool", sec: "theme" },

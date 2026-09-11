@@ -90,20 +90,6 @@ fi
 # ── header ───────────────────────────────────────────────────────────────────────
 printf "\n${BOLD}:: silere-shell uninstaller${R}\n"
 
-# ── legacy cava config ───────────────────────────────────────────────────────────
-_section "legacy cava config"
-CAVA_DST="$CONFIG_HOME/cava/silere-shell.conf"
-
-if [ -f "$CAVA_DST" ] || [ -f "${CAVA_DST}.bak" ]; then
-    if _ask "Remove $CAVA_DST?"; then
-        _restore_or_remove "$CAVA_DST"
-    else
-        _skip "kept"
-    fi
-else
-    _skip "not found"
-fi
-
 # ── matugen template ─────────────────────────────────────────────────────────────
 _section "matugen template"
 TMPL_DST="$CONFIG_HOME/matugen/templates/silere-shell/Theme.json"

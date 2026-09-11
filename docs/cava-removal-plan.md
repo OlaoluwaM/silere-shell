@@ -1,7 +1,9 @@
 # Cava removal plan
 
-Status: draft for approval. No removal or subagent dispatch is authorized by
-this document alone. Inventory checked against `870bd9f` on September 10, 2026.
+Status: implemented and validated on September 10, 2026, against base
+`f0b7c7928702d942cda94cf162e659bb24a12286`. The user approved committing the
+complete removal after a final consistency check.
+See [validation results](../.debug/cava-removal-20260910/RESULTS.md).
 
 ## Outcome and scope
 
@@ -18,13 +20,13 @@ Use deletion and simplification of existing code. Do not replace Cava with a
 new renderer, add a dependency, or redesign the media widget. Do not restart
 the production shell, push, deploy, or edit live user settings.
 
-## Proposed delegation
+## Delegation
 
-Get approval for these roles and models before dispatch. Use fresh, constructed
-context containing this contract, owned paths, local instructions, and the
-fixed base revision. Model choices below are proposals, not agents already run.
+The approved roles ran with fresh, constructed context containing this contract,
+owned paths, local instructions, and the fixed base revision. The models and
+tiers below record the actual dispatch configuration.
 
-| Role | Proposed model and tier | Responsibility and reason |
+| Role | Model and tier used | Responsibility and reason |
 | --- | --- | --- |
 | Orchestrator, me | Current lead agent | Own architecture, scope decisions, integration, validation, and final acceptance |
 | Service IC | `gpt-5.6-terra`, standard, medium reasoning | Remove service/settings dependencies across a bounded set of related files |
@@ -108,12 +110,12 @@ because the visualizer also used it.
    attributable lint output. The reviewer stays read-only. I verify findings,
    assign fixes to their owners, and check the integrated result.
 
-5. **Acceptance and commit, lead.** Run the gates below, resolve failures, update
+5. **Acceptance, lead.** Run the gates below, resolve failures, update
    the divergence ledger to keep the visualizer removed on future imports, and
-   close the TODO only after acceptance. Land one complete removal commit with
-   its tests and documentation. The service and UI deletions must not land as
-   separately broken intermediate commits. Any necessary nixos-config change
-   requires the coordinated ordering documented in the root README.
+   close the TODO only after acceptance. After the final consistency check,
+   commit the complete removal, tests, and documentation together. Keep the
+   service and UI deletions in the same commit.
+   No nixos-config change was needed; the 52-property contract is unchanged.
 
 ## Acceptance gates
 
@@ -134,7 +136,7 @@ because the visualizer also used it.
 - Compare short `bench.sh` samples under matching idle and playback conditions.
   Treat them as regression checks, not proof of a specific performance gain.
   Retain Niri static/mock checks; do not claim live Niri verification.
-- Verify the final staged tree contains the entire removal and no unrelated
+- Verify the final working diff contains the entire removal and no unrelated
   edits. Do not modify live user files or delete legacy Cava files on this machine
   as part of source cleanup.
 

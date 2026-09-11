@@ -1,0 +1,90 @@
+[
+  {
+    "check": "after starts without a player",
+    "passed": true
+  },
+  {
+    "check": "after real MPRIS path supplies length and seeking",
+    "passed": true
+  },
+  {
+    "check": "after pause through Media action",
+    "passed": true
+  },
+  {
+    "check": "after resume through Media action",
+    "passed": true
+  },
+  {
+    "check": "after next and previous actions",
+    "passed": true
+  },
+  {
+    "check": "after seek preserves track progress",
+    "passed": true
+  },
+  {
+    "check": "after media popup opens and closes",
+    "passed": true
+  },
+  {
+    "check": "after compact and reduced-motion settings preserve media helper",
+    "passed": true
+  },
+  {
+    "check": "retired settings are absent with legacy JSON",
+    "passed": true
+  },
+  {
+    "check": "fullscreen demand false/false",
+    "passed": true
+  },
+  {
+    "check": "fullscreen demand true/false",
+    "passed": true
+  },
+  {
+    "check": "fullscreen demand false/true",
+    "passed": true
+  },
+  {
+    "check": "identify the disposable fullscreen test window",
+    "passed": true
+  },
+  {
+    "check": "fullscreen preserves playback and silences notifications",
+    "passed": true
+  },
+  {
+    "check": "fullscreen exit restores notification state",
+    "passed": true
+  },
+  {
+    "check": "simulated idle settles media UI without stopping playback",
+    "passed": true
+  },
+  {
+    "check": "simulated idle rejects media popup re-entry",
+    "passed": true
+  },
+  {
+    "check": "simulated idle exit restores media animation eligibility",
+    "passed": true
+  },
+  {
+    "check": "after stopped player handled",
+    "passed": true
+  },
+  {
+    "check": "after player removal handled",
+    "passed": true
+  },
+  {
+    "check": "after creates no Cava profile in this environment",
+    "passed": true
+  },
+  {
+    "check": "after live QML runtime error scan",
+    "passed": true
+  }
+]

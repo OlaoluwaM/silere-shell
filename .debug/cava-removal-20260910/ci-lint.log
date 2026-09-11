@@ -1,0 +1,264 @@
+== merge conflict markers ==
+ok   markers         none
+
+== tracked file listing ==
+ok   tracked         git lists tracked files
+
+== settings rail label width ==
+ok   rail labels     every settings nav label fits the rail without eliding
+
+== settings row description width ==
+ok   row descriptions every settings row description fits on one line
+
+== invisible characters in source ==
+ok   source text     no bidi or zero-width characters in tracked sources
+
+== orphaned binding continuations ==
+ok   bindings        no declaration splits a multi-line binding
+
+== singleton name shadowing ==
+ok   singletons      no external import shadows a local singleton
+
+== required service modules ==
+ok   Audio           Quickshell.Services.Pipewire
+ok   Battery         Quickshell.Services.UPower
+ok   Media           Quickshell.Services.Mpris
+ok   Notifications   Quickshell.Services.Notifications
+ok   Bluetooth       Quickshell.Bluetooth
+ok   Network         Quickshell.Networking
+
+== external QML module inventory ==
+ok   modules         inventory covers every unconditional external import
+
+== local singleton imports ==
+ok   singletons      98 consumers import services
+
+== shell script syntax ==
+ok   scripts/bench.sh
+ok   scripts/check.sh
+ok   scripts/ci-lint.sh
+ok   scripts/install.sh
+ok   scripts/probe-lib.sh
+ok   scripts/repair.sh
+ok   scripts/test-bar-hint-idle.sh
+ok   scripts/test-bluetooth-details.sh
+ok   scripts/test-bump-animation.sh
+ok   scripts/test-config-recovery.sh
+ok   scripts/test-history-grouping.sh
+ok   scripts/test-layout-fit.sh
+ok   scripts/test-logic.sh
+ok   scripts/test-mutate.sh
+ok   scripts/test-niri-focus.sh
+ok   scripts/test-notification-reload.sh
+ok   scripts/test-overlay-coordinator.sh
+ok   scripts/test-popup-lifecycle.sh
+ok   scripts/test-portability.sh
+ok   scripts/test-qml-headless.sh
+ok   scripts/test-settings-migration.sh
+ok   scripts/test-surfaces.sh
+ok   scripts/uninstall.sh
+ok   scripts/lib/qml-modules.sh
+ok   scripts/lib/ui.sh
+ok   scripts/lib/xdg.sh
+
+== locale-stable parsers ==
+ok   scripts/check.sh
+ok   scripts/install.sh
+ok   scripts/uninstall.sh
+ok   scripts/check.sh XDG data path uses the shared absolute-path fallback
+ok   services/Battery.qml 1 parser process(es)
+ok   services/CpuTemp.qml 1 parser process(es)
+ok   services/Network.qml 1 parser process(es)
+ok   services/PowerProfiles.qml 4 parser process(es)
+ok   services/SysInfo.qml 1 parser process(es)
+
+== optional tool detection ==
+ok   SystemTools     optional final lookup cannot fail the completed probe
+
+== credential handling ==
+ok   Wi-Fi           credentials stay out of argv
+
+== Bluetooth battery normalization ==
+ok   Bluetooth       battery labels use a validated shared conversion
+
+== live backend collection fallbacks ==
+ok   collections     live backend models have empty-state fallbacks
+
+== public Quickshell imports ==
+ok   Wayland         public module only
+
+== niri event stream lifecycle ==
+ok   niri socket     event stream flushes and reconnects
+
+== compositor backend contract ==
+ok   compositor      both backend adapters implement the facade contract
+
+== bar gap ownership ==
+ok   bar gap         Metrics derives bar geometry from normalized compositor facts
+
+== loader lifetime bindings ==
+ok   Loaders         lifetime does not depend on Loader.item
+
+== coordinate mapping in bindings ==
+ok   mapping         coordinate mapping stays out of bindings
+
+== pooled delegate motion ==
+ok   pooling         every animation in a pooled delegate is gated
+
+== pooled view transitions ==
+ok   transitions     pooled rows come back with their transition values reset
+
+== reduce-motion gating ==
+ok   motion          every Behavior carries the reduce-motion gate
+ok   motion          shared Behaviors settle while the display is blanked
+ok   motion          PulseLoop gating stays on active
+ok   motion          infinite pulses stop before a zero-duration restart
+ok   motion          every rise-then-settle routes through BumpAnimation
+ok   motion          a retired bump lands on rest
+ok   motion          bump cleanup uses explicit retirement
+
+== bar widget sleep state ==
+ok   motion          every bar widget receives the bar's active state
+
+== portable QML key handlers ==
+ok   Keys            attached handlers are runtime-portable
+ok   Keys            release-based activation waits for the real key-up event
+
+== reduce-motion durations ==
+ok   motion          every animation duration routes through Motion
+
+== multi-window animation pacing ==
+ok   motion driver   elapsed-time pacing is the overrideable default
+
+== arm-then-confirm guards ==
+ok   confirm         every armed confirm state guards against a double-click
+
+== underscore property handlers ==
+ok   handlers        underscore property handlers are spelled so they fire
+ok   handlers        every Connections handler matches a signal on its target
+
+== installer environment defaults ==
+ok   launcher        inherited overrides are preserved
+
+== terminal detection ==
+ok   tty             terminal checks open /dev/tty instead of stat-ing it
+
+== shellcheck ==
+ok   shellcheck
+
+== quickshell version floor ==
+ok   qs floor        README states the 0.3.1 minimum from qml-modules.sh
+
+== qmldir integrity ==
+ok   qmldir          all referenced files exist
+ok   qmldir          every tracked component is packaged
+
+== upstream divergence ledger ==
+ok   ledger          keep-deleted paths stay absent
+
+== menu module boundaries ==
+ok   menu modules    root → settings → controls dependency stays one-way
+
+== settings schema coverage ==
+ok   settings        properties match _schema
+
+== slider range coverage ==
+ok   settings        slider ranges match the schema
+
+== glow strength travel ==
+ok   glow travel     glowStrength max 1.75 stops at the last layer clamp 1.7500
+
+== bar radius travel ==
+ok   radius travel   barRadius max 22 stops at half the tallest bar 22
+
+== bar widget layout API ==
+ok   bar widgets     keys, metadata, and components agree
+ok   bar layout      writes stay behind the settings API
+
+== config storage boundary ==
+ok   config store    paths and directory readiness have one owner
+ok   config recovery waiting writes and failed directory setup stay failed until repaired
+ok   chip width      the segmented-control cap grows with its label font
+ok   temperature probe canceled sensor discovery results are generation-guarded
+ok   XDG paths       all shipped QML uses the shared absolute-path resolver
+
+== portable disk usage ==
+ok   disk probe      POSIX layout is parsed from the stable right-hand columns
+
+== widget theme tokens ==
+ok   theme tokens    widgets contain no literal hex colours
+
+== solid structural surfaces ==
+ok   solid fills     structural surfaces contain no gradients
+
+== notification body disclosure ==
+ok   notification body popup and history share disclosure with 3-line and 2-line previews
+
+== settings navigation coverage ==
+ok   navigation      entries match detail components
+
+== settings section attribution ==
+ok   attribution     132 schema keys map to known settings pages
+ok   attribution     98 rows are attributed to the page that edits them
+
+== theme palette coverage ==
+ok   theme           matugen template and fallback loader cover every palette role
+
+== accent preset coverage ==
+ok   accent          default #9babe9 has a preset swatch
+ok   accent          palette fallback matches the default accent
+
+== Markdown heading anchors ==
+ok   Markdown        heading names are unique within each file
+
+== high-contrast alpha coverage ==
+ok   contrast        every Theme alpha token participates in high contrast
+
+== capability reporting coverage ==
+ok   health          alert-delivery capabilities are reported when missing
+
+== shared spacing derivation ==
+ok   spacing         tray gap derives from the shared widget gap
+
+== process timeout derivation ==
+ok   process         every process timeout derives from BoundedProcess
+
+== unbounded process opt-out ==
+ok   process         only the hyprsunset daemon runs unbounded
+
+== shared scroll feel ==
+ok   scroll          every list and flickable inherits one scroll feel
+
+== static text ==
+ok   static text     no visible text sits inside a scale transform
+
+== inert compositor events ==
+ok   inert events    the event denylist still covers every measured no-op
+ok   compositor facade Quickshell.Hyprland stays behind the Hyprland adapter
+
+== control surface gating ==
+ok   surfaces        no service enumerates panel state singletons
+
+== boot arming ==
+ok   arming          every armed service is read at startup
+
+== pointer-only interaction ==
+ok   pointer only    no tab stops or key-navigation attachments
+ok   pointer only    retired focus and key-activation helpers stay removed
+ok   key handlers    only text entry handles keys
+
+== spoken value names ==
+ok   spoken names    every hover-gated reading is named independently of its text
+
+== row height derivation ==
+ok   row height      every design row height derives from the shared grid
+
+== portability regressions ==
+    warn    markers malformed or ambiguous in missing-end.conf — left untouched
+    warn    markers malformed or ambiguous in reversed.conf — left untouched
+    warn    markers malformed or ambiguous in duplicate-begin.conf — left untouched
+    warn    markers malformed or ambiguous in duplicate-pair.conf — left untouched
+portability regression tests passed
+ok   portability
+
+lint passed

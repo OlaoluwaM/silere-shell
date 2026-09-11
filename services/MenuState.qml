@@ -89,7 +89,7 @@ AnchoredPopupState {
             { glyph: "󰅐", label: "Clock",      section: "clock",
               description: "Date and time" },
             { glyph: "󰝚", label: "Media",      section: "media",
-              description: "Track details and visualizer" },
+              description: "Track details" },
             { glyph: "󰈈", label: "Indicators", section: "indicators",
               description: "Titles, status, and hover" }
         ]},

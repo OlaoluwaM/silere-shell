@@ -26,5 +26,11 @@ ShellRoot {
             ShellSettings.batch(() => ShellSettings.barHeight = 48)
         }
         function retry(): void { ShellSettings._applyText(ShellSettings._diskText) }
+        function retiredSettingsAbsent(): bool {
+            const keys = ["mediaProgress", "mediaVisualizerPreset",
+                "mediaVisualizerStyle", "mediaVisualizerPosition"]
+            return keys.every(key => ShellSettings.schemaFor(key) === null
+                && ShellSettings[key] === undefined)
+        }
     }
 }

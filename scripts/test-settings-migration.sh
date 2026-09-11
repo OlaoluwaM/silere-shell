@@ -28,7 +28,7 @@ wait_ready() {
     fail "settings did not become ready: $state"
 }
 
-for scenario in blocked locked current future replaced; do
+for scenario in blocked locked current future replaced retired-current retired-future; do
     case_root="$probe_root/$scenario"
     project="$case_root/project"
     export XDG_CONFIG_HOME="$case_root/config-home" XDG_STATE_HOME="$case_root/state-home"
@@ -52,6 +52,11 @@ for scenario in blocked locked current future replaced; do
             ;;
         current|replaced) printf '{"__version":1,"barHeight":40,"unknown":"keep"}\n' > "$original" ;;
         future) printf '{"__version":999,"barHeight":40,"unknown":"keep"}\n' > "$original" ;;
+        retired-current|retired-future)
+            version=1
+            [[ "$scenario" == retired-future ]] && version=999
+            printf '{"__version":%s,"barHeight":40,"mediaProgress":true,"mediaVisualizerPreset":"smooth","mediaVisualizerStyle":"bars","mediaVisualizerPosition":"center","unknown":"keep"}\n' "$version" > "$original"
+            ;;
     esac
     cp "$original" "$settings"
     qs -p "$project/probe-settings-migration.qml" --no-color > "$log" 2>&1 &
@@ -87,6 +92,24 @@ PY
     fi
     if [[ "$scenario" == current || "$scenario" == future ]]; then
         [[ ! -e "$backup" ]] || fail "$scenario unexpectedly attempted legacy backup"
+    fi
+    if [[ "$scenario" == retired-current || "$scenario" == retired-future ]]; then
+        [[ ! -e "$backup" ]] || fail "$scenario unexpectedly attempted legacy backup"
+        [[ "$(ipc retiredSettingsAbsent)" == true ]] || fail "$scenario exposed retired visualizer settings"
+        ipc edit
+        sleep 0.8
+        python3 - "$original" "$settings" "$scenario" <<'PYRETIRED'
+import json, pathlib, sys
+original, saved = (json.loads(pathlib.Path(path).read_text()) for path in sys.argv[1:3])
+assert saved['barHeight'] == 48 and saved['uiScale'] == 1.1, 'ordinary settings must still save'
+retired = ('mediaProgress', 'mediaVisualizerPreset', 'mediaVisualizerStyle', 'mediaVisualizerPosition')
+if sys.argv[3] == 'retired-future':
+    assert saved['__version'] == 999 and saved['unknown'] == original['unknown'], 'preserve newer-version unknown settings'
+    assert all(saved[key] == original[key] for key in retired), 'preserve newer-version retired values without exposing them'
+else:
+    assert saved['__version'] == 1, 'removal does not require a settings version bump'
+    assert not any(key in saved for key in retired), 'current-version save must omit retired values'
+PYRETIRED
     fi
     if [[ "$scenario" == replaced ]]; then
         ipc edit
