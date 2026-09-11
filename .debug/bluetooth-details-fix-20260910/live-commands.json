@@ -1,0 +1,316 @@
+[
+  {
+    "command": [
+      "bluetoothctl",
+      "devices",
+      "Connected"
+    ],
+    "exit": 0,
+    "stdout": "Device [redacted-device-address] WH-1000XM5\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "qs",
+      "ipc",
+      "-p",
+      "/tmp/silere-bt-details-fix/live-project/probe.qml",
+      "call",
+      "--",
+      "btaudit",
+      "snapshot"
+    ],
+    "exit": 255,
+    "stdout": "No running instances for \"/tmp/silere-bt-details-fix/live-project/probe.qml\"\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "qs",
+      "ipc",
+      "-p",
+      "/tmp/silere-bt-details-fix/live-project/probe.qml",
+      "call",
+      "--",
+      "btaudit",
+      "snapshot"
+    ],
+    "exit": 0,
+    "stdout": "{\"rows\":[],\"count\":2,\"detailsAddress\":\"\",\"frozen\":false,\"removedCount\":0,\"removedWithDetails\":false,\"errorKind\":\"\",\"pendingKind\":\"\"}\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "qs",
+      "ipc",
+      "-p",
+      "/tmp/silere-bt-details-fix/live-project/probe.qml",
+      "call",
+      "--",
+      "btaudit",
+      "snapshot"
+    ],
+    "exit": 0,
+    "stdout": "{\"rows\":[{\"id\":1,\"index\":0,\"address\":\"[redacted-device-address]\",\"name\":\"WH-1000XM5\",\"connected\":true,\"paired\":true,\"trusted\":true,\"state\":\"40%\",\"expanded\":false,\"detailAddress\":\"[redacted-device-address]\",\"fields\":{\"Name\":\"WH-1000XM5\",\"Address\":\"[redacted-device-address]\",\"Battery\":\"40%\",\"Connection\":\"Connected\",\"Paired\":\"Yes\",\"Trusted\":\"Yes\"}},{\"id\":2,\"index\":1,\"address\":\"[redacted-device-address]\",\"name\":\"[LG] webOS TV OLED65C4PUA\",\"connected\":false,\"paired\":false,\"trusted\":false,\"state\":\"Pair\",\"expanded\":false,\"detailAddress\":\"[redacted-device-address]\",\"fields\":{\"Name\":\"[LG] webOS TV OLED65C4PUA\",\"Address\":\"[redacted-device-address]\",\"Battery\":\"\u2014\",\"Connection\":\"Not connected\",\"Paired\":\"No\",\"Trusted\":\"No\"}}],\"count\":2,\"detailsAddress\":\"\",\"frozen\":false,\"removedCount\":0,\"removedWithDetails\":false,\"errorKind\":\"\",\"pendingKind\":\"\"}\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "qs",
+      "ipc",
+      "-p",
+      "/tmp/silere-bt-details-fix/live-project/probe.qml",
+      "call",
+      "--",
+      "btaudit",
+      "expand",
+      "[redacted-device-address]"
+    ],
+    "exit": 0,
+    "stdout": "true\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "qs",
+      "ipc",
+      "-p",
+      "/tmp/silere-bt-details-fix/live-project/probe.qml",
+      "call",
+      "--",
+      "btaudit",
+      "snapshot"
+    ],
+    "exit": 0,
+    "stdout": "{\"rows\":[{\"id\":1,\"index\":0,\"address\":\"[redacted-device-address]\",\"name\":\"WH-1000XM5\",\"connected\":true,\"paired\":true,\"trusted\":true,\"state\":\"40%\",\"expanded\":true,\"detailAddress\":\"[redacted-device-address]\",\"fields\":{\"Name\":\"WH-1000XM5\",\"Address\":\"[redacted-device-address]\",\"Battery\":\"40%\",\"Connection\":\"Connected\",\"Paired\":\"Yes\",\"Trusted\":\"Yes\"}},{\"id\":2,\"index\":1,\"address\":\"[redacted-device-address]\",\"name\":\"[LG] webOS TV OLED65C4PUA\",\"connected\":false,\"paired\":false,\"trusted\":false,\"state\":\"Pair\",\"expanded\":false,\"detailAddress\":\"[redacted-device-address]\",\"fields\":{\"Name\":\"[LG] webOS TV OLED65C4PUA\",\"Address\":\"[redacted-device-address]\",\"Battery\":\"\u2014\",\"Connection\":\"Not connected\",\"Paired\":\"No\",\"Trusted\":\"No\"}}],\"count\":2,\"detailsAddress\":\"[redacted-device-address]\",\"frozen\":true,\"removedCount\":0,\"removedWithDetails\":false,\"errorKind\":\"\",\"pendingKind\":\"\"}\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "qs",
+      "ipc",
+      "-p",
+      "/tmp/silere-bt-details-fix/live-project/probe.qml",
+      "call",
+      "--",
+      "btaudit",
+      "activate",
+      "[redacted-device-address]"
+    ],
+    "exit": 0,
+    "stdout": "true\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "qs",
+      "ipc",
+      "-p",
+      "/tmp/silere-bt-details-fix/live-project/probe.qml",
+      "call",
+      "--",
+      "btaudit",
+      "activate",
+      "[redacted-device-address]"
+    ],
+    "exit": 0,
+    "stdout": "true\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "qs",
+      "ipc",
+      "-p",
+      "/tmp/silere-bt-details-fix/live-project/probe.qml",
+      "call",
+      "--",
+      "btaudit",
+      "snapshot"
+    ],
+    "exit": 0,
+    "stdout": "{\"rows\":[{\"id\":1,\"index\":0,\"address\":\"[redacted-device-address]\",\"name\":\"WH-1000XM5\",\"connected\":true,\"paired\":true,\"trusted\":true,\"state\":\"Disconnecting\u2026\",\"expanded\":true,\"detailAddress\":\"[redacted-device-address]\",\"fields\":{\"Name\":\"WH-1000XM5\",\"Address\":\"[redacted-device-address]\",\"Battery\":\"40%\",\"Connection\":\"Connected\",\"Paired\":\"Yes\",\"Trusted\":\"Yes\"}},{\"id\":2,\"index\":1,\"address\":\"[redacted-device-address]\",\"name\":\"[LG] webOS TV OLED65C4PUA\",\"connected\":false,\"paired\":false,\"trusted\":false,\"state\":\"Pair\",\"expanded\":false,\"detailAddress\":\"[redacted-device-address]\",\"fields\":{\"Name\":\"[LG] webOS TV OLED65C4PUA\",\"Address\":\"[redacted-device-address]\",\"Battery\":\"\u2014\",\"Connection\":\"Not connected\",\"Paired\":\"No\",\"Trusted\":\"No\"}}],\"count\":2,\"detailsAddress\":\"[redacted-device-address]\",\"frozen\":true,\"removedCount\":0,\"removedWithDetails\":false,\"errorKind\":\"\",\"pendingKind\":\"\"}\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "qs",
+      "ipc",
+      "-p",
+      "/tmp/silere-bt-details-fix/live-project/probe.qml",
+      "call",
+      "--",
+      "btaudit",
+      "snapshot"
+    ],
+    "exit": 0,
+    "stdout": "{\"rows\":[{\"id\":1,\"index\":0,\"address\":\"[redacted-device-address]\",\"name\":\"WH-1000XM5\",\"connected\":true,\"paired\":true,\"trusted\":true,\"state\":\"Disconnecting\u2026\",\"expanded\":true,\"detailAddress\":\"[redacted-device-address]\",\"fields\":{\"Name\":\"WH-1000XM5\",\"Address\":\"[redacted-device-address]\",\"Battery\":\"\u2014\",\"Connection\":\"Connected\",\"Paired\":\"Yes\",\"Trusted\":\"Yes\"}},{\"id\":2,\"index\":1,\"address\":\"[redacted-device-address]\",\"name\":\"[LG] webOS TV OLED65C4PUA\",\"connected\":false,\"paired\":false,\"trusted\":false,\"state\":\"Pair\",\"expanded\":false,\"detailAddress\":\"[redacted-device-address]\",\"fields\":{\"Name\":\"[LG] webOS TV OLED65C4PUA\",\"Address\":\"[redacted-device-address]\",\"Battery\":\"\u2014\",\"Connection\":\"Not connected\",\"Paired\":\"No\",\"Trusted\":\"No\"}}],\"count\":2,\"detailsAddress\":\"[redacted-device-address]\",\"frozen\":true,\"removedCount\":0,\"removedWithDetails\":false,\"errorKind\":\"\",\"pendingKind\":\"\"}\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "qs",
+      "ipc",
+      "-p",
+      "/tmp/silere-bt-details-fix/live-project/probe.qml",
+      "call",
+      "--",
+      "btaudit",
+      "snapshot"
+    ],
+    "exit": 0,
+    "stdout": "{\"rows\":[{\"id\":1,\"index\":0,\"address\":\"[redacted-device-address]\",\"name\":\"WH-1000XM5\",\"connected\":true,\"paired\":true,\"trusted\":true,\"state\":\"Disconnecting\u2026\",\"expanded\":true,\"detailAddress\":\"[redacted-device-address]\",\"fields\":{\"Name\":\"WH-1000XM5\",\"Address\":\"[redacted-device-address]\",\"Battery\":\"\u2014\",\"Connection\":\"Connected\",\"Paired\":\"Yes\",\"Trusted\":\"Yes\"}},{\"id\":2,\"index\":1,\"address\":\"[redacted-device-address]\",\"name\":\"[LG] webOS TV OLED65C4PUA\",\"connected\":false,\"paired\":false,\"trusted\":false,\"state\":\"Pair\",\"expanded\":false,\"detailAddress\":\"[redacted-device-address]\",\"fields\":{\"Name\":\"[LG] webOS TV OLED65C4PUA\",\"Address\":\"[redacted-device-address]\",\"Battery\":\"\u2014\",\"Connection\":\"Not connected\",\"Paired\":\"No\",\"Trusted\":\"No\"}}],\"count\":2,\"detailsAddress\":\"[redacted-device-address]\",\"frozen\":true,\"removedCount\":0,\"removedWithDetails\":false,\"errorKind\":\"\",\"pendingKind\":\"\"}\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "qs",
+      "ipc",
+      "-p",
+      "/tmp/silere-bt-details-fix/live-project/probe.qml",
+      "call",
+      "--",
+      "btaudit",
+      "snapshot"
+    ],
+    "exit": 0,
+    "stdout": "{\"rows\":[{\"id\":1,\"index\":0,\"address\":\"[redacted-device-address]\",\"name\":\"WH-1000XM5\",\"connected\":false,\"paired\":true,\"trusted\":true,\"state\":\"Paired\",\"expanded\":false,\"detailAddress\":\"[redacted-device-address]\",\"fields\":{\"Name\":\"WH-1000XM5\",\"Address\":\"[redacted-device-address]\",\"Battery\":\"\u2014\",\"Connection\":\"Not connected\",\"Paired\":\"Yes\",\"Trusted\":\"Yes\"}},{\"id\":2,\"index\":1,\"address\":\"[redacted-device-address]\",\"name\":\"[LG] webOS TV OLED65C4PUA\",\"connected\":false,\"paired\":false,\"trusted\":false,\"state\":\"Pair\",\"expanded\":false,\"detailAddress\":\"[redacted-device-address]\",\"fields\":{\"Name\":\"[LG] webOS TV OLED65C4PUA\",\"Address\":\"[redacted-device-address]\",\"Battery\":\"\u2014\",\"Connection\":\"Not connected\",\"Paired\":\"No\",\"Trusted\":\"No\"}}],\"count\":2,\"detailsAddress\":\"\",\"frozen\":false,\"removedCount\":0,\"removedWithDetails\":false,\"errorKind\":\"\",\"pendingKind\":\"\"}\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "bluetoothctl",
+      "info",
+      "[redacted-device-address]"
+    ],
+    "exit": 0,
+    "stdout": "Device [redacted-device-address] (public)\n\tName: WH-1000XM5\n\tAlias: WH-1000XM5\n\tClass: 0x00240404 (2360324)\n\tIcon: audio-headset\n\tPaired: yes\n\tBonded: yes\n\tTrusted: yes\n\tBlocked: no\n\tConnected: no\n\tWakeAllowed: yes\n\tLegacyPairing: no\n\tCablePairing: no\n\tUUID: Vendor specific           (00000000-deca-fade-deca-deafdecacaff)\n\tUUID: Headset                   (00001108-0000-1000-8000-00805f9b34fb)\n\tUUID: Audio Sink                (0000110b-0000-1000-8000-00805f9b34fb)\n\tUUID: A/V Remote Control Target (0000110c-0000-1000-8000-00805f9b34fb)\n\tUUID: Advanced Audio Distribu.. (0000110d-0000-1000-8000-00805f9b34fb)\n\tUUID: A/V Remote Control        (0000110e-0000-1000-8000-00805f9b34fb)\n\tUUID: A/V Remote Control Cont.. (0000110f-0000-1000-8000-00805f9b34fb)\n\tUUID: Handsfree                 (0000111e-0000-1000-8000-00805f9b34fb)\n\tUUID: Human Interface Device... (00001124-0000-1000-8000-00805f9b34fb)\n\tUUID: Headset HS                (00001131-0000-1000-8000-00805f9b34fb)\n\tUUID: PnP Information           (00001200-0000-1000-8000-00805f9b34fb)\n\tUUID: Vendor specific           (45c93e07-d90d-4b93-a9db-91e5dd734e35)\n\tUUID: Vendor specific           (764cbf0d-bbcb-438f-a8bb-6b92759d6053)\n\tUUID: Vendor specific           (81c2e72a-0591-443e-a1ff-05f988593351)\n\tUUID: Vendor specific           (8901dfa8-5c7e-4d8f-9f0c-c2b70683f5f0)\n\tUUID: Vendor specific           (931c7e8a-540f-4686-b798-e8df0a2ad9f7)\n\tUUID: Vendor specific           (956c7b26-d49a-4ba8-b03f-b17d393cb6e2)\n\tUUID: Vendor specific           (9b26d8c0-a8ed-440b-95b0-c4714a518bcc)\n\tUUID: Vendor specific           (df21fe2c-2515-4fdb-8886-f12c4d67927c)\n\tUUID: Vendor specific           (f76acb00-7cab-495f-bb1a-e664598fd77f)\n\tUUID: Vendor specific           (f7a96061-a1b3-40de-aff0-e78ec45a151e)\n\tUUID: Vendor specific           (f8d1fbe4-7966-4334-8024-ff96c9330e15)\n\tModalias: usb:v054Cp0DF0d0210\n\tRSSI: 0xffffffc0 (-64)\n\tTxPower: 0x0004 (4)\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "qs",
+      "ipc",
+      "-p",
+      "/tmp/silere-bt-details-fix/live-project/probe.qml",
+      "call",
+      "--",
+      "btaudit",
+      "activate",
+      "[redacted-device-address]"
+    ],
+    "exit": 0,
+    "stdout": "true\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "qs",
+      "ipc",
+      "-p",
+      "/tmp/silere-bt-details-fix/live-project/probe.qml",
+      "call",
+      "--",
+      "btaudit",
+      "snapshot"
+    ],
+    "exit": 0,
+    "stdout": "{\"rows\":[{\"id\":1,\"index\":0,\"address\":\"[redacted-device-address]\",\"name\":\"WH-1000XM5\",\"connected\":false,\"paired\":true,\"trusted\":true,\"state\":\"Connecting\u2026\",\"expanded\":false,\"detailAddress\":\"[redacted-device-address]\",\"fields\":{\"Name\":\"WH-1000XM5\",\"Address\":\"[redacted-device-address]\",\"Battery\":\"\u2014\",\"Connection\":\"Not connected\",\"Paired\":\"Yes\",\"Trusted\":\"Yes\"}},{\"id\":2,\"index\":1,\"address\":\"[redacted-device-address]\",\"name\":\"[LG] webOS TV OLED65C4PUA\",\"connected\":false,\"paired\":false,\"trusted\":false,\"state\":\"Pair\",\"expanded\":false,\"detailAddress\":\"[redacted-device-address]\",\"fields\":{\"Name\":\"[LG] webOS TV OLED65C4PUA\",\"Address\":\"[redacted-device-address]\",\"Battery\":\"\u2014\",\"Connection\":\"Not connected\",\"Paired\":\"No\",\"Trusted\":\"No\"}}],\"count\":2,\"detailsAddress\":\"\",\"frozen\":false,\"removedCount\":0,\"removedWithDetails\":false,\"errorKind\":\"\",\"pendingKind\":\"connect\"}\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "qs",
+      "ipc",
+      "-p",
+      "/tmp/silere-bt-details-fix/live-project/probe.qml",
+      "call",
+      "--",
+      "btaudit",
+      "snapshot"
+    ],
+    "exit": 0,
+    "stdout": "{\"rows\":[{\"id\":1,\"index\":0,\"address\":\"[redacted-device-address]\",\"name\":\"WH-1000XM5\",\"connected\":false,\"paired\":true,\"trusted\":true,\"state\":\"Connecting\u2026\",\"expanded\":false,\"detailAddress\":\"[redacted-device-address]\",\"fields\":{\"Name\":\"WH-1000XM5\",\"Address\":\"[redacted-device-address]\",\"Battery\":\"\u2014\",\"Connection\":\"Not connected\",\"Paired\":\"Yes\",\"Trusted\":\"Yes\"}},{\"id\":2,\"index\":1,\"address\":\"[redacted-device-address]\",\"name\":\"[LG] webOS TV OLED65C4PUA\",\"connected\":false,\"paired\":false,\"trusted\":false,\"state\":\"Pair\",\"expanded\":false,\"detailAddress\":\"[redacted-device-address]\",\"fields\":{\"Name\":\"[LG] webOS TV OLED65C4PUA\",\"Address\":\"[redacted-device-address]\",\"Battery\":\"\u2014\",\"Connection\":\"Not connected\",\"Paired\":\"No\",\"Trusted\":\"No\"}}],\"count\":2,\"detailsAddress\":\"\",\"frozen\":false,\"removedCount\":0,\"removedWithDetails\":false,\"errorKind\":\"\",\"pendingKind\":\"connect\"}\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "qs",
+      "ipc",
+      "-p",
+      "/tmp/silere-bt-details-fix/live-project/probe.qml",
+      "call",
+      "--",
+      "btaudit",
+      "snapshot"
+    ],
+    "exit": 0,
+    "stdout": "{\"rows\":[{\"id\":1,\"index\":0,\"address\":\"[redacted-device-address]\",\"name\":\"WH-1000XM5\",\"connected\":false,\"paired\":true,\"trusted\":true,\"state\":\"Connecting\u2026\",\"expanded\":false,\"detailAddress\":\"[redacted-device-address]\",\"fields\":{\"Name\":\"WH-1000XM5\",\"Address\":\"[redacted-device-address]\",\"Battery\":\"\u2014\",\"Connection\":\"Not connected\",\"Paired\":\"Yes\",\"Trusted\":\"Yes\"}},{\"id\":2,\"index\":1,\"address\":\"[redacted-device-address]\",\"name\":\"[LG] webOS TV OLED65C4PUA\",\"connected\":false,\"paired\":false,\"trusted\":false,\"state\":\"Pair\",\"expanded\":false,\"detailAddress\":\"[redacted-device-address]\",\"fields\":{\"Name\":\"[LG] webOS TV OLED65C4PUA\",\"Address\":\"[redacted-device-address]\",\"Battery\":\"\u2014\",\"Connection\":\"Not connected\",\"Paired\":\"No\",\"Trusted\":\"No\"}}],\"count\":2,\"detailsAddress\":\"\",\"frozen\":false,\"removedCount\":0,\"removedWithDetails\":false,\"errorKind\":\"\",\"pendingKind\":\"connect\"}\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "qs",
+      "ipc",
+      "-p",
+      "/tmp/silere-bt-details-fix/live-project/probe.qml",
+      "call",
+      "--",
+      "btaudit",
+      "snapshot"
+    ],
+    "exit": 0,
+    "stdout": "{\"rows\":[{\"id\":1,\"index\":0,\"address\":\"[redacted-device-address]\",\"name\":\"WH-1000XM5\",\"connected\":true,\"paired\":true,\"trusted\":true,\"state\":\"Connected\",\"expanded\":false,\"detailAddress\":\"[redacted-device-address]\",\"fields\":{\"Name\":\"WH-1000XM5\",\"Address\":\"[redacted-device-address]\",\"Battery\":\"\u2014\",\"Connection\":\"Connected\",\"Paired\":\"Yes\",\"Trusted\":\"Yes\"}},{\"id\":2,\"index\":1,\"address\":\"[redacted-device-address]\",\"name\":\"[LG] webOS TV OLED65C4PUA\",\"connected\":false,\"paired\":false,\"trusted\":false,\"state\":\"Pair\",\"expanded\":false,\"detailAddress\":\"[redacted-device-address]\",\"fields\":{\"Name\":\"[LG] webOS TV OLED65C4PUA\",\"Address\":\"[redacted-device-address]\",\"Battery\":\"\u2014\",\"Connection\":\"Not connected\",\"Paired\":\"No\",\"Trusted\":\"No\"}}],\"count\":2,\"detailsAddress\":\"\",\"frozen\":false,\"removedCount\":0,\"removedWithDetails\":false,\"errorKind\":\"\",\"pendingKind\":\"\"}\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "bluetoothctl",
+      "info",
+      "[redacted-device-address]"
+    ],
+    "exit": 0,
+    "stdout": "Device [redacted-device-address] (public)\n\tName: WH-1000XM5\n\tAlias: WH-1000XM5\n\tClass: 0x00240404 (2360324)\n\tIcon: audio-headset\n\tPaired: yes\n\tBonded: yes\n\tTrusted: yes\n\tBlocked: no\n\tConnected: yes\n\tWakeAllowed: yes\n\tLegacyPairing: no\n\tCablePairing: no\n\tUUID: Vendor specific           (00000000-deca-fade-deca-deafdecacaff)\n\tUUID: Headset                   (00001108-0000-1000-8000-00805f9b34fb)\n\tUUID: Audio Sink                (0000110b-0000-1000-8000-00805f9b34fb)\n\tUUID: A/V Remote Control Target (0000110c-0000-1000-8000-00805f9b34fb)\n\tUUID: Advanced Audio Distribu.. (0000110d-0000-1000-8000-00805f9b34fb)\n\tUUID: A/V Remote Control        (0000110e-0000-1000-8000-00805f9b34fb)\n\tUUID: A/V Remote Control Cont.. (0000110f-0000-1000-8000-00805f9b34fb)\n\tUUID: Handsfree                 (0000111e-0000-1000-8000-00805f9b34fb)\n\tUUID: Human Interface Device... (00001124-0000-1000-8000-00805f9b34fb)\n\tUUID: Headset HS                (00001131-0000-1000-8000-00805f9b34fb)\n\tUUID: PnP Information           (00001200-0000-1000-8000-00805f9b34fb)\n\tUUID: Vendor specific           (45c93e07-d90d-4b93-a9db-91e5dd734e35)\n\tUUID: Vendor specific           (764cbf0d-bbcb-438f-a8bb-6b92759d6053)\n\tUUID: Vendor specific           (81c2e72a-0591-443e-a1ff-05f988593351)\n\tUUID: Vendor specific           (8901dfa8-5c7e-4d8f-9f0c-c2b70683f5f0)\n\tUUID: Vendor specific           (931c7e8a-540f-4686-b798-e8df0a2ad9f7)\n\tUUID: Vendor specific           (956c7b26-d49a-4ba8-b03f-b17d393cb6e2)\n\tUUID: Vendor specific           (9b26d8c0-a8ed-440b-95b0-c4714a518bcc)\n\tUUID: Vendor specific           (df21fe2c-2515-4fdb-8886-f12c4d67927c)\n\tUUID: Vendor specific           (f76acb00-7cab-495f-bb1a-e664598fd77f)\n\tUUID: Vendor specific           (f7a96061-a1b3-40de-aff0-e78ec45a151e)\n\tUUID: Vendor specific           (f8d1fbe4-7966-4334-8024-ff96c9330e15)\n\tModalias: usb:v054Cp0DF0d0210\n\tRSSI: 0xffffffc0 (-64)\n\tTxPower: 0x0004 (4)\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "bluetoothctl",
+      "info",
+      "[redacted-device-address]"
+    ],
+    "exit": 0,
+    "stdout": "Device [redacted-device-address] (public)\n\tName: WH-1000XM5\n\tAlias: WH-1000XM5\n\tClass: 0x00240404 (2360324)\n\tIcon: audio-headset\n\tPaired: yes\n\tBonded: yes\n\tTrusted: yes\n\tBlocked: no\n\tConnected: yes\n\tWakeAllowed: yes\n\tLegacyPairing: no\n\tCablePairing: no\n\tUUID: Vendor specific           (00000000-deca-fade-deca-deafdecacaff)\n\tUUID: Headset                   (00001108-0000-1000-8000-00805f9b34fb)\n\tUUID: Audio Sink                (0000110b-0000-1000-8000-00805f9b34fb)\n\tUUID: A/V Remote Control Target (0000110c-0000-1000-8000-00805f9b34fb)\n\tUUID: Advanced Audio Distribu.. (0000110d-0000-1000-8000-00805f9b34fb)\n\tUUID: A/V Remote Control        (0000110e-0000-1000-8000-00805f9b34fb)\n\tUUID: A/V Remote Control Cont.. (0000110f-0000-1000-8000-00805f9b34fb)\n\tUUID: Handsfree                 (0000111e-0000-1000-8000-00805f9b34fb)\n\tUUID: Human Interface Device... (00001124-0000-1000-8000-00805f9b34fb)\n\tUUID: Headset HS                (00001131-0000-1000-8000-00805f9b34fb)\n\tUUID: PnP Information           (00001200-0000-1000-8000-00805f9b34fb)\n\tUUID: Vendor specific           (45c93e07-d90d-4b93-a9db-91e5dd734e35)\n\tUUID: Vendor specific           (764cbf0d-bbcb-438f-a8bb-6b92759d6053)\n\tUUID: Vendor specific           (81c2e72a-0591-443e-a1ff-05f988593351)\n\tUUID: Vendor specific           (8901dfa8-5c7e-4d8f-9f0c-c2b70683f5f0)\n\tUUID: Vendor specific           (931c7e8a-540f-4686-b798-e8df0a2ad9f7)\n\tUUID: Vendor specific           (956c7b26-d49a-4ba8-b03f-b17d393cb6e2)\n\tUUID: Vendor specific           (9b26d8c0-a8ed-440b-95b0-c4714a518bcc)\n\tUUID: Vendor specific           (df21fe2c-2515-4fdb-8886-f12c4d67927c)\n\tUUID: Vendor specific           (f76acb00-7cab-495f-bb1a-e664598fd77f)\n\tUUID: Vendor specific           (f7a96061-a1b3-40de-aff0-e78ec45a151e)\n\tUUID: Vendor specific           (f8d1fbe4-7966-4334-8024-ff96c9330e15)\n\tModalias: usb:v054Cp0DF0d0210\n\tRSSI: 0xffffffc0 (-64)\n\tTxPower: 0x0004 (4)\n\tBattery Percentage: 0x28 (40)\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "bluetoothctl",
+      "info",
+      "[redacted-device-address]"
+    ],
+    "exit": 0,
+    "stdout": "Device [redacted-device-address] (public)\n\tName: WH-1000XM5\n\tAlias: WH-1000XM5\n\tClass: 0x00240404 (2360324)\n\tIcon: audio-headset\n\tPaired: yes\n\tBonded: yes\n\tTrusted: yes\n\tBlocked: no\n\tConnected: yes\n\tWakeAllowed: yes\n\tLegacyPairing: no\n\tCablePairing: no\n\tUUID: Vendor specific           (00000000-deca-fade-deca-deafdecacaff)\n\tUUID: Headset                   (00001108-0000-1000-8000-00805f9b34fb)\n\tUUID: Audio Sink                (0000110b-0000-1000-8000-00805f9b34fb)\n\tUUID: A/V Remote Control Target (0000110c-0000-1000-8000-00805f9b34fb)\n\tUUID: Advanced Audio Distribu.. (0000110d-0000-1000-8000-00805f9b34fb)\n\tUUID: A/V Remote Control        (0000110e-0000-1000-8000-00805f9b34fb)\n\tUUID: A/V Remote Control Cont.. (0000110f-0000-1000-8000-00805f9b34fb)\n\tUUID: Handsfree                 (0000111e-0000-1000-8000-00805f9b34fb)\n\tUUID: Human Interface Device... (00001124-0000-1000-8000-00805f9b34fb)\n\tUUID: Headset HS                (00001131-0000-1000-8000-00805f9b34fb)\n\tUUID: PnP Information           (00001200-0000-1000-8000-00805f9b34fb)\n\tUUID: Vendor specific           (45c93e07-d90d-4b93-a9db-91e5dd734e35)\n\tUUID: Vendor specific           (764cbf0d-bbcb-438f-a8bb-6b92759d6053)\n\tUUID: Vendor specific           (81c2e72a-0591-443e-a1ff-05f988593351)\n\tUUID: Vendor specific           (8901dfa8-5c7e-4d8f-9f0c-c2b70683f5f0)\n\tUUID: Vendor specific           (931c7e8a-540f-4686-b798-e8df0a2ad9f7)\n\tUUID: Vendor specific           (956c7b26-d49a-4ba8-b03f-b17d393cb6e2)\n\tUUID: Vendor specific           (9b26d8c0-a8ed-440b-95b0-c4714a518bcc)\n\tUUID: Vendor specific           (df21fe2c-2515-4fdb-8886-f12c4d67927c)\n\tUUID: Vendor specific           (f76acb00-7cab-495f-bb1a-e664598fd77f)\n\tUUID: Vendor specific           (f7a96061-a1b3-40de-aff0-e78ec45a151e)\n\tUUID: Vendor specific           (f8d1fbe4-7966-4334-8024-ff96c9330e15)\n\tModalias: usb:v054Cp0DF0d0210\n\tRSSI: 0xffffffc0 (-64)\n\tTxPower: 0x0004 (4)\n\tBattery Percentage: 0x28 (40)\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "bluetoothctl",
+      "info",
+      "[redacted-device-address]"
+    ],
+    "exit": 0,
+    "stdout": "Device [redacted-device-address] (public)\n\tName: WH-1000XM5\n\tAlias: WH-1000XM5\n\tClass: 0x00240404 (2360324)\n\tIcon: audio-headset\n\tPaired: yes\n\tBonded: yes\n\tTrusted: yes\n\tBlocked: no\n\tConnected: yes\n\tWakeAllowed: yes\n\tLegacyPairing: no\n\tCablePairing: no\n\tUUID: Vendor specific           (00000000-deca-fade-deca-deafdecacaff)\n\tUUID: Headset                   (00001108-0000-1000-8000-00805f9b34fb)\n\tUUID: Audio Sink                (0000110b-0000-1000-8000-00805f9b34fb)\n\tUUID: A/V Remote Control Target (0000110c-0000-1000-8000-00805f9b34fb)\n\tUUID: Advanced Audio Distribu.. (0000110d-0000-1000-8000-00805f9b34fb)\n\tUUID: A/V Remote Control        (0000110e-0000-1000-8000-00805f9b34fb)\n\tUUID: A/V Remote Control Cont.. (0000110f-0000-1000-8000-00805f9b34fb)\n\tUUID: Handsfree                 (0000111e-0000-1000-8000-00805f9b34fb)\n\tUUID: Human Interface Device... (00001124-0000-1000-8000-00805f9b34fb)\n\tUUID: Headset HS                (00001131-0000-1000-8000-00805f9b34fb)\n\tUUID: PnP Information           (00001200-0000-1000-8000-00805f9b34fb)\n\tUUID: Vendor specific           (45c93e07-d90d-4b93-a9db-91e5dd734e35)\n\tUUID: Vendor specific           (764cbf0d-bbcb-438f-a8bb-6b92759d6053)\n\tUUID: Vendor specific           (81c2e72a-0591-443e-a1ff-05f988593351)\n\tUUID: Vendor specific           (8901dfa8-5c7e-4d8f-9f0c-c2b70683f5f0)\n\tUUID: Vendor specific           (931c7e8a-540f-4686-b798-e8df0a2ad9f7)\n\tUUID: Vendor specific           (956c7b26-d49a-4ba8-b03f-b17d393cb6e2)\n\tUUID: Vendor specific           (9b26d8c0-a8ed-440b-95b0-c4714a518bcc)\n\tUUID: Vendor specific           (df21fe2c-2515-4fdb-8886-f12c4d67927c)\n\tUUID: Vendor specific           (f76acb00-7cab-495f-bb1a-e664598fd77f)\n\tUUID: Vendor specific           (f7a96061-a1b3-40de-aff0-e78ec45a151e)\n\tUUID: Vendor specific           (f8d1fbe4-7966-4334-8024-ff96c9330e15)\n\tModalias: usb:v054Cp0DF0d0210\n\tRSSI: 0xffffffc0 (-64)\n\tTxPower: 0x0004 (4)\n\tBattery Percentage: 0x28 (40)\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "wpctl",
+      "set-default",
+      "82"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+  }
+]

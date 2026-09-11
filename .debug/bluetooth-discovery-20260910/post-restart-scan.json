@@ -1,0 +1,12 @@
+{
+  "command": [
+    "bluetoothctl",
+    "--timeout",
+    "20",
+    "scan",
+    "on"
+  ],
+  "exit": 0,
+  "output": "SetDiscoveryFilter success\nFailed to start discovery: org.bluez.Error.InProgress\n",
+  "discovering_after_3s": "b false\n"
+}

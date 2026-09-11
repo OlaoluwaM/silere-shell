@@ -1,0 +1,106 @@
+== versions ==
+     silere          post-upstream-v1.0.0-2-g0f56a53-dirty
+     quickshell      Quickshell 0.3.1 (revision 1a4716cde794a59928d9d9fc15f2afc7a95de360, distributed by Official-Nix-Flake)
+     compositor      Hyprland 0.55.4 built from branch v0.55.4-b at commit a0136d8c04687bb36eb8a28eb9d1ff92aea99704 clean ([gha] Nix: update inputs).
+
+== git diff --check ==
+ok   worktree        no whitespace errors
+ok   index           no staged whitespace errors
+
+== structural lint ==
+ok   ci-lint         structural checks passed
+
+== dependencies ==
+ok   qs              Quickshell runtime
+ok   hyprctl         Hyprland runtime and dispatch client
+ok   pipewire        volume service
+ok   wireplumber     PipeWire session manager
+ok   upower          battery widget + warnings
+ok   brightnessctl   brightness control + popup
+ok   inotifywait     screenshot feedback
+ok   nmcli           VPN name fallback
+warn cava            audio visualizer unavailable (optional)
+ok   matugen         wallpaper-matched colors
+ok   hyprsunset      night light toggle
+warn powerprofilesctl power profile selector unavailable (optional)
+ok   hyprlock        lock screen
+ok   power actions   power menu actions (systemctl)
+ok   notify-send     system alert notifications
+ok   busctl          notification daemon conflict check
+ok   timeout         bounded helper checks and smoke launch
+ok   fc-list         font detection
+ok   fc-cache        font install refresh
+ok   backlight       nvidia_wmi_ec_backlight
+ok   qs IPC          available
+warn notifications   no D-Bus notification owner
+ok   battery         UPower battery detected
+ok   font            JetBrainsMono Nerd Font
+ok   font match      resolves to JetBrainsMono Nerd Font,JetBrainsMono NF
+ok   audio service   pipewire.service active
+ok   qs version      0.3.1 (floor 0.3.1)
+ok   QtQuick         /nix/store/zgvv1g88pdsh1vvwg1z7v0gy68ri5mk5-qtdeclarative-6.11.1/lib/qt-6/qml/QtQuick/qmldir
+ok   QtQuick.Effects /nix/store/zgvv1g88pdsh1vvwg1z7v0gy68ri5mk5-qtdeclarative-6.11.1/lib/qt-6/qml/QtQuick/Effects/qmldir
+ok   QtQuick.Shapes  /nix/store/zgvv1g88pdsh1vvwg1z7v0gy68ri5mk5-qtdeclarative-6.11.1/lib/qt-6/qml/QtQuick/Shapes/qmldir
+ok   QtQuick.Window  /nix/store/zgvv1g88pdsh1vvwg1z7v0gy68ri5mk5-qtdeclarative-6.11.1/lib/qt-6/qml/QtQuick/Window/qmldir
+ok   Quickshell      /nix/store/f716z1wpk2fbcgfxgcf43jf32hqnmgkk-quickshell-wrapped-0.3.1/lib/qt-6/qml/Quickshell/qmldir
+ok   Quickshell.Bluetooth /nix/store/f716z1wpk2fbcgfxgcf43jf32hqnmgkk-quickshell-wrapped-0.3.1/lib/qt-6/qml/Quickshell/Bluetooth/qmldir
+ok   Quickshell.Hyprland /nix/store/f716z1wpk2fbcgfxgcf43jf32hqnmgkk-quickshell-wrapped-0.3.1/lib/qt-6/qml/Quickshell/Hyprland/qmldir
+ok   Quickshell.Io   /nix/store/f716z1wpk2fbcgfxgcf43jf32hqnmgkk-quickshell-wrapped-0.3.1/lib/qt-6/qml/Quickshell/Io/qmldir
+ok   Quickshell.Networking /nix/store/f716z1wpk2fbcgfxgcf43jf32hqnmgkk-quickshell-wrapped-0.3.1/lib/qt-6/qml/Quickshell/Networking/qmldir
+ok   Quickshell.Services.Mpris /nix/store/f716z1wpk2fbcgfxgcf43jf32hqnmgkk-quickshell-wrapped-0.3.1/lib/qt-6/qml/Quickshell/Services/Mpris/qmldir
+ok   Quickshell.Services.Notifications /nix/store/f716z1wpk2fbcgfxgcf43jf32hqnmgkk-quickshell-wrapped-0.3.1/lib/qt-6/qml/Quickshell/Services/Notifications/qmldir
+ok   Quickshell.Services.Pipewire /nix/store/f716z1wpk2fbcgfxgcf43jf32hqnmgkk-quickshell-wrapped-0.3.1/lib/qt-6/qml/Quickshell/Services/Pipewire/qmldir
+ok   Quickshell.Services.SystemTray /nix/store/f716z1wpk2fbcgfxgcf43jf32hqnmgkk-quickshell-wrapped-0.3.1/lib/qt-6/qml/Quickshell/Services/SystemTray/qmldir
+ok   Quickshell.Services.UPower /nix/store/f716z1wpk2fbcgfxgcf43jf32hqnmgkk-quickshell-wrapped-0.3.1/lib/qt-6/qml/Quickshell/Services/UPower/qmldir
+ok   Quickshell.Wayland /nix/store/f716z1wpk2fbcgfxgcf43jf32hqnmgkk-quickshell-wrapped-0.3.1/lib/qt-6/qml/Quickshell/Wayland/qmldir
+ok   Quickshell.Widgets /nix/store/f716z1wpk2fbcgfxgcf43jf32hqnmgkk-quickshell-wrapped-0.3.1/lib/qt-6/qml/Quickshell/Widgets/qmldir
+ok   session mgr     wireplumber.service active
+ok   network mgr     NetworkManager running
+ok   hyprland        hyprctl can query compositor
+ok   theme           bundled fallback + live palette loader
+warn matugen tmpl    template missing — run installer or: cp matugen/matugen-theme.json /tmp/silere-commit-review/gate-config/matugen/templates/silere-shell/Theme.json
+warn matugen cfg     silere-shell block missing from /tmp/silere-commit-review/gate-config/matugen/config.toml — run installer
+warn matugen output  palette not generated yet — run matugen once
+
+== headless QML probe ==
+ok   qml             checking files; this can take a few seconds
+checking QML bytecode (198 files, 20 jobs)
+checking QML imports (198 files, 20 jobs)
+headless QML type-check passed (198 files)
+
+== bump animation ==
+ok   bump            PROBE-BUMP passed 15 checks
+
+== behavioral logic ==
+ok   logic           PROBE-LOGIC passed 409 checks
+PROBE-RELOAD passed 20 checks
+PROBE-RELOAD passed 20 checks
+PROBE-NIRI-FOCUS passed 14 checks (mock compositor)
+PROBE-HISTORY passed 23 checks
+  default         PROBE-POPUP-LIFECYCLE passed 22 checks
+  reduced-motion  PROBE-POPUP-LIFECYCLE passed 22 checks
+PROBE-CONFIG-RECOVERY passed 6 checks
+PROBE-SETTINGS-MIGRATION blocked passed
+PROBE-SETTINGS-MIGRATION locked passed
+PROBE-SETTINGS-MIGRATION current passed
+PROBE-SETTINGS-MIGRATION future passed
+PROBE-SETTINGS-MIGRATION replaced passed
+PROBE-BAR-HINT-IDLE passed 7 checks
+PROBE-OVERLAY-COORDINATOR passed 164 checks
+PROBE-BLUETOOTH-DETAILS passed 7 checks
+
+== quickshell smoke ==
+ok   startup         Quickshell stayed alive for 5 seconds without load errors
+ok   off-path load   37 default-off settings loaded without errors
+ok   bad settings    6 malformed settings files each left the shell running
+
+== surface build ==
+ok   surfaces        surface probe passed (default + reduce-motion/high-contrast + every option on + largest type + fractional scale)
+
+== live settings changes ==
+ok   mutate          swept 174 states over 55 surfaces
+
+== layout fit ==
+ok   layout          menu labels fit at the widths they ship at across the type range
+
+checks passed (6 warning(s))

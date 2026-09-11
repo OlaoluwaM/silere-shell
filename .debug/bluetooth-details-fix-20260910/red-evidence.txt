@@ -1,0 +1,3 @@
+nix develop . --command bash scripts/test-bluetooth-details.sh
+exit: 1
+Runtime emitted two Binding loop detected for property "_detailsOpen" warnings at BluetoothList.qml:115. Seven functional assertions passed, but the runner correctly failed on the runtime errors. Full output retained in this conversation tool result.

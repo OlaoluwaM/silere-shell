@@ -1,0 +1,54 @@
+[
+  {
+    "check": "Sony identity and pairing populated",
+    "passed": true
+  },
+  {
+    "check": "controlled reorder moves real-device rows",
+    "passed": true
+  },
+  {
+    "check": "reorder retains every delegate identity",
+    "passed": true
+  },
+  {
+    "check": "first row activation only arms disconnect",
+    "passed": true
+  },
+  {
+    "check": "disconnect preserves Sony pairing and delegate",
+    "passed": true
+  },
+  {
+    "check": "BlueZ confirms actual disconnect",
+    "passed": true
+  },
+  {
+    "check": "reconnect preserves Sony delegate",
+    "passed": true
+  },
+  {
+    "check": "reconnect reports no shell error",
+    "passed": true
+  },
+  {
+    "check": "details show the correct connected Sony object",
+    "passed": true
+  },
+  {
+    "check": "disconnect clears details and releases frozen model",
+    "passed": true
+  },
+  {
+    "check": "reconnect does not reopen old details",
+    "passed": true
+  },
+  {
+    "check": "BlueZ accepts requested removal",
+    "passed": true
+  },
+  {
+    "check": "removal occurred with Sony details open",
+    "passed": false
+  }
+]

@@ -1,0 +1,1 @@
+["qmllint", "--json", "-", "-I", "/etc/profiles/per-user/olaolu/lib/qt-6/qml", "-I", ".", "-I", "config", "-I", "services", "-I", "modules", "modules/menu/BluetoothList.qml", "scripts/fixtures/bluetooth/Bluetooth.qml"]

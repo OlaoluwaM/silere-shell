@@ -1,0 +1,9 @@
+{
+  "command": [
+    "bluetoothctl",
+    "devices",
+    "Connected"
+  ],
+  "exit": 0,
+  "output": ""
+}

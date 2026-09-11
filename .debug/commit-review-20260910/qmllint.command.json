@@ -1,0 +1,1 @@
+["qmllint", "--json", "-", "-I", "/etc/profiles/per-user/olaolu/lib/qt-6/qml", "-I", ".", "-I", "config", "-I", "services", "-I", "modules", "modules/bar/widgets/Workspaces.qml", "services/OverlayCoordinator.qml", "modules/menu/settings/SettingsWorkspacesSection.qml", "scripts/fixtures/coordinator/Idle.qml", "scripts/fixtures/coordinator/OverviewState.qml"]

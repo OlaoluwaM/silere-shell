@@ -1,0 +1,62 @@
+[
+  {
+    "check": "Sony headphones initially connected",
+    "passed": true
+  },
+  {
+    "check": "Sony details open and bound to selected device",
+    "passed": true
+  },
+  {
+    "check": "audio state readable",
+    "passed": true
+  },
+  {
+    "check": "no active audio before disconnect",
+    "passed": true
+  },
+  {
+    "check": "audio state readable",
+    "passed": true
+  },
+  {
+    "check": "no active audio before disconnect",
+    "passed": true
+  },
+  {
+    "check": "disconnect closes details and releases model",
+    "passed": true
+  },
+  {
+    "check": "BlueZ confirms physical disconnect",
+    "passed": true
+  },
+  {
+    "check": "reconnect retains delegate and keeps details closed",
+    "passed": true
+  },
+  {
+    "check": "no connection error",
+    "passed": true
+  },
+  {
+    "check": "no binding loops or QML errors",
+    "passed": true
+  },
+  {
+    "check": "connection restored after 2 second wait",
+    "passed": true
+  },
+  {
+    "check": "connection restored after 5 second wait",
+    "passed": true
+  },
+  {
+    "check": "connection restored after 8 second wait",
+    "passed": true
+  },
+  {
+    "check": "Sony default output restored",
+    "passed": true
+  }
+]

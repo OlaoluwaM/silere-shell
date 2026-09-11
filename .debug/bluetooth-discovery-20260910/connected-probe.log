@@ -1,0 +1,9 @@
+  INFO: Launching config: "/tmp/silere-bt-connected/probe.qml"
+  INFO: Shell ID: "d2061b58735be4c5a66faa3f6ddbb3bb" Path ID "d2061b58735be4c5a66faa3f6ddbb3bb"
+  INFO: Saving logs to "/tmp/silere-bt-connected/xdg_runtime_dir/quickshell/by-id/ik4gs56lt/log.qslog"
+  WARN: --- WARNING ---
+  WARN: WAYLAND_DISPLAY is present but QT_QPA_PLATFORM is "offscreen"
+  WARN: If you are actually running wayland, set QT_QPA_PLATFORM to "wayland" or most functionality will be broken.
+  INFO: Configuration Loaded
+ DEBUG qml: BT-CONNECTED {"available":true,"enabled":true,"name":"WH-1000XM5","connected":true,"paired":true,"battery":40,"connectedCount":1,"statusText":"WH-1000XM5  40%"}
+ DEBUG qml: BT-PASS

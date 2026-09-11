@@ -1,0 +1,11 @@
+{
+  "command": [
+    "bluetoothctl",
+    "--timeout",
+    "8",
+    "power",
+    "off"
+  ],
+  "exit": 0,
+  "output": "[\u001b[0;93mCHG\u001b[0m] Controller <address> PowerState: on-disabling\nFailed to set power off: org.bluez.Error.Failed\n[\u001b[0;93mCHG\u001b[0m] Controller <address> PowerState: off\n"
+}

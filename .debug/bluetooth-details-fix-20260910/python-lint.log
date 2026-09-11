@@ -1,0 +1,11 @@
+modules/menu/BluetoothList.qml:26 ORD-1 property declaration appears after child object -- expected order: id, properties, signals, assignments, attached, states, transitions, handlers, children, functions
+modules/menu/BluetoothList.qml:27 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+modules/menu/BluetoothList.qml:73 STY-6 id '_col' -- use lowerCamelCase for QML ids
+modules/menu/BluetoothList.qml:92 STY-6 id '_list' -- use lowerCamelCase for QML ids
+modules/menu/BluetoothList.qml:109 STY-6 id '_entry' -- use lowerCamelCase for QML ids
+modules/menu/BluetoothList.qml:109 ORD-1 id appears after property assignment -- expected order: id, properties, signals, assignments, attached, states, transitions, handlers, children, functions
+modules/menu/BluetoothList.qml:110 BND-1 property var -- use a typed property (int, string, etc.) for qmlsc compilation and type safety
+modules/menu/BluetoothList.qml:128 STY-6 id '_row' -- use lowerCamelCase for QML ids
+modules/menu/BluetoothList.qml:175 PRF-3 clip: true disables scene graph batching -- verify this is needed (acceptable on ListView)
+modules/menu/BluetoothList.qml:180 STY-6 id '_details' -- use lowerCamelCase for QML ids
+scripts/fixtures/bluetooth/Bluetooth.qml:20 ORD-1 property declaration appears after child object -- expected order: id, properties, signals, assignments, attached, states, transitions, handlers, children, functions

@@ -1,0 +1,6 @@
+  INFO: Launching config: "/tmp/silere-bt-details-fix/live-project/probe.qml"
+  INFO: Shell ID: "2429b97aef80080581252eb1ceef8f45" Path ID "2429b97aef80080581252eb1ceef8f45"
+  INFO: Saving logs to "/run/user/1000/quickshell/by-id/65alv76lt/log.qslog"
+  INFO: Configuration Loaded
+ DEBUG qml: BTHW created 1
+ DEBUG qml: BTHW created 2

@@ -1,0 +1,10 @@
+{
+  "command": [
+    "systemctl",
+    "--no-ask-password",
+    "restart",
+    "bluetooth.service"
+  ],
+  "exit": 1,
+  "output": "Failed to restart bluetooth.service: Access denied as the requested operation requires interactive authentication. However, interactive authentication has not been enabled by the calling program.\nSee system logs and 'systemctl status bluetooth.service' for details.\n"
+}

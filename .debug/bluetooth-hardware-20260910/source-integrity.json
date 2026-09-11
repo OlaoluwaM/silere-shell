@@ -1,0 +1,5 @@
+{
+  "services/Bluetooth.qml": true,
+  "modules/menu/BluetoothList.qml": true,
+  "modules/menu/BluetoothDetails.qml": true
+}

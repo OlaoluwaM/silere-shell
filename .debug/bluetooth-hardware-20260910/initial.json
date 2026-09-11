@@ -1,0 +1,51 @@
+{
+  "rows": [
+    {
+      "id": 1,
+      "index": 0,
+      "address": "<sony>",
+      "name": "WH-1000XM5",
+      "connected": true,
+      "paired": true,
+      "trusted": true,
+      "state": "40%",
+      "expanded": false,
+      "detailAddress": "<sony>",
+      "fields": {
+        "Name": "WH-1000XM5",
+        "Address": "<sony>",
+        "Battery": "40%",
+        "Connection": "Connected",
+        "Paired": "Yes",
+        "Trusted": "Yes"
+      }
+    },
+    {
+      "id": 2,
+      "index": 1,
+      "address": "<reference-1>",
+      "name": "[LG] webOS TV OLED65C4PUA",
+      "connected": false,
+      "paired": false,
+      "trusted": false,
+      "state": "Pair",
+      "expanded": false,
+      "detailAddress": "<reference-1>",
+      "fields": {
+        "Name": "[LG] webOS TV OLED65C4PUA",
+        "Address": "<reference-1>",
+        "Battery": "\u2014",
+        "Connection": "Not connected",
+        "Paired": "No",
+        "Trusted": "No"
+      }
+    }
+  ],
+  "count": 2,
+  "detailsAddress": "",
+  "frozen": false,
+  "removedCount": 1,
+  "removedWithDetails": false,
+  "errorKind": "",
+  "pendingKind": ""
+}

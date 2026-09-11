@@ -97,7 +97,9 @@ measure frame timing or prove interactive responsiveness.
 For a new probe, follow a nearby runner, reuse `probe-lib.sh`, check both its
 sentinel and runtime errors, and register new QML files in their folder's
 `qmldir`. Add the runner to the appropriate suite so the full check reaches it.
-Keep generated logs and temporary instrumentation out of the committed source.
+Keep routine generated logs and temporary instrumentation out of the committed
+source. Deliberately retained investigation evidence belongs in
+[.debug/](../.debug/README.md), with a report explaining its scope and results.
 
 ## Manual installation and repair
 

@@ -1,0 +1,9 @@
+{
+  "command": [
+    "qs",
+    "-p",
+    "/tmp/silere-bt-connected/probe.qml",
+    "--no-color"
+  ],
+  "exit": 0
+}

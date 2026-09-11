@@ -1,0 +1,11 @@
+{
+  "command": [
+    "bluetoothctl",
+    "--timeout",
+    "8",
+    "power",
+    "on"
+  ],
+  "exit": 0,
+  "output": "Changing power on succeeded\n"
+}

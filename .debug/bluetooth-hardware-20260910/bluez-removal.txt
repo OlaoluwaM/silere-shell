@@ -1,0 +1,1 @@
+/: org.freedesktop.DBus.ObjectManager.InterfacesRemoved (objectpath '/org/bluez/hci0/dev_<sony>', ['org.freedesktop.DBus.Properties', 'org.freedesktop.DBus.Introspectable', 'org.bluez.Device1', 'org.bluez.Bearer.BREDR1'])

@@ -1,0 +1,11 @@
+{
+  "command": [
+    "bluetoothctl",
+    "--timeout",
+    "15",
+    "scan",
+    "on"
+  ],
+  "exit": 0,
+  "output": "SetDiscoveryFilter success\nDiscovery started\n"
+}

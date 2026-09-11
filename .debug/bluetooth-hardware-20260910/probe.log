@@ -1,0 +1,49 @@
+  INFO: Launching config: "/tmp/silere-bt-hardware-run/project/probe.qml"
+  INFO: Shell ID: "0a27206aa0f2a6dc29ad31a9867763db" Path ID "0a27206aa0f2a6dc29ad31a9867763db"
+  INFO: Saving logs to "/run/user/1000/quickshell/by-id/jw4p766lt/log.qslog"
+  WARN scene: QML PanelWindow at @probe.qml[10:5]: Binding loop detected for property "visible":
+qs:@/qs/probe.qml:12:9
+  INFO: Configuration Loaded
+ DEBUG qml: BTHW objectRemovedPost
+ DEBUG qml: BTHW removed false
+ DEBUG qml: BTHW created 1
+ DEBUG qml: BTHW created 2
+ DEBUG qml: BTHW removal-settled true true true
+ DEBUG qml: BTHW created 3
+ DEBUG qml: BTHW created 4
+ DEBUG qml: BTHW created 5
+ DEBUG qml: BTHW created 6
+ DEBUG qml: BTHW created 7
+ DEBUG qml: BTHW created 8
+ DEBUG qml: BTHW created 9
+ DEBUG qml: BTHW created 10
+ DEBUG qml: BTHW created 11
+ DEBUG qml: BTHW created 12
+ DEBUG qml: BTHW created 13
+ DEBUG qml: BTHW created 14
+ DEBUG qml: BTHW destroyed 2
+ DEBUG qml: BTHW created 15
+  WARN scene: QML Column at @modules/menu/BluetoothList.qml[138:23]: Binding loop detected for property "_detailsOpen":
+qs:@/qs/modules/menu/BluetoothList.qml:163:17
+ DEBUG qml: BTHW created 16
+ DEBUG qml: BTHW created 17
+ DEBUG qml: BTHW destroyed 15
+ DEBUG qml: BTHW destroyed 5
+ DEBUG qml: BTHW created 18
+ DEBUG qml: BTHW created 19
+ DEBUG qml: BTHW created 20
+ DEBUG qml: BTHW destroyed 19
+ DEBUG qml: BTHW destroyed 18
+ DEBUG qml: BTHW destroyed 17
+ DEBUG qml: BTHW destroyed 14
+  WARN scene: QML Column at @modules/menu/BluetoothList.qml[138:23]: Binding loop detected for property "_detailsOpen":
+qs:@/qs/modules/menu/BluetoothList.qml:163:17
+ DEBUG qml: BTHW created 21
+ DEBUG qml: BTHW created 22
+ DEBUG qml: BTHW created 23
+ DEBUG qml: BTHW created 24
+ DEBUG qml: BTHW created 25
+ DEBUG qml: BTHW objectRemovedPost
+ DEBUG qml: BTHW removed false
+ DEBUG qml: BTHW destroyed 1
+ DEBUG qml: BTHW removal-settled true true true

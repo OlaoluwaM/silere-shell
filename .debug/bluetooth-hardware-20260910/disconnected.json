@@ -1,0 +1,151 @@
+{
+  "rows": [
+    {
+      "id": 1,
+      "index": 0,
+      "address": "<sony>",
+      "name": "WH-1000XM5",
+      "connected": false,
+      "paired": true,
+      "trusted": true,
+      "state": "Paired",
+      "expanded": false,
+      "detailAddress": "<sony>",
+      "fields": {
+        "Name": "WH-1000XM5",
+        "Address": "<sony>",
+        "Battery": "\u2014",
+        "Connection": "Not connected",
+        "Paired": "Yes",
+        "Trusted": "Yes"
+      }
+    },
+    {
+      "id": 6,
+      "index": 1,
+      "address": "<reference-2>",
+      "name": "<reference-2>",
+      "connected": false,
+      "paired": false,
+      "trusted": false,
+      "state": "Pair",
+      "expanded": false,
+      "detailAddress": "<reference-2>",
+      "fields": {
+        "Name": "<reference-2>",
+        "Address": "<reference-2>",
+        "Battery": "\u2014",
+        "Connection": "Not connected",
+        "Paired": "No",
+        "Trusted": "No"
+      }
+    },
+    {
+      "id": 7,
+      "index": 2,
+      "address": "<reference-3>",
+      "name": "<reference-3>",
+      "connected": false,
+      "paired": false,
+      "trusted": false,
+      "state": "Pair",
+      "expanded": false,
+      "detailAddress": "<reference-3>",
+      "fields": {
+        "Name": "<reference-3>",
+        "Address": "<reference-3>",
+        "Battery": "\u2014",
+        "Connection": "Not connected",
+        "Paired": "No",
+        "Trusted": "No"
+      }
+    },
+    {
+      "id": 3,
+      "index": 3,
+      "address": "<reference-4>",
+      "name": "<reference-4>",
+      "connected": false,
+      "paired": false,
+      "trusted": false,
+      "state": "Pair",
+      "expanded": false,
+      "detailAddress": "<reference-4>",
+      "fields": {
+        "Name": "<reference-4>",
+        "Address": "<reference-4>",
+        "Battery": "\u2014",
+        "Connection": "Not connected",
+        "Paired": "No",
+        "Trusted": "No"
+      }
+    },
+    {
+      "id": 4,
+      "index": 4,
+      "address": "<reference-5>",
+      "name": "529",
+      "connected": false,
+      "paired": false,
+      "trusted": false,
+      "state": "Pair",
+      "expanded": false,
+      "detailAddress": "<reference-5>",
+      "fields": {
+        "Name": "529",
+        "Address": "<reference-5>",
+        "Battery": "\u2014",
+        "Connection": "Not connected",
+        "Paired": "No",
+        "Trusted": "No"
+      }
+    },
+    {
+      "id": 5,
+      "index": 5,
+      "address": "<reference-6>",
+      "name": "<reference-6>",
+      "connected": false,
+      "paired": false,
+      "trusted": false,
+      "state": "Pair",
+      "expanded": false,
+      "detailAddress": "<reference-6>",
+      "fields": {
+        "Name": "<reference-6>",
+        "Address": "<reference-6>",
+        "Battery": "\u2014",
+        "Connection": "Not connected",
+        "Paired": "No",
+        "Trusted": "No"
+      }
+    },
+    {
+      "id": 2,
+      "index": 6,
+      "address": "<reference-1>",
+      "name": "[LG] webOS TV OLED65C4PUA",
+      "connected": false,
+      "paired": false,
+      "trusted": false,
+      "state": "Pair",
+      "expanded": false,
+      "detailAddress": "<reference-1>",
+      "fields": {
+        "Name": "[LG] webOS TV OLED65C4PUA",
+        "Address": "<reference-1>",
+        "Battery": "\u2014",
+        "Connection": "Not connected",
+        "Paired": "No",
+        "Trusted": "No"
+      }
+    }
+  ],
+  "count": 7,
+  "detailsAddress": "",
+  "frozen": false,
+  "removedCount": 1,
+  "removedWithDetails": false,
+  "errorKind": "",
+  "pendingKind": ""
+}

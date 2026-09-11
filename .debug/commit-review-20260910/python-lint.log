@@ -1,0 +1,79 @@
+modules/bar/widgets/Workspaces.qml:41 ORD-1 property declaration appears after property assignment -- expected order: id, properties, signals, assignments, attached, states, transitions, handlers, children, functions
+modules/bar/widgets/Workspaces.qml:101 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+modules/bar/widgets/Workspaces.qml:110 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+modules/bar/widgets/Workspaces.qml:114 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+modules/bar/widgets/Workspaces.qml:130 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+modules/bar/widgets/Workspaces.qml:134 BND-1 property var -- use a typed property (int, string, etc.) for qmlsc compilation and type safety
+modules/bar/widgets/Workspaces.qml:148 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+modules/bar/widgets/Workspaces.qml:213 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+modules/bar/widgets/Workspaces.qml:220 BND-1 property var -- use a typed property (int, string, etc.) for qmlsc compilation and type safety
+modules/bar/widgets/Workspaces.qml:230 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+modules/bar/widgets/Workspaces.qml:239 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+modules/bar/widgets/Workspaces.qml:452 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+modules/bar/widgets/Workspaces.qml:494 STY-6 id '_handoffDispatch' -- use lowerCamelCase for QML ids
+modules/bar/widgets/Workspaces.qml:546 STY-6 id '_groupFadeAnim' -- use lowerCamelCase for QML ids
+modules/bar/widgets/Workspaces.qml:584 BND-2 Imperative '=' on 'target' destroys its binding -- use Qt.binding() to restore, or verify this is intentional
+modules/bar/widgets/Workspaces.qml:602 BND-2 Imperative '=' on 'target' destroys its binding -- use Qt.binding() to restore, or verify this is intentional
+modules/bar/widgets/Workspaces.qml:624 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+modules/bar/widgets/Workspaces.qml:637 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+modules/bar/widgets/Workspaces.qml:647 STY-6 id '_menuWarmDelay' -- use lowerCamelCase for QML ids
+modules/bar/widgets/Workspaces.qml:658 STY-6 id '_menuWarmRelease' -- use lowerCamelCase for QML ids
+modules/bar/widgets/Workspaces.qml:666 STY-6 id '_menuWarmExpiry' -- use lowerCamelCase for QML ids
+modules/bar/widgets/Workspaces.qml:719 STY-6 id '_wsRepeater' -- use lowerCamelCase for QML ids
+modules/menu/settings/SettingsWorkspacesSection.qml:6 STY-1 Top-level component should have id: root (enables qualified lookup, future-proofs for QML 3)
+scripts/probe-logic.qml:28 ORD-1 property declaration appears after property assignment -- expected order: id, properties, signals, assignments, attached, states, transitions, handlers, children, functions
+scripts/probe-logic.qml:108 BND-1 property var -- use a typed property (int, string, etc.) for qmlsc compilation and type safety
+scripts/probe-logic.qml:108 ORD-1 property declaration appears after child object -- expected order: id, properties, signals, assignments, attached, states, transitions, handlers, children, functions
+scripts/probe-logic.qml:109 BND-1 property var -- use a typed property (int, string, etc.) for qmlsc compilation and type safety
+scripts/probe-logic.qml:110 BND-1 property var -- use a typed property (int, string, etc.) for qmlsc compilation and type safety
+scripts/probe-logic.qml:166 ORD-1 child object appears after function -- expected order: id, properties, signals, assignments, attached, states, transitions, handlers, children, functions
+scripts/probe-logic.qml:225 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:239 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:258 ERR-2 Hardcoded /tmp/ path is not cross-platform -- use QStandardPaths.writableLocation from C++ or a platform-aware helper
+scripts/probe-logic.qml:259 ERR-2 Hardcoded /tmp/ path is not cross-platform -- use QStandardPaths.writableLocation from C++ or a platform-aware helper
+scripts/probe-logic.qml:375 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:448 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:467 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:478 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:488 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:492 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:558 LDR-2 Qt.createComponent(url) -- prefer inline Component{} for type safety and tooling support
+scripts/probe-logic.qml:562 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:564 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:580 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:813 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:814 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:822 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:850 STY-6 id '12' -- use lowerCamelCase for QML ids
+scripts/probe-logic.qml:1000 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:1004 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:1043 ERR-2 Hardcoded /tmp/ path is not cross-platform -- use QStandardPaths.writableLocation from C++ or a platform-aware helper
+scripts/probe-logic.qml:1067 ERR-2 Hardcoded /tmp/ path is not cross-platform -- use QStandardPaths.writableLocation from C++ or a platform-aware helper
+scripts/probe-logic.qml:1070 ERR-2 Hardcoded /tmp/ path is not cross-platform -- use QStandardPaths.writableLocation from C++ or a platform-aware helper
+scripts/probe-logic.qml:1109 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:1162 ERR-1 Hardcoded http:// URL -- use https:// for secure transport
+scripts/probe-logic.qml:1332 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:1334 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:1446 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:1449 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:1572 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:1779 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:1849 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:1865 STY-6 id '63' -- use lowerCamelCase for QML ids
+scripts/probe-logic.qml:2014 ORD-1 property declaration appears after property assignment -- expected order: id, properties, signals, assignments, attached, states, transitions, handlers, children, functions
+scripts/probe-logic.qml:2046 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:2055 STY-6 id '_anchorTeardownSettle' -- use lowerCamelCase for QML ids
+scripts/probe-logic.qml:2109 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-logic.qml:2142 STY-6 id '_orphanSettle' -- use lowerCamelCase for QML ids
+scripts/probe-logic.qml:2207 BND-1 property var -- use a typed property (int, string, etc.) for qmlsc compilation and type safety
+scripts/probe-logic.qml:2209 BND-1 property var -- use a typed property (int, string, etc.) for qmlsc compilation and type safety
+scripts/probe-logic.qml:2220 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+scripts/probe-overlay-coordinator.qml:60 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+services/OverlayCoordinator.qml:33 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+services/OverlayCoordinator.qml:34 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+services/OverlayCoordinator.qml:35 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+services/OverlayCoordinator.qml:36 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+services/OverlayCoordinator.qml:38 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+services/OverlayCoordinator.qml:39 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+services/OverlayCoordinator.qml:40 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)
+services/OverlayCoordinator.qml:41 JS-2 Loose equality (==/!=) -- use strict equality (===/!==)

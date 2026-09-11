@@ -1,0 +1,11 @@
+{
+  "command": [
+    "sudo",
+    "-n",
+    "systemctl",
+    "restart",
+    "bluetooth.service"
+  ],
+  "exit": 1,
+  "output": "sudo: a password is required\n"
+}

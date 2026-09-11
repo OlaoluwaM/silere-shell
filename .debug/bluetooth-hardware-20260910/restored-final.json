@@ -1,0 +1,71 @@
+{
+  "rows": [
+    {
+      "id": 3,
+      "index": 0,
+      "address": "<sony>",
+      "name": "WH-1000XM5",
+      "connected": true,
+      "paired": true,
+      "trusted": true,
+      "state": "Connected",
+      "expanded": true,
+      "detailAddress": "<sony>",
+      "fields": {
+        "Name": "WH-1000XM5",
+        "Address": "<sony>",
+        "Battery": "\u2014",
+        "Connection": "Connected",
+        "Paired": "Yes",
+        "Trusted": "Yes"
+      }
+    },
+    {
+      "id": 1,
+      "index": 1,
+      "address": "<reference-1>",
+      "name": "[LG] webOS TV OLED65C4PUA",
+      "connected": false,
+      "paired": false,
+      "trusted": false,
+      "state": "Pair",
+      "expanded": false,
+      "detailAddress": "<reference-1>",
+      "fields": {
+        "Name": "[LG] webOS TV OLED65C4PUA",
+        "Address": "<reference-1>",
+        "Battery": "\u2014",
+        "Connection": "Not connected",
+        "Paired": "No",
+        "Trusted": "No"
+      }
+    },
+    {
+      "id": 2,
+      "index": 2,
+      "address": "<reference-18>",
+      "name": "[LG] webOS TV UT8000AUA",
+      "connected": false,
+      "paired": false,
+      "trusted": false,
+      "state": "Pair",
+      "expanded": false,
+      "detailAddress": "<reference-18>",
+      "fields": {
+        "Name": "[LG] webOS TV UT8000AUA",
+        "Address": "<reference-18>",
+        "Battery": "\u2014",
+        "Connection": "Not connected",
+        "Paired": "No",
+        "Trusted": "No"
+      }
+    }
+  ],
+  "count": 3,
+  "detailsAddress": "<sony>",
+  "frozen": true,
+  "removedCount": 0,
+  "removedWithDetails": false,
+  "errorKind": "",
+  "pendingKind": ""
+}

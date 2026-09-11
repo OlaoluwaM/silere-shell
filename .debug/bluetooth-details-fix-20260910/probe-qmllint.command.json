@@ -1,0 +1,1 @@
+["qmllint", "--json", "-", "-I", "/etc/profiles/per-user/olaolu/lib/qt-6/qml", "-I", "/tmp/silere-bt-details-fix/lint-tree", "/tmp/silere-bt-details-fix/lint-tree/probe-bluetooth-details.qml"]

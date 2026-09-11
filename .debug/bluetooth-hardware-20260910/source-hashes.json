@@ -1,0 +1,5 @@
+{
+  "services/Bluetooth.qml": "d39c55186b275b48f7dd1c582ca837383b1064fbc8faea838927451a30e84e77",
+  "modules/menu/BluetoothList.qml": "e31a55d30c5866f4a883b479639495ca4b1a41672be17444ee699a32dc9b627a",
+  "modules/menu/BluetoothDetails.qml": "f06d5f8daee5c579be26bd3532d8264421926e8081006c8bc0ee48757d7cbf1a"
+}

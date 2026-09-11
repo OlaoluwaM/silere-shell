@@ -1,0 +1,17 @@
+  INFO: Launching config: "/tmp/silere-bt-hardware-run/loop-fixture/probe.qml"
+  INFO: Shell ID: "897f09a7fc3906604615183622cf5d7a" Path ID "897f09a7fc3906604615183622cf5d7a"
+  INFO: Saving logs to "/tmp/silere-bt-hardware-run/loop-xdg_runtime_dir/quickshell/by-id/e85bd66lt/log.qslog"
+  WARN: --- WARNING ---
+  WARN: WAYLAND_DISPLAY is present but QT_QPA_PLATFORM is "offscreen"
+  WARN: If you are actually running wayland, set QT_QPA_PLATFORM to "wayland" or most functionality will be broken.
+  WARN scene: QML FloatingWindow (parent or ancestor of ProxyFloatingWindow) at @probe.qml[8:2]: Setting `height` is deprecated. Set `implicitHeight` instead.
+  WARN scene: QML FloatingWindow (parent or ancestor of ProxyFloatingWindow) at @probe.qml[8:2]: Setting `width` is deprecated. Set `implicitWidth` instead.
+  WARN : Failed to create wl_display (No such file or directory)
+  WARN: Cannot create idle monitor as ext-idle-notify-v1 is not supported by the current compositor.
+  WARN: Cannot create idle monitor as ext-idle-notify-v1 is not supported by the current compositor.
+  INFO: Configuration Loaded
+  WARN: This plugin does not support setting window masks
+ DEBUG qml: LOOP-TEST disconnect
+  WARN scene: QML Column at @modules/menu/BluetoothList.qml[108:23]: Binding loop detected for property "_detailsOpen":
+qs:@/qs/modules/menu/BluetoothList.qml:115:17
+ DEBUG qml: LOOP-TEST closed true true
