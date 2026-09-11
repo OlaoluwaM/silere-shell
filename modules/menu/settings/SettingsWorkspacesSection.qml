@@ -11,7 +11,8 @@ Column {
     SettingsCard {
         ToggleRow {
             glyph: "󰕭"; label: "Dynamic workspaces"
-            description: "Show occupied workspaces plus one empty"
+            description: Compositor.isNiri ? "Show occupied workspaces plus one empty"
+                : "Grow with occupancy, up to workspace 15"
             key: "wsDynamic"
         }
         SliderRow {

@@ -86,7 +86,11 @@ so resurrecting one on purpose means removing its line in the same commit.
   controls with `PwVolumeControl`; compatible device and lifecycle fixes can
   be adapted without changing those interfaces.
 - Dynamic workspaces keep the fork's occupied-workspace list and trailing
-  empty workspace. Upstream's slot/app-model extraction must not replace
+  empty workspace, up to workspace ID 15. Dynamic bar scrolling wraps within
+  IDs 1–15 in both directions and skips IDs owned by another output. Bound
+  enumeration before building the delegate model, including when external
+  compositor shortcuts select higher IDs. Those shortcuts remain compositor-owned.
+  Upstream's slot/app-model extraction must not replace
   those semantics or its marker behavior as a side effect of an import.
   Shared bump helpers may replace the matching gestures while retaining the
   fork's separate workspace entry animation; do not add upstream's slot-swap

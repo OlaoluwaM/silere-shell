@@ -301,20 +301,28 @@ Item {
         return max
     }
 
-    // GNOME-style dynamic mode: every occupied id from the anchor plus exactly one
-    // trailing empty, extended through the active id if the user has swiped past
-    // that empty into fresher ones. No paging -- the whole run is always shown.
-    readonly property string _dynamicVisibleIdsKey: {
+    readonly property int _dynamicWorkspaceCap: 15
+
+    function _dynamicIds(anchor: int, active: int, occupiedMax: int, isElsewhere: var): var {
+        const cap = root._dynamicWorkspaceCap
+        // External compositor shortcuts can select higher ids. Bound both ends
+        // before enumeration so those ids cannot inflate the bar.
+        const first = anchor > cap ? 1 : Math.max(1, anchor)
+        let trailing = Math.min(cap, Math.max(first, occupiedMax + 1))
+        while (trailing < cap && isElsewhere(trailing)) trailing++
+        const last = Math.min(cap, Math.max(trailing, active))
         const ids = []
-        const anchor = Math.max(1, root._monitorAnchorId)
-        let trailing = Math.max(anchor, root._monitorMaxOccupiedId + 1)
-        while (root._knownOnOtherMonitor(trailing)) trailing++
-        const last = Math.max(trailing, root.activeId)
-        for (let id = anchor; id <= last; id++) {
-            if (root._knownOnOtherMonitor(id)) continue
-            ids.push(id)
+        for (let id = first; id <= last; id++) {
+            if (!isElsewhere(id)) ids.push(id)
         }
-        return ids.join(",")
+        return ids
+    }
+
+    // Keep the occupied range and one trailing empty until the workspace cap.
+    readonly property string _dynamicVisibleIdsKey: {
+        if (Compositor.isNiri || !ShellSettings.wsDynamic) return ""
+        return root._dynamicIds(root._monitorAnchorId, root.activeId,
+            root._monitorMaxOccupiedId, root._knownOnOtherMonitor).join(",")
     }
 
     // Growing/shrinking the trailing empty resets every delegate (Repeater fully
@@ -555,7 +563,32 @@ Item {
         Compositor.focusWorkspace(id, root.monitorName)
     }
 
+    function _dynamicScrollTarget(active: int, delta: int, isElsewhere: var): int {
+        const cap = root._dynamicWorkspaceCap
+        const direction = delta > 0 ? -1 : 1
+        let target = active
+        for (let step = 0; step < Math.abs(delta); step++) {
+            let candidate = target >= 1 && target <= cap ? target : (direction > 0 ? 0 : cap + 1)
+            // Stop after a full cycle if every id belongs to another output.
+            let found = false
+            for (let checked = 0; checked < cap; checked++) {
+                candidate += direction
+                if (candidate > cap) candidate = 1
+                else if (candidate < 1) candidate = cap
+                if (!isElsewhere(candidate)) {
+                    found = true
+                    break
+                }
+            }
+            if (!found) break
+            target = candidate
+        }
+        return target
+    }
+
     function _scrollTarget(delta: int): int {
+        if (!Compositor.isNiri && ShellSettings.wsDynamic)
+            return root._dynamicScrollTarget(root.activeId, delta, root._knownOnOtherMonitor)
         let target = root.activeId
         const direction = delta > 0 ? -1 : 1
         const steps = Math.abs(delta)

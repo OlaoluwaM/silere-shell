@@ -337,6 +337,71 @@ ShellRoot {
             "an older saved widget layout migrates the new window title to its center default")
 
         const workspaceStrip = workspaceStripFactory.createObject(root)
+        const localWorkspace = () => false
+        root._check(workspaceStrip._dynamicIds(1, 1, 0, localWorkspace).join(",") === "1",
+            "empty dynamic workspaces start with one slot")
+        root._check(workspaceStrip._dynamicIds(1, 3, 3, localWorkspace).join(",") === "1,2,3,4",
+            "dynamic workspaces grow through occupancy plus one empty slot")
+        root._check(workspaceStrip._dynamicIds(1, 1, 1, localWorkspace).join(",") === "1,2",
+            "dynamic workspaces shrink with occupancy")
+        root._check(workspaceStrip._dynamicIds(1, 7, 2, localWorkspace).join(",") === "1,2,3,4,5,6,7",
+            "an active empty workspace extends the dynamic range")
+        for (const occupiedMax of [13, 14, 15, 16, 1005, 1000000000]) {
+            let ownershipReads = 0
+            const cappedIds = workspaceStrip._dynamicIds(1, 1, occupiedMax,
+                () => { ownershipReads++; return false })
+            root._check(cappedIds.length === Math.min(15, occupiedMax + 1)
+                    && cappedIds[0] === 1 && cappedIds[cappedIds.length - 1] <= 15
+                    && ownershipReads <= 16,
+                "dynamic enumeration stays bounded for occupied ID " + occupiedMax)
+        }
+        root._check(workspaceStrip._dynamicIds(1005, 1005, 1005, localWorkspace).length === 15,
+            "external high workspace anchors cannot expand the dynamic model")
+        root._check(workspaceStrip._dynamicIds(4, 5, 5, localWorkspace).join(",") === "4,5,6",
+            "dynamic workspaces retain a monitor's anchor below the cap")
+        root._check(workspaceStrip._dynamicIds(1, 1, 2, id => id === 3).join(",") === "1,2,4",
+            "the trailing empty skips a workspace on another monitor")
+        root._check(workspaceStrip._dynamicIds(1, 14, 14, id => id === 15).length === 14,
+            "a foreign trailing workspace cannot extend past the cap")
+        root._check(workspaceStrip._dynamicScrollTarget(15, -1, localWorkspace) === 1
+                && workspaceStrip._dynamicScrollTarget(1, 1, localWorkspace) === 15,
+            "dynamic scrolling wraps in both directions at the cap")
+        root._check(workspaceStrip._dynamicScrollTarget(14, -3, localWorkspace) === 2
+                && workspaceStrip._dynamicScrollTarget(2, 3, localWorkspace) === 14,
+            "multi-step scrolling preserves steps across the wrap")
+        root._check(workspaceStrip._dynamicScrollTarget(15, -1, id => id === 1) === 2
+                && workspaceStrip._dynamicScrollTarget(1, 1, id => id === 15) === 14,
+            "wrapping skips workspaces owned by another monitor")
+        root._check(workspaceStrip._dynamicScrollTarget(7, -1, id => id !== 7) === 7,
+            "a monitor with one eligible workspace stays on it")
+        let blockedOwnershipReads = 0
+        root._check(workspaceStrip._dynamicScrollTarget(7, -1,
+                () => { blockedOwnershipReads++; return true }) === 7
+                && blockedOwnershipReads === 15,
+            "a fully foreign workspace range stops after one bounded cycle")
+        root._check(workspaceStrip._dynamicScrollTarget(1005, -1, localWorkspace) === 1
+                && workspaceStrip._dynamicScrollTarget(1005, 1, localWorkspace) === 15
+                && workspaceStrip._dynamicScrollTarget(7, 0, localWorkspace) === 7,
+            "scrolling re-enters the capped range from external IDs and ignores zero steps")
+        if (!Compositor.isNiri) {
+            const savedDynamic = ShellSettings.wsDynamic
+            ShellSettings.wsDynamic = true
+            workspaceStrip._lastNormalActiveId = 1000000000
+            root._check(workspaceStrip.visibleIds.length === 15
+                    && workspaceStrip.visibleIds[0] === 1
+                    && workspaceStrip.visibleIds[14] === 15
+                    && workspaceStrip._scrollTarget(-1) === 1
+                    && workspaceStrip._scrollTarget(1) === 15,
+                "the live dynamic binding and scroll handler apply the cap to a high fallback ID")
+            workspaceStrip._lastNormalActiveId = 1
+            root._check(workspaceStrip.visibleIds.join(",") === "1",
+                "the dynamic binding shrinks after returning from an external high ID")
+            ShellSettings.wsDynamic = false
+            root._check(workspaceStrip._dynamicVisibleIdsKey === ""
+                    && workspaceStrip._scrollTarget(1) === 1,
+                "static mode retains its original non-wrapping navigation")
+            ShellSettings.wsDynamic = savedDynamic
+        }
         const forwardCrossing = workspaceStrip._intermediateIndexes(0, 2)
         const reverseCrossing = workspaceStrip._intermediateIndexes(3, 0)
         root._check(forwardCrossing.length === 1 && forwardCrossing[0] === 1
