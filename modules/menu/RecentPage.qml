@@ -823,16 +823,11 @@ PageShell {
                                 Row {
                                     id: _removeRow
                                     anchors.centerIn: parent
-                                    // the glyph's ink sits a pixel up and left of its box centre
-                                    // (measured at 11px; the font reports the whole cell as ink, so
-                                    // TextMetrics cannot say so), and the box is nudged to match
-                                    anchors.horizontalCenterOffset: 1
                                     spacing: 5
 
                                     ShellText {
                                         id: _removeGlyph
                                         anchors.verticalCenter: parent.verticalCenter
-                                        anchors.verticalCenterOffset: 1
                                         text: "󰅖"
                                         color: _removeHover.hovered ? Theme.error : Theme.withAlpha(Theme.subtext, 0.56)
                                         font.pixelSize: Settings.fontCaption
