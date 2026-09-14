@@ -756,8 +756,20 @@ Item {
 
             HoverHandler { id: _closeHover; cursorShape: Qt.PointingHandCursor }
             TapHandler   { onTapped: card.dismiss() }
+            TextMetrics {
+                id: _closeMetrics
+                font: _closeGlyph.font
+                text: _closeGlyph.text
+            }
             ShellText {
+                id: _closeGlyph
                 anchors.centerIn: parent
+                anchors.alignWhenCentered: false
+                // fallback icons can have unequal side bearings within their text box
+                // the rendered ink retains a quarter-pixel left bias after metric centering
+                anchors.horizontalCenterOffset: (implicitWidth - _closeMetrics.tightBoundingRect.width) / 2
+                    - _closeMetrics.tightBoundingRect.x + 0.25
+                anchors.verticalCenterOffset: 0.25
                 text:  "󰅖"
                 color: _closeHover.hovered ? Theme.error : Theme.withAlpha(Theme.menuTextMuted, 0.78)
                 font.pixelSize: Settings.fontCaption

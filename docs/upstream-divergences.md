@@ -123,6 +123,8 @@ so resurrecting one on purpose means removing its line in the same commit.
   as grouping, inline replies, batch retirement, and sender-image hardening
   around those two constraints. The history page's stacked runs are the
   fork's own: an upstream history grouping lands under that fold or not at all.
+  Popup and history dismiss icons center their measured ink horizontally,
+  with fractional positioning retained for fonts such as Berkeley Mono.
   Expansion belongs to a run's retained oldest entry, including its timestamp,
   rather than its ordinal among the day's runs. Removing an older run must not
   transfer expansion to another run; a merged run keeps its oldest entry's state.

@@ -823,11 +823,25 @@ PageShell {
                                 Row {
                                     id: _removeRow
                                     anchors.centerIn: parent
+                                    anchors.alignWhenCentered: false
                                     spacing: 5
 
+                                    TextMetrics {
+                                        id: _removeMetrics
+                                        font: _removeGlyph.font
+                                        text: _removeGlyph.text
+                                    }
                                     ShellText {
                                         id: _removeGlyph
                                         anchors.verticalCenter: parent.verticalCenter
+                                        anchors.alignWhenCentered: false
+                                        // preserve the row's advance while centering the icon's ink
+                                        // the rendered ink retains a quarter-pixel left bias after metric centering
+                                        transform: Translate {
+                                            x: (_removeGlyph.implicitWidth - _removeMetrics.tightBoundingRect.width) / 2
+                                                - _removeMetrics.tightBoundingRect.x + 0.25
+                                            y: 0.25
+                                        }
                                         text: "󰅖"
                                         color: _removeHover.hovered ? Theme.error : Theme.withAlpha(Theme.subtext, 0.56)
                                         font.pixelSize: Settings.fontCaption
