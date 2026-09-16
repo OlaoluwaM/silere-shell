@@ -571,7 +571,11 @@ Singleton {
         } else if (entry) {
             for (let i = 0; i < _history.count; i++) {
                 const h = _history.get(i)
-                if (h.time === entry.time && h.summary === entry.summary) { idx = i; break }
+                if (h.id === entry.id && h.time === entry.time
+                        && h.appName === entry.appName && h.summary === entry.summary) {
+                    idx = i
+                    break
+                }
             }
         }
         if (idx < 0 || idx >= _history.count) return
