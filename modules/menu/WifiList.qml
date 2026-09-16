@@ -150,7 +150,8 @@ Item {
                 readonly property bool _sel:        root._selected === modelData.ssid
                 readonly property bool _connecting: Network.wifiConnecting === modelData.ssid
                 readonly property bool _failed:     Network.wifiError === modelData.ssid
-                readonly property bool _armed:      _confirm.key === modelData.ssid && modelData.active
+                readonly property bool _armed:      _confirm.key === "disconnect:" + modelData.ssid && modelData.active
+                readonly property bool _forgetArmed: _confirm.key === "forget:" + modelData.ssid
                 // collapses on its own once this network stops being the active one
                 readonly property bool _detailsOpen: root._detailsOpen && modelData.active
 
@@ -169,43 +170,68 @@ Item {
                     // republishing the percentage would dirty every entry a few times a minute
                     glyph: _entry.modelData.glyph
                     label: _entry.modelData.label
-                    status: _entry._armed ? "Disconnect?"
+                    status: _entry._forgetArmed ? "Forget?"
+                        : _entry._armed ? "Disconnect?"
                         : _entry.modelData.active ? "Connected"
                         : _entry._connecting ? "Connecting…"
                         : _entry._failed ? (Network.wifiErrorNeedsSecret ? "Wrong password" : "Failed")
                         : _entry._sel ? "Password"
+                        : _entry.modelData.profileOnly ? (_entry.modelData.known ? "Secured" : "Not supported")
                         : _entry.modelData.secured ? "Secured"
                         : "Open"
                     selected: _entry.modelData.active
                     highlighted: _entry._sel
-                    warning: _entry._armed
+                    warning: _entry._armed || _entry._forgetArmed
                     // armed outranks a lingering failure — a stale wrong-password error
                     // must not steal the confirm prompt's tint from under the second tap
-                    failed: !_entry._armed && _entry._failed
+                    failed: !_entry._armed && !_entry._forgetArmed && _entry._failed
                     // the body tap already means disconnect for the connected entry, so
                     // its details live behind the chevron's separate hit zone instead
                     expandable: _entry.modelData.active
                     expanded: _entry._detailsOpen
 
                     function _activate(): void {
-                        if (_entry.modelData.active) {
-                            if (_confirm.tryConfirm(_entry.modelData.ssid)) Network.disconnectWifi()
+                        // Disarming a forget confirmation unfreezes the list and can
+                        // synchronously replace this delegate's modelData.
+                        const network = _entry.modelData
+                        const ssid = network.ssid
+                        const wasSel = _entry._sel
+                        const failed = Network.wifiError === ssid
+                        if (_entry._forgetArmed) _confirm.disarm()
+                        if (network.active) {
+                            if (_confirm.tryConfirm("disconnect:" + ssid)) Network.disconnectWifi()
+                            return
+                        }
+                        // an enterprise or WEP network can only join from a stored profile;
+                        // the shell has no way to collect those credentials
+                        if (network.profileOnly) {
+                            if (network.known) Network.connectWifi(ssid, "")
                             return
                         }
                         // a known network reconnects from its stored key; once that key is
                         // refused, repeating it can only fail again, so take a new one
-                        const needsSecret = !_entry.modelData.known
-                            || (_entry._failed && Network.wifiErrorNeedsSecret)
-                        if (_entry.modelData.secured && needsSecret) {
-                            const wasSel = _entry._sel
-                            root._selected = wasSel ? "" : _entry.modelData.ssid
+                        const needsSecret = !network.known
+                            || (failed && Network.wifiErrorNeedsSecret)
+                        if (network.psk && needsSecret) {
+                            root._selected = wasSel ? "" : ssid
                             Network.clearWifiError()
                             if (!wasSel) Qt.callLater(function() { _pw.forceActiveFocus() })
                         } else {
-                            Network.connectWifi(_entry.modelData.ssid, "")
+                            Network.connectWifi(ssid, "")
                         }
                     }
                     onTriggered: _activate()
+                    // middle-click forgets a saved profile; the first press only arms it
+                    function _middleTap(): void {
+                        const ssid = _entry.modelData.ssid
+                        if (!_entry.modelData.known || _entry.modelData.active) return
+                        const key = "forget:" + ssid
+                        if (_confirm.tryConfirm(key)) Network.forgetWifi(ssid)
+                    }
+                    TapHandler {
+                        acceptedButtons: Qt.MiddleButton
+                        onTapped: _row._middleTap()
+                    }
                     onExpandToggled: root._detailsOpen = !root._detailsOpen
                 }
 

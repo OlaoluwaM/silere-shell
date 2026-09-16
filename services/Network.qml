@@ -135,7 +135,8 @@ Singleton {
     // the saved profile's key is the thing that is wrong, so the row has to offer a retype
     readonly property bool wifiErrorNeedsSecret: wifiError.length > 0
         && (wifiErrorReason === ConnectionFailReason.NoSecrets
-            || wifiErrorReason === ConnectionFailReason.WifiAuthTimeout)
+            || wifiErrorReason === ConnectionFailReason.WifiAuthTimeout
+            || wifiErrorReason === ConnectionFailReason.WifiClientFailed)
     property var _pendingNetwork: null
     readonly property bool wifiScanning: _scanWarmup.running
 
@@ -206,11 +207,14 @@ Singleton {
                     if (network.known) existing.known = true
                     continue
                 }
+                const security = root.wifiSecurityInfo(network.security)
                 bySsid[ssid] = {
                     ssid: ssid,
                     label: SafeText.singleLineText(ssid, 128) || "Unnamed network",
                     signal: signal,
-                    secured: network.security !== WifiSecurityType.Open,
+                    secured: security.secured,
+                    psk: security.psk,
+                    profileOnly: security.profileOnly,
                     active: network.connected,
                     known: network.known
                 }
@@ -236,6 +240,8 @@ Singleton {
                 label: entry.label,
                 glyph: signalGlyph(entry.signal),
                 secured: entry.secured,
+                psk: entry.psk,
+                profileOnly: entry.profileOnly,
                 active: entry.active,
                 known: entry.known
             }
@@ -246,7 +252,8 @@ Singleton {
     // on that glyph means a sample that wobbles a couple points without crossing
     // a tier boundary produces an identical key
     function _wifiListKey(list: var): string {
-        return list.map(e => [e.ssid, e.secured, e.active, e.known, e.label, e.glyph]
+        return list.map(e => [e.ssid, e.secured, e.psk, e.profileOnly,
+            e.active, e.known, e.label, e.glyph]
             .join("\u0001")).join("\u0002")
     }
 
@@ -305,6 +312,22 @@ Singleton {
         return best
     }
 
+    function wifiSecurityInfo(security: int): var {
+        const passwordless = security === WifiSecurityType.Open
+            || security === WifiSecurityType.Owe
+        // connectWithPsk accepts only these three; every other secured type
+        // has to join from a stored profile or not at all
+        const psk = security === WifiSecurityType.WpaPsk
+            || security === WifiSecurityType.Wpa2Psk
+            || security === WifiSecurityType.Sae
+        return {
+            secured: !passwordless,
+            psk: psk,
+            passwordless: passwordless,
+            profileOnly: !passwordless && !psk
+        }
+    }
+
     function _finishWifi(success: bool, reason: int): void {
         _connectTimeout.stop()
         if (!success && wifiConnecting.length > 0) {
@@ -342,7 +365,8 @@ Singleton {
         wifiConnecting = ssid
         _pendingNetwork = network
         _connectTimeout.restart()
-        if (password && password.length > 0) network.connectWithPsk(password)
+        if (password && password.length > 0 && root.wifiSecurityInfo(network.security).psk)
+            network.connectWithPsk(password)
         else network.connect()
     }
 
@@ -357,6 +381,13 @@ Singleton {
                 if (networks[j] && networks[j].connected) { networks[j].disconnect(); return }
             if (device.connected) { device.disconnect(); return }
         }
+    }
+
+    function forgetWifi(ssid: string): void {
+        const network = root._findWifiNetwork(ssid)
+        if (!network || !network.known || network.connected) return
+        root.clearWifiError()
+        network.forget()
     }
 
     Connections {

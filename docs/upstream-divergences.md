@@ -78,6 +78,9 @@ so resurrecting one on purpose means removing its line in the same commit.
 - Failed capability scans retain the last coherent result without advancing
   `SystemTools.scanRevision`; that revision tracks changes to capabilities.
   Hook recovery retains process-group cleanup and bounded execution.
+- Wi-Fi forgetting uses the shared confirmation state and service-side
+  saved/active guards. Capture row identity before disarming confirmation,
+  which can synchronously replace the row model.
 - Bar hover tooltips remain enabled and configurable. Keep `BarHintState`,
   `BarHintPopup`, the popup host, and every widget's hint bindings together.
   The retained popup must also take compatible upstream idle-settle fixes,
