@@ -519,13 +519,8 @@ Singleton {
     signal contentUpdated(int notifId)
     signal notificationShown(string appName, string summary, bool critical)
 
-    readonly property bool _fullscreenWatchWanted: ShellSettings.notifFullscreenSilence
-        || (ShellSettings.osdEnabled && ShellSettings.osdBarIntegrated)
-    readonly property bool _fullscreenActive: _fullscreenWatchWanted && Compositor.activeFullscreen
-    readonly property bool fullscreenActive: _fullscreenActive
-    readonly property bool fullscreenSilenced: ShellSettings.notifFullscreenSilence && _fullscreenActive
-
-    function refreshFullscreenState(): void { Compositor.refreshToplevels() }
+    readonly property bool fullscreenSilenced: ShellSettings.notifFullscreenSilence
+        && FullscreenState.active
 
     // every way DND turns on funnels through here (menu row, quick actions, bar pill
     // off-click), so the picked duration applies uniformly -- the same reason caffeine
@@ -877,8 +872,6 @@ Singleton {
         root.list = next
         return true
     }
-
-    Component.onCompleted: if (root._fullscreenWatchWanted) Compositor.refreshToplevels()
 
     NotificationServer {
         id: notifServer

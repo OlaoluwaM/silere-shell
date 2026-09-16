@@ -1,0 +1,2 @@
+singleton Compositor 1.0 Compositor.qml
+singleton ShellSettings 1.0 ShellSettings.qml

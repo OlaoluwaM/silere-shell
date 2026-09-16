@@ -84,6 +84,9 @@ so resurrecting one on purpose means removing its line in the same commit.
 - Bluetooth forgetting uses the same confirmation and identity rules, plus
   paired/connected guards. Hard-block state disables the fork radio controls;
   pairing remains pending while the backend reports an active attempt.
+- Shared fullscreen tracking retains the compositor boundary and only
+  notification-silence or integrated-OSD demand. Keep removed visualizer
+  demand out of `FullscreenState`.
 - Bar hover tooltips remain enabled and configurable. Keep `BarHintState`,
   `BarHintPopup`, the popup host, and every widget's hint bindings together.
   The retained popup must also take compatible upstream idle-settle fixes,

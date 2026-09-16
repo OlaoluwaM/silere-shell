@@ -72,3 +72,4 @@ bash scripts/test-notification-disk.sh
 bash scripts/test-upstream-connectivity.sh
 bash scripts/test-upstream-connectivity-paths.sh
 bash scripts/test-upstream-tray.sh
+bash scripts/test-fullscreen-state.sh
