@@ -48,7 +48,7 @@ PanelWindow {
 
     TapHandler {
         id: _dismiss
-        enabled: QuickActionsState.open && card.scaleAmt > 0.95
+        enabled: QuickActionsState.open
         onTapped: {
             const p = _dismiss.point.position
             if (p.x < card.x || p.x > card.x + card.width ||

@@ -43,7 +43,7 @@ PanelWindow {
 
     TapHandler {
         id: _dismiss
-        enabled: CalendarState.open && card.scaleAmt > 0.95
+        enabled: CalendarState.open
         onTapped: {
             if (_tapGuard.ignoring) return
             const p = _dismiss.point.position
@@ -389,6 +389,8 @@ PanelWindow {
                 height: card._rowCount * card.cell
                 clip: true
                 MotionBehavior on height {
+                    // Initial month selection must settle before the entrance moves the card.
+                    gate: card.fullyShown
                     NumberAnimation { duration: Motion.medium; easing.type: Easing.OutCubic }
                 }
 

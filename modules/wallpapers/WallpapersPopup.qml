@@ -61,7 +61,7 @@ PanelWindow {
 
     TapHandler {
         id: _dismiss
-        enabled: WallpapersPopupState.open && card.scaleAmt > 0.95
+        enabled: WallpapersPopupState.open
         onTapped: {
             if (_tapGuard.ignoring) return
             const p = _dismiss.point.position
@@ -71,13 +71,7 @@ PanelWindow {
         }
     }
 
-    Loader {
-        anchors.fill: card
-        z: -1
-        active: (card.open || card.opacity > 0.001) && ShellSettings.barShadow
-        opacity: card.opacity
-        sourceComponent: FloatingShadow { radius: card.radius; atBottom: false }
-    }
+    PopupShadow { card: card }
 
     // quiet text action: invisible at rest, a hover step reveals fill + a hairline
     // border per Theme.controlFill's solid-on-glass doctrine
@@ -120,10 +114,15 @@ PanelWindow {
         }
     }
 
-    Rectangle {
+    FloatingPopupCard {
         id: card
 
-        readonly property bool open: WallpapersPopupState.open
+        win: win
+        open: WallpapersPopupState.open
+        anchorX: win.width / 2
+        barBottom: Metrics.barAtBottom
+        centered: true
+        animatePlacement: false
         property bool filterVisible: false
         // set from _queryDebounce, not bound to _filter.text: swapping the JS-array model
         // tears down every visible delegate (reuseItems is off) and restarts its async
@@ -194,7 +193,6 @@ PanelWindow {
         readonly property int _visRows: Math.max(1, Math.min(3,
             Math.ceil(card.filtered.length / card._cols)))
 
-        anchors.centerIn: parent
         // a fraction of the screen, not a flat cap: 620 read fine on the design stages
         // but starves the previews on real glass. 62% of a 1610-or-wider output hits the
         // 1000 ceiling (242px cells); the 360 floor still covers tiny outputs.
@@ -205,76 +203,8 @@ PanelWindow {
             NumberAnimation { duration: Motion.barMorph; easing.type: Easing.OutCubic }
         }
         radius: Theme.radiusPanel
-        antialiasing: true
-        color: Theme.popup
 
-        property real scaleAmt: Motion.popScaleFrom
-        opacity: 0
-        transformOrigin: Item.Center
-        transform: Scale {
-            origin.x: card.width / 2
-            origin.y: card.height / 2
-            xScale: card.scaleAmt
-            yScale: card.scaleAmt
-        }
-        layer.enabled: !ShellSettings.reduceMotion && opacity > 0.001
-            && (card.scaleAmt < 0.999 || !card.open)
-
-        property bool _transitionReady: false
-
-        function _snapOpen(): void {
-            _enterAnim.stop(); _exitAnim.stop()
-            card.scaleAmt = 1.0
-            card.opacity = 1.0
-        }
-        function _snapClosed(): void {
-            _enterAnim.stop(); _exitAnim.stop()
-            card.scaleAmt = Motion.popScaleFrom
-            card.opacity = 0.0
-        }
-        function _startOpen(): void {
-            _exitAnim.stop()
-            if (ShellSettings.reduceMotion) card._snapOpen()
-            else _enterAnim.restart()
-        }
-        function _startClose(): void {
-            _enterAnim.stop()
-            if (ShellSettings.reduceMotion) card._snapClosed()
-            else _exitAnim.restart()
-        }
-
-        onOpenChanged: if (card._transitionReady) { if (open) card._startOpen(); else card._startClose() }
-
-        Component.onCompleted: {
-            card._snapClosed()
-            if (card.open) {
-                Wallpapers.rescan()
-                _grid.forceActiveFocus()
-            }
-            Qt.callLater(function() {
-                card._transitionReady = true
-                if (card.open) card._startOpen()
-            })
-        }
-
-        ParallelAnimation {
-            id: _enterAnim
-            NumberAnimation { target: card; property: "scaleAmt"; to: 1.0; duration: Motion.popIn; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.emphasizedDecel }
-            NumberAnimation { target: card; property: "opacity";  to: 1.0; duration: Motion.popInFade; easing.type: Easing.OutCubic }
-        }
-        ParallelAnimation {
-            id: _exitAnim
-            NumberAnimation { target: card; property: "scaleAmt"; to: Motion.popScaleFrom; duration: Motion.popOut; easing.type: Easing.InCubic }
-            NumberAnimation { target: card; property: "opacity";  to: 0.0; duration: Motion.popOutFade; easing.type: Easing.InCubic }
-        }
-
-        Connections {
-            target: ShellSettings
-            function onReduceMotionChanged() {
-                if (!ShellSettings.reduceMotion) return
-                if (card.open) card._snapOpen(); else card._snapClosed()
-            }
-        }
+        Component.onCompleted: if (card.open) { Wallpapers.rescan(); _grid.forceActiveFocus() }
 
         // a directory scan is not free (a `find` process) -- only pay for it when the
         // popup is actually about to be looked at, same reasoning as Keybinds.reload()
@@ -287,11 +217,6 @@ PanelWindow {
                 _filter.text = ""
                 _grid.forceActiveFocus()
             }
-        }
-
-        OutlineBorder {
-            radius: card.radius
-            outlineColor: Theme.outline
         }
 
         Item {

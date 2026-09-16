@@ -41,7 +41,6 @@ Singleton {
     readonly property var emphasizedDecel: [0.05, 0.7, 0.1, 1.0, 1, 1]
     readonly property var emphasizedAccel: [0.3, 0.0, 0.8, 0.15, 1, 1]
 
-    readonly property real popScaleFrom: 0.985
     readonly property real popEdgeOffset: 6
     readonly property int  popIn:      _rm ? 0 : 240
     readonly property int  popInFade:  _rm ? 0 : 170

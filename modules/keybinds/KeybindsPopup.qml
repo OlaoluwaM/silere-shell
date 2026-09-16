@@ -7,12 +7,7 @@ import "../../config"
 import "../../services"
 import "../common"
 
-// A searchable reference card for Keybinds.entries, dormant unless Keybinds.available.
-// Unlike the bar-anchored popups (Calendar/Menu/Tray*/QuickActions, all built on
-// FloatingPopupCard), this one is triggered purely by IPC -- there is no bar pill to
-// anchor off, and a reference card reads better centered like a dialog than pinned to
-// an edge. So the card below is its own light Rectangle with a center-scale open/close
-// instead of FloatingPopupCard's edge-slide, reusing the same Motion tokens.
+// IPC opens a reference card without a bar anchor, so keep it centered.
 PanelWindow {
     id: win
 
@@ -54,7 +49,7 @@ PanelWindow {
 
     TapHandler {
         id: _dismiss
-        enabled: KeybindsPopupState.open && card.scaleAmt > 0.95
+        enabled: KeybindsPopupState.open
         onTapped: {
             if (_tapGuard.ignoring) return
             const p = _dismiss.point.position
@@ -64,13 +59,7 @@ PanelWindow {
         }
     }
 
-    Loader {
-        anchors.fill: card
-        z: -1
-        active: (card.open || card.opacity > 0.001) && ShellSettings.barShadow
-        opacity: card.opacity
-        sourceComponent: FloatingShadow { radius: card.radius; atBottom: false }
-    }
+    PopupShadow { card: card }
 
     component GroupHeader: Item {
         id: _hdr
@@ -127,10 +116,15 @@ PanelWindow {
         }
     }
 
-    Rectangle {
+    FloatingPopupCard {
         id: card
 
-        readonly property bool open: KeybindsPopupState.open
+        win: win
+        open: KeybindsPopupState.open
+        anchorX: win.width / 2
+        barBottom: Metrics.barAtBottom
+        centered: true
+        animatePlacement: false
         readonly property string query: _search.text.trim().toLowerCase()
         readonly property var filtered: {
             const q = card.query
@@ -147,79 +141,13 @@ PanelWindow {
             return out
         }
 
-        anchors.centerIn: parent
         width:  Math.round(Math.max(280, Math.min(560, win.width - 96)))
         height: Math.round(Math.max(320, Math.min(640, win.height - 96)))
         radius: Theme.radiusPanel
-        antialiasing: true
-        color: Theme.popup
 
         readonly property int pad: 16
 
-        property real scaleAmt: Motion.popScaleFrom
-        opacity: 0
-        transformOrigin: Item.Center
-        transform: Scale {
-            origin.x: card.width / 2
-            origin.y: card.height / 2
-            xScale: card.scaleAmt
-            yScale: card.scaleAmt
-        }
-        layer.enabled: !ShellSettings.reduceMotion && opacity > 0.001
-            && (card.scaleAmt < 0.999 || !card.open)
-
-        property bool _transitionReady: false
-
-        function _snapOpen(): void {
-            _enterAnim.stop(); _exitAnim.stop()
-            card.scaleAmt = 1.0
-            card.opacity = 1.0
-        }
-        function _snapClosed(): void {
-            _enterAnim.stop(); _exitAnim.stop()
-            card.scaleAmt = Motion.popScaleFrom
-            card.opacity = 0.0
-        }
-        function _startOpen(): void {
-            _exitAnim.stop()
-            if (ShellSettings.reduceMotion) card._snapOpen()
-            else _enterAnim.restart()
-        }
-        function _startClose(): void {
-            _enterAnim.stop()
-            if (ShellSettings.reduceMotion) card._snapClosed()
-            else _exitAnim.restart()
-        }
-
-        onOpenChanged: if (card._transitionReady) { if (open) card._startOpen(); else card._startClose() }
-
-        Component.onCompleted: {
-            card._snapClosed()
-            if (card.open) { Keybinds.reload(); _search.forceActiveFocus() }
-            Qt.callLater(function() {
-                card._transitionReady = true
-                if (card.open) card._startOpen()
-            })
-        }
-
-        ParallelAnimation {
-            id: _enterAnim
-            NumberAnimation { target: card; property: "scaleAmt"; to: 1.0; duration: Motion.popIn; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.emphasizedDecel }
-            NumberAnimation { target: card; property: "opacity";  to: 1.0; duration: Motion.popInFade; easing.type: Easing.OutCubic }
-        }
-        ParallelAnimation {
-            id: _exitAnim
-            NumberAnimation { target: card; property: "scaleAmt"; to: Motion.popScaleFrom; duration: Motion.popOut; easing.type: Easing.InCubic }
-            NumberAnimation { target: card; property: "opacity";  to: 0.0; duration: Motion.popOutFade; easing.type: Easing.InCubic }
-        }
-
-        Connections {
-            target: ShellSettings
-            function onReduceMotionChanged() {
-                if (!ShellSettings.reduceMotion) return
-                if (card.open) card._snapOpen(); else card._snapClosed()
-            }
-        }
+        Component.onCompleted: if (card.open) { Keybinds.reload(); _search.forceActiveFocus() }
 
         // the file is static per system generation (see Keybinds.qml), so this reload is
         // insurance for a same-session rebuild landing while the shell is already up, not
@@ -232,10 +160,6 @@ PanelWindow {
                 _search.text = ""
                 _search.forceActiveFocus()
             }
-        }
-        OutlineBorder {
-            radius: card.radius
-            outlineColor: Theme.outline
         }
 
         Item {

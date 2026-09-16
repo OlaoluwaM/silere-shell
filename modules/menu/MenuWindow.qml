@@ -62,7 +62,7 @@ PanelWindow {
 
     TapHandler {
         id: _dismiss
-        enabled: MenuState.open && panel.scaleAmt > 0.95
+        enabled: MenuState.open
         onTapped: {
             if (_tapGuard.ignoring) return
             const p = _dismiss.point.position
@@ -83,8 +83,6 @@ PanelWindow {
         anchorX: MenuState.effectiveAnchorX
         barBottom: Metrics.barAtBottom
         targetWidth: placementW
-        // the panel arrives as a fade with the card's short rise from the bar edge; no scale
-        animateScale: false
         animatePlacement: false
         clip: true
         // the rail and content pane below already paint Theme.menuPane edge to edge, so this

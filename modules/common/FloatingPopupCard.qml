@@ -13,7 +13,7 @@ Rectangle {
     required property bool barBottom
     // clamp against the width the card is headed for, not the live one, or an animating width fights the x Behavior every frame
     property real targetWidth: width
-    property bool animateScale: true
+    property bool centered: false
     property bool animatePlacement: true
 
     signal closeFinished()
@@ -24,8 +24,6 @@ Rectangle {
     property bool _closing: false
     readonly property bool fullyShown: root.open && root._transitionReady
         && !_enterAnimation.running && root.opacity >= 0.999
-    readonly property real _originX: Math.max(0, Math.min(targetWidth, anchorX - x))
-    readonly property real motionOriginX: _originX
 
     property real _barInset: Metrics.barEdgeInset
     MotionBehavior on _barInset {
@@ -36,13 +34,8 @@ Rectangle {
     readonly property real _maxX: Math.max(_minX,
         Metrics.snap4Down(win.width - targetWidth - _minX))
 
-    property real scaleAmt: 1
     property real edgeOffset: 0
     opacity: 0
-
-    function _hiddenScale(): real {
-        return root.animateScale ? Motion.popScaleFrom : 1.0
-    }
 
     function _hiddenEdge(): real {
         return root.barBottom ? Motion.popEdgeOffset : -Motion.popEdgeOffset
@@ -52,7 +45,6 @@ Rectangle {
         _enterAnimation.stop()
         _exitAnimation.stop()
         root._closing = false
-        root.scaleAmt = 1.0
         root.edgeOffset = 0.0
         root.opacity = 1.0
     }
@@ -61,7 +53,6 @@ Rectangle {
         const shouldNotify = notify && (root._closing || root.opacity > 0.001)
         _enterAnimation.stop()
         _exitAnimation.stop()
-        root.scaleAmt = root._hiddenScale()
         root.edgeOffset = root._hiddenEdge()
         root.opacity = 0.0
         root._closing = false
@@ -90,6 +81,7 @@ Rectangle {
         return Math.max(_minX, Math.min(px, _maxX))
     }
     function _targetX(): real {
+        if (root.centered) return Math.round((win.width - targetWidth) / 2)
         const t = Math.max(0, Math.min(win.width, anchorX))
         return Metrics.snap4(_clampedX(t - targetWidth * t / Math.max(1, win.width)))
     }
@@ -97,6 +89,7 @@ Rectangle {
         x = _targetX()
     }
     function reclamp(): void {
+        if (root.centered) { root.place(); return }
         const nx = Metrics.snap4(_clampedX(x))
         if (Math.abs(nx - x) <= 0.5) return
         // clamp corrections are geometry invariants, not placement motion. Snapping also avoids retargeting x on every radius-animation frame
@@ -139,7 +132,8 @@ Rectangle {
     onBarBottomChanged: if (!root.open && !_exitAnimation.running)
         root.edgeOffset = root._hiddenEdge()
 
-    y: Metrics.popupY(win.height, height, barBottom, _edgeY)
+    y: root.centered ? Math.round((win.height - height) / 2)
+        : Metrics.popupY(win.height, height, barBottom, _edgeY)
     radius: Theme.surfaceRadius
     antialiasing: true
     color: Theme.popup
@@ -149,18 +143,7 @@ Rectangle {
         outlineColor: Theme.outline
     }
 
-    transform: [
-        Translate { y: root.edgeOffset },
-        Scale {
-            origin.x: root._originX
-            origin.y: root.barBottom ? root.height : 0
-            xScale: root.scaleAmt
-            yScale: root.scaleAmt
-        }
-    ]
-    layer.enabled: root.animateScale
-        && Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)
-        && opacity > 0.001 && (scaleAmt < 0.999 || !root.open)
+    transform: Translate { y: root.edgeOffset }
 
     MotionBehavior on x {
         gate: root.animatePlacement && root.open && root._transitionReady
@@ -243,26 +226,27 @@ Rectangle {
         onTriggered: {
             stop()
             root._transitionReady = true
+            // Derived cards can supply their bar edge after our completion handler.
+            if (root.opacity <= 0.001) root.edgeOffset = root._hiddenEdge()
             if (root.open) root._startOpen()
         }
     }
 
-    ParallelAnimation {
+    PopupAnimation {
         id: _enterAnimation
-        NumberAnimation { target: root; property: "scaleAmt";  to: 1.0; duration: root.animateScale ? Motion.popIn : 0; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.emphasizedDecel }
-        NumberAnimation { target: root; property: "edgeOffset"; to: 0.0; duration: Motion.popIn; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.emphasizedDecel }
-        NumberAnimation { target: root; property: "opacity";   to: 1.0; duration: Motion.popInFade; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.standardDecel }
+        target: root
+        entering: true
+        hiddenOffset: root._hiddenEdge()
     }
 
-    ParallelAnimation {
+    PopupAnimation {
         id: _exitAnimation
-        NumberAnimation { target: root; property: "scaleAmt"; to: root._hiddenScale(); duration: root.animateScale ? Motion.popOut : 0; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.emphasizedAccel }
-        NumberAnimation { target: root; property: "edgeOffset"; to: root._hiddenEdge(); duration: Motion.popOut; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.emphasizedAccel }
-        NumberAnimation { target: root; property: "opacity"; to: 0.0; duration: Motion.popOutFade; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.standardAccel }
+        target: root
+        entering: false
+        hiddenOffset: root._hiddenEdge()
         onFinished: {
             if (root.open || !root._closing) return
             // target inputs (notably bar edge) can change mid-exit. Normalize to today's hidden state before the next open reverses from it
-            root.scaleAmt = root._hiddenScale()
             root.edgeOffset = root._hiddenEdge()
             root.opacity = 0.0
             root._closing = false

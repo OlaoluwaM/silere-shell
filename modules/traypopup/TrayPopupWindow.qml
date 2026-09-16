@@ -47,7 +47,7 @@ PanelWindow {
 
     TapHandler {
         id: _dismiss
-        enabled: TrayPopupState.open && card.scaleAmt > 0.95
+        enabled: TrayPopupState.open
         onTapped: {
             if (_tapGuard.ignoring) return
             const p = _dismiss.point.position

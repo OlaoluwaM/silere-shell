@@ -160,7 +160,7 @@ PanelWindow {
 
     TapHandler {
         id: _dismiss
-        enabled: TrayMenuState.open && card.scaleAmt > 0.95
+        enabled: TrayMenuState.open
         // a TapHandler keeps a passive grab, so this fires for taps on rows too
         onTapped: {
             if (_tapGuard.ignoring) return

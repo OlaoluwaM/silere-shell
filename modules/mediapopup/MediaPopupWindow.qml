@@ -49,7 +49,7 @@ PanelWindow {
 
     TapHandler {
         id: _dismiss
-        enabled: MediaPopupState.open && card.scaleAmt > 0.95
+        enabled: MediaPopupState.open
         onTapped: {
             if (_tapGuard.ignoring) return
             const p = _dismiss.point.position

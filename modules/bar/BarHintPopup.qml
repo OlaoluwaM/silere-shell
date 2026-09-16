@@ -103,16 +103,22 @@ PanelWindow {
         }
     }
 
-    ParallelAnimation {
+    PopupAnimation {
         id: _enter
-        NumberAnimation { target: win; property: "_op";   to: 1.0; duration: Motion.popInFade; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.standardDecel }
-        NumberAnimation { target: win; property: "_rise"; to: 0.0; duration: Motion.popIn;     easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.emphasizedDecel }
+        target: win
+        entering: true
+        hiddenOffset: win._hiddenRise()
+        opacityProperty: "_op"
+        offsetProperty: "_rise"
     }
 
-    ParallelAnimation {
+    PopupAnimation {
         id: _exit
-        NumberAnimation { target: win; property: "_op";   to: 0.0;                duration: Motion.popOutFade; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.standardAccel }
-        NumberAnimation { target: win; property: "_rise"; to: win._hiddenRise();  duration: Motion.popOut;     easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.emphasizedAccel }
+        target: win
+        entering: false
+        hiddenOffset: win._hiddenRise()
+        opacityProperty: "_op"
+        offsetProperty: "_rise"
     }
 
     Rectangle {

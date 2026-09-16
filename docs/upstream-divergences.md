@@ -162,6 +162,11 @@ so resurrecting one on purpose means removing its line in the same commit.
   peers and reject late opens while idle or in overview. Any upstream popup or
   open-path change joins both `_claim()` and `_opened()`; retain the existing
   tray-list child exception for a popup-sourced tray context menu.
+  Panels, menus, centered pickers, and tooltips share `PopupAnimation` for the
+  menu's fade and short vertical slide. Centered pickers use `FloatingPopupCard`
+  with centered placement. Keep scaling removed from these surfaces.
+  Resolve the bar edge and initial content size before the entrance; calendar
+  month resizing only animates once the card is fully shown.
 
 ## What belongs here
 
