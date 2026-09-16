@@ -3,7 +3,9 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Services.Notifications
+import "../config"
 
 Singleton {
     id: root
@@ -18,6 +20,14 @@ Singleton {
     property var _updateTimes: Object.create(null)
     property bool _persistentReady: false
     property bool _serverReady: false
+    property var _liveIds: Object.create(null)
+    property bool _diskLoadSettled: false
+    property bool _diskReadable: false
+    property bool _diskRestored: false
+    property alias _diskHistoryMayRestore: _persist.diskHistoryMayRestore
+    property bool _reloadStateAuthoritative: false
+    property string _diskRaw: ""
+    property string historyPersistenceError: ""
     // Settings load asynchronously after the reload state. Keep the schema's
     // full capacity until the configured limit is known, including new arrivals.
     readonly property int _historyCapacity: ShellSettings.schemaFor("notifHistoryLimit").max
@@ -126,6 +136,11 @@ Singleton {
         root._trimHistory()
     }
 
+    function _historyIdentity(entry): string {
+        return String(entry.id) + "\u0001" + String(entry.time)
+            + "\u0001" + String(entry.appName) + "\u0001" + String(entry.summary)
+    }
+
     function _saveHistory(): void {
         if (!root._persistentReady || !ShellSettings.ready) return
         const out = []
@@ -139,6 +154,14 @@ Singleton {
         }
         _persist.historyJson = ShellSettings.notifHistoryPersistent
             ? JSON.stringify(out) : "[]"
+        root._queueDiskSave()
+    }
+
+    // A reload can save after this singleton has restored but before the disk store
+    // below exists. The guard keeps that window from throwing.
+    function _queueDiskSave(): void {
+        if (root._diskRestored && ShellSettings.ready
+                && typeof _diskStore !== "undefined") _diskStore.queue()
     }
 
     readonly property var popupModel: notifServer.trackedNotifications
@@ -187,11 +210,45 @@ Singleton {
         return out
     }
 
+    function _normalizeLiveIds(map): var {
+        const out = Object.create(null)
+        if (!map || typeof map !== "object" || Array.isArray(map)) return out
+        const keys = Object.keys(map)
+        for (let i = 0; i < keys.length; i++)
+            if (root._validStateId(keys[i]) && map[keys[i]] === true) out[keys[i]] = true
+        return out
+    }
+
+    function _saveLiveIds(): void {
+        _persist.liveIdsJson = JSON.stringify(root._liveIds)
+    }
+
+    function _rememberLiveId(id: int): void {
+        const key = String(id)
+        if (root._liveIds[key] === true) return
+        const next = root._cloneMap(root._liveIds)
+        next[key] = true
+        root._liveIds = next
+        root._saveLiveIds()
+    }
+
+    function _forgetLiveId(id: int): void {
+        const key = String(id)
+        if (root._liveIds[key] !== true) return
+        const next = root._cloneMap(root._liveIds)
+        delete next[key]
+        root._liveIds = next
+        root._saveLiveIds()
+    }
+
     function _restorePersistentState(): void {
-        const savedHistory = ShellSettings.notifHistoryPersistent
-            ? root._parsePersistentJson(_persist.historyJson, []) : []
+        root._reloadStateAuthoritative = _persist.diskRestoreCompleted
+        // The generated default can differ from the saved UI setting. Keep reload
+        // rows until that setting is known; persistence-off already saves [].
+        const savedHistory = root._parsePersistentJson(_persist.historyJson, [])
         const savedSeen = root._parsePersistentJson(_persist.seenJson, Object.create(null))
         const savedTimes = root._parsePersistentJson(_persist.timesJson, Object.create(null))
+        const savedLiveIds = root._parsePersistentJson(_persist.liveIdsJson, Object.create(null))
         _history.clear()
         if (Array.isArray(savedHistory)) {
             for (let i = 0; i < savedHistory.length && i < root._historyCapacity; i++) {
@@ -201,14 +258,17 @@ Singleton {
         }
         root._seen = root._normalizeSeenMap(savedSeen)
         root._times = root._normalizeTimesMap(savedTimes)
+        root._liveIds = root._normalizeLiveIds(savedLiveIds)
         root._ensurePersistentState()
         root._persistentReady = true
         root._applyHistorySettings()
+        root._tryRestoreDisk()
     }
 
     function _applyHistorySettings(): void {
         if (!root._persistentReady || !ShellSettings.ready) return
         if (!ShellSettings.notifHistoryPersistent) {
+            root._diskHistoryMayRestore = false
             _history.clear()
             root._pruneOrphanState()
         }
@@ -218,7 +278,10 @@ Singleton {
 
     Connections {
         target: ShellSettings
-        function onReadyChanged() { root._applyHistorySettings() }
+        function onReadyChanged() {
+            root._tryRestoreDisk()
+            root._applyHistorySettings()
+        }
         function onNotifPopupEnabledChanged() {
             if (!ShellSettings.notifPopupEnabled)
                 root._retireActiveNotifications()
@@ -229,14 +292,14 @@ Singleton {
             root._saveHistory()
         }
         function onNotifHistoryPersistentChanged() {
-            // Turning reload retention off clears existing text; new arrivals
-            // still form a history until the next reload.
+            // Turning persistence off clears existing text; new arrivals still
+            // form an in-memory history until the next reload or process exit.
             root._applyHistorySettings()
         }
     }
 
-    on_SeenChanged:   if (_persistentReady) _persist.seenJson = JSON.stringify(_seen)
-    on_TimesChanged:  if (_persistentReady) _persist.timesJson = JSON.stringify(_times)
+    on_SeenChanged:   if (_persistentReady) { _persist.seenJson = JSON.stringify(_seen); root._queueDiskSave() }
+    on_TimesChanged:  if (_persistentReady) { _persist.timesJson = JSON.stringify(_times); root._queueDiskSave() }
 
     function _cloneMap(map): var {
         const out = Object.create(null)
@@ -319,7 +382,137 @@ Singleton {
         property string historyJson: "[]"
         property string seenJson:  "{}"
         property string timesJson: "{}"
+        property string liveIdsJson: "{}"
+        property bool diskRestoreCompleted: false
+        property bool diskHistoryMayRestore: true
         onLoaded: root._restorePersistentState()
+    }
+
+    // A reload must finish its in-memory restoration before this file can merge in
+    // prior-process rows. Otherwise a late disk load can replace newer local changes.
+    PersistedFile {
+        id: _diskStore
+        path: ConfigStore.notificationsPath
+        writeAllowed: false
+        serialize: () => root._serializeDisk()
+        onLoaded: raw => {
+            root._diskRaw = raw
+            root._diskReadable = true
+            root._diskLoadSettled = true
+            root._tryRestoreDisk()
+        }
+        onLoadFailed: error => {
+            root._diskLoadSettled = true
+            if (error === FileViewError.FileNotFound) {
+                _diskStore.writeAllowed = true
+                root.historyPersistenceError = ""
+            } else {
+                _diskStore.writeAllowed = false
+                root.historyPersistenceError = "Could not read notification history. The existing file was left untouched."
+                console.warn("silere-shell: failed to read notifications.json:", error)
+            }
+            root._tryRestoreDisk()
+        }
+        onSaved: root.historyPersistenceError = ""
+        onSaveFailed: error => {
+            root.historyPersistenceError = "Could not save notification history. Recent changes may be lost."
+            console.warn("silere-shell: failed to save notifications.json:", error)
+        }
+    }
+
+    function _serializeDisk(): string {
+        return JSON.stringify({
+            __version: 1,
+            history: root._parsePersistentJson(_persist.historyJson, []),
+            seen: root._parsePersistentJson(_persist.seenJson, {}),
+            times: root._parsePersistentJson(_persist.timesJson, {})
+        })
+    }
+
+    function _mergeStateMap(base, live): var {
+        const out = root._cloneMap(base)
+        for (const key in live) out[key] = live[key]
+        return out
+    }
+
+    function _tryRestoreDisk(): void {
+        if (!root._persistentReady || !ShellSettings.ready
+                || !root._diskLoadSettled || root._diskRestored) return
+        root._diskRestored = true
+        if (root._diskReadable) root._restoreFromDisk(root._diskRaw)
+        else if (_diskStore.writeAllowed) root._saveHistory()
+        _persist.diskRestoreCompleted = true
+    }
+
+    function _restoreFromDisk(raw: string): void {
+        const trimmed = String(raw || "").trim()
+        try {
+            const parsed = JSON.parse(trimmed || "{}")
+            if (!parsed || Array.isArray(parsed) || typeof parsed !== "object")
+                throw new Error("notifications root must be an object")
+            const version = Number(parsed.__version ?? 0)
+            const fromFuture = isFinite(version) && version > 1
+            if (fromFuture) {
+                _diskStore.writeAllowed = false
+                _diskStore.lastSavedText = trimmed
+                root.historyPersistenceError = "Notification history is from a newer version. The existing file was left untouched."
+                console.warn("silere-shell: notifications.json is from a newer version; keeping it as it is")
+            }
+
+            const present = Object.create(null)
+            for (let i = 0; i < _history.count; i++)
+                present[root._historyIdentity(_history.get(i))] = true
+            if (!root._reloadStateAuthoritative && root._diskHistoryMayRestore
+                    && ShellSettings.notifHistoryPersistent
+                    && Array.isArray(parsed.history)) {
+                const limit = _history.count + root._historyCapacity
+                const scanLimit = Math.min(parsed.history.length, root._historyCapacity)
+                for (let i = 0; i < scanLimit && _history.count < limit; i++) {
+                    const entry = root._normalizeEntry(parsed.history[i])
+                    if (!entry) continue
+                    const key = root._historyIdentity(entry)
+                    if (present[key]) continue
+                    present[key] = true
+                    // The notification server assigns ids anew after a process exit.
+                    entry.sessionCurrent = false
+                    _history.append(entry)
+                }
+            }
+            const diskSeen = root._normalizeSeenMap(parsed.seen)
+            const diskTimes = root._normalizeTimesMap(parsed.times)
+            // A fresh server id can arrive before an asynchronous file read finishes.
+            // Its state is current even when it is still unread, so a missing live map
+            // entry must not let an archival row set it seen or change its timestamp.
+            for (const key in root._liveIds) {
+                delete diskSeen[key]
+                delete diskTimes[key]
+            }
+            // A new engine can read the file before the old engine flushes its
+            // debounce. Reload state is authoritative, including deletions.
+            if (!root._reloadStateAuthoritative) {
+                root._seen = root._mergeStateMap(diskSeen, root._seen)
+                root._times = root._mergeStateMap(diskTimes, root._times)
+            }
+            root._ensurePersistentState()
+            root._trimHistory()
+            // Compatible fields remain useful in memory, but saving them would
+            // discard fields understood only by the newer writer.
+            _diskStore.writeAllowed = !fromFuture
+            _diskStore.lastSavedText = trimmed
+            if (!fromFuture) root.historyPersistenceError = ""
+            root._saveHistory()
+        } catch (e) {
+            _diskStore.writeAllowed = false
+            root.historyPersistenceError = "Could not read notification history. The existing file was left untouched."
+            console.warn("silere-shell: bad notifications.json, ignoring:", String(e))
+        }
+    }
+
+    Component.onDestruction: {
+        if (_diskStore.pending) {
+            _diskStore.stop()
+            _diskStore.flush(true)
+        }
     }
 
     signal sourcePulse(int wsId, bool critical)
@@ -402,7 +595,8 @@ Singleton {
 
     function clearHistory(): void {
         root._ensurePersistentState()
-        if (_history.count === 0) return
+        if (!root._diskRestored) root._diskHistoryMayRestore = false
+        if (_history.count === 0) { root._saveHistory(); return }
         const ids = []
         for (let i = 0; i < _history.count; i++) {
             const id = _history.get(i).id
@@ -470,6 +664,7 @@ Singleton {
                     root._times[e.id] ?? e.time ?? Date.now(), false)
                 e.notification.tracked = false
             }
+            root._forgetLiveId(e.id)
             retiredIds.push(String(e.id))
         }
         root._forgetTrimmed(retiredIds)
@@ -500,6 +695,7 @@ Singleton {
 
     function _forget(id: int): void {
         root._forgetState(id)
+        root._forgetLiveId(id)
         root._dropFromList([id])
     }
 
@@ -514,6 +710,8 @@ Singleton {
             else next.push(e)
         }
         if (changed) list = next
+        if (changed)
+            for (let i = 0; i < ids.length; i++) root._forgetLiveId(ids[i])
         if (list.length === 0 && lastCritical) lastCritical = false
     }
 
@@ -696,11 +894,20 @@ Singleton {
         // synchronously after this signal. Only then is root.list safe to prune.
         onTrackedNotificationsChanged: Qt.callLater(function() {
             root._serverReady = true
+            // Reload can discard a kept object through DND or another delivery
+            // gate. Only the server's survivors still own live identity markers.
+            const liveIds = Object.create(null)
+            const tracked = notifServer.trackedNotifications.values || []
+            for (let i = 0; i < tracked.length; i++) liveIds[String(tracked[i].id)] = true
+            root._liveIds = liveIds
+            root._saveLiveIds()
             root._pruneOrphanState()
         })
 
         onNotification: (n) => {
             root._ensurePersistentState()
+            const carriedAcrossReload = root._liveIds[String(n.id)] === true
+            if (!carriedAcrossReload) root._forgetState(n.id)
             const bypasses = ShellSettings.notifCriticalBypass
                 && n.urgency === NotificationUrgency.Critical
             if (root.dnd && !bypasses) {
@@ -719,6 +926,7 @@ Singleton {
                 return
             }
             const arrivalTime = root._ensureTime(n.id)
+            root._rememberLiveId(n.id)
             root.lastCritical = n.urgency === NotificationUrgency.Critical
 
             root._recordUpdateTime(n.id, Date.now())

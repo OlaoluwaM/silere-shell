@@ -47,6 +47,7 @@ The full check already includes the runners below, directly or through
 | [test-overlay-coordinator.sh](test-overlay-coordinator.sh) | Popup exclusivity, tray relationships, and idle/overview blocking |
 | [test-bluetooth-details.sh](test-bluetooth-details.sh) | Details selection and disconnect cleanup using synthetic devices |
 | [test-upstream-services.sh](test-upstream-services.sh) | Selected upstream service regressions with controlled inputs |
+| [test-notification-disk.sh](test-notification-disk.sh) | Private-bus process restart, settings order, deletes before disk restoration, immediate reload after clear, read-only future-format restoration, file protection, and failed-write recovery |
 | [test-upstream-connectivity.sh](test-upstream-connectivity.sh) | Wi-Fi security classification and Bluetooth state helpers |
 | [test-upstream-connectivity-paths.sh](test-upstream-connectivity-paths.sh) | Actual service and row paths with synthetic backend inputs; pairing guard, guarded forget, and identity during synchronous row replacement |
 | [test-upstream-tray.sh](test-upstream-tray.sh) | Descendant hover-chain logic and confirmation-control transitions |

@@ -12,6 +12,8 @@ Singleton {
         ? directory + "/settings.json" : ""
     readonly property string calendarMarksPath: directory.length > 0
         ? directory + "/calendar-marks.json" : ""
+    readonly property string notificationsPath: directory.length > 0
+        ? directory + "/notifications.json" : ""
 
     property bool ready: false
     property string _error: ""
@@ -53,7 +55,8 @@ Singleton {
     }
 
     function _owned(path: string): bool {
-        if (path === root.settingsPath || path === root.calendarMarksPath) return true
+        if (path === root.settingsPath || path === root.calendarMarksPath
+                || path === root.notificationsPath) return true
         if (root.directory.length === 0) return false
         const prefix = root.directory + "/settings."
         const suffix = ".bak.json"
@@ -86,9 +89,10 @@ Singleton {
             // without the exits, the trailing file check's status hides a failed mkdir
             "umask 077; mkdir -m 0700 -p -- \"$1\" || exit $?; " +
             "chmod 0700 -- \"$1\" || exit $?; " +
-            "for f in \"$2\" \"$3\"; do " +
+            "for f in \"$2\" \"$3\" \"$4\"; do " +
             "[ ! -e \"$f\" ] || [ -L \"$f\" ] || chmod 0600 -- \"$f\" || exit $?; done",
-            "bash", root.directory, root.settingsPath, root.calendarMarksPath]
+            "bash", root.directory, root.settingsPath, root.calendarMarksPath,
+            root.notificationsPath]
         onExited: code => {
             if (code === 0) {
                 _mkdirRetry.stop()

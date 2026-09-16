@@ -68,6 +68,7 @@ bash scripts/test-bar-hint-idle.sh
 bash scripts/test-overlay-coordinator.sh
 bash scripts/test-bluetooth-details.sh
 bash scripts/test-upstream-services.sh
+bash scripts/test-notification-disk.sh
 bash scripts/test-upstream-connectivity.sh
 bash scripts/test-upstream-connectivity-paths.sh
 bash scripts/test-upstream-tray.sh

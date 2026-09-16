@@ -58,8 +58,8 @@ Column {
     SectionLabel { label: "HISTORY" }
     SettingsCard {
         ToggleRow {
-            glyph: "󰋚"; label: "Keep after reload"
-            description: "Until the shell exits; off clears history"
+            glyph: "󰋚"; label: "Keep after restart"
+            description: "Off clears current history"
             key: "notifHistoryPersistent"
         }
         SliderRow {

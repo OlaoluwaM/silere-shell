@@ -102,7 +102,7 @@ Singleton {
     property bool   notifFullscreenSilence: true
     property string notifPosition:       "top-right"
     property int    notifMaxVisible:     3
-    property bool   notifHistoryPersistent: true
+    property bool   notifHistoryPersistent: GeneratedDefaults.notifHistoryPersistent
     property bool   notifCriticalBypass: true
     property int    notifHistoryLimit:   20
     property string mediaWidgetFormat:   "title"

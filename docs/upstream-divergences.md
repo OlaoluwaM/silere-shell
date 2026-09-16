@@ -146,9 +146,19 @@ so resurrecting one on purpose means removing its line in the same commit.
   rebuilt the live list, including cleanup triggered by settings changes.
   Until settings are ready, restore and trim against the schema maximum;
   apply the configured limit and retention only after the settings read.
-  Keep the settings label scoped to reloads and the
-  unused `ConfigStore` hardening for `quickshell/states.json` removed: this
-  storage path writes no file. Disk persistence needs a separate decision.
+  Disk history uses `ConfigStore.notificationsPath` and `PersistedFile`.
+  Rows restored from disk have `sessionCurrent: false`; reload restoration
+  retains current-session identity. A reused server ID must not inherit an
+  earlier process's read state or target its live notification through an
+  archived row. Preserve unreadable and corrupt files. For newer-format files,
+  restore compatible history/state into memory while leaving the file untouched;
+  writes stay blocked, including after in-memory edits or persistence changes.
+  Disabling persistence clears existing history and queues an empty disk
+  archive; later arrivals remain in memory until reload or process exit.
+  Nix supplies the initial value, which saved UI settings may override.
+  The storage path is `silere-shell/notifications.json`; keep unrelated
+  hardening for `quickshell/states.json` removed. Source selections and
+  acceptance checks live in [the integration plan](upstream-picks-2026-09-16.md).
 - The Bluetooth bar widget stays an actionable `StatusActionPill` that opens
   the configured manager. Take compatible upstream service, accessibility,
   hint, and lifecycle improvements without replacing it with a passive pill.
