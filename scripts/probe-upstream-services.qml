@@ -27,6 +27,11 @@ ShellRoot {
         check(SafeText.lastNonEmptyLine("x".repeat(32), "fallback", 8).length === 8,
             "last error line stays bounded")
 
+        const scrollKey = "upstream-services-reversal"
+        check(Scroll._processDelta(60, scrollKey, 120, 2, 0) === 0
+                && Scroll._processDelta(-120, scrollKey, 120, 2, 0) === -1,
+            "reversing scroll discards the old partial notch")
+
         console.log("PROBE-UPSTREAM-SERVICES " + (failures === 0 ? "passed " : "failed ")
             + checks + " checks")
     }
