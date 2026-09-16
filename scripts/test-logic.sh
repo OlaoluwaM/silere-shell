@@ -67,3 +67,4 @@ bash scripts/test-settings-migration.sh
 bash scripts/test-bar-hint-idle.sh
 bash scripts/test-overlay-coordinator.sh
 bash scripts/test-bluetooth-details.sh
+bash scripts/test-upstream-services.sh

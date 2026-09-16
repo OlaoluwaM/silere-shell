@@ -1,2 +1,3 @@
 ProbeOverlayCoordinator 1.0 probe-overlay-coordinator.qml
 ProbeBluetoothDetails 1.0 probe-bluetooth-details.qml
+ProbeUpstreamServices 1.0 probe-upstream-services.qml

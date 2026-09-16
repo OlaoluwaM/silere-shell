@@ -336,8 +336,8 @@ Singleton {
             }
             // the row re-reads the daemon, so a swallowed failure just flips the label back with no reason given
             root._readError = false
-            root.lastError = SafeText.boundedText(
-                _setErr.text.trim().split("\n").pop() || "Could not change the power mode", 160)
+            root.lastError = SafeText.lastNonEmptyLine(
+                _setErr.text, "Could not change the power mode", 160)
             root._queueCorrectiveRefresh()
         }
     }
