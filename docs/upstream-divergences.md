@@ -166,6 +166,10 @@ so resurrecting one on purpose means removing its line in the same commit.
   and profile management, settings, fullscreen demand, and underline glow.
   Compatible media fixes must preserve playback controls and track progress
   without restoring the visualizer or its tool dependency.
+- Tray context menus keep adaptive lane-fit placement, drill-in navigation,
+  and root-lane overlays so nested menus fit without overlapping their ancestors.
+  Apply hover/lifecycle fixes around that geometry; upstream's simpler
+  `Metrics.flyoutX` placement is not a replacement for it.
 - Control popups keep one exclusive `OverlayCoordinator` claim: menu, calendar,
   tray menu/list, quick actions, keybinds, wallpapers, and media all close their
   peers and reject late opens while idle or in overview. Any upstream popup or

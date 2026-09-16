@@ -352,6 +352,12 @@ PanelWindow {
                 // reparented to the window root: inside the clipped row Flickable the submenu would be scissored away
                 parent: win.contentItem
                 property bool opened: false
+                readonly property Item parentFlyout: _entry.ownerFlyout
+                readonly property bool hovered: _flyHover.hovered
+                readonly property bool _branchHovered: _rowHover.hovered
+                    || TrayMenuState.branchHovered(_flyout, win.contentItem.children)
+                property bool _hoverEntered: false
+                on_BranchHoveredChanged: if (opened && _branchHovered) _hoverEntered = true
                 property real _shift: opened ? 0 : (_rootLaneOverlay ? 0 : (_flip ? 5 : -5))
                 property var _menuStack: []
 
@@ -443,6 +449,7 @@ PanelWindow {
                 onOpenedChanged: {
                     if (!_entry.sub) return
                     if (opened) {
+                        _flyout._hoverEntered = _flyout._branchHovered
                         _flyout._drillMenusClosed = false
                         _flyout._syncOrigin()
                         win._emitMenuSignal(_flyout._currentMenu, "opened", "sendOpened")
@@ -469,16 +476,12 @@ PanelWindow {
                     interval: 180
                     // click-built navigation (a drill stack, the root-lane overlay) is not
                     // hover-scoped: it closes by Back, outside tap or Escape, never by leaving
-                    onTriggered: if (!_rowHover.hovered && !_flyHover.hovered
-                        && !_flyout._canGoBack) _entry.closeFlyout()
-                }
-                Connections {
-                    target: _flyHover
-                    function onHoveredChanged() { if (!_flyHover.hovered) _flyClose.restart() }
-                }
-                Connections {
-                    target: _rowHover
-                    function onHoveredChanged() { if (!_rowHover.hovered && _flyout.opened) _flyClose.restart() }
+                    // Explicit activation may have no pointer. Wait for an actual
+                    // hover visit before treating its absence as leaving the branch.
+                    running: _flyout.opened && _flyout._hoverEntered
+                        && !_flyout._branchHovered
+                        && !_flyout._canGoBack
+                    onTriggered: _entry.closeFlyout()
                 }
 
                 // _flyHover blocks hover alone; a press over what no submenu row claims (a

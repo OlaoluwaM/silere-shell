@@ -49,7 +49,7 @@ The full check already includes the runners below, directly or through
 | [test-upstream-services.sh](test-upstream-services.sh) | Selected upstream service regressions with controlled inputs |
 | [test-upstream-connectivity.sh](test-upstream-connectivity.sh) | Wi-Fi security classification and Bluetooth state helpers |
 | [test-upstream-connectivity-paths.sh](test-upstream-connectivity-paths.sh) | Actual service and row paths with synthetic backend inputs; pairing guard, guarded forget, and identity during synchronous row replacement |
-| [test-upstream-tray.sh](test-upstream-tray.sh) | Confirmation-control availability transitions |
+| [test-upstream-tray.sh](test-upstream-tray.sh) | Descendant hover-chain logic and confirmation-control transitions |
 | [test-surfaces.sh](test-surfaces.sh) | Loading surfaces across settings and accessibility variants |
 | [test-mutate.sh](test-mutate.sh) | Changing settings on already-created surfaces |
 | [test-layout-fit.sh](test-layout-fit.sh) | Label fit across the supported text sizes |

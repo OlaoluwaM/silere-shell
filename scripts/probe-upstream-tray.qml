@@ -26,10 +26,44 @@ ShellRoot {
         console.warn("PROBE-FAIL " + label)
     }
 
+    QtObject {
+        id: rootFlyout
+        property bool opened: true
+        property bool hovered: false
+        property var parentFlyout: null
+    }
+    QtObject {
+        id: childFlyout
+        property bool opened: true
+        property bool hovered: false
+        property var parentFlyout: rootFlyout
+    }
+    QtObject {
+        id: grandchildFlyout
+        property bool opened: true
+        property bool hovered: false
+        property var parentFlyout: childFlyout
+    }
+
     Timer {
         interval: 0
         running: true
         onTriggered: {
+            grandchildFlyout.hovered = true
+            root.check(TrayMenuState.branchHovered(rootFlyout, [grandchildFlyout]),
+                "a hovered grandchild retains every open ancestor")
+            root.check(TrayMenuState.branchHovered(childFlyout, [grandchildFlyout]),
+                "a hovered grandchild retains its direct parent")
+
+            grandchildFlyout.hovered = false
+            childFlyout.hovered = true
+            root.check(TrayMenuState.branchHovered(rootFlyout, [childFlyout]),
+                "a hovered child retains its parent")
+
+            childFlyout.opened = false
+            root.check(!TrayMenuState.branchHovered(rootFlyout, [childFlyout]),
+                "a closed child does not retain a parent flyout")
+
             const button = confirmButtonFactory.createObject(root)
             button.request()
             button.enabled = false

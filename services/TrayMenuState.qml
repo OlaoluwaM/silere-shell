@@ -27,6 +27,19 @@ AnchoredPopupState {
         function onTrayWidgetChanged() { if (!ShellSettings.trayWidget) root.close() }
     }
 
+    function branchHovered(branch, flyouts): bool {
+        for (let i = 0; i < flyouts.length; i++) {
+            const child = flyouts[i]
+            if (!child || child.opened !== true || !child.hovered) continue
+            let current = child
+            for (let depth = 0; current && current.opened === true && depth < 9; depth++) {
+                if (current === branch) return true
+                current = current.parentFlyout
+            }
+        }
+        return false
+    }
+
     function toggleAt(x: real, screen, handle, bottom: bool, anchor, source, fromPopup): void {
         if (root.open && root.sourceItem === source) {
             root.close()
