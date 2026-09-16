@@ -48,6 +48,11 @@ release or development history; inspect exact commits and their dependencies
 before importing either. The rationale is in
 [ADR 0003](adrs/0003-integrate-upstream-changes-selectively.md).
 
+When the fork has no established behavior or design for a selected feature,
+preserve upstream's semantics. Adapt imports to existing fork behavior and
+documented decisions; do not introduce a new design solely because an import
+offers the opportunity. Propose any intentional new divergence separately.
+
 For each integration:
 
 1. Inspect the upstream change against the current fork. Identify its benefit,
@@ -73,6 +78,11 @@ Periodically review upstream changes since the last review, including fixes
 in areas we previously adapted. Record the reviewed upstream SHA and selected,
 deferred, or rejected change groups with brief reasons in a dated integration
 record under `docs/`. Reviewing a release does not mark it as imported.
+
+The [September 16 staged integration plan](docs/upstream-picks-2026-09-16.md)
+records the post-v1.0.0 picks, confirmed decisions, and acceptance checks.
+Stages 1–8 are the active plan; common popup-state consolidation is recorded
+as deferred stage 9, to revisit after those changes settle.
 
 History stays intact because nixos-config pins this branch by commit. Undo a
 landed selective import with a revert, accounting for any dependent follow-ups.
