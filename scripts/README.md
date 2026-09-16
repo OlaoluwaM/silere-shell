@@ -47,6 +47,7 @@ The full check already includes the runners below, directly or through
 | [test-overlay-coordinator.sh](test-overlay-coordinator.sh) | Popup exclusivity, tray relationships, and idle/overview blocking |
 | [test-bluetooth-details.sh](test-bluetooth-details.sh) | Details selection and disconnect cleanup using synthetic devices |
 | [test-upstream-services.sh](test-upstream-services.sh) | Selected upstream service regressions with controlled inputs |
+| [test-upstream-tray.sh](test-upstream-tray.sh) | Confirmation-control availability transitions |
 | [test-surfaces.sh](test-surfaces.sh) | Loading surfaces across settings and accessibility variants |
 | [test-mutate.sh](test-mutate.sh) | Changing settings on already-created surfaces |
 | [test-layout-fit.sh](test-layout-fit.sh) | Label fit across the supported text sizes |
