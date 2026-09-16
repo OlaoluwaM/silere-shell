@@ -46,6 +46,39 @@ ShellRoot {
                 && Media.extrapolatedPosition(NaN, NaN, true, 1, 0) === 0,
             "media progress clamps duration and rejects invalid values")
 
+        const toolsWas = SystemTools._tools
+        const readyWas = SystemTools.ready
+        const checkingWas = SystemTools.checking
+        const errorWas = SystemTools.lastError
+        const revisionWas = SystemTools._scanRevision
+        const retryWas = SystemTools._retryDelayMs
+        SystemTools._tools = { hyprctl: true }
+        SystemTools.ready = false
+        SystemTools.checking = true
+        SystemTools._retryDelayMs = 0
+        SystemTools._scanFailed("probe failure")
+        check(SystemTools.ready && !SystemTools.checking && SystemTools._tools.hyprctl
+                && SystemTools._retryDelayMs === SystemTools._minRetryDelayMs
+                && SystemTools._scanRevision === revisionWas,
+            "failed tool scans keep the last result and schedule a bounded retry")
+        SystemTools._tools = toolsWas
+        SystemTools.ready = readyWas
+        SystemTools.checking = checkingWas
+        SystemTools.lastError = errorWas
+        SystemTools._scanRevision = revisionWas
+        SystemTools._retryDelayMs = retryWas
+
+        Hooks._runTimes = []
+        Hooks._criticalTimes = []
+        for (let i = 0; i < Hooks.maxRunsPerSecond; i++) Hooks._budgetAllows()
+        check(!Hooks._budgetAllows() && Hooks._criticalAllows() && Hooks._criticalAllows()
+                && !Hooks._criticalAllows(),
+            "critical hooks retain a separate, bounded allowance after normal flooding")
+        check(Hooks._groupWaitScript.indexOf("sleep 0.25") >= 0,
+            "hook descendant polling uses the lower-frequency interval")
+        Hooks._runTimes = []
+        Hooks._criticalTimes = []
+
         console.log("PROBE-UPSTREAM-SERVICES " + (failures === 0 ? "passed " : "failed ")
             + checks + " checks")
     }

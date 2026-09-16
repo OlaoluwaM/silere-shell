@@ -433,7 +433,7 @@ Singleton {
         _remainingProc.exec(["systemctl", "--user", "list-timers", root._stopTimer, "--no-legend"])
     }
 
-    // the widget-facing nudge (same name style as Notifications.refreshFullscreenState):
+    // the widget-facing nudge:
     // the pill calls this as its hover label expands, the row's page-open hook below
     // does the same. The in-flight guard in _pollRemaining rate-limits repeats.
     //

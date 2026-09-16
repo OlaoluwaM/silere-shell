@@ -25,6 +25,7 @@ Singleton {
     readonly property int maxArgs: 4
 
     readonly property int maxRunsPerSecond: 20
+    readonly property int maxCriticalRunsPerSecond: 2
     readonly property int maxRuntimeMs: 30000
     // timeout owns a process group, while the inner shell stays alive until ordinary
     // background children leave it; otherwise timeout exits with the hook entrypoint
@@ -38,12 +39,13 @@ Singleton {
         + 'pid=${line%% *}; rest=${line##*) }; set -- $rest; '
         + '[ "${1:-}" != Z ] && [ "${3:-}" = "$group" ] '
         + '&& [ "$pid" != "$self" ] && [ "$pid" != "$outer" ] '
-        + '&& { alive=true; break; }; done; $alive || exit "$code"; sleep 0.1; done'
+        + '&& { alive=true; break; }; done; $alive || exit "$code"; sleep 0.25; done'
 
     property var _present: ({})
     property var _found: ({})
     property bool _scanned: false
     property var _runTimes: []
+    property var _criticalTimes: []
     property bool _throttled: false
     readonly property bool armed: true
 
@@ -68,9 +70,27 @@ Singleton {
         return true
     }
 
+    // A normal event flood must not hide a critical battery crossing. This
+    // separate allowance remains small, so critical events cannot bypass the
+    // rate limit indefinitely.
+    function _criticalAllows(): bool {
+        const now = Date.now()
+        const recent = []
+        for (let i = 0; i < root._criticalTimes.length; i++)
+            if (now - root._criticalTimes[i] < 1000) recent.push(root._criticalTimes[i])
+        if (recent.length >= root.maxCriticalRunsPerSecond) {
+            root._criticalTimes = recent
+            return false
+        }
+        recent.push(now)
+        root._criticalTimes = recent
+        return true
+    }
+
     function fire(event: string, args): void {
         if (root._present[event] !== true) return
-        if (!root._budgetAllows()) {
+        if (!root._budgetAllows()
+                && !(event === "battery-critical" && root._criticalAllows())) {
             if (!root._throttled) {
                 root._throttled = true
                 console.warn("silere-shell: hooks exceeded "
@@ -154,17 +174,25 @@ Singleton {
 
     function rescan(): void {
         if (root.directory.length === 0 || _scan.running) return
+        _rescanTimer.stop()
         root._found = ({})
         _scan.running = true
     }
+
+    readonly property int _minRescanDelayMs: 5000
+    readonly property int _maxRescanDelayMs: 120000
+    property int _rescanDelayMs: 0
 
     BoundedProcess {
         id: _scan
         timeoutMs: 5000
         command: ["bash", "-c",
-            "d=\"$1\"; shift; cd -- \"$d\" 2>/dev/null || exit 0; "
+            // A missing hooks directory is an empty, successful scan. An existing
+            // directory that cannot be entered is not evidence that its hooks were
+            // removed, so keep the last set and retry instead.
+            "d=\"$1\"; shift; [ -d \"$d\" ] || exit 0; cd -- \"$d\" 2>/dev/null || exit 1; "
             + "for f in \"$@\"; do [ -f \"$f\" ] && [ -x \"$f\" ] "
-            + "&& printf '%s\\n' \"$f\"; done",
+            + "&& printf '%s\\n' \"$f\"; done; exit 0",
             "bash", root.directory].concat(root.events)
         // every write to _present rebinds all five hook targets; collect, then swap once
         stdout: SplitParser {
@@ -174,11 +202,29 @@ Singleton {
                 root._found[name] = true
             }
         }
-        onExited: {
+        onTimeoutReached: console.warn(
+            "silere-shell: hook scan timed out; keeping the last known set")
+        onExited: code => {
+            // A timed-out or failed scan may have stopped before checking every hook.
+            if (timedOut || code !== 0) {
+                root._found = ({})
+                root._rescanDelayMs = root._rescanDelayMs > 0
+                    ? Math.min(root._rescanDelayMs * 2, root._maxRescanDelayMs)
+                    : root._minRescanDelayMs
+                _rescanTimer.restart()
+                return
+            }
             root._present = Object.assign({}, root._found)
             root._found = ({})
             root._scanned = true
+            root._rescanDelayMs = 0
         }
+    }
+
+    Timer {
+        id: _rescanTimer
+        interval: root._rescanDelayMs
+        onTriggered: root.rescan()
     }
 
     Connections {

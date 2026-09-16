@@ -75,6 +75,9 @@ so resurrecting one on purpose means removing its line in the same commit.
 
 ## Feature collisions — standing resolutions
 
+- Failed capability scans retain the last coherent result without advancing
+  `SystemTools.scanRevision`; that revision tracks changes to capabilities.
+  Hook recovery retains process-group cleanup and bounded execution.
 - Bar hover tooltips remain enabled and configurable. Keep `BarHintState`,
   `BarHintPopup`, the popup host, and every widget's hint bindings together.
   The retained popup must also take compatible upstream idle-settle fixes,

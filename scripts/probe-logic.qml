@@ -1253,9 +1253,10 @@ ShellRoot {
         SystemTools._scanFailed("scan gave up")
         root._check(SystemTools.ready && !SystemTools.checking
                 && SystemTools.lastError === "scan gave up"
-                && Object.keys(SystemTools._tools).length === 0
-                && SystemTools._scanRevision === revisionWas + 1,
-            "a capability scan that gives up still lands")
+                && SystemTools._tools.hyprctl === true
+                && SystemTools._scanRevision === revisionWas
+                && SystemTools._retryDelayMs >= SystemTools._minRetryDelayMs,
+            "a failed capability scan retains the last answer and retries without a capability edge")
         SystemTools._tools = toolsWas
         SystemTools.ready = readyWas
         SystemTools.checking = checkingWas

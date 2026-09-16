@@ -95,18 +95,32 @@ Singleton {
         Quickshell.execDetached(argv)
     }
 
-    // a scan that never lands leaves every capability flag false for the session
+    readonly property int _minRetryDelayMs: 5000
+    readonly property int _maxRetryDelayMs: 120000
+    property int _retryDelayMs: 0
+
+    // A failed probe cannot establish that a previously found tool disappeared.
+    // Keep the last coherent answer and retry, so transient failures do not tear
+    // down services that depend on optional commands.
     function _scanFailed(message: string): void {
-        const lost = !root._sameTools(root._tools, ({}))
-        root._tools = ({})
         root.lastError = message
         root.ready = true
         root.checking = false
-        if (lost) root._scanRevision++
+        root._retryDelayMs = root._retryDelayMs > 0
+            ? Math.min(root._retryDelayMs * 2, root._maxRetryDelayMs)
+            : root._minRetryDelayMs
+        _retryTimer.restart()
+    }
+
+    Timer {
+        id: _retryTimer
+        interval: root._retryDelayMs
+        onTriggered: root.refresh()
     }
 
     function refresh(): void {
         if (_checkProc.running) return
+        _retryTimer.stop()
         // keep the last confirmed capability set while refreshing. Features no longer disappear briefly when Settings triggers a fresh probe
         checking = true
         lastError = ""
@@ -126,12 +140,18 @@ Singleton {
         stdout: StdioCollector { id: _checkOut }
         onTimeoutReached: root._scanFailed("Optional tool scan timed out")
         onExited: (code) => {
-            if (_checkProc.timedOut) return
+            if (_checkProc.timedOut) {
+                // The retry may have fired while timeout cleanup still owned the
+                // process. Once it exits, recovery must still have a pending scan.
+                if (!_retryTimer.running) _retryTimer.restart()
+                return
+            }
             if (code !== 0) {
-                // a refresh must not leave removed tools advertised forever
                 root._scanFailed("Optional tool scan failed (exit " + code + ")")
                 return
             }
+            root._retryDelayMs = 0
+            _retryTimer.stop()
             const found = {}
             const lines = (_checkOut.text || "").split(/\r?\n/)
             for (let i = 0; i < lines.length; i++) {
