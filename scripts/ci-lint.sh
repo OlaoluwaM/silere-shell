@@ -170,11 +170,12 @@ shadowed=""
 for pair in $shadow_pairs; do
   local_name="${pair%%:*}"
   module="${pair#*:}"
+  module_pattern="${module//./\\.}"
   while IFS= read -r f; do
     [ "$f" = "./services/$local_name.qml" ] && continue
     grep -qE '^import "(\.\./)*services"' "$f" \
       && shadowed="$shadowed  $f imports $module beside the services directory, shadowing $local_name"$'\n'
-  done < <(grep -rlF "import $module" --include='*.qml' . || true)
+  done < <(grep -rlE "^[[:space:]]*import[[:space:]]+${module_pattern}([[:space:]]+[0-9.]+)?[[:space:]]*(//.*)?$" --include='*.qml' . || true)
 done
 if [ -n "$shadowed" ]; then
   fail "an external type would take a local singleton's name:"
@@ -865,6 +866,18 @@ if [ -n "$unpackaged" ]; then
   for m in $unpackaged; do printf '  %s\n' "$m"; done
 else
   ok "qmldir" "every tracked component is packaged"
+fi
+
+# Internal declarations may type-check before failing when a surface loads.
+if command -v python3 >/dev/null 2>&1; then
+  if internal_types="$(python3 scripts/check-internal-types.py)"; then
+    ok "qmldir" "internal types stay inside their module"
+  else
+    fail "internal types are used outside their own module:"
+    printf '%s\n' "$internal_types"
+  fi
+else
+  skip "internal types" "python3 missing; cross-module check skipped"
 fi
 
 section "upstream divergence ledger"

@@ -513,6 +513,28 @@ test_repair_workflow() (
         "nested repair left its parent worktree untouched"
 )
 
+test_internal_type_boundaries() (
+    command -v python3 >/dev/null 2>&1 || return 0
+    local fixture="$TMP/internal-types"
+    mkdir -p "$fixture/owner" "$fixture/consumer" "$fixture/scripts"
+    printf 'internal PrivateCard PrivateCard.qml\n' > "$fixture/owner/qmldir"
+    printf 'Item {}\n' > "$fixture/owner/PrivateCard.qml"
+    printf 'PrivateCard {}\n' > "$fixture/owner/Local.qml"
+    printf 'PrivateCard {}\n' > "$fixture/scripts/Probe.qml"
+    printf 'Item { /* PrivateCard */ property string path: "PrivateCard.qml" }\n' \
+        > "$fixture/consumer/Legal.qml"
+    python3 "$ROOT/scripts/check-internal-types.py" "$fixture" \
+        || fail "internal type lint rejected module-local use, text, or a relocated probe"
+    local use
+    for use in 'PrivateCard {}' 'Owner.PrivateCard {}' 'Item { property PrivateCard card }'; do
+        printf '%s\n' "$use" > "$fixture/consumer/Illegal.qml"
+        if python3 "$ROOT/scripts/check-internal-types.py" "$fixture" >/dev/null; then
+            fail "internal type lint accepted an external reference: $use"
+        fi
+    done
+)
+
+test_internal_type_boundaries
 test_xdg_paths_and_answer_parsing
 test_fresh_install_permissions
 test_marker_removal

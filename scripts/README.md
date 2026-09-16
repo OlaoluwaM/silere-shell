@@ -91,7 +91,8 @@ measure frame timing or prove interactive responsiveness.
   tests. Production services remain intact.
 - `lib/` contains shared shell UI, XDG-path, and QML-module helpers.
 - [check-connections.py](check-connections.py) and
-  [check-text-scale.py](check-text-scale.py) are standalone source diagnostics.
+  [check-text-scale.py](check-text-scale.py), plus
+  [check-internal-types.py](check-internal-types.py), are standalone source diagnostics.
   Run them with `python3 scripts/<name>.py` from the repository root; they are
   not substitutes for the full checks.
 
