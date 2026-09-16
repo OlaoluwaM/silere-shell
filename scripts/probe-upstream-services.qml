@@ -36,6 +36,16 @@ ShellRoot {
                 && !WindowActions._appMatches({ cls: "firefox", initialClass: "" }, "ox"),
             "short app names require an exact window-class match")
 
+        check(Media.extrapolatedPosition(10, 5000, false, 2, 30) === 10
+                && Media.extrapolatedPosition(10, 5000, true, 0.5, 30) === 12.5
+                && Media.extrapolatedPosition(10, 5000, true, 1, 30) === 15
+                && Media.extrapolatedPosition(10, 5000, true, 2, 30) === 20,
+            "media progress uses playing state and playback rate")
+        check(Media.extrapolatedPosition(28, 5000, true, 2, 30) === 30
+                && Media.extrapolatedPosition(10, 5000, true, NaN, 30) === 15
+                && Media.extrapolatedPosition(NaN, NaN, true, 1, 0) === 0,
+            "media progress clamps duration and rejects invalid values")
+
         console.log("PROBE-UPSTREAM-SERVICES " + (failures === 0 ? "passed " : "failed ")
             + checks + " checks")
     }
