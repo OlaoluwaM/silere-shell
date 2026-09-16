@@ -32,6 +32,10 @@ ShellRoot {
                 && Scroll._processDelta(-120, scrollKey, 120, 2, 0) === -1,
             "reversing scroll discards the old partial notch")
 
+        check(WindowActions._appMatches({ cls: "firefox", initialClass: "" }, "firefox")
+                && !WindowActions._appMatches({ cls: "firefox", initialClass: "" }, "ox"),
+            "short app names require an exact window-class match")
+
         console.log("PROBE-UPSTREAM-SERVICES " + (failures === 0 ? "passed " : "failed ")
             + checks + " checks")
     }
