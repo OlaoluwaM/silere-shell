@@ -175,11 +175,15 @@ Singleton {
         return Math.max(0, Math.min(1.0, v))
     }
 
+    function _volumeMatches(actual: real, wanted: real): bool {
+        return isFinite(actual) && Math.abs(actual - wanted) < _volumeEpsilon
+    }
+
     function _enforceVolumeLimit(): void {
         const a = ready ? audio : null
         if (!a) return
         const clamped = _clampVolume(a.volume)
-        if (Math.abs(a.volume - clamped) >= _volumeEpsilon) _writeVolume(clamped)
+        if (!_volumeMatches(a.volume, clamped)) _writeVolume(clamped)
     }
 
     function _acceptVolume(actual: real): void {
@@ -219,7 +223,7 @@ Singleton {
             if (!a) return
             const actual = a.volume
             const clamped = root._clampVolume(actual)
-            if (Math.abs(actual - clamped) >= root._volumeEpsilon) {
+            if (!root._volumeMatches(actual, clamped)) {
                 root._writeVolume(clamped)
                 return
             }
@@ -252,7 +256,7 @@ Singleton {
         onTriggered: {
             const a = root.audio
             if (!a) return
-            if (Math.abs(a.volume - root.targetVolume) >= root._volumeEpsilon)
+            if (!root._volumeMatches(a.volume, root.targetVolume))
                 a.volume = Math.max(0, Math.min(1.0, root.targetVolume))
         }
     }
@@ -264,7 +268,7 @@ Singleton {
             const a = root.audio
             if (!a || !root.pendingApply) return
             const actual = root._clampVolume(a.volume)
-            if (Math.abs(actual - root.targetVolume) > root._confirmTolerance) {
+            if (!isFinite(a.volume) || Math.abs(a.volume - root.targetVolume) > root._confirmTolerance) {
                 if (root._volRetries >= root._maxConfirmRetries) {
                     root._acceptVolume(actual)
                     return
@@ -317,7 +321,7 @@ Singleton {
         if (!a) return
         v = _clampVolume(v)
         if (Math.abs(v - targetVolume) < _volumeEpsilon && pendingApply) return
-        if (!pendingApply && Math.abs(v - _clampVolume(a.volume)) < _volumeEpsilon) return
+        if (!pendingApply && _volumeMatches(a.volume, v)) return
         targetVolume = v
         pendingApply = true
 

@@ -46,6 +46,10 @@ ShellRoot {
                 && Media.extrapolatedPosition(NaN, NaN, true, 1, 0) === 0,
             "media progress clamps duration and rejects invalid values")
 
+        check(Audio._volumeMatches(1, 1) && !Audio._volumeMatches(1.2, 1)
+                && !Audio._volumeMatches(NaN, 1),
+            "volume writes compare raw finite backend values")
+
         const toolsWas = SystemTools._tools
         const readyWas = SystemTools.ready
         const checkingWas = SystemTools.checking
