@@ -285,7 +285,9 @@ PageShell {
                         ? Bluetooth.connectedGlyph : "󰂯"
                 title: "Bluetooth"
                 status: Bluetooth.statusText
+                statusColor: Bluetooth.hardBlocked ? Theme.warning : "transparent"
                 showSwitch: true
+                available: !Bluetooth.hardBlocked
                 expandable: Bluetooth.enabled
                 expanded: root._btPickerOpen
                 onActivated: Bluetooth.toggle()

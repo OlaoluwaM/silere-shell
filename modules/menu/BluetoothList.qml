@@ -34,7 +34,7 @@ Item {
 
     function _syncScanState(): void {
         Bluetooth.setScan(root.open && Bluetooth.available && Bluetooth.enabled && !Idle.isIdle)
-        if (!Bluetooth.available || !Bluetooth.enabled) {
+        if (!Bluetooth.available || !Bluetooth.enabled || Bluetooth.hardBlocked) {
             _confirm.disarm()
         }
     }
@@ -54,6 +54,7 @@ Item {
         target: Bluetooth
         function onAvailableChanged() { root._syncScanState() }
         function onEnabledChanged() { root._syncScanState() }
+        function onHardBlockedChanged() { root._syncScanState() }
         // the row whose drawer this pointed at no longer exists in Bluetooth.devices —
         // Bluetooth._purgeRemovedDevice already dropped it from the published array in this
         // same call, so clearing here can't race a stale republish putting it back
@@ -78,6 +79,7 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
             text: !Bluetooth.available ? "Bluetooth unavailable"
+                : Bluetooth.hardBlocked ? "Blocked by the hardware switch"
                 : !Bluetooth.enabled   ? "Bluetooth is off"
                 : root._searchLapsed   ? "No devices found"
                 :                        "Searching for devices…"
@@ -125,11 +127,14 @@ Item {
                     id: _row
                     width: parent.width
 
-                    readonly property bool   _armed: _confirm.key === _entry.modelData.address && _entry.modelData.connected
+                    readonly property bool _armed: _confirm.key === "disconnect:" + _entry.modelData.address
+                        && _entry.modelData.connected
+                    readonly property bool _forgetArmed: _confirm.key === "forget:" + _entry.modelData.address
                     readonly property bool   _failed: Bluetooth.errorAddr === _entry.modelData.address
                     readonly property int _batt: Bluetooth.batteryPercent(_entry.modelData)
                     readonly property string _state:
-                        _armed ? "Disconnect?"
+                        _forgetArmed ? "Forget?"
+                        : _armed ? "Disconnect?"
                         : _entry.modelData.pairing ? "Cancel?"
                         : _entry.modelData.state === Bt.BluetoothDeviceState.Connecting    ? "Connecting…"
                         : _entry.modelData.state === Bt.BluetoothDeviceState.Disconnecting ? "Disconnecting…"
@@ -142,26 +147,38 @@ Item {
                     label: Bluetooth.deviceLabel(_entry.modelData)
                     status: _state
                     selected: _entry.modelData.connected
-                    warning: _armed || _entry.modelData.pairing
-                    failed:  _failed
+                    warning: _armed || _forgetArmed || _entry.modelData.pairing
+                    failed: !_armed && !_forgetArmed && _failed
                     // the body tap already means connect/disconnect for this row, so
                     // details live behind the chevron's separate hit zone instead
                     expandable: _entry.modelData.connected
                     expanded: _entry._detailsOpen
 
                     function _activate(): void {
-                        const addr = _entry.modelData.address
-                        if (_entry.modelData.pairing) {
+                        const device = _entry.modelData
+                        const addr = device.address
+                        if (_forgetArmed) _confirm.disarm()
+                        if (device.pairing) {
                             Bluetooth.cancelPair(addr)
-                        } else if (_entry.modelData.connected) {
-                            if (_confirm.tryConfirm(addr)) Bluetooth.disconnectDevice(addr)
-                        } else if (_entry.modelData.paired) {
+                        } else if (device.connected) {
+                            if (_confirm.tryConfirm("disconnect:" + addr)) Bluetooth.disconnectDevice(addr)
+                        } else if (device.paired) {
                             Bluetooth.connectDevice(addr)
                         } else {
                             Bluetooth.pairDevice(addr)
                         }
                     }
                     onTriggered: _activate()
+                    // middle-click forgets a paired device; the first press only arms it
+                    function _middleTap(): void {
+                        const addr = _entry.modelData.address
+                        if (!_entry.modelData.paired || _entry.modelData.connected) return
+                        if (_confirm.tryConfirm("forget:" + addr)) Bluetooth.forgetDevice(addr)
+                    }
+                    TapHandler {
+                        acceptedButtons: Qt.MiddleButton
+                        onTapped: _row._middleTap()
+                    }
                     onExpandToggled: root._detailsAddr = (root._detailsAddr === _entry.modelData.address)
                         ? "" : _entry.modelData.address
                 }
