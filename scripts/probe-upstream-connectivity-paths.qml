@@ -12,6 +12,8 @@ ShellRoot {
     property int checks: 0
     property int failures: 0
     property int rowPhase: 0
+    property int pairGuardPhase: 0
+    property double pairGuardStartedAtMs: 0
     property Item wifiRow: null
     property QtObject wifiConfirm: null
     property Item bluetoothRow: null
@@ -33,6 +35,12 @@ ShellRoot {
         if (ok) return
         root.failures++
         console.warn("PROBE-FAIL " + label)
+    }
+
+    function finishPairGuardProbe(): void {
+        console.log("PROBE-UPSTREAM-CONNECTIVITY-PATHS "
+            + (root.failures ? "failed " : "passed ") + root.checks + " checks")
+        pairGuardElapsed.stop()
     }
 
     function findObject(object, predicate, seen): var {
@@ -313,35 +321,104 @@ ShellRoot {
 
                 pairA.paired = false
                 pairA.connectCalled = false
+                pairA.pairing = false
+                adapter.pairable = false
+                adapter.pairableTimeout = 17
                 Bluetooth.pairDevice("A")
                 root.check(Bluetooth._pendingAddr === "A" && pairA.pairing,
                     "pairing starts an attempt for its addressed device")
-                pairWait.restart()
+                root.check(adapter.pairable && adapter.pairableTimeout === 60,
+                    "a pairing attempt owns and bounds adapter pairability when it enables it")
+                root.pairGuardStartedAtMs = Date.now()
+                pairGuardElapsed.restart()
             }
         }
     }
 
     Timer {
-        id: pairWait
-        interval: 120
+        id: pairGuardElapsed
+        interval: 10
+        repeat: true
         onTriggered: {
-            root.check(Bluetooth._pendingAddr === "A" && Bluetooth.errorAddr === "",
-                "the real pairing guard restarts while pairing remains active")
-            Bluetooth._pendingAddr = "B"
-            Bluetooth._pendingKind = "connect"
-            Bluetooth.errorAddr = "B"
-            Bluetooth.errorKind = "pair"
-            Bluetooth.disconnectDevice("A")
-            root.check(Bluetooth._pendingAddr === "B" && Bluetooth.errorAddr === "B",
-                "disconnecting A leaves B's attempt and error intact")
-            pairA.paired = true
-            pairA.connected = false
-            Bluetooth.forgetDevice("A")
-            root.check(pairA.forgot && Bluetooth._pendingAddr === "B",
-                "forgetting A leaves B's pending attempt intact")
-            console.log("PROBE-UPSTREAM-CONNECTIVITY-PATHS "
-                + (root.failures ? "failed " : "passed ") + root.checks + " checks")
-            stop()
+            if (Date.now() - root.pairGuardStartedAtMs > 2000) {
+                root.check(false, "the pairing guard completes before its fixture watchdog")
+                root.finishPairGuardProbe()
+                return
+            }
+
+            if (root.pairGuardPhase === 0 && Bluetooth._guardExtensions >= 1) {
+                root.check(Bluetooth._pendingAddr === "A" && Bluetooth.errorAddr === "",
+                    "an active pairing survives its first guard interval")
+                root.pairGuardPhase++
+            }
+
+            if (root.pairGuardPhase === 1 && Bluetooth._pendingAddr === "") {
+                root.check(Bluetooth.errorAddr === "A" && Bluetooth.errorKind === "pair"
+                        && Bluetooth._guardExtensions === 8,
+                    "a pairing that never clears fails on the ninth guard interval")
+                root.check(!adapter.pairable && adapter.pairableTimeout === 17,
+                    "a timed-out pairing restores pairability owned by this service")
+                pairA.paired = false
+                pairA.pairing = false
+                adapter.pairable = true
+                adapter.pairableTimeout = 31
+                Bluetooth.pairDevice("A")
+                root.check(Bluetooth._pendingAddr === "A" && adapter.pairableTimeout === 31,
+                    "an externally pairable adapter remains owned by its original actor")
+                root.pairGuardPhase++
+                root.pairGuardStartedAtMs = Date.now()
+                restart()
+                return
+            }
+
+            if (root.pairGuardPhase === 2 && Bluetooth._guardExtensions >= 1) {
+                pairA.paired = true
+                pairA.pairing = false
+                root.pairGuardPhase++
+            }
+
+            if (root.pairGuardPhase === 3 && Bluetooth._pendingAddr === "") {
+                root.check(Bluetooth._pendingAddr === "" && Bluetooth.errorAddr === ""
+                        && adapter.pairable && adapter.pairableTimeout === 31,
+                    "a successful pairing before the cap leaves externally owned pairability intact")
+                pairA.paired = false
+                pairA.pairing = false
+                adapter.pairable = false
+                adapter.pairableTimeout = 7
+                Bluetooth.pairDevice("A")
+                root.pairGuardPhase++
+                root.pairGuardStartedAtMs = Date.now()
+                restart()
+                return
+            }
+
+            if (root.pairGuardPhase === 4 && Bluetooth._guardExtensions >= 1) {
+                root.check(Bluetooth._pendingAddr === "A" && Bluetooth.errorAddr === ""
+                        && Bluetooth._guardExtensions === 1,
+                    "a fresh pairing attempt receives a fresh guard budget")
+                root.pairGuardPhase++
+            }
+
+            if (root.pairGuardPhase === 5 && Bluetooth._pendingAddr === "") {
+                root.check(Bluetooth.errorAddr === "A" && Bluetooth.errorKind === "pair"
+                        && Bluetooth._guardExtensions === 8,
+                    "the fresh pairing attempt also fails on its ninth guard interval")
+                root.check(!adapter.pairable && adapter.pairableTimeout === 7,
+                    "the fresh timed-out attempt restores its own adapter state")
+                Bluetooth._pendingAddr = "B"
+                Bluetooth._pendingKind = "connect"
+                Bluetooth.errorAddr = "B"
+                Bluetooth.errorKind = "pair"
+                Bluetooth.disconnectDevice("A")
+                root.check(Bluetooth._pendingAddr === "B" && Bluetooth.errorAddr === "B",
+                    "disconnecting A leaves B's attempt and error intact")
+                pairA.paired = true
+                pairA.connected = false
+                Bluetooth.forgetDevice("A")
+                root.check(pairA.forgot && Bluetooth._pendingAddr === "B",
+                    "forgetting A leaves B's pending attempt intact")
+                root.finishPairGuardProbe()
+            }
         }
     }
 }

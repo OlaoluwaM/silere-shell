@@ -221,7 +221,8 @@ Singleton {
     property var    _pairableAdapter: null
     property int    _pairableTimeoutWas: 0
     // BlueZ defaults PairableTimeout to 0, so a shell killed mid-attempt would leave the
-    // adapter pairable for good. Longer than _attemptGuard, so it never cuts an attempt short
+    // adapter pairable for good. This bounds incoming pairing availability; the
+    // attempt guard separately bounds how long the UI waits for completion
     readonly property int _pairableTimeoutSec: 60
 
     readonly property var _pendingDevice: {
@@ -286,6 +287,7 @@ Singleton {
         root._pendingAddr = address
         root._pendingKind = kind
         root._pendingStarted = false
+        root._guardExtensions = 0
         _attemptGuard.restart()
     }
 
@@ -332,6 +334,8 @@ Singleton {
         root._endAttempt()
     }
 
+    property int _guardExtensions: 0
+
     // an attempt that never moves the device would otherwise hold the row on its in-progress label forever
     Timer {
         id: _attemptGuard
@@ -339,8 +343,14 @@ Singleton {
         onTriggered: {
             if (root._pendingAddr === "") return
             // a passkey pairing can sit in progress well past 20s; that is not a stalled
-            // attempt, so keep the guard alive until BlueZ reports it done either way
-            if (root._pendingKind === "pair" && root._pendingPairing) { restart(); return }
+            // attempt. Bounded, though: a BlueZ that never clears `pairing` must not hold
+            // the row on "Pairing…" with no way out
+            if (root._pendingKind === "pair" && root._pendingPairing
+                    && root._guardExtensions < 8) {
+                root._guardExtensions++
+                restart()
+                return
+            }
             root.errorAddr = root._pendingAddr
             root.errorKind = root._pendingKind
             root._endAttempt()
