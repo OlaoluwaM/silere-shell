@@ -558,4 +558,6 @@ else
     printf 'SKIP: repair workflow (git unavailable)\n'
 fi
 
+bash "$ROOT/scripts/test-smoke-config.sh"
+
 printf 'portability regression tests passed\n'

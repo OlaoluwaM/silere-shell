@@ -4,6 +4,7 @@ export LC_ALL=C
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/scripts/lib/xdg.sh"
+source "$ROOT/scripts/lib/smoke-config.sh"
 cd "$ROOT" || exit 1
 
 trap 'printf "\ninterrupted\n" >&2; exit 130' INT TERM
@@ -487,8 +488,11 @@ if [ "$qs_usable" = 1 ]; then
     warn "startup" "timeout command unavailable; runtime smoke test skipped"
   else
     smoke_log=""
+    smoke_home=""
     cov_log=""
     cov_cfg=""
+    bad_log=""
+    bad_cfg=""
     # one launcher for every runtime probe below: the timeout, entry point and log
     # plumbing must not drift between the smoke, coverage and bad-settings runs
     _run_shell_probe() { # logfile [ENV=val ...]
@@ -498,26 +502,39 @@ if [ "$qs_usable" = 1 ]; then
 
     _smoke_cleanup() {
       if [ -n "$smoke_log" ]; then rm -f "$smoke_log"; fi
+      _silere_cleanup_smoke_config "$smoke_home"
       if [ -n "$cov_log" ]; then rm -f "$cov_log"; fi
       if [ -n "$cov_cfg" ]; then rm -rf "$cov_cfg"; fi
+      if [ -n "$bad_log" ]; then rm -f "$bad_log"; fi
+      if [ -n "$bad_cfg" ]; then rm -rf "$bad_cfg"; fi
       return 0
     }
     trap _smoke_cleanup EXIT
 
     code=0
+    SILERE_SMOKE_CONFIG_READY=0
     smoke_log="$(mktemp "${TMPDIR:-/tmp}/silere-qs-smoke.XXXXXX.log")"
-    _run_shell_probe "$smoke_log" || code=$?
-    if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then
+    smoke_home="$(mktemp -d "${TMPDIR:-/tmp}/silere-qs-smoke-cfg.XXXXXX")"
+    # The real settings decide whether this installation starts. Run against a private
+    # copy because the shell may update its own settings or history during the dwell.
+    _silere_run_smoke_probe "$_cfg_home" "$smoke_home" "$smoke_log" || code=$?
+    if [ "$SILERE_SMOKE_CONFIG_READY" -ne 1 ]; then
+      fail "startup" "could not prepare a private copy of the Silere configuration"
+      smoke_ready=0
+    else
+      smoke_ready=1
+    fi
+    if [ "$smoke_ready" -eq 1 ] && [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then
       if grep -qE 'Failed to create wl_display|could not connect to display|no Qt platform plugin could be initialized' "$smoke_log"; then
         warn "startup" "display inaccessible; runtime smoke test skipped"
       else
         cat "$smoke_log"
         fail "startup" "Quickshell exited with status $code"
       fi
-    elif grep -qE 'Failed to load configuration|Type [^ ]+ unavailable|module ".*" is not installed|Binding loop detected' "$smoke_log"; then
+    elif [ "$smoke_ready" -eq 1 ] && grep -qE 'Failed to load configuration|Type [^ ]+ unavailable|module ".*" is not installed|Binding loop detected' "$smoke_log"; then
       cat "$smoke_log"
       fail "startup" "Quickshell reported a QML compatibility error"
-    else
+    elif [ "$smoke_ready" -eq 1 ]; then
       ok "startup" "Quickshell stayed alive for 5 seconds without load errors"
 
       # Every default-off setting gates a Loader, so the pass above never loads those
@@ -587,7 +604,8 @@ if [ "$qs_usable" = 1 ]; then
       else
         ok "bad settings" "6 malformed settings files each left the shell running"
       fi
-      rm -rf "$bad_cfg"; rm -f "$bad_log"
+      rm -rf "$bad_cfg"; bad_cfg=""
+      rm -f "$bad_log"; bad_log=""
     fi
   fi
 else

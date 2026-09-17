@@ -21,6 +21,10 @@ layout. The Nix development environment supplies the matching Quickshell and
 Qt tools and makes missing QML prerequisites fail instead of skip. Run the full
 check from a graphical session for its Wayland coverage. Temporary instances
 can connect to desktop services; this is not an entirely headless suite.
+The startup smoke case copies Silere's configuration into a private directory,
+including materializing symlink targets. Copy failures fail that check. This
+protects shell-owned settings and history from probe writes; configured external
+commands and desktop services retain their usual effects.
 
 Read the individual results as well as the exit status. Optional dependencies
 and local configuration can produce warnings. A skipped check does not establish
@@ -56,6 +60,7 @@ The full check already includes the runners below, directly or through
 | [test-mutate.sh](test-mutate.sh) | Changing settings on already-created surfaces |
 | [test-layout-fit.sh](test-layout-fit.sh) | Label fit across the supported text sizes |
 | [test-portability.sh](test-portability.sh) | Shell helper and installation portability regressions |
+| [test-smoke-config.sh](test-smoke-config.sh) | Private startup configuration copying, symlink isolation, failure handling, launcher wiring, and cleanup; included by the portability suite |
 
 The Bluetooth regression does not pair or disconnect real hardware. Its fixture
 replaces the Bluetooth service while exercising the real menu list. Hardware

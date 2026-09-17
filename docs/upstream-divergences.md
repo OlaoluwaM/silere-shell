@@ -72,6 +72,11 @@ so resurrecting one on purpose means removing its line in the same commit.
   merge as a union with upstream's.
 - `qmldir` files, `BarContent`'s widget registry, `barWidgetMeta`, and the
   zone-order defaults: unions — keep both sides' entries.
+- `scripts/check.sh` keeps sequential smoke cases and their shared launcher.
+  The startup case uses a private configuration copy. Dereference source
+  symlinks and fail the check if copying fails; never silently substitute an
+  incomplete copy for the real settings. This isolates shell-owned configuration
+  writes, not arbitrary configured commands or desktop services.
 
 ## Feature collisions — standing resolutions
 
