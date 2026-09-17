@@ -1,13 +1,11 @@
 import QtQuick
-import Quickshell
 
-Singleton {
+PopupState {
     id: root
 
-    property bool open: false
     property real anchorX: 0
     property QtObject anchorSource: null
-    property ShellScreen triggerScreen: null
+    property int anchorRecoveryMs: 150
 
     readonly property real effectiveAnchorX: {
         const live = Number(root.anchorSource?.menuAnchorX)
@@ -35,12 +33,13 @@ Singleton {
     onAnchorSourceChanged: {
         if (anchorSource !== null) { _anchorRegrab.stop(); return }
         if (root._anchorWriting || !root.open) return
-        _anchorRegrab.restart()
+        if (root.anchorRecoveryMs <= 0) root.close()
+        else _anchorRegrab.restart()
     }
     // never expose this timer's state: a consumer that reacts by taking the anchor stops the very timer it is bound to, which is a binding loop
     Timer {
         id: _anchorRegrab
-        interval: 150
+        interval: root.anchorRecoveryMs
         onTriggered: if (root.open && root.anchorSource === null) root.close()
     }
 

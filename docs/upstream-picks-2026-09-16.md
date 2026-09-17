@@ -1,14 +1,14 @@
 # Selective upstream integration plan: 2026-09-16
 
-Status: stages 1–8 are implemented under the maintainer's authorization;
+Status: stages 1–9 are implemented, reviewed, and committed under the maintainer's authorization;
 verification and the remaining interactive acceptance are tracked below.
 Implementation started from `6b6eacfbabbf5e0981ffa3ab38f93a7c3d2098c8`.
 The maintainer has now authorized committing stages 1–8 and proceeding to stage 9.
-Commit preparation is in progress; deployment remains a maintainer action.
+The atomic commit series is recorded below; deployment remains a maintainer action.
 The execution record below tracks review and checks.
 Stages 1–8 have completed implementation and automated verification; the
-stage table names the remaining interactive checks. Stage 9 has an accepted
-direction but is deferred until those changes have settled.
+stage table names the remaining interactive checks. Stage 9 lands with this
+record; the confirmed design and execution record follow below.
 
 ## Fixed points and prerequisites
 
@@ -54,8 +54,8 @@ This plan does not authorize a full upstream merge or assign subagents.
 - Standardize all eight coordinated control-popup states on a common
   abstraction, following upstream's consolidation direction while accommodating
   necessary fork deviations. This includes centered and bar-anchored popups.
-  Defer this work to stage 9 after stages 1–8 have landed and settled; the
-  implementation shape and anchor-loss policy will be resolved at that point.
+  Initially deferred to stage 9; its implementation shape and anchor-loss
+  policy are now confirmed in the stage 9 section below.
 
 These decisions were confirmed during planning. Evidence: S10's
 `Notifications.qml` toggle/save/restore paths,
@@ -71,22 +71,21 @@ SHA and the selected behavior. Source labels resolve to full SHAs below.
 
 | Stage | Scope | Prerequisites | Status / local commits |
 | --- | --- | --- | --- |
-| 1 | Small fixes and lint | Refresh baseline | Implemented, uncommitted; automated checks pass; visual acceptance remains |
-| 2 | Tool and hook probe recovery | Stage 1 error helper | Implemented, uncommitted; probes and permission-failure reproduction pass |
-| 3 | Wi-Fi security and forget action | Stage 1 shared controls | Implemented, uncommitted; backend probes and real Apt532 forget check pass |
-| 4 | Bluetooth blocking, pairing, and forget action | Stage 1; stage 3 recommended for gesture consistency | Implemented, uncommitted; backend probes and real Sony XM5 forget check pass |
-| 5 | Audio volume-limit correction | Stage 1; preserve fork audio contract | Implemented, uncommitted; logic checks pass; live audio check remains |
-| 6 | Nested tray navigation | Existing popup work reconciled | Implemented, uncommitted; rendered mock and hover-chain/control probes pass; physical pointer check remains |
-| 7 | Disk history and Nix default | Stage 1 notification identity fix; paired nixos-config work | Implemented, uncommitted; restart/reload/error probes and Nix evaluation pass |
-| 8 | Shared fullscreen state | Stable notification/OSD baseline | Implemented, uncommitted; mock demand checks and one-off Hyprland check pass |
-| 9 | Common popup abstraction and registration | Stages 1–8 completed and settled; settled popup baseline | Deferred; direction accepted |
+| 1 | Small fixes and lint | Refresh baseline | Committed (`8d767ee` through `c320dc0`); automated checks pass; visual acceptance remains |
+| 2 | Tool and hook probe recovery | Stage 1 error helper | Committed (`4277554`); probes and permission-failure reproduction pass |
+| 3 | Wi-Fi security and forget action | Stage 1 shared controls | Committed (`cf9ed7a`); backend probes and real Apt532 forget check pass |
+| 4 | Bluetooth blocking, pairing, and forget action | Stage 1; stage 3 recommended for gesture consistency | Committed (`382aab7`); backend probes and real Sony XM5 forget check pass |
+| 5 | Audio volume-limit correction | Stage 1; preserve fork audio contract | Committed (`42fa537`); logic checks pass; live audio check remains |
+| 6 | Nested tray navigation | Existing popup work reconciled | Committed (`45f898d`); rendered mock and hover-chain/control probes pass; physical pointer check remains |
+| 7 | Disk history and Nix default | Stage 1 notification identity fix; paired nixos-config work | Committed (`07eba3c`); restart/reload/error probes and Nix evaluation pass |
+| 8 | Shared fullscreen state | Stable notification/OSD baseline | Committed (`063f043`); mock demand checks and one-off Hyprland check pass |
+| 9 | Common popup abstraction and registration | Reviewed stages 1–8 baseline | Committed with this record; 248 lifecycle checks pass; internal and independent reviews found no confirmed bugs; gates recorded below |
 
 This is the recommended order, not a claim that every stage depends on all
 earlier stages. Stages 2–5 can be reordered after stage 1. Stage 8 is separable
 from stage 7; doing it afterward keeps changes to `Notifications.qml` easier
-to review. Stage 9 is explicitly deferred; no abstraction migration is required
-to complete stages 1–8. Revisit it after their acceptance checks pass and any
-resulting popup regressions have been resolved.
+to review. Stages 1–8 remain a separate integration; stage 9 now proceeds
+from that reviewed baseline under the maintainer's later authorization.
 
 ## Stage 1: small fixes and lint
 
@@ -249,7 +248,7 @@ fullscreen. Floating OSD alone must not request tracking. Search for stale
 consumers of the old notification API. Verify Hyprland live; retain labeled
 Niri static/mock coverage.
 
-## Stage 9: common popup abstraction and registration (deferred)
+## Stage 9: common popup abstraction and registration
 
 Direction accepted by the maintainer: standardize coordinated popup state and
 lifecycle through one common abstraction, accommodating deviations where
@@ -257,10 +256,10 @@ necessary. Source: S6's popup registry, adapted to the fork. Upstream places
 registration in `AnchoredPopupState`; our scope also includes centered popups,
 so adopting that class unchanged is not the complete design.
 
-Revisit after stages 1–8 are complete, their acceptance checks pass, and any
-resulting regressions have been resolved. Refresh the implementation baseline
-then. Do not expand earlier stages into this migration. Keep this stage in the
-same plan so deferral does not lose the agreed direction.
+The maintainer authorized stage 9 after the independent re-review of stages
+1–8. Commit assembly and stage 9 implementation used separate checkouts.
+Stage 9 was integrated after the stage 1–8 commit series. Earlier live acceptance
+gaps remain recorded rather than being treated as passed.
 
 ### Common responsibility and scope
 
@@ -287,24 +286,27 @@ Preserve these differences explicitly:
   classification and service demand semantics.
 - Retain the settled shared popup animation and layer-shell namespaces.
 
-### Design decisions deferred with implementation
+### Confirmed implementation decisions
 
-The direction is settled; these mechanics require the post-stage-8 code:
-
-1. Choose the smallest shared abstraction that supports both centered and
-   anchored states. Prefer extending existing code; decide whether placement
-   belongs in a specialization or an explicit capability. Do not prescribe a
-   new hierarchy or make every popup carry unused anchor machinery now.
-2. Resolve anchor loss for media/tray: they currently close immediately, while
-   `AnchoredPopupState` allows 150 ms for anchor replacement. Decide whether
-   to adopt recovery or preserve immediate closure as an explicit deviation.
-   Do not change this behavior as an incidental consequence of inheritance.
-3. Define how necessary exceptions, particularly the tray parent/child relation,
-   are expressed without rebuilding a second list of popup-specific branches.
-   Avoid a general extension system unless the actual cases require one.
-
-At resumption, review these choices against the actual consumers with the
-maintainer; do not reopen the already accepted consolidation objective.
+- Use `PopupState` for open/close lifecycle, screen targeting state, and
+  registry participation. `AnchoredPopupState` specializes it with anchor
+  mechanics; centered keybindings and wallpaper states inherit the common
+  base directly. All eight coordinated states use the shared lifecycle.
+- Preserve immediate closure on media/tray-list anchor loss. The maintainer
+  accepted the lead recommendation to retain that existing interaction.
+  The other four anchored states keep the 150 ms recovery window. Express
+  this with an explicit `anchorRecoveryMs` value, not separate anchor code.
+- Represent the tray menu relationship with an explicit popup parent. Only
+  popup-sourced tray menus preserve the tray-list parent during exclusivity.
+- Preserve control-surface and bar-hint classification with registry
+  metadata. `ControlSurfaces.opened` continues to refresh the command-based
+  power-profile service. Preserve cold IPC bootstrap bindings and feature
+  disappearance guards. Registration must tolerate early opens and repeats.
+- The approved team is one implementation IC at gpt-5.6-terra/medium, six
+  focused review missions at gpt-5.6-sol/high, and a conditional independent
+  adversarial reviewer at gpt-6-astra/high. The lead owns architecture, tests,
+  integration, and final judgment. The lifecycle migration warrants the
+  adversarial pass.
 
 ### Acceptance
 
@@ -603,6 +605,99 @@ and changed the probe label from "visible" to "reported". This corrects the
 coverage description; no UI or runtime behavior changed. The earlier 22-check
 record is historical; the current disk suite has 35 checks. Existing interactive
 acceptance gaps and unverified investigation targets remain unchanged.
+
+## Commit and stage 9 execution record
+
+The maintainer authorized committing the reviewed stages 1–8 implementation.
+The plan/policy record is `d608591`. The implementation was split into the
+following task commits; every tree passed `bash scripts/ci-lint.sh` and
+`nix develop . --command bash scripts/check.sh` before its commit. Every full
+check reported the same four environmental warnings and zero failures.
+Logs and individual exit statuses are in `/tmp/silere-commit-series-logs/`.
+The final source files match the reviewed stages 1–8 snapshot, with added
+standing-divergence notes for the adapted service behaviors.
+
+| Task | Local commit |
+| --- | --- |
+| fix(services): share bounded error-line extraction | `8d767ee237054aec18054aa908767ed2e5fb120b` |
+| test(qml): reject cross-module internal type references | `4438c9095053b4c7981b33443e32de25c99ba100` |
+| fix(controls): inset level tracks within the hover outline | `6b35fb71ef07927a1cbf776e8f57065a88786905` |
+| fix(motion): hide fully faded glow and rim items | `387315e0dac84a9254a0f84ac669ba2fe1622fc0` |
+| fix(scroll): discard accumulated motion on direction reversal | `e130a3bb51403b8b5bd24f356ff8424e7f334659` |
+| fix(controls): cancel unavailable confirmations | `1f4402f6a90c61c2e698db326830ab03075d2686` |
+| fix(lists): account for list origin in scroll indicators | `57f86913d2b760c84161f4b39af03ba90f91fb81` |
+| fix(windows): require exact matches for short app names | `65ba886923ceaf693fcd30495e3cdfc330bb162f` |
+| fix(media): account for playback rate in progress | `fe2c776b6722519d89c42e34dc91ccacda733857` |
+| fix(notifications): match the full history entry when deleting | `c320dc0cd2adb6c4e6269d0392622d9a11cd02ee` |
+| fix(services): retain probe results and retry failures | `427755485757d10eff56a1137c9d545232668a84` |
+| feat(wifi): classify security and guard saved-network removal | `cf9ed7af2f994418b55d4fb0ee07acec9f7a48ba` |
+| fix(bluetooth): guard blocking pairing and device removal | `382aab70bf09dcc5b1c3a52dbce4117513d6e8a5` |
+| fix(audio): compare raw backend volume before limiting it | `42fa5377051e1ca3c6135eb367dc9b4777c97636` |
+| fix(tray): retain hovered descendants during nested navigation | `45f898df4ea8c065b8607368f3937097222244b7` |
+| feat(notifications): persist history across shell restarts | `07eba3c1bd4d2b864ad97589eb579d6986434118` |
+| refactor(fullscreen): share notification and osd demand | `063f043418484df4d3f88b4e31c522f4eb694bd4` |
+
+The paired nixos-config module change is
+`8d74f52` (`feat(silere): expose the initial notification history default`).
+The settings names and types match across GeneratedDefaults, ShellSettings,
+and the Nix module, with 53 keys. Nix formatting and Home Manager evaluation
+passed. No lock update, deployment, or running-shell restart was performed.
+
+Stage 9 adapts S6 on top of that committed baseline. All eight coordinated
+states inherit `PopupState`, directly or through `AnchoredPopupState`.
+The implementation IC ran at gpt-5.6-terra/medium and self-reviewed; the six
+QML review missions ran at gpt-5.6-sol/high. All six completed. The independent
+adversarial reviewer ran at gpt-6-astra/high because lifecycle and registration
+changed. The lead reviewed the resulting code and its callers. None of these
+reviews found a confirmed introduced bug.
+
+The coordinator probe passes 248 checks, including cold IPC, actual reload,
+early registration, initially open construction under idle/overview,
+destruction unregistering, metadata, power-profile refresh, tray parent/child
+coexistence, and the 0/150 ms anchor-loss policies. The lead independently ran
+the probe. This uses private offscreen fixtures, not live compositor proof.
+Production popup surfaces, animations, and layer-shell names are unchanged.
+
+The required Python QML scanner completed with 31 diagnostics covering whole
+touched files, including retained code and intentional probe assignments.
+`qmllint` completed with one existing dynamic-anchor type warning after five
+unused imports were removed. These results are not described as clean lint.
+The full consolidated report is `/tmp/silere-stage9-review-2026-09-16.md`.
+Two coverage limits remain: actual Repeater replacement ordering and combined
+tray-row/handle destruction. The existing callers are unchanged; the reviews
+did not establish a regression. Live pixel placement and earlier stage 1,
+5, and 6 manual acceptance remain separate from these automated checks.
+
+Final stage 9 repository gates passed in the integrated working tree:
+`bash scripts/ci-lint.sh` exited 0 and
+`nix develop . --command bash scripts/check.sh` exited 0 with four unchanged
+environmental warnings. The full run included 200-file headless QML checks,
+248 coordinator checks, startup/configuration probes, surface builds,
+165 settings mutations over 55 surfaces, and layout fitting. Logs are
+`/tmp/silere-stage9-ci-lint.log` and `/tmp/silere-stage9-check.log`.
+The 53-key settings name/type contract was verified again; the new persistence
+initial value matches S10's `ShellSettings.qml`. The stage 9 task commit is
+`refactor(popups): share lifecycle and registry participation` and carries
+this execution record.
+
+### Stage 9 independent Claude review follow-up
+
+Claude (Fable 5.1, working alone) independently reviewed stage 9 against
+`063f043` and reproduced all 248 coordinator checks. Its report,
+`/tmp/silere-stage9-claude-review-2026-09-16.md`, found no confirmed defect or
+unresolved stage 9 investigation. Its tracing agrees that the Repeater and
+tray-row destruction coverage gaps concern unchanged callers.
+
+The lead checked its optional suggestions against the source and added three
+comments: why the dynamic production-base fixture accepts singleton warnings,
+why the top-level popup bindings must initialize IPC before a surface loads,
+and why unregistering has a separate child destruction hook. The fixture keeps
+exercising the real base. These follow-ups change comments and documentation
+only. The follow-up passed `ci-lint` and `git diff --check`; the full runtime
+suite was not repeated for that comment-only follow-up. The maintainer then
+authorized the stage 9 commit. Both required commit gates were rerun before
+committing; logs are `/tmp/silere-stage9-commit-lint.log` and
+`/tmp/silere-stage9-commit-check.log`.
 
 ## Selected source commits
 

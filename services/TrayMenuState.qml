@@ -13,6 +13,8 @@ AnchoredPopupState {
     // inline bar row (TrayWidget.qml) -- OverlayCoordinator reads this to know the popup
     // is this menu's parent, not a sibling overlay, so opening one must not kill the other
     property bool popupSourced: false
+    popupParent: popupSourced ? TrayPopupState : null
+    blocksBarHints: true
 
     onMenuHandleChanged: if (open && menuHandle === null) close()
     // every close path lands here, so the menu-specific handles clear without overriding close()

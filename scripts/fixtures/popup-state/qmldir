@@ -1,0 +1,2 @@
+singleton Media 1.0 Media.qml
+singleton SystemTray 1.0 SystemTray.qml

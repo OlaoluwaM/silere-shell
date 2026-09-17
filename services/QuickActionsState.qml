@@ -7,6 +7,8 @@ import "../config"
 AnchoredPopupState {
     id: root
 
+    controlSurface: true
+    blocksBarHints: true
     property bool barBottom: false
 
     function toggleAt(x: real, screen, bottom: bool, source): void {

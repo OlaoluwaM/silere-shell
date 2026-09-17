@@ -7,59 +7,73 @@ Singleton {
     id: root
 
     readonly property bool armed: true
+    readonly property var popups: root._popups
+    property var _popups: []
+    property var _openPopups: []
+    readonly property int _openCount: root._openPopups.length
+    readonly property bool anyOpen: root._openCount > 0
+
+    signal popupOpenedState(var state)
 
     function _environmentBlocksControls(idle: bool, overview: bool): bool {
         return idle || overview
     }
 
-    function closeAll(): void { root._claim("") }
+    function _registerPopup(state): bool {
+        if (!state || root._popups.indexOf(state) >= 0) return false
+        root._popups = root._popups.concat([state])
+        return true
+    }
 
-    function _opened(name: string): void {
+    function registerPopup(state): void {
+        if (!state) return
+        root._registerPopup(state)
+        if (state.open) root.popupOpened(state)
+    }
+
+    function unregisterPopup(state): void {
+        const index = root._popups.indexOf(state)
+        if (index >= 0) {
+            const list = root._popups.slice()
+            list.splice(index, 1)
+            root._popups = list
+        }
+        root.popupClosed(state)
+    }
+
+    function popupOpened(state): void {
+        if (!state) return
+        root._registerPopup(state)
+        if (root._openPopups.indexOf(state) >= 0) return
+        root._openPopups = root._openPopups.concat([state])
         // IPC and keybind requests can arrive after the environment edge that closed the surfaces, so reject re-entry until it becomes interactive
         if (root._environmentBlocksControls(Idle.isIdle, OverviewState.active)) {
             root.closeAll()
             return
         }
-        root._claim(name)
+        root._closeOthers(state)
+        if (state.open) root.popupOpenedState(state)
     }
 
-    // "tray" (the item context menu, TrayMenuState) is only a child of "traypopup"
-    // (the tray list, TrayPopupState) when TrayMenuState.popupSourced says a popup row
-    // opened it -- the same TrayMenuState also serves the inline bar row (TrayWidget.qml),
-    // an unrelated overlay the popup must still close normally. Name-matching alone can't
-    // tell those apart, since both call the same toggleAt().
-    function _claim(name: string): void {
-        const trayMenuIsPopupChild = TrayMenuState.open && TrayMenuState.popupSourced
-        if (name !== "menu") MenuState.close()
-        if (name !== "calendar") CalendarState.close()
-        if (name !== "tray") TrayMenuState.close()
-        if (name !== "traypopup" && !(name === "tray" && trayMenuIsPopupChild))
-            TrayPopupState.close()
-        if (name !== "quickActions") QuickActionsState.close()
-        if (name !== "keybinds") KeybindsPopupState.close()
-        if (name !== "wallpapers") WallpapersPopupState.close()
-        if (name !== "media") MediaPopupState.close()
+    function popupClosed(state): void {
+        const index = root._openPopups.indexOf(state)
+        if (index < 0) return
+        const list = root._openPopups.slice()
+        list.splice(index, 1)
+        root._openPopups = list
     }
 
-    Connections {
-        target: MenuState
-        function onOpenChanged() { if (MenuState.open) root._opened("menu") }
+    function closeAll(): void {
+        // close() re-enters popupClosed, so iterate a copy that cannot shift underneath
+        const list = root._popups.slice()
+        for (let i = 0; i < list.length; i++) list[i].close()
     }
-    Connections {
-        target: CalendarState
-        function onOpenChanged() { if (CalendarState.open) root._opened("calendar") }
-    }
-    Connections {
-        target: TrayMenuState
-        function onOpenChanged() { if (TrayMenuState.open) root._opened("tray") }
-    }
-    Connections {
-        target: TrayPopupState
-        function onOpenChanged() { if (TrayPopupState.open) root._opened("traypopup") }
-    }
-    Connections {
-        target: QuickActionsState
-        function onOpenChanged() { if (QuickActionsState.open) root._opened("quickActions") }
+
+    function _closeOthers(opener): void {
+        const list = root._popups.slice()
+        for (let i = 0; i < list.length; i++) {
+            if (list[i] !== opener && opener.popupParent !== list[i]) list[i].close()
+        }
     }
     Connections {
         target: Idle
@@ -74,17 +88,5 @@ Singleton {
             if (root._environmentBlocksControls(Idle.isIdle, OverviewState.active))
                 root.closeAll()
         }
-    }
-    Connections {
-        target: KeybindsPopupState
-        function onOpenChanged() { if (KeybindsPopupState.open) root._opened("keybinds") }
-    }
-    Connections {
-        target: WallpapersPopupState
-        function onOpenChanged() { if (WallpapersPopupState.open) root._opened("wallpapers") }
-    }
-    Connections {
-        target: MediaPopupState
-        function onOpenChanged() { if (MediaPopupState.open) root._opened("media") }
     }
 }

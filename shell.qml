@@ -200,6 +200,8 @@ ShellRoot {
         }
     }
 
+    // These top-level state bindings initialize popup singletons and their IPC
+    // handlers at startup; keep them outside the lazy surface components.
     PopupLoader {
         id: _menuPopup
         warm: MenuState.warmRequested

@@ -27,10 +27,26 @@ trap 'exit 130' INT TERM
 
 mkdir -p "$cfg/silere-shell" "$runtime" "$probe_project"
 chmod 0700 "$runtime"
-printf '{"__version":1}\n' > "$cfg/silere-shell/settings.json"
+python3 - "$cfg" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+cfg = Path(sys.argv[1])
+keybinds = cfg / 'keybinds.json'
+keybinds.write_text(json.dumps([{'keys': 'Super+K', 'desc': 'Fixture', 'group': 'Probe'}]))
+(cfg / 'silere-shell/settings.json').write_text(json.dumps({
+    '__version': 1, 'keybindsFile': str(keybinds), 'wallpaperCommand': 'true',
+}))
+PY
 cp -a "$ROOT/services" "$probe_project/services"
 cp "$ROOT/scripts/fixtures/coordinator/Idle.qml" "$probe_project/services/Idle.qml"
 cp "$ROOT/scripts/fixtures/coordinator/OverviewState.qml" "$probe_project/services/OverviewState.qml"
+cp -a "$ROOT/scripts/fixtures/popup-state" "$probe_project/popup-fixtures"
+cp "$ROOT/scripts/fixtures/popup-state/Media.qml" "$probe_project/services/Media.qml"
+# Keep the real state and lifecycle; supply controllable tray membership.
+sed -i 's@import Quickshell.Services.SystemTray@import "../popup-fixtures"@' \
+    "$probe_project/services/TrayPopupState.qml"
 cp "$ROOT/scripts/probe-overlay-coordinator.qml" "$probe_project/probe-overlay-coordinator.qml"
 ln -s "$ROOT/config" "$probe_project/config"
 ln -s "$ROOT/modules" "$probe_project/modules"
@@ -39,6 +55,21 @@ XDG_CONFIG_HOME="$cfg" XDG_STATE_HOME="$cfg" XDG_RUNTIME_DIR="$runtime" \
     QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen QT_NO_XDG_DESKTOP_PORTAL=1 \
     qs -p "$probe_project/probe-overlay-coordinator.qml" --no-color >"$log" 2>&1 &
 probe_pid=$!
+
+_probe_wait "$log" "$probe_pid" 'PROBE-OVERLAY-READY' 100 0.25 || true
+if ! grep -q 'PROBE-OVERLAY-READY' "$log"; then
+    cat "$log" >&2
+    echo 'FAIL: popup states did not bootstrap cold IPC readiness' >&2
+    exit 1
+fi
+ipc() {
+    XDG_RUNTIME_DIR="$runtime" qs ipc -p "$probe_project/probe-overlay-coordinator.qml" call -- "$@"
+}
+ipc keybinds toggle
+[[ "$(ipc popupProbe verify keybinds)" == "ok" ]]
+ipc wallpapers toggle
+[[ "$(ipc popupProbe verify wallpapers)" == "ok" ]]
+ipc popupProbe run
 
 _probe_wait "$log" "$probe_pid" 'PROBE-OVERLAY-COORDINATOR' 100 0.25 || true
 

@@ -185,9 +185,13 @@ so resurrecting one on purpose means removing its line in the same commit.
   `Metrics.flyoutX` placement is not a replacement for it.
 - Control popups keep one exclusive `OverlayCoordinator` claim: menu, calendar,
   tray menu/list, quick actions, keybinds, wallpapers, and media all close their
-  peers and reject late opens while idle or in overview. Any upstream popup or
-  open-path change joins both `_claim()` and `_opened()`; retain the existing
-  tray-list child exception for a popup-sourced tray context menu.
+  peers and reject late opens while idle or in overview. All eight states
+  inherit `PopupState`, directly or through `AnchoredPopupState`, and register
+  with the coordinator. Represent the popup-sourced tray menu's parent with
+  `popupParent`; keep centered pickers free of anchor machinery. Media and
+  tray-list anchor loss closes immediately; the other anchored states retain
+  150 ms replacement recovery. Registry metadata preserves the existing
+  control-surface/bar-hint sets and `ControlSurfaces.opened` refresh signal.
   Panels, menus, centered pickers, and tooltips share `PopupAnimation` for the
   menu's fade and short vertical slide. Centered pickers use `FloatingPopupCard`
   with centered placement. Keep scaling removed from these surfaces.

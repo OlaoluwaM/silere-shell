@@ -44,7 +44,7 @@ The full check already includes the runners below, directly or through
 | [test-config-recovery.sh](test-config-recovery.sh) | Recovery from malformed configuration |
 | [test-settings-migration.sh](test-settings-migration.sh) | Settings migration and write protection |
 | [test-bar-hint-idle.sh](test-bar-hint-idle.sh) | Hint surface idle transitions; requires Wayland |
-| [test-overlay-coordinator.sh](test-overlay-coordinator.sh) | Popup exclusivity, tray relationships, and idle/overview blocking |
+| [test-overlay-coordinator.sh](test-overlay-coordinator.sh) | Popup registration, exclusivity, tray relationships, cold IPC, anchor policies, disappearance, reload, and idle/overview blocking |
 | [test-bluetooth-details.sh](test-bluetooth-details.sh) | Details selection and disconnect cleanup using synthetic devices |
 | [test-upstream-services.sh](test-upstream-services.sh) | Selected upstream service regressions with controlled inputs |
 | [test-notification-disk.sh](test-notification-disk.sh) | Private-bus process restart, settings order, deletes before disk restoration, immediate reload after clear, read-only future-format restoration, file protection, and failed-write recovery |

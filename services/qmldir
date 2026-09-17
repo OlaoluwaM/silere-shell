@@ -25,6 +25,7 @@ singleton Screenshot    1.0 Screenshot.qml
 
 # shell
 AnchoredPopupState      1.0 AnchoredPopupState.qml
+PopupState              1.0 PopupState.qml
 BoundedProcess          1.0 BoundedProcess.qml
 TemplateLauncher        1.0 TemplateLauncher.qml
 singleton Caffeine      1.0 Caffeine.qml
