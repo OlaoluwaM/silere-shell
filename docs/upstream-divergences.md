@@ -93,7 +93,8 @@ so resurrecting one on purpose means removing its line in the same commit.
   timeout and restore only pairable state owned by this service.
 - Shared fullscreen tracking retains the compositor boundary and only
   notification-silence or integrated-OSD demand. Keep removed visualizer
-  demand out of `FullscreenState`.
+  demand out of `FullscreenState`. The Hyprland backend distinguishes real
+  fullscreen (mode 2) from maximized windows (mode 1).
 - Calendar marks remain write-protected until their initial load succeeds or
   reports a missing file. Corrupt, unreadable, and newer-format files remain
   protected after loading; an early click does not replay over restored marks.
