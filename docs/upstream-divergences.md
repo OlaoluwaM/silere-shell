@@ -77,6 +77,9 @@ so resurrecting one on purpose means removing its line in the same commit.
   symlinks and fail the check if copying fails; never silently substitute an
   incomplete copy for the real settings. This isolates shell-owned configuration
   writes, not arbitrary configured commands or desktop services.
+  Layer-shell construction checks use a private configuration/state directory
+  and session bus while retaining the Wayland runtime directory. Probe windows
+  stay unmapped; cleanup targets only the child that the probe started.
 
 ## Feature collisions — standing resolutions
 

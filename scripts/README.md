@@ -58,6 +58,7 @@ The full check already includes the runners below, directly or through
 | [test-upstream-tray.sh](test-upstream-tray.sh) | Descendant hover-chain logic and confirmation-control transitions |
 | [test-fullscreen-state.sh](test-fullscreen-state.sh) | Fullscreen demand and state through a mock compositor |
 | [test-surfaces.sh](test-surfaces.sh) | Loading surfaces across settings and accessibility variants |
+| [test-panels.sh](test-panels.sh) | Hidden layer-shell panel construction on a private session bus; requires Wayland and skips otherwise |
 | [test-mutate.sh](test-mutate.sh) | Changing settings on already-created surfaces |
 | [test-layout-fit.sh](test-layout-fit.sh) | Label fit across the supported text sizes |
 | [test-portability.sh](test-portability.sh) | Shell helper and installation portability regressions |
