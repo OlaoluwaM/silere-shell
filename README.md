@@ -85,6 +85,9 @@ Stages 1–8 supply the reviewed integration baseline. Stage 9 consolidates
 common popup state while retaining the confirmed placement policies.
 The [follow-up record](docs/upstream-picks-2026-09-16-followup.md) covers
 startup smoke-test isolation and the bounded Bluetooth pairing guard.
+The [September 18 record](docs/upstream-picks-2026-09-18.md) covers calendar
+write protection, fullscreen detection, notification stack motion, and panel
+construction checks.
 
 History stays intact because nixos-config pins this branch by commit. Undo a
 landed selective import with a revert, accounting for any dependent follow-ups.
