@@ -94,6 +94,9 @@ so resurrecting one on purpose means removing its line in the same commit.
 - Shared fullscreen tracking retains the compositor boundary and only
   notification-silence or integrated-OSD demand. Keep removed visualizer
   demand out of `FullscreenState`.
+- Calendar marks remain write-protected until their initial load succeeds or
+  reports a missing file. Corrupt, unreadable, and newer-format files remain
+  protected after loading; an early click does not replay over restored marks.
 - Bar hover tooltips remain enabled and configurable. Keep `BarHintState`,
   `BarHintPopup`, the popup host, and every widget's hint bindings together.
   The retained popup must also take compatible upstream idle-settle fixes,
