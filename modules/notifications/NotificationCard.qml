@@ -31,6 +31,7 @@ Item {
     property bool _leaving: false
     // dismiss-all clears this: every card is leaving, so collapsing heights only drags the lower ones through their own exit
     property bool collapseOnDismiss: true
+    readonly property bool layoutAnimating: _collapseAnim.running || _heightAnimation.running
 
     function _completeDismiss(): void {
         if (!card._leaving) return
@@ -382,7 +383,14 @@ Item {
         // the same soft curve both ways: the exit is this fade alone, timed so the slot's
         // collapse lands just before it ends
         MotionBehavior on opacity { gate: card.visible && cardRect._behaviorEnabled && !Idle.isIdle; NumberAnimation { duration: Motion.ms(200); easing.type: Easing.OutCubic } }
-        MotionBehavior on height  { gate: card.visible && cardRect._behaviorEnabled && !Idle.isIdle; NumberAnimation { duration: Motion.ms(160); easing.type: Easing.OutCubic } }
+        MotionBehavior on height  {
+            gate: card.visible && cardRect._behaviorEnabled && !Idle.isIdle
+            NumberAnimation {
+                id: _heightAnimation
+                duration: Motion.ms(160)
+                easing.type: Easing.OutCubic
+            }
+        }
 
         // same chrome tone as the menu/calendar/tray popups, or a standalone card reads as a lighter floating row.
         // urgency rides the outline, glyph and ring only: tinting the whole fill red drowns the text it is warning about

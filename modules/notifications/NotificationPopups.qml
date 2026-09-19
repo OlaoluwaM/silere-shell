@@ -179,6 +179,14 @@ PanelWindow {
 
     readonly property int _visibleCards: win._showAll || ShellSettings.notifMaxVisible <= 0
         ? stack.count : Math.min(stack.count, ShellSettings.notifMaxVisible)
+    // An active card height animation already positions lower slots each frame.
+    // Restarting visual movement on those relayouts would leave them behind until it settles.
+    readonly property bool _stackHeightAnimating: {
+        const slots = cardCol.children
+        for (let i = 0; i < slots.length; i++)
+            if (slots[i]._slotLayoutAnimating) return true
+        return false
+    }
 
     function _noteLeaving(): void {
         win._quietPaint = true
@@ -232,20 +240,11 @@ PanelWindow {
     }
 
     Connections {
-        target: Notifications
-        function onActiveCountChanged(): void {
-            if (ShellSettings.notifMaxVisible > 0
-                    && Notifications.activeCount <= ShellSettings.notifMaxVisible)
-                win._showAll = false
-        }
-    }
-
-    Connections {
         target: ShellSettings
         function onNotifMaxVisibleChanged(): void { win._showAll = false }
     }
 
-    // removing a card the moment its own exit ends snaps the still-animating cards below it upward
+    // wait for every exit so removing one card cannot reposition those still fading below it
     function _noteBatchExit(): void {
         if (win._batchExits <= 0) return
         win._batchExits--
@@ -329,7 +328,7 @@ PanelWindow {
             id: _cardViewport
             width: parent.width
             visible: height > 0.5
-            height: Math.min(cardCol.implicitHeight, Math.max(48,
+            height: Math.min(cardCol.visualHeight, Math.max(48,
                 win._availableContentH - _clearChip.height - _moreChip.height
                 - outerCol.spacing * 2))
 
@@ -339,17 +338,42 @@ PanelWindow {
                 id: _cardScroll
                 anchors.fill: parent
                 contentWidth: width
-                contentHeight: cardCol.implicitHeight
+                contentHeight: cardCol.visualHeight
                 interactive: contentHeight > height + 1
 
                 Column {
                     id: cardCol
+                    // A moving card can still reach below the Column's new layout bounds.
+                    // Keep the viewport tall enough to show its painted position until it lands.
+                    readonly property real visualHeight: {
+                        const slots = cardCol.children
+                        let bottom = implicitHeight
+                        for (let i = 0; i < slots.length; i++) {
+                            const slot = slots[i]
+                            if (slot.shouldLoad)
+                                bottom = Math.max(bottom, slot.visualY + slot.height)
+                        }
+                        return bottom
+                    }
                     width: _cardScroll.width
                     spacing: 0
+                    onPositioningComplete: {
+                        const slots = cardCol.children
+                        for (let i = 0; i < slots.length; i++)
+                            if (slots[i].shouldLoad) slots[i]._posReady = true
+                    }
 
                     Repeater {
                         id: stack
                         model: Notifications.popupModel
+                        onCountChanged: {
+                            // The service count changes before delegate indices; wait for their reindex.
+                            Qt.callLater(function() {
+                                if (ShellSettings.notifMaxVisible > 0
+                                        && stack.count <= ShellSettings.notifMaxVisible)
+                                    win._showAll = false
+                            })
+                        }
 
                         Item {
                             id: _slot
@@ -360,20 +384,49 @@ PanelWindow {
                                 || ShellSettings.notifMaxVisible <= 0
                                 || index < ShellSettings.notifMaxVisible
                             readonly property var cardItem: _cardLoader.item
+                            readonly property bool _slotLayoutAnimating: cardItem && cardItem.layoutAnimating
                             property real timeoutStartedAt: 0
-                            readonly property real _gap: index < win._visibleCards - 1 ? 6 : 0
+                            readonly property real _gap: index < win._visibleCards - 1 ? 10 : 0
+                            property bool _posReady: false
+                            // Column owns layout y directly. Keep an explicitly controlled visual
+                            // position so height relayouts can stop movement without restarting it.
+                            property real visualY: 0
+                            readonly property bool _visualMoveAllowed: _posReady && shouldLoad && visible
+                                && Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)
+                                && !win._stackHeightAnimating
 
+                            function _snapVisualY(): void {
+                                _visualMove.stop()
+                                visualY = y
+                            }
+
+                            onYChanged: {
+                                if (_visualMoveAllowed) _visualMove.restart()
+                                else _snapVisualY()
+                            }
+                            on_VisualMoveAllowedChanged: if (!_visualMoveAllowed) _snapVisualY()
+
+                            NumberAnimation {
+                                id: _visualMove
+                                target: _slot
+                                property: "visualY"
+                                to: _slot.y
+                                duration: Motion.normal
+                                easing.type: Easing.OutCubic
+                            }
                             width: win._cardW
                             height: cardItem
                                 ? cardItem.implicitHeight + _gap * cardItem.collapseRatio : 0
                             visible: shouldLoad
 
                             x: win._alignedX(parent.width, width)
+                            transform: Translate { y: _slot.visualY - _slot.y }
 
                             Component.onCompleted: {
                                 if (shouldLoad) timeoutStartedAt = Notifications.updateTimeFor(modelData.id)
                             }
                             onShouldLoadChanged: {
+                                _posReady = false
                                 if (shouldLoad) timeoutStartedAt = Date.now()
                                 else timeoutStartedAt = 0
                             }

@@ -42,6 +42,7 @@ The full check already includes the runners below, directly or through
 | [test-logic.sh](test-logic.sh) | Service and widget logic, followed by the behavioral runners below |
 | [test-bump-animation.sh](test-bump-animation.sh) | Bump animation lifecycle and restart continuity |
 | [test-notification-reload.sh](test-notification-reload.sh) | Notification reload behavior |
+| [test-notification-stack.sh](test-notification-stack.sh) | Notification stack placement, movement, expansion, and timeout collapse on a private session bus; requires Wayland and skips otherwise |
 | [test-niri-focus.sh](test-niri-focus.sh) | Niri focus handling using a mock compositor |
 | [test-history-grouping.sh](test-history-grouping.sh) | Notification history grouping |
 | [test-popup-lifecycle.sh](test-popup-lifecycle.sh) | Popup lifecycle under normal and reduced motion |
@@ -66,6 +67,17 @@ The Bluetooth regression does not pair or disconnect real hardware. Its fixture
 replaces the Bluetooth service while exercising the real menu list. Hardware
 discovery and connection behavior require a separate live test. The Niri mock
 likewise does not establish behavior in a live Niri session.
+
+For notification-stack debugging, retain the temporary project copies,
+configuration, and logs with:
+
+```sh
+SILERE_PROBE_KEEP=1 nix develop . --command bash scripts/test-notification-stack.sh
+```
+
+The runner prints the retained directory at exit and still stops its child
+process. Without `SILERE_PROBE_KEEP=1`, it removes the temporary directory.
+This option applies only to `test-notification-stack.sh`.
 
 ## Benchmarks
 

@@ -73,3 +73,4 @@ bash scripts/test-upstream-connectivity.sh
 bash scripts/test-upstream-connectivity-paths.sh
 bash scripts/test-upstream-tray.sh
 bash scripts/test-fullscreen-state.sh
+bash scripts/test-notification-stack.sh

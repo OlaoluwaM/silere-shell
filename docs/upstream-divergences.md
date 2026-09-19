@@ -144,7 +144,20 @@ so resurrecting one on purpose means removing its line in the same commit.
 - Notifications keep the fork's `ExpandableBody` interaction and the popup
   layer's constant screen-sized height. Take upstream delivery features such
   as grouping, inline replies, batch retirement, and sender-image hardening
-  around those two constraints. The history page's stacked runs are the
+  around those two constraints. Stack displacement animates a separate visual
+  position with an explicitly controlled NumberAnimation and a Translate.
+  The Column bypasses a child's Behavior on y, while its move transition
+  restarts during animated height changes and cannot be interrupted by its
+  enabled gate. Keep the Column's layout position authoritative. Stop visual
+  movement and follow layout while any loaded card animates its height or
+  dismissal collapse, or shared idle/reduced-motion policy disables motion.
+  Arm movement after positioning completes; new and returning hidden cards
+  must snap to their first position. Keep viewport and scroll content bounds
+  large enough for moving cards, within the existing screen-height cap.
+  Defer the Repeater-count reveal-all reset until the model update completes,
+  then recheck the current count and cap. The service count can change earlier
+  and briefly hide a retained visible card before it reindexes.
+  The history page's stacked runs are the
   fork's own: an upstream history grouping lands under that fold or not at all.
   Popup and history dismiss icons center their measured ink horizontally,
   with fractional positioning retained for fonts such as Berkeley Mono.

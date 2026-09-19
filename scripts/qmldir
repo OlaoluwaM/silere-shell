@@ -6,3 +6,4 @@ ProbeNotificationDisk 1.0 probe-notification-disk.qml
 ProbeUpstreamTray 1.0 probe-upstream-tray.qml
 ProbeUpstreamConnectivity 1.0 probe-upstream-connectivity.qml
 ProbeUpstreamConnectivityPaths 1.0 probe-upstream-connectivity-paths.qml
+ProbeNotificationStack 1.0 probe-notification-stack.qml
