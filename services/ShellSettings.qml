@@ -10,7 +10,7 @@ import "SettingsMigrations.js" as SettingsMigrations
 Singleton {
     id: root
 
-    property bool   mediaRemoteArt:      false
+    property bool   mediaRemoteArt:      GeneratedDefaults.mediaRemoteArt
     property bool   mediaWidgetHelper:   false
     property bool   workspaceShift:      true
     property bool   neutralTheme:        GeneratedDefaults.neutralTheme

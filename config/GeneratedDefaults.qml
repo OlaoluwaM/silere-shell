@@ -54,6 +54,7 @@ Singleton {
     readonly property bool   osdEnabled:          true
     readonly property int    osdTimeout:          2000
     readonly property bool   notifHistoryPersistent: true
+    readonly property bool   mediaRemoteArt:      false
     readonly property bool   glassSurfaces:       false
     readonly property real   glassOpacity:        0.85
     readonly property real   barOpacity:          0.88

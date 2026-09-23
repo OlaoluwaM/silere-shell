@@ -73,6 +73,8 @@ naming them over upstream's CI claim.
 - `services/ShellSettings.qml`: fork-added properties and `_schema` rows
   merge as a union with upstream's. `barCenterInGap` defaults to `true`
   against upstream's `false`; keep the fork's default on any collision.
+  `mediaRemoteArt` keeps upstream's `false` but reads it from
+  `GeneratedDefaults`, so Nix can declare the initial value.
 - `qmldir` files, `BarContent`'s widget registry, `barWidgetMeta`, and the
   zone-order defaults: unions — keep both sides' entries.
 - `scripts/check.sh` keeps sequential smoke cases and their shared launcher.
