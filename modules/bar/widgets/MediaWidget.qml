@@ -233,7 +233,7 @@ Item {
         }
         const point = root.mapToItem(null, root.width / 2, 0)
         BarHintState.request(root, root.screen, point.x,
-            "Click play or pause · scroll tracks · middle-click player")
+            "Click controls · scroll tracks · middle-click player")
     }
 
     HoverHandler {
@@ -244,9 +244,22 @@ Item {
     Component.onDestruction: BarHintState.release(root)
 
     TapHandler {
-        acceptedButtons: Qt.LeftButton
-        onTapped: {
-            if (Media.available) MediaPopupState.toggleAt(root.menuAnchorX, root.screen, root)
+        acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+        onTapped: (eventPoint, button) => {
+            if (button === Qt.MiddleButton)
+                WindowActions.focusMediaPlayer(Media.playerName, Media.title)
+            else if (Media.available)
+                MediaPopupState.toggleAt(root.menuAnchorX, root.screen, root)
+        }
+    }
+
+    WheelHandler {
+        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+        onWheel: (event) => {
+            event.accepted = true
+            const n = Scroll.processControlWheel(event, "media")
+            if (n > 0)      Media.next()
+            else if (n < 0) Media.previous()
         }
     }
 }
