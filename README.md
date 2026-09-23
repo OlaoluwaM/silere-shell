@@ -118,10 +118,14 @@ revert first; the original merge remains in history.
 
 The [v0.9.0 resolution record](docs/upstream-merge-v0.9.0.md),
 [September 4 selective integration record](docs/upstream-picks-2026-09-04.md),
+[September 9 selective integration record](docs/upstream-picks-2026-09-09.md),
 and [v1.0.0 resolution record](docs/upstream-merge-v1.0.0.md) describe work
 under the previous release-tag policy. Their historical approvals do not
 authorize new imports. Upstream's `v1.0.0` and the older fork tag with that
 name identify different commits; the v1.0.0 record gives the exact source.
+
+The [Cava removal plan](docs/cava-removal-plan.md) records the completed
+removal of the Cava-backed audio visualizer, validated September 10, 2026.
 
 ## Pinning from nixos-config
 
