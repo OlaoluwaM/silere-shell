@@ -11,7 +11,7 @@ Upstream v1.0.0 requires Quickshell 0.3.1 or newer. This repository's
 development flake pins that release; the deploying NixOS configuration must
 supply the same minimum before it re-locks the fork.
 
-It is the shell for the Hyprland profile in my [`nixos-config`](https://github.com/s3rven/silere-shell). `nixos-config` consumes
+It is the shell for the Hyprland profile in my [`nixos-config`](https://github.com/OlaoluwaM/nixos-config). `nixos-config` consumes
 the fork as a flake input (a source dependency pinned by commit), packages it, and writes its declared defaults into `config/GeneratedDefaults.qml` at build time.
 
 On top of upstream, the fork carries its own features:
