@@ -12,17 +12,17 @@ ClippingRectangle {
     // the labels inside are fontMicro, so a fixed row keeps the elapsed/total pair cramped while every neighbour grows with the type
     readonly property int _seekH: Math.max(14, Settings.fontMicro + 4)
     readonly property int _seekBlock: Media.hasPosition ? _seekH + 12 : 0
-    // A2 -- Dissolve: no separate footer surface anymore, so the old "16 top gap" constant
-    // is gone. What's left is eyebrow-topMargin + eyebrow + the art's breathing room +
-    // the text block + the seek gap + the transport row + its own bottom margin, each
-    // matching the anchor margins used below -- a floor still guards the rare frame where
-    // an implicit height is still settling (e.g. right at Component.onCompleted).
+    // No separate footer surface under the art, so the height is the sum of every visible
+    // piece: eyebrow-topMargin + eyebrow + the art's breathing room + the text block + the
+    // seek gap + the transport row + its own bottom margin, each matching the anchor margins
+    // used below -- a floor still guards the rare frame where an implicit height is still
+    // settling (e.g. right at Component.onCompleted).
     readonly property int _artBreath: 76
     // 4px multiple: an odd height lands the bottom border on a half physical pixel and doubles it
-    // _identityRow used to live inside _mediaCol's Column, which drops an invisible child's
-    // contribution to implicitHeight for free; now that it's a top-anchored sibling instead,
-    // this formula has to gate its own contribution the same way or a player with no MPRIS
-    // identity (the row goes invisible) leaves dead space where the eyebrow would have sat
+    // _identityRow is a top-anchored sibling, not a child inside _mediaCol's Column, so its
+    // contribution to implicitHeight isn't dropped automatically when it's invisible; this
+    // formula has to gate it explicitly or a player with no MPRIS identity (the row goes
+    // invisible) leaves dead space where the eyebrow would have sat
     height: 4 * Math.ceil(Math.max(220,
         (_identityRow.visible ? 12 + _identityRow.height : 0) + _artBreath + _mediaCol.implicitHeight + 12 + _seekBlock + _controlsRow.height + 14) / 4)
     radius: Theme.radiusCard
@@ -260,12 +260,10 @@ ClippingRectangle {
         }
     }
 
-    // A2 -- Dissolve: the old design darkened the WHOLE card with one flat scrim strong
-    // enough to keep text legible, which made the transport row and the seek bar sit on a
-    // half-dimmed cover instead of a real surface -- neither reads as fully "art" nor fully
-    // "chrome". This one gradient replaces it: transparent where the art should just be
-    // ambiance, dissolving into a solid floor where controls live, with no seam between an
-    // "art zone" and a "footer zone" because there isn't a second surface underneath it.
+    // A gradient, not a flat scrim: transparent where the art should just be ambiance,
+    // dissolving into a solid floor where the transport row and seek bar sit, so controls
+    // read as a real surface instead of a half-dimmed cover, with no seam between an "art
+    // zone" and a "footer zone" because there isn't a second surface underneath it.
     Rectangle {
         anchors.fill: parent
         visible: _art.shownAlpha > 0.01

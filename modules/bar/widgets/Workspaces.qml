@@ -670,7 +670,7 @@ Item {
         onTriggered: MenuState.cancelWarm(root)
     }
 
-    // one listener routes pulses to the matching button. Previously every visible workspace kept its own listener and renderer alive while idle
+    // one shared listener routes pulses to the matching button, so idle workspace buttons keep no listener or renderer alive
     Connections {
         target: Notifications
         enabled: root.barActive && ShellSettings.wsNotifPulse

@@ -3,10 +3,9 @@ import "../../../config"
 import "../../../services"
 import "../../common"
 
-// A single display-only condition chip in BatteryWidget's plain-Pill shape. This
-// used to pair a REC chip with the mic one, but the recording indicator grew a
-// timer and click-to-stop and moved to its own cluster (RecordingWidget); an open
-// capture stream stays a passive privacy fact, so this chip stays passive too.
+// A single display-only condition chip in BatteryWidget's plain-Pill shape. Recording
+// has its own timer and click-to-stop in RecordingWidget's cluster; an open capture
+// stream here stays a passive privacy fact, so this chip stays passive too.
 Pill {
     id: root
 
