@@ -233,7 +233,7 @@ Item {
         }
         const point = root.mapToItem(null, root.width / 2, 0)
         BarHintState.request(root, root.screen, point.x,
-            "Click controls · scroll tracks · middle-click player")
+            "Click controls · middle-click player")
     }
 
     HoverHandler {
@@ -250,16 +250,6 @@ Item {
                 WindowActions.focusMediaPlayer(Media.playerName, Media.title)
             else if (Media.available)
                 MediaPopupState.toggleAt(root.menuAnchorX, root.screen, root)
-        }
-    }
-
-    WheelHandler {
-        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-        onWheel: (event) => {
-            event.accepted = true
-            const n = Scroll.processControlWheel(event, "media")
-            if (n > 0)      Media.next()
-            else if (n < 0) Media.previous()
         }
     }
 }
