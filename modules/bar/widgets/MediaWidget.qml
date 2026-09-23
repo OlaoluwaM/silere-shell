@@ -233,7 +233,7 @@ Item {
         }
         const point = root.mapToItem(null, root.width / 2, 0)
         BarHintState.request(root, root.screen, point.x,
-            "Click controls · middle-click player")
+            "Click controls · right-click player")
     }
 
     HoverHandler {
@@ -244,9 +244,9 @@ Item {
     Component.onDestruction: BarHintState.release(root)
 
     TapHandler {
-        acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
         onTapped: (eventPoint, button) => {
-            if (button === Qt.MiddleButton)
+            if (button === Qt.RightButton)
                 WindowActions.focusMediaPlayer(Media.playerName, Media.title)
             else if (Media.available)
                 MediaPopupState.toggleAt(root.menuAnchorX, root.screen, root)

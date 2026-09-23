@@ -207,6 +207,9 @@ naming them over upstream's CI claim.
   port compatible upstream privacy and metadata fixes into the controls file.
   Only an open media host may advance the shared artwork candidate after a
   load failure; a closed card retained during its exit must not change it.
+- The bar media widget opens that card on click and focuses the player on
+  right-click (a two-finger touchpad click). Keep upstream's play/pause click,
+  middle-click focus, and wheel-to-skip out of it.
 - The Cava audio visualizer stays removed, including its bar placements, process
   and profile management, settings, fullscreen demand, and underline glow.
   Compatible media fixes must preserve playback controls and track progress
