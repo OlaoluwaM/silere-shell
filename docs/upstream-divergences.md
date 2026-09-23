@@ -60,7 +60,9 @@ scripts/test-update.sh
 
 ci-lint enforces the list: a path here that exists again fails the gate,
 so resurrecting one on purpose means removing its line in the same commit.
-`.github/workflows` covers all Actions — the gates run locally only.
+`.github/workflows` covers all Actions — the gates run locally only, so
+`.github/pull_request_template.md` keeps the fork's Verification line
+naming them over upstream's CI claim.
 
 ## Shared files — union, with contracts
 
