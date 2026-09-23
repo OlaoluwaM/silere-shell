@@ -69,7 +69,8 @@ so resurrecting one on purpose means removing its line in the same commit.
   hold after the merge, and key-set changes tie the merge to nixos-config
   per README.md's coupling rule.
 - `services/ShellSettings.qml`: fork-added properties and `_schema` rows
-  merge as a union with upstream's.
+  merge as a union with upstream's. `barCenterInGap` defaults to `true`
+  against upstream's `false`; keep the fork's default on any collision.
 - `qmldir` files, `BarContent`'s widget registry, `barWidgetMeta`, and the
   zone-order defaults: unions — keep both sides' entries.
 - `scripts/check.sh` keeps sequential smoke cases and their shared launcher.

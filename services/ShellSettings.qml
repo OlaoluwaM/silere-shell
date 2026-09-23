@@ -138,6 +138,8 @@ Singleton {
     property int    barSpacing:          11
     property bool   barAutoCompact:      true
     property bool   barCompact:          false
+    // centers the middle zone in the free span between the side zones instead of
+    // the screen's literal center, so a wide side zone never pushes it into overlap
     property bool   barCenterInGap:      true
     property bool   barHoverHighlight:   false
     property bool   barTooltips:         true
