@@ -44,6 +44,13 @@ PageShell {
         function onClock12hChanged() { root._touchNow() }
     }
 
+    // _todayStartMs is a local midnight; a zone change moves it without waiting for
+    // the 60s tick above to catch up
+    Connections {
+        target: TimeZoneWatch
+        function onSwitched() { root._touchNow() }
+    }
+
     Timer {
         interval: 60000
         repeat: true

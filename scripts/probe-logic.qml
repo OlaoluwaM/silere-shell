@@ -1426,6 +1426,30 @@ ShellRoot {
             "the clock sleeps behind overview unless a background consumer needs it")
         ShellSettings.clock12h = clock12Was
 
+        // a live /etc/localtime swap needs real infrastructure this probe doesn't have,
+        // but the readlink-output parsing behind it is plain logic worth pinning down
+        root._check(TimeZoneWatch.zoneFromLink("/etc/zoneinfo/America/Chicago") === "America/Chicago",
+            "zoneFromLink reads the name after the last zoneinfo/ segment")
+        root._check(TimeZoneWatch.zoneFromLink("/nix/store/abc123-tzdata/share/zoneinfo/Europe/London")
+                === "Europe/London",
+            "zoneFromLink ignores how deep the zoneinfo tree sits")
+        root._check(TimeZoneWatch.zoneFromLink("UTC") === "UTC",
+            "zoneFromLink accepts a bare zone name with no zoneinfo/ marker")
+        root._check(TimeZoneWatch.zoneFromLink("") === "",
+            "zoneFromLink reads an empty link as no zone")
+        root._check(TimeZoneWatch.zoneFromLink("/some/other/path") === "",
+            "zoneFromLink rejects a path that never enters a zoneinfo tree")
+
+        // TimeZoneWatch's handler drives this with a fresh Date() precisely because
+        // clock.date can't be trusted right after a swap; pin that seam down directly
+        const clock12hForUpdate = ShellSettings.clock12h
+        ShellSettings.clock12h = false
+        DateTime._update(new Date(2026, 8, 24, 1, 30))
+        root._check(DateTime.cachedHour === "01" && DateTime.cachedMinute === "30",
+            "_update(current) formats the instant it's given instead of always reading clock.date")
+        ShellSettings.clock12h = clock12hForUpdate
+        DateTime._update()
+
         // auto is a mode, not a value: it must never consume the hand-picked temperature
         const autoWas = ShellSettings.nightLightAuto
         const tempWas = ShellSettings.nightLightTemp

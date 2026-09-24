@@ -244,6 +244,17 @@ Singleton {
         function onOpenChanged() { root._startGeo() }
     }
 
+    // the geo fix is now the wrong city and every `new Date()` read below needs
+    // re-checking too; _geoStarted only blocks a repeat lookup, so clear it first
+    Connections {
+        target: TimeZoneWatch
+        function onSwitched() {
+            root._geoStarted = false
+            root._startGeo()
+            root._solarTick++
+        }
+    }
+
     BoundedProcess {
         id: _checkProc
         timeoutMs: 5000

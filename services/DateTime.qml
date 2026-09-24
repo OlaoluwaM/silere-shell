@@ -99,13 +99,26 @@ Singleton {
         function onActiveChanged() { if (!OverviewState.active) root._update() }
     }
 
+    // clock.date is frozen at its last tick's old-zone wall time for up to 60s; derive
+    // from a fresh Date now instead, and let the next tick carry on correctly on its own
+    Connections {
+        target: TimeZoneWatch
+        function onSwitched() {
+            root._lastDay = ""
+            root._lastMinute = ""
+            root._update(new Date())
+        }
+    }
+
     function _refreshMinute(): void {
         root._lastMinute = ""
         root._update()
     }
 
-    function _update(): void {
-        const current = clock.date
+    // no explicit arg means "now, as SystemClock last saw it"; a fresh Date() overrides
+    // that when clock.date itself can't be trusted yet (see the TimeZoneWatch handler above)
+    function _update(current): void {
+        if (current === undefined) current = clock.date
         const minute = Qt.formatDateTime(current, "yyyyMMddHHmm")
         if (minute !== _lastMinute) {
             _lastMinute = minute

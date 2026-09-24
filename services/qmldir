@@ -54,6 +54,7 @@ singleton ShellSettings 1.0 ShellSettings.qml
 singleton SystemAlerts  1.0 SystemAlerts.qml
 singleton SystemMonitor 1.0 SystemMonitor.qml
 singleton SystemTools   1.0 SystemTools.qml
+singleton TimeZoneWatch 1.0 TimeZoneWatch.qml
 singleton TrayMenuState 1.0 TrayMenuState.qml
 singleton TrayPopupState 1.0 TrayPopupState.qml
 singleton Wallpapers    1.0 Wallpapers.qml

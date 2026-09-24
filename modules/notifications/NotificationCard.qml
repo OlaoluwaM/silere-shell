@@ -234,6 +234,13 @@ Item {
         onTriggered: card._updateTime()
     }
 
+    // a persistent card can sit past the point _timeLive stopped this timer, freezing
+    // its clock label under the old zone until something else touches visibility
+    Connections {
+        target: TimeZoneWatch
+        function onSwitched() { card._updateTime() }
+    }
+
     implicitWidth:  320
     property real collapseRatio: 1
 
