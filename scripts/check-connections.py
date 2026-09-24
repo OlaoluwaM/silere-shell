@@ -88,8 +88,11 @@ def candidates(handler):
 
     Qt strips a leading underscore before capitalising, so property `_foo` is
     reached by on_FooChanged, not on_fooChanged.
+
+    A signal named `changed` is served by onChanged itself, so a bare
+    "Changed" is a signal name, not a notifier with an empty property stem.
     """
-    if handler.endswith('Changed'):
+    if handler.endswith('Changed') and handler != 'Changed':
         stem = handler[:-len('Changed')]
     else:
         stem = handler
