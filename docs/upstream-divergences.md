@@ -73,8 +73,11 @@ naming them over upstream's CI claim.
 - `services/ShellSettings.qml`: fork-added properties and `_schema` rows
   merge as a union with upstream's. `barCenterInGap` defaults to `true`
   against upstream's `false`; keep the fork's default on any collision.
-  `mediaRemoteArt` keeps upstream's `false` but reads it from
-  `GeneratedDefaults`, so Nix can declare the initial value.
+  `mediaRemoteArt` reads its initial value from `GeneratedDefaults`, whose
+  checked-in copy carries upstream's `false`. Nix may declare `true`,
+  accepting the OpenSSL crash risk `Media.artSource` documents. On a collision
+  keep the binding, and carry any new upstream literal into
+  `GeneratedDefaults.qml`.
 - `qmldir` files, `BarContent`'s widget registry, `barWidgetMeta`, and the
   zone-order defaults: unions — keep both sides' entries.
 - `scripts/check.sh` keeps sequential smoke cases and their shared launcher.
@@ -208,8 +211,8 @@ naming them over upstream's CI claim.
   Only an open media host may advance the shared artwork candidate after a
   load failure; a closed card retained during its exit must not change it.
 - The bar media widget opens that card on click and focuses the player on
-  right-click (a two-finger touchpad click). Keep upstream's play/pause click,
-  middle-click focus, and wheel-to-skip out of it.
+  right-click. Keep upstream's play/pause click, middle-click focus, and
+  wheel-to-skip out of it.
 - The Cava audio visualizer stays removed, including its bar placements, process
   and profile management, settings, fullscreen demand, and underline glow.
   Compatible media fixes must preserve playback controls and track progress
