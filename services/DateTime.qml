@@ -117,8 +117,8 @@ Singleton {
 
     // no explicit arg means "now, as SystemClock last saw it"; a fresh Date() overrides
     // that when clock.date itself can't be trusted yet (see the TimeZoneWatch handler above)
-    function _update(current): void {
-        if (current === undefined) current = clock.date
+    function _update(at): void {
+        const current = at ?? clock.date
         const minute = Qt.formatDateTime(current, "yyyyMMddHHmm")
         if (minute !== _lastMinute) {
             _lastMinute = minute
