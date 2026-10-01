@@ -240,7 +240,7 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: ShellSettings.calendarWeekNumbers && card._todayWeek > 0
                     text: "Week " + card._todayWeek
-                    color: Theme.withAlpha(Theme.subtext, 0.45)
+                    color: Theme.withAlpha(Theme.subtext, 0.78)
                     font.pixelSize: Settings.fontCaption
                 }
             }
@@ -362,7 +362,7 @@ PanelWindow {
                     ShellText {
                         anchors.centerIn: parent
                         text: "Wk"
-                        color: Theme.withAlpha(Theme.subtext, 0.40)
+                        color: Theme.withAlpha(Theme.subtext, 0.78)
                         font.pixelSize: Settings.fontMicro
                         font.weight: Font.Medium; font.capitalization: Font.AllUppercase
                     }
@@ -377,7 +377,7 @@ PanelWindow {
                         ShellText {
                             anchors.centerIn: parent
                             text: ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"][dayHdr.weekday]
-                            color: Theme.withAlpha(Theme.subtext, dayHdr.weekday === 0 || dayHdr.weekday === 6 ? 0.4 : 0.6)
+                            color: Theme.withAlpha(Theme.subtext, dayHdr.weekday === 0 || dayHdr.weekday === 6 ? 0.78 : 0.92)
                             font.pixelSize: Settings.fontMicro
                             font.weight: Font.Medium; font.capitalization: Font.AllUppercase
                         }
@@ -412,7 +412,7 @@ PanelWindow {
                             ShellText {
                                 anchors.centerIn: parent
                                 text: card._weekForRow(_weekRow.index)
-                                color: Theme.withAlpha(Theme.subtext, 0.46)
+                                color: Theme.withAlpha(Theme.subtext, 0.78)
                                 font.pixelSize: Settings.fontTiny
                                 font.weight: Font.Medium
                             }
@@ -492,8 +492,8 @@ PanelWindow {
                                     anchors.centerIn: parent
                                     text: _dayCell.dayNum
                                     color: _dayCell.today ? Theme.background
-                                         : _dayCell.cur   ? Theme.withAlpha(Theme.text, _dayCell.weekend ? 0.68 : 0.9)
-                                         :                  Theme.withAlpha(Theme.subtext, 0.3)
+                                         : _dayCell.cur   ? Theme.withAlpha(Theme.text, _dayCell.weekend ? 0.82 : 0.9)
+                                         :                  Theme.withAlpha(Theme.subtext, 0.64)
                                     font.pixelSize: Settings.fontSize
                                     font.weight: _dayCell.today ? Font.DemiBold : Font.Normal
                                 }
