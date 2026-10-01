@@ -65,6 +65,15 @@ new commits before integration.
   does, row dividers snap to the window's own pixel ratio, the clock's date
   peek follows its hover gate, and stale or history-narrating comments now
   state their current reasons.
+- Found by an external adversarial review of the integrated branch:
+  - The power mode IPC refused forever from a keybind. Only an open surface
+    read the profile, so a cycle before any popup opened always found it
+    loading. The refusal now starts the profile read and listing, so a retry
+    works.
+  - `BoundedProcess` and `SupervisedProcess` lost a chained command's failed
+    start. Quickshell emits `exited` before `runningChanged`, so a command
+    started from `exited` inherited the finished run's exit flag. The flag
+    now clears when a run starts (ledger entry).
 
 ## Material adaptations
 
@@ -101,7 +110,8 @@ new commits before integration.
 Each commit names its upstream sources in a `Source:` line. Commits without a
 source are fork fixes found during review. Ledger updates ride in the commit
 that creates the divergence: the icon roots' entry is part of the notify-send
-icon commit, and the DND IPC route's entry is part of the IPC toggle commit.
+icon commit, the DND IPC route's entry is part of the IPC toggle commit, and
+the process exit flag's entry is part of its fix.
 
 | Commit | Subject | Upstream source |
 | --- | --- | --- |
@@ -202,6 +212,8 @@ icon commit, and the DND IPC route's entry is part of the IPC toggle commit.
 | `38d6383` | style(text): align the reserve metrics and alignment property with their blocks | fork fix |
 | `d3344c6` | fix(media): open the card from the bar widget's accessible press action | fork fix |
 | `82e1fbe` | docs(upstream): rewrap the bluetooth pairing entry | fork fix |
+| `a3f6998` | fix(quickactions): start the power mode read when an IPC cycle finds none | fork fix |
+| `c235647` | fix(process): clear the exit flag when a chained run starts | fork fix |
 
 ## Validation
 
@@ -211,7 +223,7 @@ icon commit, and the DND IPC route's entry is part of the IPC toggle commit.
 - `nix develop . --command bash scripts/check.sh` passed at every stream
   checkpoint and at the last implementation commit, with zero failures and the
   four standing environmental warnings (powerprofilesctl, compositor autostart,
-  two Matugen entries). PROBE-LOGIC grows from 411 to 476 checks.
+  two Matugen entries). PROBE-LOGIC grows from 411 to 479 checks.
 - The notification stack test drives a real Wayland surface and needs a lit
   display. With the display off and locked it fails on every commit,
   including the untouched base, so the final full run waits for a lit
@@ -223,6 +235,10 @@ icon commit, and the DND IPC route's entry is part of the IPC toggle commit.
 - Coverage limits: offscreen probes cannot drive real idle, suspend, tray
   D-Bus menus or Hyprland IPC. The tray signalling and the Lua dispatch
   binding were checked against the Quickshell 0.3.1 source, not live.
+- Accepted risk: once read, the power profile is not re-read while every
+  surface is closed, so a change made elsewhere (an `asusctl` hotkey) leaves
+  it stale and an IPC cycle steps from the stale value. Closed surfaces
+  stay unpolled by design.
 
 ## Not yet verified live
 
@@ -243,3 +259,4 @@ icon commit, and the DND IPC route's entry is part of the IPC toggle commit.
   now uses collapse timing when power opens on the settings tab.
 - Wheel scrolling past settings sliders; right-click forget on Wi-Fi and
   Bluetooth rows; pairing leaves a device trusted.
+- Power mode IPC from a keybind before any popup opens.
