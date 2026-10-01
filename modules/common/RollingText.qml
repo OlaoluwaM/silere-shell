@@ -12,7 +12,7 @@ Item {
     property bool   tabularDigits: false
     // a width floor the widest value fits in, so a changing value holds its slot
     property string reserveText: ""
-    property int horizontalAlignment: Text.AlignLeft
+    property int    horizontalAlignment: Text.AlignLeft
 
     TextMetrics { id: _reserve; font: _main.font; text: root.reserveText }
 

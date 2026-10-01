@@ -20,7 +20,7 @@ Item {
     TextMetrics {
         id: _reserve
         font: _label.font
-        text:           root.reserveText
+        text: root.reserveText
     }
 
     anchors.verticalCenter: parent ? parent.verticalCenter : undefined
