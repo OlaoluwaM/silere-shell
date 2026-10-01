@@ -60,9 +60,9 @@ PageShell {
     }
 
     Connections {
-        target: ShellSettings
-        function onReduceMotionChanged() {
-            if (ShellSettings.reduceMotion) root._settleSection()
+        target: root
+        function on_MotionAllowedChanged() {
+            if (!root._motionAllowed) root._settleSection()
         }
     }
 
@@ -113,7 +113,7 @@ PageShell {
         Connections {
             target: MenuState
             function onSettingsSectionChanged() {
-                if (!root.active || root.powerOpen || ShellSettings.reduceMotion) {
+                if (!root.active || root.powerOpen || !root._motionAllowed) {
                     root._settleSection()
                     return
                 }
@@ -143,7 +143,7 @@ PageShell {
             if (!root._awaitingSectionEnter) return
             root._awaitingSectionEnter = false
             _sectionEnterDefer.stop()
-            if (!root.active || root.powerOpen || ShellSettings.reduceMotion) {
+            if (!root.active || root.powerOpen || !root._motionAllowed) {
                 _detail.opacity = 1
                 _detail._shift = 0
                 return

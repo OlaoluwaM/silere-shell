@@ -64,6 +64,7 @@ ShellRoot {
     Component { id: pulseLoopFactory; PulseLoop {} }
     QtObject { id: pulseTarget; property real value: 1 }
     Component { id: supervisedProcessFactory; SupervisedProcess {} }
+    Component { id: pageShellFactory; PageShell { active: false; powerOpen: false } }
     Component { id: barUnderlineFactory; BarUnderline {} }
     Component {
         id: selectRowFactory
@@ -1005,6 +1006,17 @@ ShellRoot {
         root._check(CalendarState._canonicalMarkKey(null) === ""
                 && CalendarState._canonicalMarkKey({}) === "",
             "calendar rejects marks that are not date strings")
+
+        const pageReduceWas = ShellSettings.reduceMotion
+        const page = pageShellFactory.createObject(root)
+        ShellSettings.reduceMotion = true
+        root._check(page._motionAllowed === false,
+            "menu pages follow the shared motion check, not reduce-motion alone")
+        ShellSettings.reduceMotion = false
+        root._check(page._motionAllowed === !Idle.isIdle,
+            "menu pages animate again once neither idle nor reduce-motion holds")
+        ShellSettings.reduceMotion = pageReduceWas
+        page.destroy()
 
         const weekStartWas = ShellSettings.calendarWeekStart
         root._check(CalendarState.weekStartFor("monday", 0) === 1
