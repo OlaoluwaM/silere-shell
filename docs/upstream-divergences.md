@@ -197,6 +197,12 @@ naming them over upstream's CI claim.
   The storage path is `silere-shell/notifications.json`; keep unrelated
   hardening for `quickshell/states.json` removed. Source selections and
   acceptance checks live in [the integration plan](upstream-picks-2026-09-16.md).
+- Notification icon files resolve against `IconResolver._systemIconRoots()`,
+  which adds `XDG_DATA_DIRS` entries, `/run/current-system/sw/share`,
+  `~/.nix-profile/share` and the per-user profile to upstream's FHS roots; the
+  deploy machine has no `/usr/share`. On a collision keep the union and
+  upstream's traversal, `file:` authority and length checks. These roots are
+  trusted like the user's own files, as SECURITY.md states.
 - The Bluetooth bar widget stays an actionable `StatusActionPill` that opens
   the configured manager. Take compatible upstream service, accessibility,
   hint, and lifecycle improvements without replacing it with a passive pill.

@@ -1059,6 +1059,35 @@ ShellRoot {
         root._check(IconResolver.senderIconSource("/tmp/fifo.png") === ""
                 && IconResolver.senderIconSource("file:///tmp/fifo.png") === "",
             "notification icons never open sender-provided filesystem nodes")
+        root._check(IconResolver.senderIconSource("/usr/share/icons/hicolor/48x48/apps/a b.png")
+                    === "file:///usr/share/icons/hicolor/48x48/apps/a%20b.png"
+                && IconResolver.senderIconSource("file:///run/current-system/sw/share/pixmaps/app.png")
+                    === "file:///run/current-system/sw/share/pixmaps/app.png",
+            "a notification icon file inside the system icon directories still shows")
+        const probeUser = Quickshell.env("USER")
+        root._check(!probeUser || IconResolver.senderIconSource("/etc/profiles/per-user/" + probeUser
+                    + "/share/icons/hicolor/48x48/apps/app.png")
+                    === "file:///etc/profiles/per-user/" + probeUser
+                    + "/share/icons/hicolor/48x48/apps/app.png",
+            "a per-user profile icon directory counts as a system icon directory")
+        root._check(IconResolver.senderImageSource("/run/current-system/sw/share/icons/hicolor/64x64/apps/app.png")
+                    === "file:///run/current-system/sw/share/icons/hicolor/64x64/apps/app.png"
+                && IconResolver.senderImageSource("/home/user/Pictures/shot.png") === ""
+                && IconResolver.senderImageSource("/usr/share/icons/../../../dev/zero") === "",
+            "notify-send's image-path shows a system icon file and nothing outside those directories")
+        root._check(IconResolver.senderImageSource("image://icon//usr/share/pixmaps/app.png")
+                    === "file:///usr/share/pixmaps/app.png"
+                && IconResolver.senderImageSource("IMAGE://Icon//home/user/app.png") === ""
+                && IconResolver.senderImageSource("image://icon/a/../../x") === ""
+                && IconResolver.senderImageSource("image://icon/x?path=/etc") === ""
+                && IconResolver.senderImageSource("image://icon/") === "",
+            "an image-path quickshell passes through the icon provider stays inside the same rules")
+        root._check(IconResolver.senderIconSource("/usr/share/icons/../../../dev/zero") === ""
+                && IconResolver.senderIconSource("file:///usr/share/icons/%2e%2e/%2e%2e/%2e%2e/dev/zero") === ""
+                && IconResolver.senderIconSource("file://host/usr/share/icons/app.png") === ""
+                && IconResolver.senderIconSource("/usr/share/iconsx/app.png") === ""
+                && IconResolver.senderIconSource("/tmp/usr/share/icons/app.png") === "",
+            "a notification icon path cannot climb or reach past the system icon directories")
         root._check(IconResolver.localSource("/tmp/icon #?.png")
                 === "file:///tmp/icon%20%23%3F.png",
             "icon resolver encodes local file paths")
