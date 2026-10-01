@@ -702,7 +702,7 @@ PanelWindow {
                 }
 
                 function revealSettingsSelect(): void {
-                    const row = MenuState._settingsSelectOwner
+                    const row = MenuState.settingsSelectOwner
                     if (!row || !panel.open || panel.activeTab !== 1) return
                     // a list taller than the viewport keeps its header in view, not its end
                     const top = row.mapToItem(contentFlick.contentItem, 0, 0).y

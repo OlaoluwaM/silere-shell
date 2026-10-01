@@ -51,6 +51,7 @@ AnchoredPopupState {
     // lists and retarget the panel height twice. Keep one owner for the whole
     // settings surface and ask the previous row to fold before the next opens.
     property var _settingsSelectOwner: null
+    readonly property var settingsSelectOwner: _settingsSelectOwner
     readonly property bool settingsSelectOpen: _settingsSelectOwner !== null
     signal settingsSelectClaimed()
     function claimSettingsSelect(owner): void {
