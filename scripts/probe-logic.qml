@@ -1547,6 +1547,11 @@ ShellRoot {
         DateTime._update(new Date(2026, 8, 24, 1, 30))
         root._check(DateTime.cachedHour === "01" && DateTime.cachedMinute === "30",
             "_update(current) formats the instant it's given instead of always reading clock.date")
+        // a tick that never came (suspend) leaves the cached minute behind until something asks
+        DateTime.catchUp()
+        root._check(!DateTime._resync && (!DateTime._clockNeeded
+                || DateTime._lastMinute === Qt.formatDateTime(new Date(), "yyyyMMddHHmm")),
+            "catchUp brings a stale clock up to the present and leaves the clock enabled")
         ShellSettings.clock12h = clock12hForUpdate
         DateTime._update()
 

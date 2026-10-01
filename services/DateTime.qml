@@ -15,9 +15,12 @@ Singleton {
         ShellSettings.barShowClock, OverviewState.active,
         MenuState.homeActive, CalendarState.open)
 
+    // a monotonic timer stops across suspend, so the next tick can land up to a minute after wake
+    property bool _resync: false
+
     SystemClock {
         id: clock
-        enabled: root._clockNeeded
+        enabled: root._clockNeeded && !root._resync
         precision: ShellSettings.barShowClock && ShellSettings.showSeconds
             && !Idle.isIdle && !OverviewState.active
             ? SystemClock.Seconds : SystemClock.Minutes
@@ -91,7 +94,37 @@ Singleton {
 
     Connections {
         target: Idle
-        function onIsIdleChanged() { root._update() }
+        function onIsIdleChanged() {
+            root.catchUp()
+            root._update()
+        }
+    }
+
+    // NetworkManager parks every device for sleep and brings them back within seconds of wake
+    Connections {
+        target: Network
+        function onConnectedChanged() { root.catchUp() }
+    }
+
+    Connections {
+        target: CalendarState
+        function onOpenChanged() { if (CalendarState.open) root.catchUp() }
+    }
+
+    Connections {
+        target: MenuState
+        function onOpenChanged() { if (MenuState.open) root.catchUp() }
+    }
+
+    // cycling the clock off and on re-arms its stalled timer; the fresh Date covers the
+    // moment between, since clock.date is only as new as the last tick
+    function catchUp(): void {
+        const now = new Date()
+        if (!clock.enabled
+                || Qt.formatDateTime(now, "yyyyMMddHHmm") === root._lastMinute) return
+        root._resync = true
+        root._resync = false
+        root._update(now)
     }
 
     Connections {
