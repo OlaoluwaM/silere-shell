@@ -830,14 +830,15 @@ fi
 
 # A Connections handler naming a signal its target does not have is the same
 # silence one step further out: no type error, no runtime warning, and the
-# effect the handler was written for simply never happens. Only targets whose
-# whole chain is local files ending at Singleton are checked; anything rooted
-# in an external type inherits members this cannot see.
+# effect the handler was written for simply never happens. A misspelt singleton
+# member is the same again, read as undefined. Only targets whose whole chain is
+# local files ending at Singleton are checked; anything rooted in an external
+# type inherits members this cannot see.
 if command -v python3 >/dev/null 2>&1 && [ -f scripts/check-connections.py ]; then
   if orphan_handlers="$(python3 scripts/check-connections.py)"; then
-    ok "handlers" "every Connections handler matches a signal on its target"
+    ok "handlers" "every Connections handler and singleton member resolves"
   else
-    fail "these Connections handlers will never fire:"
+    fail "these name nothing on their singleton:"
     printf '%s\n' "$orphan_handlers"
   fi
 else
