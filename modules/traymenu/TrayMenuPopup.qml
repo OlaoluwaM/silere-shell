@@ -108,6 +108,11 @@ PanelWindow {
             if (output === win._output && TrayMenuState.open) TrayMenuState.close()
         }
     }
+    // barBottom is captured at open, so an edge change would leave the card on the old edge
+    Connections {
+        target: ShellSettings
+        function onBarPositionChanged() { if (TrayMenuState.open) TrayMenuState.close() }
+    }
 
     screen:        targetScreen
     color:         "transparent"
