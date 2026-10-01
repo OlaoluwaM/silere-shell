@@ -70,6 +70,13 @@ new commits before integration.
     read the profile, so a cycle before any popup opened always found it
     loading. The refusal now starts the profile read and listing, so a retry
     works.
+  - Once read, the power profile went stale while every surface was closed,
+    so after a change made elsewhere (an `asusctl` hotkey) an IPC cycle
+    stepped from the old value. With no surface open, the IPC call now
+    replies `switching`, reads the profile once, and cycles from that read.
+    This replaces the loading refusal above. Presses while that read is
+    pending are refused as in flight. A failed read or a refused step shows
+    in the power mode row.
   - `BoundedProcess` and `SupervisedProcess` lost a chained command's failed
     start. Quickshell emits `exited` before `runningChanged`, so a command
     started from `exited` inherited the finished run's exit flag. The flag
@@ -214,6 +221,7 @@ the process exit flag's entry is part of its fix.
 | `82e1fbe` | docs(upstream): rewrap the bluetooth pairing entry | fork fix |
 | `a3f6998` | fix(quickactions): start the power mode read when an IPC cycle finds none | fork fix |
 | `c235647` | fix(process): clear the exit flag when a chained run starts | fork fix |
+| `792a3c4` | fix(quickactions): read the power mode fresh before a keybind cycles it | fork fix |
 
 ## Validation
 
@@ -223,7 +231,7 @@ the process exit flag's entry is part of its fix.
 - `nix develop . --command bash scripts/check.sh` passed at every stream
   checkpoint and at the last implementation commit, with zero failures and the
   four standing environmental warnings (powerprofilesctl, compositor autostart,
-  two Matugen entries). PROBE-LOGIC grows from 411 to 479 checks.
+  two Matugen entries). PROBE-LOGIC grows from 411 to 485 checks.
 - The notification stack test drives a real Wayland surface and needs a lit
   display. With the display off and locked it fails on every commit,
   including the untouched base, so the final full run waits for a lit
@@ -235,10 +243,6 @@ the process exit flag's entry is part of its fix.
 - Coverage limits: offscreen probes cannot drive real idle, suspend, tray
   D-Bus menus or Hyprland IPC. The tray signalling and the Lua dispatch
   binding were checked against the Quickshell 0.3.1 source, not live.
-- Accepted risk: once read, the power profile is not re-read while every
-  surface is closed, so a change made elsewhere (an `asusctl` hotkey) leaves
-  it stale and an IPC cycle steps from the stale value. Closed surfaces
-  stay unpolled by design.
 
 ## Not yet verified live
 
@@ -259,4 +263,5 @@ the process exit flag's entry is part of its fix.
   now uses collapse timing when power opens on the settings tab.
 - Wheel scrolling past settings sliders; right-click forget on Wi-Fi and
   Bluetooth rows; pairing leaves a device trusted.
-- Power mode IPC from a keybind before any popup opens.
+- Power mode IPC from a keybind with no popup open, and after an external
+  profile change.
