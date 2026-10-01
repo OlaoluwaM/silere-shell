@@ -331,10 +331,32 @@ Singleton {
             root.errorAddr = root._pendingAddr
             root.errorKind = root._pendingKind
         }
+        const pairedAddr = outcome === "ok" && root._pendingKind === "pair" ? root._pendingAddr : ""
         root._endAttempt()
+        if (pairedAddr.length > 0) root._trustAndConnect(pairedAddr)
+    }
+
+    // an untrusted device is refused when it reconnects by itself later, so a pairing the
+    // user just completed has to leave it trusted; the connect rides the normal attempt path
+    function _trustAndConnect(address: string): void {
+        for (let i = 0; i < _devices.length; i++) {
+            const d = _devices[i]
+            if (!d || d.address !== address) continue
+            d.trusted = true
+            if (!d.connected) root.connectDevice(address)
+            return
+        }
     }
 
     property int _guardExtensions: 0
+
+    function _extendAttemptGuard(kind: string, pairing: bool, state: int,
+                                 extensions: int): bool {
+        if (kind === "pair") return pairing && extensions < 8
+        // bluez can outlast one guard interval connecting a paired device; wait while it reports progress
+        return kind === "connect" && state === Bt.BluetoothDeviceState.Connecting
+            && extensions < 2
+    }
 
     // an attempt that never moves the device would otherwise hold the row on its in-progress label forever
     Timer {
@@ -345,8 +367,8 @@ Singleton {
             // a passkey pairing can sit in progress well past 20s; that is not a stalled
             // attempt. Bounded, though: a BlueZ that never clears `pairing` must not hold
             // the row on "Pairing…" with no way out
-            if (root._pendingKind === "pair" && root._pendingPairing
-                    && root._guardExtensions < 8) {
+            if (root._extendAttemptGuard(root._pendingKind, root._pendingPairing,
+                    root._pendingState, root._guardExtensions)) {
                 root._guardExtensions++
                 restart()
                 return

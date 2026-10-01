@@ -99,8 +99,9 @@ naming them over upstream's CI claim.
   which can synchronously replace the row model.
 - Bluetooth forgetting uses the same confirmation and identity rules, plus
   paired/connected guards. Hard-block state disables the fork radio controls;
-  active pairing may extend the 20-second guard at most eight times. Each new
-  attempt resets that budget. Retain the fork's 60-second adapter pairable
+  active pairing may extend the 20-second guard at most eight times, and a
+  device still reporting Connecting at most twice. Each new attempt resets that
+  budget. A completed pairing marks the device trusted and then connects it. Retain the fork's 60-second adapter pairable
   timeout and restore only pairable state owned by this service.
 - Shared fullscreen tracking retains the compositor boundary and only
   notification-silence or integrated-OSD demand. Keep removed visualizer

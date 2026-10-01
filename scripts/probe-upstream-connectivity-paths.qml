@@ -377,10 +377,17 @@ ShellRoot {
                 root.pairGuardPhase++
             }
 
-            if (root.pairGuardPhase === 3 && Bluetooth._pendingAddr === "") {
-                root.check(Bluetooth._pendingAddr === "" && Bluetooth.errorAddr === ""
+            // a settled pairing hands over to the trust-and-connect attempt, so the guard
+            // is waiting on a connect rather than idle once the pair has succeeded
+            if (root.pairGuardPhase === 3 && Bluetooth._pendingKind === "connect") {
+                root.check(Bluetooth._pendingAddr === "A" && Bluetooth.errorAddr === ""
                         && adapter.pairable && adapter.pairableTimeout === 31,
                     "a successful pairing before the cap leaves externally owned pairability intact")
+                root.check(pairA.trusted && pairA.connectCalled,
+                    "a newly paired device is marked trusted and then connected")
+                Bluetooth.abandonAttempt()
+                pairA.trusted = false
+                pairA.connectCalled = false
                 pairA.paired = false
                 pairA.pairing = false
                 adapter.pairable = false

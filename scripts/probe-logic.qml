@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Bluetooth as Bt
 import "config"
 import "services"
 import "services/SettingsMigrations.js" as SettingsMigrations
@@ -2072,6 +2073,18 @@ ShellRoot {
             "a pair attempt BlueZ has not moved yet is not called a failure")
         root._check(Bluetooth._attemptOutcome("connect", true, true, false, false, 0) === "ok",
             "a connected device settles a connect attempt as success")
+        root._check(Bluetooth._extendAttemptGuard("connect", false,
+                Bt.BluetoothDeviceState.Connecting, 0)
+                && Bluetooth._extendAttemptGuard("connect", false,
+                    Bt.BluetoothDeviceState.Connecting, 1)
+                && !Bluetooth._extendAttemptGuard("connect", false,
+                    Bt.BluetoothDeviceState.Connecting, 2)
+                && !Bluetooth._extendAttemptGuard("connect", false, 0, 0),
+            "a connecting Bluetooth device gets bounded extra time before failing")
+        root._check(Bluetooth._extendAttemptGuard("pair", true, 0, 7)
+                && !Bluetooth._extendAttemptGuard("pair", true, 0, 8)
+                && !Bluetooth._extendAttemptGuard("pair", false, 0, 0),
+            "an active pairing keeps its eight-extension guard budget")
 
         const retiredNotification = {
             transient: false, tracked: true,
