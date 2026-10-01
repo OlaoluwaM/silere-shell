@@ -19,7 +19,7 @@ PanelWindow {
 
     // Quickshell's QsMenuOpener refs the menu it shows, and that ref alone tells the app
     // "opened" on the first one and "closed" on the last. Sending either by hand as well
-    // gave apps every open and close twice, so the openers below are the only signallers.
+    // would give apps every open and close twice, so the openers below are the only signallers.
     property var _activeMenu: null
 
     function _trigger(entry): void {

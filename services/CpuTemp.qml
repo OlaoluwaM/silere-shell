@@ -48,7 +48,7 @@ Singleton {
     property real alertPulse: 0
 
     // only the home page's CPU tile reads alertPulse; `needed` also covers the settings
-    // pages, where nothing renders it, so gating on it ran the loop with no consumer
+    // pages, where nothing renders it, so gating on it would run the loop with no consumer
     PulseLoop {
         target:         root
         targetProperty: "alertPulse"

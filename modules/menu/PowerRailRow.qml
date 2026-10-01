@@ -109,9 +109,9 @@ Rectangle {
 
     property real _confirmProgress: 0.0
 
-    // one run-to-completion animation instead of a 33 ms ticker: it is clock-driven so a
-    // delayed frame never extends the window, and it costs no per-tick script. The duration
-    // is the disarm timeout itself, which Motion must not scale or the ring would lie
+    // one run-to-completion animation: it is clock-driven so a delayed frame never extends
+    // the window, and it costs no per-tick script. The duration is the disarm timeout
+    // itself, which Motion must not scale or the ring would lie
     NumberAnimation {
         id: _confirmDrain
         target: root
