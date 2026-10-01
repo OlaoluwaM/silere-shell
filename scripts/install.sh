@@ -234,16 +234,11 @@ _niri_config_path() {
     _normalize_config_path "${NIRI_CONFIG:-$CONFIG_HOME/niri/config.kdl}" "$PWD"
 }
 
-# Side-effect-free helpers used by the runtime detector and focused tests.
+# Side-effect-free helpers used by the uninstaller and focused tests.
 case "${1:-}" in
     --hypr-config-path)
         _hypr_config_path
         exit 0
-        ;;
-    --hypr-config-kind)
-        _hypr_kind="$(_hypr_config_path)"
-        [[ "$_hypr_kind" == *.lua ]] && exit 0
-        exit 1
         ;;
     --niri-config-path)
         _niri_config_path
