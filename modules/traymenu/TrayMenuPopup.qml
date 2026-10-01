@@ -33,6 +33,10 @@ PanelWindow {
         }
     }
     function _setActiveMenu(handle): void {
+        // a reopen while the card still fades hands back the same handle, and QsMenuOpener
+        // ignores an equal menu: no ref, so the app hears no second "opened" and its layout
+        // is never refreshed. Bounce through null so every show is one unref/ref cycle.
+        if (handle !== null && win._activeMenu === handle) win._activeMenu = null
         win._activeMenu = handle
     }
     function _closeFlyouts(): void {
