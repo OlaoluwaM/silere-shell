@@ -335,8 +335,12 @@ Item {
             // an open reply holds the countdown, so nothing else would ever retire this card
             if (Idle.isIdle) {
                 card.cancelReply()
+                // expired, not dismissed: the pause at isQuiet holds the timer, so this is the only exit
+                // for a card that arrived while away, and it must still reach history. A card already
+                // leaving has nothing left to start, so finish it as before
                 // this can remove the delegate synchronously: keep it last
-                card._completeDismiss()
+                if (card.enabled) card.dismiss(true)
+                else card._completeDismiss()
                 return
             }
             card._updateTime()
