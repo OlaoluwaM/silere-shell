@@ -858,8 +858,8 @@ Singleton {
             _loaded = true
             return
         }
-        // the startup chmod trips the watcher too: re-running the reload path below would bounce
-        // every setting through its default and back, rebuilding the bar on the way
+        // the startup chmod trips the watcher too: text already applied needs none of the
+        // parse, version and migration work below
         if (_loaded && _store.writeAllowed && raw === root._appliedText) return
         try {
             let parsed = JSON.parse(raw || "{}")
