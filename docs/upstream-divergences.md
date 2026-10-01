@@ -135,7 +135,9 @@ naming them over upstream's CI claim.
   rapid marker retriggering because `restart()` first stops the animation.
   Menu access must remain available when compositor workspace data is not
   ready, without requesting workspace activation or a marker pulse.
-- Night light keeps the systemd service backend and the lock action keeps
+- Night light keeps the systemd service backend, so upstream's restore of a
+  hand-chosen state after a shell restart (`nightLightOn`) stays out: the unit
+  outlives the shell. Its solar math follows upstream's. The lock action keeps
   its existing provider selection. Additional upstream provider settings
   require a separate decision with their backend and UI consumers.
 - The floating OSD keeps its height and slide transitions. Shared bump

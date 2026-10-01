@@ -33,17 +33,32 @@ Singleton {
         Math.abs(_useLat).toFixed(0) + "°" + (_useLat >= 0 ? "N" : "S")
 
     property int _solarTick: 0
-    readonly property real _declRad: {
+    // noaa's fractional-year series: declination in radians and the equation of time in minutes
+    readonly property real _yearAngle: {
         root._solarTick
         const d = new Date()
-        const n = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000)
-        return 23.44 * Math.sin(2 * Math.PI * (n - 81) / 365) * Math.PI / 180
+        // counted in utc: a local-midnight difference is an hour short across a dst change
+        const n = Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())
+            - Date.UTC(d.getFullYear(), 0, 0)) / 86400000)
+        return 2 * Math.PI / 365 * (n - 1 + (d.getHours() + d.getMinutes() / 60 - 12) / 24)
+    }
+    readonly property real _declRad: {
+        const g = root._yearAngle
+        return 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g)
+            - 0.006758 * Math.cos(2 * g) + 0.000907 * Math.sin(2 * g)
+            - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g)
+    }
+    readonly property real _eqTimeMin: {
+        const g = root._yearAngle
+        return 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g)
+            - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g))
     }
     readonly property real _elevation: {
         root._solarTick
         const d    = new Date()
         const decl = root._declRad
-        const h    = ((d.getUTCHours() + d.getUTCMinutes() / 60 + root._useLon / 15 - 12) * 15) * Math.PI / 180
+        const h    = ((d.getUTCHours() + d.getUTCMinutes() / 60 + root._useLon / 15
+            + root._eqTimeMin / 60 - 12) * 15) * Math.PI / 180
         const phi  = root._useLat * Math.PI / 180
         return Math.asin(Math.sin(phi) * Math.sin(decl) +
                          Math.cos(phi) * Math.cos(decl) * Math.cos(h)) * 180 / Math.PI
@@ -57,10 +72,14 @@ Singleton {
 
     readonly property real _solarNoon: {
         root._solarTick
-        return 12 - root._useLon / 15 - (new Date()).getTimezoneOffset() / 60
+        return 12 - root._useLon / 15 - root._eqTimeMin / 60 - (new Date()).getTimezoneOffset() / 60
     }
+    // -0.833°: refraction plus the sun's radius, so the times match published ones
     readonly property real _halfDay: {
-        const c = Math.max(-1, Math.min(1, -Math.tan(root._useLat * Math.PI / 180) * Math.tan(root._declRad)))
+        const phi = root._useLat * Math.PI / 180
+        const decl = root._declRad
+        const c = Math.max(-1, Math.min(1, Math.cos(90.833 * Math.PI / 180) / (Math.cos(phi) * Math.cos(decl))
+            - Math.tan(phi) * Math.tan(decl)))
         return Math.acos(c) * 180 / Math.PI / 15
     }
     readonly property real sunriseHour: _solarNoon - _halfDay
@@ -141,6 +160,14 @@ Singleton {
             "[ -z \"$tz\" ] && tz=\"$(readlink -f /etc/localtime 2>/dev/null | sed -n 's#.*/zoneinfo/##p')\"; " +
             "[ -z \"$tz\" ] && [ -r /etc/timezone ] && tz=\"$(cat /etc/timezone)\"; " +
             "[ -z \"$tz\" ] && exit 0; " +
+            // the tables list only canonical zones; an alias like Asia/Calcutta would fall back to 45°N
+            "for d in \"$TZDIR\" /etc/zoneinfo /usr/share/zoneinfo; do " +
+            "  [ -n \"$d\" ] && [ -r \"$d/tzdata.zi\" ] || continue; " +
+            "  for _ in 1 2 3; do " +
+            "    l=\"$(awk -v z=\"$tz\" '$1==\"L\" && $3==z {print $2; exit}' \"$d/tzdata.zi\")\"; " +
+            "    [ -n \"$l\" ] && [ \"$l\" != \"$tz\" ] || break; tz=\"$l\"; " +
+            "  done; break; " +
+            "done; " +
             // NixOS has no /usr/share/zoneinfo: its tables live in /etc/zoneinfo, and $TZDIR
             // names them wherever else a system keeps them; a miss everywhere falls back to 45°N
             "c=; for d in \"$TZDIR\" /etc/zoneinfo /usr/share/zoneinfo; do " +

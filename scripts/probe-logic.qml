@@ -1535,6 +1535,20 @@ ShellRoot {
         root._check(!NightLight._parseCoord("+9001+18000")
                 && !NightLight._parseCoord("+9000+18001"),
             "night light rejects coordinates beyond the latitude and longitude poles")
+        // the clock can't be pinned, so these hold on any date: the equation of time
+        // never exceeds ~17 minutes, and at the equator the -0.833 degree correction
+        // stretches the day to ~12.11-12.13 h where a bare horizon would give exactly 12
+        root._check(Math.abs(NightLight._eqTimeMin) < 17.5
+                && Math.abs(NightLight._declRad) < 0.4093,
+            "night light's solar series stays inside the annual declination and equation-of-time range")
+        NightLight._parseCoord("+0000-07830")
+        const equatorDay = NightLight.sunsetHour - NightLight.sunriseHour
+        root._check(equatorDay > 12.10 && equatorDay < 12.14,
+            "night light day length includes refraction and the sun's radius")
+        root._check(NightLight._parseCoord("+513030-0000731")
+                && NightLight.sunriseHour < NightLight._solarNoon
+                && NightLight._solarNoon < NightLight.sunsetHour,
+            "night light puts solar noon between sunrise and sunset")
         NightLight._geoResolved = geoResolvedWas
         NightLight._autoLat = autoLatWas
         NightLight._autoLon = autoLonWas
