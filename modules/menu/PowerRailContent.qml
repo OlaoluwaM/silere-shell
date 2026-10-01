@@ -25,8 +25,10 @@ Item {
     readonly property string _batteryValue: Battery.label
     // the rail caps this at 86px and "Performance · throttled" needs 138, so the suffix
     // could never render; degraded rides the row tint here and the Now page says the word
-    readonly property string _profileValue: PowerProfiles.profile !== ""
-        ? PowerProfiles.label
+    // a failed change reads as a word on the row: the profile re-reads the daemon afterwards, so
+    // without it the label just flips back and the user is left guessing why
+    readonly property string _profileValue: PowerProfiles.lastError.length > 0 ? "Failed"
+        : PowerProfiles.profile !== "" ? PowerProfiles.label
         : PowerProfiles.syncing ? "..."
         : ""
 
@@ -64,7 +66,7 @@ Item {
                 label: "Mode"
                 value: root._profileValue
                 glyph: PowerProfiles.glyph
-                dangerous: PowerProfiles.degraded
+                dangerous: PowerProfiles.degraded || PowerProfiles.lastError.length > 0
                 enabled: PowerProfiles.available && PowerProfiles.profile !== ""
                 onTriggered: PowerProfiles.cycle()
             }
