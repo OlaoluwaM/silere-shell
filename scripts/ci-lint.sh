@@ -345,7 +345,7 @@ section "compositor backend contract"
 # lockstep with the facade before a backend silently renders an empty model.
 compositor_contract_missing=""
 for member in workspaces toplevels workspaceToplevels activeToplevel focusedMonitor \
-              focusedWorkspaceRef overviewActive specialOutput windowGapX monitorName focusWorkspace \
+              focusedWorkspaceRef overviewActive specialOutputs windowGapX monitorName focusWorkspace \
               moveActiveToWorkspace focusToplevel refreshToplevels; do
   grep -qE "^[[:space:]]*(readonly[[:space:]]+)?(property[[:space:]]+[A-Za-z<>]+[[:space:]]+|function[[:space:]]+)${member}\\b" \
     services/Compositor.qml || continue

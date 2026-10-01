@@ -94,7 +94,7 @@ QtObject {
     }
 
     readonly property bool overviewActive: root._overview
-    readonly property string specialOutput: ""
+    readonly property var specialOutputs: []
     readonly property int windowGapX: -1
 
     readonly property var workspaces: {

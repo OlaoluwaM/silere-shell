@@ -16,7 +16,8 @@ QtObject {
     property bool _refreshAgain: false
     property string _activeAddr: ""
     property bool _unfocused: false
-    property string _special: ""
+    // per output: two monitors can each show a special workspace
+    property var _specialOn: ({})
     property int _windowGapX: -1
     property bool _gapRecheckPending: false
     readonly property bool _liveTitlesWanted: ShellSettings.showWindowTitle
@@ -197,7 +198,7 @@ QtObject {
 
     // hyprland has no compositor-side overview; OverviewState drives its own (overviewIsLive is false)
     readonly property bool overviewActive: false
-    readonly property string specialOutput: root._special
+    readonly property var specialOutputs: Object.keys(root._specialOn)
 
     readonly property var workspaces: {
         root._layoutTick
@@ -310,9 +311,12 @@ QtObject {
 
     function _updateSpecial(data): void {
         const parts = String(data ?? "").split(",")
-        if (parts.length < 2) { root._special = ""; return }
-        root._special = String(parts[parts.length - 2]).length > 0
-            ? String(parts[parts.length - 1]) : ""
+        const output = parts.length >= 2 ? String(parts[parts.length - 1]) : ""
+        if (output.length === 0) return
+        const next = Object.assign({}, root._specialOn)
+        if (String(parts[parts.length - 2]).length > 0) next[output] = true
+        else delete next[output]
+        root._specialOn = next
     }
 
     readonly property var _inertEvents: ({
