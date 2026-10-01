@@ -87,6 +87,14 @@ Singleton {
         _get.exec(root._getCommand())
     }
 
+    // only an open surface reads the profile, so a keybind that reaches cycle() first finds
+    // nothing loaded; one read per call, never a poll. refresh() and _listProfiles() already
+    // refuse while their own read is in flight, and a queued retry reads on its own
+    function load(): void {
+        if (root.profiles.length === 0) root._listProfiles()
+        if (root.profile === "" && !_getRetry.running) root.refresh()
+    }
+
     function _refreshDegraded(): void {
         if (root.backend !== "powerprofilesctl" || root.profile !== "performance") {
             if (_degradedProc.running) _degradedProc.running = false

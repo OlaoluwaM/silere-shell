@@ -1628,6 +1628,19 @@ ShellRoot {
                     "Quiet\nBalanced\nPerformance\n"))
                     === JSON.stringify(["Quiet", "Balanced", "Performance"]),
             "asusctl reports its active profile and available choices in its own format")
+        // only an open surface reads the profile, so a keybind's refusal is the one chance to
+        // start it. Process announces running only once the child starts, so syncing lags the
+        // exec; refresh() taking the pending corrective flag is the synchronous sign it ran
+        const powerProfileWas = PowerProfiles.profile
+        PowerProfiles.profile = ""
+        PowerProfiles._correctiveRefreshPending = true
+        const coldReply = QuickActionsState._powerModeReply()
+        root._check(coldReply.startsWith("error:") && coldReply.indexOf("loading") >= 0
+                && !PowerProfiles._correctiveRefreshPending,
+            "a power mode cycle before the profile loads refuses and starts the read")
+        // a stubbed backend's answer must not land on the restored one
+        PowerProfiles._writeGen++
+        PowerProfiles.profile = powerProfileWas
         SystemTools._tools = powerToolsWas
         PowerProfiles.profiles = powerProfilesWas
 

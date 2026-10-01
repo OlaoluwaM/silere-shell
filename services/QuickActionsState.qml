@@ -70,7 +70,9 @@ AnchoredPopupState {
         switch (PowerProfiles.cycleBlockedBy()) {
         case "unavailable": return "error: power modes need powerprofilesctl or asusctl"
         case "busy":        return "error: a power mode change is already in flight"
-        case "loading":     return "error: power modes are still loading; try again"
+        case "loading":
+            PowerProfiles.load()
+            return "error: power modes are loading now; try again"
         case "single":      return "error: only one power mode is available"
         case "unlisted":    return "error: the current power mode is not one the backend lists"
         }
