@@ -2285,7 +2285,31 @@ ShellRoot {
         }
     }
 
+    // a binary that is gone never emits exited from Process itself, so these wrappers have to
     function _runProcessChecks(): void {
+        const missing = boundedProcessFactory.createObject(root, {
+            command: ["/nonexistent/silere-probe-binary"]
+        })
+        missing.exited.connect(function(code) {
+            root._check(code === 127,
+                "a bounded process that cannot spawn still reports an exit")
+            missing.destroy()
+            const supervisedMissing = supervisedProcessFactory.createObject(root, {
+                command: ["/nonexistent/silere-probe-binary"],
+                superviseWhen: true
+            })
+            supervisedMissing.gaveUpChanged.connect(function() {
+                if (!supervisedMissing.gaveUp) return
+                root._check(supervisedMissing.gaveUp && !supervisedMissing.running,
+                    "a supervised process that cannot spawn gives up instead of respawning")
+                supervisedMissing.destroy()
+                root._runTimeoutCheck()
+            })
+        })
+        missing.running = true
+    }
+
+    function _runTimeoutCheck(): void {
         root._timeoutProbe = boundedProcessFactory.createObject(root, {
             command: ["bash", "-c", "sleep 5"],
             timeoutMs: 80
