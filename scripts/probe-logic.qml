@@ -1042,6 +1042,24 @@ ShellRoot {
                 && PowerProfiles.nextProfile("balanced", ["balanced"]) === "",
             "a power mode outside the offered cycle names no successor")
 
+        root._check(PowerProfiles.cycleBlocker(false, false, "balanced", profileOrder) === "unavailable"
+                && PowerProfiles.cycleBlocker(true, true, "balanced", profileOrder) === "busy"
+                && PowerProfiles.cycleBlocker(true, false, "", profileOrder) === "loading"
+                && PowerProfiles.cycleBlocker(true, false, "balanced", []) === "loading"
+                && PowerProfiles.cycleBlocker(true, false, "balanced", ["balanced"]) === "single"
+                && PowerProfiles.cycleBlocker(true, false, "quiet", profileOrder) === "unlisted"
+                && PowerProfiles.cycleBlocker(true, false, "balanced", profileOrder) === "",
+            "a power mode cycle names why it cannot start")
+        const settledWas = QuickActionsState._settled
+        QuickActionsState._settled = false
+        if (!QuickActionsState.wifiControllable && !Network.wifiHardBlocked)
+            root._check(QuickActionsState._wifiReply().indexOf("still starting") >= 0,
+                "a Wi-Fi toggle before probing settles says it is still starting")
+        if (!QuickActionsState.btControllable && !Bluetooth.hardBlocked)
+            root._check(QuickActionsState._bluetoothReply().indexOf("still starting") >= 0,
+                "a Bluetooth toggle before probing settles says it is still starting")
+        QuickActionsState._settled = settledWas
+
         const pageReduceWas = ShellSettings.reduceMotion
         const page = pageShellFactory.createObject(root)
         ShellSettings.reduceMotion = true

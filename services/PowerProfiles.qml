@@ -192,14 +192,29 @@ Singleton {
         return order[(at + 1) % order.length]
     }
 
+    // why a cycle cannot start, so a keybind caller can tell "wait" from "never": "" means it can
+    function cycleBlocker(isAvailable: bool, busy: bool, current: string, list: var): string {
+        if (!isAvailable) return "unavailable"
+        // _set.running guard: exec while a set's in flight drops the write but still flips the optimistic profile — UI and daemon diverge
+        if (busy) return "busy"
+        if (current === "" || list.length === 0) return "loading"
+        if (list.length < 2) return "single"
+        if (list.indexOf(current) < 0) return "unlisted"
+        return ""
+    }
+
     // the backend answers out of process, so the caller is told what was asked for
     function cycle(): string {
-        // _set.running guard: exec while a set's in flight drops the write but still flips the optimistic profile — UI and daemon diverge
-        if (!available || profile === "" || _set.running || root.profiles.length === 0) return ""
+        if (root.cycleBlocker(root.available, _set.running, root.profile, root.profiles).length > 0)
+            return ""
         const next = root.nextProfile(root.profile, root.profiles)
         if (next.length === 0) return ""
         root._applySet(next)
         return next
+    }
+
+    function cycleBlockedBy(): string {
+        return root.cycleBlocker(root.available, _set.running, root.profile, root.profiles)
     }
 
     // direct pick from the settings-page chip row, as opposed to cycle()'s
