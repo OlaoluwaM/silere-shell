@@ -269,10 +269,12 @@ PanelWindow {
                 if (index !== 0) _pageLifecycle.activateDeferred()
                 panel.switchTab(index)
             }
-            function onActiveTabChanged() {
+            function onTabChanging() {
                 // IPC can change the tab before tabRequested reaches this window,
-                // so capture here as well as in switchTab.
+                // so capture here as well as in switchTab, while the old page still sets the height.
                 if (!panel._tabHeightHeld) panel._beginTabHeightHold()
+            }
+            function onActiveTabChanged() {
                 contentFlick.contentY = 0
                 panel._scheduleTabHeightRelease()
                 if (!MenuState.open) panel._settlePageVisuals()

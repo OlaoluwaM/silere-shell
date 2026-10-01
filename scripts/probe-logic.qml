@@ -1001,6 +1001,17 @@ ShellRoot {
             "setSettingsSection itself stays case-exact")
         MenuState.setSettingsSection(savedSection)
 
+        const tabWas = MenuState.activeTab
+        const tabTarget = tabWas === MenuState.recentTab ? MenuState.homeTab : MenuState.recentTab
+        let tabSeenWhileChanging = -1
+        const noteTabChanging = function() { tabSeenWhileChanging = MenuState.activeTab }
+        MenuState.tabChanging.connect(noteTabChanging)
+        MenuState.selectTab(tabTarget)
+        MenuState.tabChanging.disconnect(noteTabChanging)
+        root._check(tabSeenWhileChanging === tabWas && MenuState.activeTab === tabTarget,
+            "a tab change is announced while the old tab is still active")
+        MenuState.selectTab(tabWas)
+
         root._check(CalendarState._canonicalMarkKey("2024-2-29") === "2024-2-29",
             "calendar accepts leap day")
         root._check(CalendarState._canonicalMarkKey("2023-2-29") === "",

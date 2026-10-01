@@ -145,6 +145,8 @@ AnchoredPopupState {
         && (settingsSection === "warnings" || settingsSection === "underline")
 
     signal tabRequested(int index)
+    // the window's height hold has to capture the old page before activeTab moves it
+    signal tabChanging(int index)
 
     function _validTab(index: int): int {
         return Math.max(homeTab, Math.min(systemTab, index))
@@ -164,6 +166,7 @@ AnchoredPopupState {
         const tab = root._validTab(index)
         if (tab !== settingsTab) root.closeSettingsSelect()
         if (root._activeTab !== tab) {
+            root.tabChanging(tab)
             root._previousTab = root._activeTab
             root._activeTab = tab
         }
