@@ -56,10 +56,19 @@ Singleton {
     }
 
     // already polling for the vitals widget when the menu opens: catch disk up immediately
-    // instead of leaving it showing "—" for up to 10s until the gated slow timer first fires
+    // instead of leaving it showing "—" for up to 10s until the gated slow timer first fires.
+    // Uptime has no reader outside the home page, so its minute poll follows the page too
     Connections {
         target: MenuState
-        function onHomeActiveChanged() { if (MenuState.homeActive && root._active) root._refreshSlow() }
+        function onHomeActiveChanged() {
+            if (!MenuState.homeActive) {
+                _uptimePoll.stop()
+                return
+            }
+            if (!root._active) return
+            root._refreshSlow()
+            _uptimeFile.reload()
+        }
     }
 
     function _activate(): void {
@@ -67,7 +76,7 @@ Singleton {
         _active = true
         cpuReady = false
         _refreshFast()
-        _uptimeFile.reload()
+        if (MenuState.homeActive) _uptimeFile.reload()
         _refreshSlow()
         // cpuPct is a delta between two /proc/stat reads; without a quick second sample the tile shows the last session's figure
         _cpuPrime.restart()
@@ -91,7 +100,7 @@ Singleton {
     Timer { id: _cpuPrime; interval: 250; onTriggered: if (root._active) _statFile.reload() }
     // the label only changes on the minute, so the reload is aimed at the next minute edge
     // rather than riding the 2s poll
-    Timer { id: _uptimePoll; onTriggered: if (root._active) _uptimeFile.reload() }
+    Timer { id: _uptimePoll; onTriggered: if (root._active && MenuState.homeActive) _uptimeFile.reload() }
 
     Timer {
         id: _poll
@@ -128,7 +137,7 @@ Singleton {
         printErrors: false
         onLoaded: root._applyUptime(_uptimeFile.text())
         onLoadFailed: {
-            if (!root._active) return
+            if (!root._active || !MenuState.homeActive) return
             _uptimePoll.interval = 2000
             _uptimePoll.restart()
         }
@@ -165,7 +174,7 @@ Singleton {
         root.uptimeSecs = parseFloat(up[0]) || 0
         _uptimePoll.interval = root.uptimeSecs < 60 ? 2000
             : Math.max(1000, Math.ceil((60 - root.uptimeSecs % 60) * 1000) + 100)
-        _uptimePoll.restart()
+        if (MenuState.homeActive) _uptimePoll.restart()
     }
 
     function _applyCpuStat(_cpuRaw: string): void {
