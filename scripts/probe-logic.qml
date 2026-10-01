@@ -983,12 +983,17 @@ ShellRoot {
             "setSettingsSection itself stays case-exact")
         MenuState.setSettingsSection(savedSection)
 
-        root._check(CalendarState._validMarkKey("2024-2-29"),
+        root._check(CalendarState._canonicalMarkKey("2024-2-29") === "2024-2-29",
             "calendar accepts leap day")
-        root._check(!CalendarState._validMarkKey("2023-2-29"),
+        root._check(CalendarState._canonicalMarkKey("2023-2-29") === "",
             "calendar rejects non-leap day")
-        root._check(!CalendarState._validMarkKey("2024-13-1"),
+        root._check(CalendarState._canonicalMarkKey("2024-13-1") === "",
             "calendar rejects invalid month")
+        root._check(CalendarState._canonicalMarkKey("2026-09-05") === "2026-9-5",
+            "a zero-padded hand-written day maps onto the key the grid reads")
+        root._check(CalendarState._canonicalMarkKey(null) === ""
+                && CalendarState._canonicalMarkKey({}) === "",
+            "calendar rejects marks that are not date strings")
 
         CalendarState.toggleAt(probeAnchor.menuAnchorX, null, probeAnchor)
         root._check(CalendarState.effectiveAnchorX === 42,
