@@ -1688,6 +1688,12 @@ ShellRoot {
             "a classic config logs out with the exit dispatcher")
         HyprDispatch.useLua = luaWas
 
+        root._check(Compositor.windowTitle("⠹ build") === "build"
+                && Compositor.windowTitle("✳ claude") === "claude"
+                && Compositor.windowTitle("⠹build") === "⠹build"
+                && Compositor.windowTitle("plain title") === "plain title",
+            "a leading terminal spinner glyph is stripped from a window title and nothing else")
+
         const spacing = ShellSettings.schemaFor("barSpacing")
         root._check(spacing !== null && spacing.t === "int"
                 && spacing.min === 4 && spacing.max === 24,
