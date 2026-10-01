@@ -57,9 +57,11 @@ Item {
         NumberAnimation { duration: Motion.normal; easing.type: Easing.OutCubic }
     }
 
-    readonly property bool _pressed: _calTap.pressed || _cycleTap.pressed
-    readonly property bool _hov: root.barActive && root.show
-        && _hover.hovered && ShellSettings.barHoverHighlight
+    // the same gate as a Pill's, so an idle bar drops the clock's hover with the other widgets'
+    readonly property bool _hoverEnabled: root.enabled && root.visible && root.barActive
+        && !Idle.isIdle
+    readonly property bool _pressed: _hoverEnabled && (_calTap.pressed || _cycleTap.pressed)
+    readonly property bool _hov: _hoverEnabled && _hover.hovered && ShellSettings.barHoverHighlight
     readonly property color _cSub:   _hov ? Theme.mix(Theme.subtext, Theme.accent, 0.30) : Theme.subtext
     readonly property color _cText:  _hov ? Theme.mix(Theme.text,    Theme.accent, 0.30) : Theme.text
     readonly property color _cFaint: _hov ? Theme.mix(Theme.withAlpha(Theme.text, 0.65), Theme.accent, 0.30)
@@ -79,7 +81,7 @@ Item {
 
     HoverHandler {
         id: _hover
-        enabled: root.enabled && root.visible && root.barActive
+        enabled: root._hoverEnabled
         cursorShape: Qt.PointingHandCursor
         onHoveredChanged: {
             root._syncHint()
