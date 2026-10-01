@@ -64,10 +64,11 @@ Singleton {
         id: _watcher
         superviseWhen: SystemTools.ready && SystemTools.hasInotifywait
         restartDelay: 5000
-        // 126/127 mean inotifywait itself cannot run. Exit 1 stays retryable: it is also an
-        // exhausted inotify instance limit, which clears, and giving up would leave the
-        // clock on the old zone until the next shell start
-        giveUpCodes: [126, 127]
+        // no shell sits in front of inotifywait, so a missing binary fails to start rather
+        // than exiting 126/127, and SupervisedProcess gives up on that by itself. Exit 1
+        // stays retryable: it is also an exhausted inotify instance limit, which clears,
+        // and giving up would leave the clock on the old zone until the next shell start
+        giveUpCodes: []
         command: ["inotifywait", "-m", "-q", "-e", "moved_to,create", "--include", "/localtime$", "/etc"]
         stdout: SplitParser {
             onRead: line => _debounce.restart()
