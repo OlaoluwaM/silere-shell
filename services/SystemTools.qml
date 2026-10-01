@@ -109,13 +109,23 @@ Singleton {
         root._retryDelayMs = root._retryDelayMs > 0
             ? Math.min(root._retryDelayMs * 2, root._maxRetryDelayMs)
             : root._minRetryDelayMs
-        _retryTimer.restart()
+        if (!Idle.isIdle) _retryTimer.restart()
     }
 
+    // a blanked screen has nobody to benefit from a recovered tool scan, so the retry waits for
+    // the display to wake rather than spawning a probe every backoff step through the night
     Timer {
         id: _retryTimer
         interval: root._retryDelayMs
-        onTriggered: root.refresh()
+        onTriggered: if (!Idle.isIdle) root.refresh()
+    }
+
+    Connections {
+        target: Idle
+        function onIsIdleChanged() {
+            if (Idle.isIdle) _retryTimer.stop()
+            else if (root.lastError.length > 0) _retryTimer.restart()
+        }
     }
 
     function refresh(): void {
@@ -143,7 +153,7 @@ Singleton {
             if (_checkProc.timedOut) {
                 // The retry may have fired while timeout cleanup still owned the
                 // process. Once it exits, recovery must still have a pending scan.
-                if (!_retryTimer.running) _retryTimer.restart()
+                if (!Idle.isIdle && !_retryTimer.running) _retryTimer.restart()
                 return
             }
             if (code !== 0) {

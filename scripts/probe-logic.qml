@@ -633,6 +633,19 @@ ShellRoot {
         CpuTemp._sensorPath = "/sys/class/hwmon/hwmon0/temp1_input"
         root._check(!CpuTemp.sensorMissing,
             "a detected sensor keeps its controls whatever the current reading")
+        const badSensorsWas = CpuTemp._badSensorPaths
+        CpuTemp._badSensorPaths = ""
+        CpuTemp._rejectSensor("/sys/a/temp1_input")
+        CpuTemp._rejectSensor("/sys/b/temp1_input")
+        CpuTemp._rejectSensor("/sys/a/temp1_input")
+        CpuTemp._rejectSensor("")
+        root._check(CpuTemp._badSensorPaths === ":/sys/a/temp1_input:/sys/b/temp1_input:",
+            "every sensor that failed in a row stays skipped, once each")
+        CpuTemp._badSensorPaths = badSensorsWas
+        CpuTemp._sensorPath = ""
+        CpuTemp._probeComplete = true
+        root._check(!CpuTemp._needsSensorDetection(),
+            "a probe that already found no sensor is not repeated on every wake")
         CpuTemp._sensorPath = tempPathWas
         CpuTemp._probeComplete = tempProbeWas
 

@@ -28,6 +28,7 @@ Singleton {
     property string _sensorPath: ""
     property bool _reading: false
     property bool _probeComplete: false
+    property string _badSensorPaths: ""
     property int _detectGeneration: 0
     // available drops to false whenever the service is released, so a control gated on it flickers on every menu open; sensors do not come and go
     readonly property bool sensorMissing: _probeComplete && _sensorPath.length === 0
@@ -124,6 +125,16 @@ Singleton {
         _detectProc.running = true
     }
 
+    // every consecutive failure stays skipped; one bad path alone ping-pongs between two bad sensors
+    function _rejectSensor(path: string): void {
+        if (path.length === 0 || root._badSensorPaths.includes(":" + path + ":")) return
+        root._badSensorPaths = (root._badSensorPaths || ":") + path + ":"
+    }
+
+    function _needsSensorDetection(): bool {
+        return root._sensorPath.length === 0 && !root._probeComplete
+    }
+
     on_WantedChanged: {
         if (!root._wanted) {
             root._detectGeneration++
@@ -134,7 +145,7 @@ Singleton {
         }
         root._warmedUp = false
         _warmup.restart()
-        if (root._sensorPath.length === 0) root._startSensorDetection()
+        if (root._needsSensorDetection()) root._startSensorDetection()
     }
 
     Component.onCompleted: root._started = true
@@ -143,7 +154,7 @@ Singleton {
         id: _detectProc
         property int _generation: -1
         timeoutMs: 10000
-        environment: ({ "LC_ALL": "C" })
+        environment: ({ "LC_ALL": "C", "SILERE_SKIP_SENSORS": root._badSensorPaths })
         command: ["bash", "-c",
             "detect_sensor() { " +
             "  local best=\"\" best_score=0 name n dir f lf lbl score type tf; " +
@@ -153,6 +164,7 @@ Singleton {
             "    dir=${name%/name}; " +
             "    for f in \"$dir\"/temp*_input; do " +
             "      [ -r \"$f\" ] || continue; " +
+            "      case \"$SILERE_SKIP_SENSORS\" in *\":$f:\"*) continue ;; esac; " +
             "      lf=\"${f%_input}_label\"; lbl=\"\"; " +
             "      [ -r \"$lf\" ] && lbl=$(cat \"$lf\" 2>/dev/null); " +
             "      score=0; key=\"${n,,}:${lbl,,}\"; " +
@@ -160,7 +172,7 @@ Singleton {
             "        k10temp:*tdie*|zenpower:*tdie*|coretemp:*package*|coretemp:*physical*) score=100 ;; " +
             "        k10temp:*tctl*|zenpower:*tctl*) score=90 ;; " +
             "        k10temp:*package*|zenpower:*package*) score=85 ;; " +
-            "        k10temp:*tccd0*|zenpower:*tccd0*) score=75 ;; " +
+            "        k10temp:*tccd1*|zenpower:*tccd1*) score=75 ;; " +
             "        coretemp:*core*) score=60 ;; " +
             "        cpu_thermal:*|cpu-thermal:*|soc_thermal:*|bcm2835_thermal:*) score=55 ;; " +
             "        *:*cpu*|*:*package*|*:*physical*|*:*tctl*|*:*tdie*) score=50 ;; " +
@@ -171,6 +183,7 @@ Singleton {
             "  done; " +
             "  for tf in /sys/class/thermal/thermal_zone*/temp; do " +
             "    [ -r \"$tf\" ] || continue; " +
+            "    case \"$SILERE_SKIP_SENSORS\" in *\":$tf:\"*) continue ;; esac; " +
             "    type=\"\"; [ -r \"${tf%/temp}/type\" ] && type=$(cat \"${tf%/temp}/type\" 2>/dev/null); " +
             "    case \"${type,,}\" in " +
             "      x86_pkg_temp|cpu_thermal|cpu-thermal|soc_thermal|bcm2835_thermal) score=50 ;; " +
@@ -217,9 +230,11 @@ Singleton {
         root._reading = false
         if (!root._wanted) return
         if (!root._applySensorText(raw)) {
+            root._rejectSensor(root._sensorPath)
             root._retrySensorDetection()
             return
         }
+        root._badSensorPaths = ""
         root._probeComplete = true
     }
 
@@ -228,6 +243,7 @@ Singleton {
         root._reading = false
         if (!root._wanted) return
         root._clearSampleState()
+        root._rejectSensor(root._sensorPath)
         root._retrySensorDetection()
     }
 
