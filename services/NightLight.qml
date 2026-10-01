@@ -141,9 +141,15 @@ Singleton {
             "[ -z \"$tz\" ] && tz=\"$(readlink -f /etc/localtime 2>/dev/null | sed -n 's#.*/zoneinfo/##p')\"; " +
             "[ -z \"$tz\" ] && [ -r /etc/timezone ] && tz=\"$(cat /etc/timezone)\"; " +
             "[ -z \"$tz\" ] && exit 0; " +
-            "for f in /usr/share/zoneinfo/zone1970.tab /usr/share/zoneinfo/zone.tab; do " +
-            "  [ -r \"$f\" ] || continue; " +
-            "  c=\"$(awk -v z=\"$tz\" 'BEGIN{FS=\"\\t\"} $0 !~ /^#/ && $3==z {print $2; exit}' \"$f\")\"; " +
+            // NixOS has no /usr/share/zoneinfo: its tables live in /etc/zoneinfo, and $TZDIR
+            // names them wherever else a system keeps them; a miss everywhere falls back to 45°N
+            "c=; for d in \"$TZDIR\" /etc/zoneinfo /usr/share/zoneinfo; do " +
+            "  [ -n \"$d\" ] || continue; " +
+            "  for f in \"$d/zone1970.tab\" \"$d/zone.tab\"; do " +
+            "    [ -r \"$f\" ] || continue; " +
+            "    c=\"$(awk -v z=\"$tz\" 'BEGIN{FS=\"\\t\"} $0 !~ /^#/ && $3==z {print $2; exit}' \"$f\")\"; " +
+            "    [ -n \"$c\" ] && break; " +
+            "  done; " +
             "  [ -n \"$c\" ] && { printf '%s\\n' \"$c\"; break; }; " +
             "done"]
         stdout: StdioCollector { id: _geoOut }
