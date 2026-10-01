@@ -24,6 +24,9 @@ Column {
             description: "Fetch art a player links off-machine"
             key: "mediaRemoteArt"
         }
+        HintText {
+            text: "Image hosts can see what you play; remote image loading may also crash the shell."
+        }
     }
 
 }
