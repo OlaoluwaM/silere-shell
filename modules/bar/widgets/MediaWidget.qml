@@ -88,7 +88,8 @@ Item {
             visible: Media.lengthKnown
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            width: Math.max(0, parent.width * Media.positionRatio)
+            // whole px: a sub-pixel step every position tick would repaint the bar for nothing
+            width: Math.round(Math.max(0, parent.width * Media.positionRatio))
             height: 1.5
             radius: height / 2
             antialiasing: true
@@ -192,7 +193,8 @@ Item {
                 // hover to read: the slide would otherwise walk out from under the pointer
                 paused: _scroll.running && _rootHover.hovered
                 onRunningChanged: if (!running) textClip._scrollX = 0
-                loops: Animation.Infinite
+                // two passes per title, then rest: any running animation redraws every window each frame
+                loops: 2
                 PauseAnimation  { duration: root._scrollHoldStart }
                 // linear, or _scrollSpeed is a lie: an eased slide covers half the distance
                 // in the first fifth of _slideMs and then crawls, which is unreadable
