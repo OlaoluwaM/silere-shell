@@ -1887,8 +1887,9 @@ ShellRoot {
         ShellSettings.osdTimeout = timeoutWas
 
         root._check(ShellSettings._ipcKey("BARSPACING") === "barSpacing"
+                && ShellSettings._ipcKey(" osdTimeout ") === "osdTimeout"
                 && ShellSettings._ipcKey("noSuchSetting") === "noSuchSetting",
-            "settings IPC folds known key capitalization without weakening schema lookup")
+            "settings IPC trims hand-typed keys and folds known capitalization")
         const ipcSpacingWas = ShellSettings.barSpacing
         root._check(ShellSettings._ipcSet("BARSPACING", "999") === "24"
                 && ShellSettings.barSpacing === 24,

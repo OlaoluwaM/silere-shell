@@ -86,8 +86,10 @@ Singleton {
         id: _mkdir
         timeoutMs: 10000
         command: ["bash", "-c",
+            // a symlinked directory could point the chmod below at someone else's tree
             // without the exits, the trailing file check's status hides a failed mkdir
-            "umask 077; mkdir -m 0700 -p -- \"$1\" || exit $?; " +
+            "umask 077; [ ! -L \"$1\" ] || exit 1; " +
+            "mkdir -m 0700 -p -- \"$1\" || exit $?; " +
             "chmod 0700 -- \"$1\" || exit $?; " +
             "for f in \"$2\" \"$3\" \"$4\"; do " +
             "[ ! -e \"$f\" ] || [ -L \"$f\" ] || chmod 0600 -- \"$f\" || exit $?; done",

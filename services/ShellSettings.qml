@@ -510,11 +510,12 @@ Singleton {
 
     // folds only hand-typed ipc keys; schemaFor stays exact so a row's key: cannot match the wrong setting
     function _ipcKey(key: string): string {
-        if (root.schemaFor(key)) return key
-        const fold = String(key || "").toLowerCase()
+        const trimmed = String(key || "").trim()
+        if (root.schemaFor(trimmed)) return trimmed
+        const fold = trimmed.toLowerCase()
         for (let i = 0; i < root._schema.length; i++)
             if (root._schema[i].k.toLowerCase() === fold) return root._schema[i].k
-        return key
+        return trimmed
     }
 
     function _coerced(s, v): var {
@@ -685,11 +686,13 @@ Singleton {
     }
 
     // one user action that moves several keys is still one settings change: without this each discrete key flushes the whole file on its own
-    function batch(apply): void {
+    // flushNow false queues the write instead, for a batch a drag repeats dozens of times a second
+    function batch(apply, flushNow): void {
         if (root._bulkAssign) { apply(); return }
         root._bulkAssign = true
         try { apply() } finally { root._bulkAssign = false }
-        _store.flush(false)
+        if (flushNow === false) _store.queue()
+        else _store.flush(false)
     }
 
     function resetToDefaults(): void {
