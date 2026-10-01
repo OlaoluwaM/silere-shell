@@ -146,6 +146,18 @@ test_qml_module_lookup() (
     fi
 )
 
+test_quickshell_version_after_qt_warning() (
+    local stub="$TMP/qs-version-stub"
+    mkdir -p "$stub"
+    printf '#!/bin/sh\n%s\n%s\n' \
+        'echo "Detected locale \"C\" with character encoding \"ANSI_X3.4-1968\", which is not UTF-8." >&2' \
+        'echo "Quickshell 0.3.1 (revision , distributed by Arch Linux)"' > "$stub/qs"
+    chmod +x "$stub/qs"
+    PATH="$stub:$PATH"
+    source "$ROOT/scripts/lib/qml-modules.sh"
+    assert_eq 0.3.1 "$(_silere_quickshell_version)" "the Quickshell version is read past Qt's locale warning"
+)
+
 test_headless_qml_import_roots() (
     local stubs="$TMP/qml-tool-stubs"
     local first="$TMP/qml-import-first"
@@ -540,6 +552,7 @@ test_fresh_install_permissions
 test_marker_removal
 test_uninstall_targets_and_backups
 test_qml_module_lookup
+test_quickshell_version_after_qt_warning
 test_headless_qml_import_roots
 test_font_archive_selection
 test_assume_yes_prompts
