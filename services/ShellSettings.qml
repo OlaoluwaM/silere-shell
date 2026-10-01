@@ -560,6 +560,15 @@ Singleton {
         return ""
     }
 
+    // before the load, a write is overwritten by the file or never saved; a config directory that
+    // failed to come up can never take it either, so say so instead of echoing a value that is lost
+    function _ipcWriteRefusal(): string {
+        if (!root.ready) return "error: settings are still loading; try again"
+        if (!ConfigStore.ready && ConfigStore.error.length > 0)
+            return "error: " + ConfigStore.error + " The change would not be saved."
+        return ""
+    }
+
     function _ipcSet(key: string, value): string {
         const k = root._ipcKey(key)
         if (!root.schemaFor(k)) return "error: unknown setting '" + key + "'; try `list`"
@@ -583,14 +592,15 @@ Singleton {
             return String(root[k])
         }
 
-        // before the load, a write is overwritten by the file or never saved
         function set(key: string, value: string): string {
-            if (!root.ready) return "error: settings are still loading; try again"
+            const refused = root._ipcWriteRefusal()
+            if (refused.length > 0) return refused
             return root._ipcSet(key, value)
         }
 
         function toggle(key: string): string {
-            if (!root.ready) return "error: settings are still loading; try again"
+            const refused = root._ipcWriteRefusal()
+            if (refused.length > 0) return refused
             const k = root._ipcKey(key)
             const s = root.schemaFor(k)
             if (!s) return "error: unknown setting '" + key + "'; try `list`"

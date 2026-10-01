@@ -1907,6 +1907,20 @@ ShellRoot {
                 && ShellSettings._ipcKey(" osdTimeout ") === "osdTimeout"
                 && ShellSettings._ipcKey("noSuchSetting") === "noSuchSetting",
             "settings IPC trims hand-typed keys and folds known capitalization")
+        const configReadyWas = ConfigStore.ready
+        const configErrorWas = ConfigStore._error
+        const loadedForRefusal = ShellSettings._loaded
+        ShellSettings._loaded = true
+        ConfigStore.ready = false
+        ConfigStore._error = ""
+        root._check(ShellSettings._ipcWriteRefusal() === "",
+            "a config directory still coming up does not refuse settings IPC writes")
+        ConfigStore._error = "/x is a symlink."
+        root._check(ShellSettings._ipcWriteRefusal().startsWith("error: /x is a symlink."),
+            "settings IPC refuses a write the failed config directory could never save")
+        ConfigStore.ready = configReadyWas
+        ConfigStore._error = configErrorWas
+        ShellSettings._loaded = loadedForRefusal
         const ipcSpacingWas = ShellSettings.barSpacing
         root._check(ShellSettings._ipcSet("BARSPACING", "999") === "24"
                 && ShellSettings.barSpacing === 24,
