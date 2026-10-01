@@ -135,10 +135,34 @@ Singleton {
         return root._sensorPath.length === 0 && !root._probeComplete
     }
 
+    // a rejection is a short-term skip, not a verdict: one transient failed read (just after
+    // resume) on a single-sensor machine would otherwise leave detection with no candidates and
+    // latch sensorMissing for the whole session. An empty result caused only by rejects forgets
+    // them and tries again later, so only a scan that finds nothing on its own settles the probe
+    function _applyDetection(path: string): void {
+        root._sensorPath = path.startsWith("/sys/") ? path : ""
+        if (root._sensorPath.length > 0) return
+        if (root._badSensorPaths.length > 0) {
+            root._badSensorPaths = ""
+            _redetect.restart()
+            return
+        }
+        root._probeComplete = true
+    }
+
+    Timer {
+        id: _redetect
+        interval: 30000
+        onTriggered: if (root._needsSensorDetection()) root._startSensorDetection()
+    }
+
     on_WantedChanged: {
         if (!root._wanted) {
             root._detectGeneration++
             _warmup.stop()
+            _redetect.stop()
+            // sensors rejected before a sleep were most likely read mid-resume; wake starts fresh
+            root._badSensorPaths = ""
             if (_detectProc.running) _detectProc.running = false
             root._resetState()
             return
@@ -203,8 +227,7 @@ Singleton {
             }
             if (!root._wanted) return
             const path = code === 0 ? (_detectOut.text || "").trim() : ""
-            root._sensorPath = path.startsWith("/sys/") ? path : ""
-            if (root._sensorPath.length === 0) root._probeComplete = true
+            root._applyDetection(path)
         }
         Component.onDestruction: running = false
     }

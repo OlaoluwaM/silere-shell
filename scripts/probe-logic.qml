@@ -648,6 +648,16 @@ ShellRoot {
         CpuTemp._rejectSensor("")
         root._check(CpuTemp._badSensorPaths === ":/sys/a/temp1_input:/sys/b/temp1_input:",
             "every sensor that failed in a row stays skipped, once each")
+        CpuTemp._sensorPath = ""
+        CpuTemp._probeComplete = false
+        CpuTemp._badSensorPaths = ":/sys/only/temp1_input:"
+        CpuTemp._applyDetection("")
+        root._check(!CpuTemp._probeComplete && CpuTemp._badSensorPaths === ""
+                && CpuTemp._needsSensorDetection() && !CpuTemp.sensorMissing,
+            "a lone sensor rejected on one failed read is retried instead of latched missing")
+        CpuTemp._applyDetection("")
+        root._check(CpuTemp._probeComplete && CpuTemp.sensorMissing,
+            "a scan that finds nothing on its own still settles the probe")
         CpuTemp._badSensorPaths = badSensorsWas
         CpuTemp._sensorPath = ""
         CpuTemp._probeComplete = true
