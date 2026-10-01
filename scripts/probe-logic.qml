@@ -1419,6 +1419,18 @@ ShellRoot {
             "losing VPN detection clears both published and in-flight state")
         Network._vpnState = vpnStateWas
 
+        root._check(Network.formatRate(99.97 * 1024).startsWith(" 100 ")
+                && Network.formatRate(99.4 * 1024).startsWith("99.4"),
+            "a rate that rounds up to 100 drops its decimal instead of widening the column")
+        const diskUsedWas = SysInfo.diskUsedKb
+        const diskAvailWas = SysInfo.diskAvailKb
+        SysInfo.diskUsedKb = 90
+        SysInfo.diskAvailKb = 10
+        root._check(Math.abs(SysInfo.diskPct - 0.9) < 0.0001,
+            "disk usage excludes blocks reserved for root, as df counts it")
+        SysInfo.diskUsedKb = diskUsedWas
+        SysInfo.diskAvailKb = diskAvailWas
+
         const wheelKey = "probe-scroll"
         root._check(Scroll._processDelta(60, wheelKey, 120, 2, 0) === 0,
             "a half-notch wheel step emits nothing on its own")
