@@ -120,18 +120,24 @@ section "invisible characters in source"
 # characters in Silere's own source are the Trojan Source problem: they reorder how a
 # line renders in a review without changing what the engine runs. The tree accepts
 # outside pull requests, so the source has to hold the rule it applies to everyone else.
-if printf 'a\n' | grep -qP 'a' 2>/dev/null; then
-  bidi_hits="$(grep -rlP '[\x{202A}-\x{202E}\x{2066}-\x{2069}\x{200B}\x{200E}\x{200F}]' \
+# in the C locale grep -P rejects \x{} above 0xff with exit 2, which read as a clean tree
+bidi_pattern='[\x{061C}\x{200B}\x{200E}\x{200F}\x{202A}-\x{202E}\x{2066}-\x{206F}]'
+if printf 'a\342\200\256b\n' | LC_ALL=C.UTF-8 grep -qP "$bidi_pattern" 2>/dev/null; then
+  bidi_rc=0
+  bidi_hits="$(LC_ALL=C.UTF-8 grep -rlP "$bidi_pattern" \
     --include='*.qml' --include='*.sh' --include='*.md' --include='*.json' \
-    --include='*.yml' --include='*.toml' --exclude-dir=.git . 2>/dev/null || true)"
-  if [ -n "$bidi_hits" ]; then
+    --include='*.yml' --include='*.toml' --include='*.js' --include='*.py' \
+    --exclude-dir=.git --exclude-dir='.[!g]*' . 2>/dev/null)" || bidi_rc=$?
+  if [ "$bidi_rc" -gt 1 ]; then
+    fail "invisible character scan could not read the tree (grep exit $bidi_rc)"
+  elif [ -n "$bidi_hits" ]; then
     fail "these files carry bidi or zero-width characters; write them as \\uXXXX escapes:"
     while IFS= read -r m; do printf '  %s\n' "$m"; done <<< "$bidi_hits"
   else
     ok "source text" "no bidi or zero-width characters in tracked sources"
   fi
 else
-  skip "source text" "grep -P unavailable; invisible character scan skipped"
+  skip "source text" "grep -P or a UTF-8 locale unavailable; invisible character scan skipped"
 fi
 
 section "orphaned binding continuations"

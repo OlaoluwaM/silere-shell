@@ -526,12 +526,14 @@ if [ "$qs_usable" = 1 ]; then
     else
       smoke_ready=1
     fi
-    if [ "$smoke_ready" -eq 1 ] && [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then
-      if grep -qE 'Failed to create wl_display|could not connect to display|no Qt platform plugin could be initialized' "$smoke_log"; then
+    # 124 is the timeout firing, so only it proves the shell stayed up; a quiet exit 0
+    # inside the window is a shell that quit, not one that survived
+    if [ "$smoke_ready" -eq 1 ] && [ "$code" -ne 124 ]; then
+      if [ "$code" -ne 0 ] && grep -qE 'Failed to create wl_display|could not connect to display|no Qt platform plugin could be initialized' "$smoke_log"; then
         warn "startup" "display inaccessible; runtime smoke test skipped"
       else
         cat "$smoke_log"
-        fail "startup" "Quickshell exited with status $code"
+        fail "startup" "Quickshell exited before the five-second dwell (status $code)"
       fi
     elif [ "$smoke_ready" -eq 1 ] && grep -qE 'Failed to load configuration|Type [^ ]+ unavailable|module ".*" is not installed|Binding loop detected' "$smoke_log"; then
       cat "$smoke_log"
@@ -559,9 +561,9 @@ if [ "$qs_usable" = 1 ]; then
         cov_log="$(mktemp "${TMPDIR:-/tmp}/silere-qs-cov.XXXXXX.log")"
         code=0
         _run_shell_probe "$cov_log" XDG_CONFIG_HOME="$cov_cfg" || code=$?
-        if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then
+        if [ "$code" -ne 124 ]; then
           cat "$cov_log"
-          fail "off-path load" "Quickshell exited with status $code with every option on"
+          fail "off-path load" "Quickshell exited before the dwell (status $code) with every option on"
         elif grep -qE 'Failed to load configuration|Type [^ ]+ unavailable|Cannot assign to non-existent property|is not a type|Binding loop detected' "$cov_log"; then
           cat "$cov_log"
           fail "off-path load" "a default-off code path failed to load"
@@ -594,7 +596,7 @@ if [ "$qs_usable" = 1 ]; then
         printf '%s' "$_case" > "$bad_cfg/silere-shell/settings.json"
         code=0
         _run_shell_probe "$bad_log" XDG_CONFIG_HOME="$bad_cfg" || code=$?
-        if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then
+        if [ "$code" -ne 124 ]; then
           bad_failures="$bad_failures  exited $code on: ${_case:-<empty>}"$'\n'
         elif grep -qE 'Failed to load configuration|Type [^ ]+ unavailable|Binding loop detected' "$bad_log"; then
           bad_failures="$bad_failures  failed to load on: ${_case:-<empty>}"$'\n'
