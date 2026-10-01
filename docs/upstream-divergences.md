@@ -223,6 +223,9 @@ naming them over upstream's CI claim.
 - The bar media widget opens that card on click and focuses the player on
   right-click. Keep upstream's play/pause click, middle-click focus, and
   wheel-to-skip out of it.
+- The bar clock takes upstream's hover and pressed cap, styled as a Pill's, but
+  never its calendar-open tint: an open calendar leaves the clock untinted.
+  Drop any `_calendarOpen` fill an import brings back.
 - The Cava audio visualizer stays removed, including its bar placements, process
   and profile management, settings, fullscreen demand, and underline glow.
   Compatible media fixes must preserve playback controls and track progress

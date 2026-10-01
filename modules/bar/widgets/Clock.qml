@@ -57,7 +57,9 @@ Item {
         NumberAnimation { duration: Motion.normal; easing.type: Easing.OutCubic }
     }
 
-    readonly property bool  _hov:    (_hover.hovered && ShellSettings.barHoverHighlight)
+    readonly property bool _pressed: _calTap.pressed || _cycleTap.pressed
+    readonly property bool _hov: root.barActive && root.show
+        && _hover.hovered && ShellSettings.barHoverHighlight
     readonly property color _cSub:   _hov ? Theme.mix(Theme.subtext, Theme.accent, 0.30) : Theme.subtext
     readonly property color _cText:  _hov ? Theme.mix(Theme.text,    Theme.accent, 0.30) : Theme.text
     readonly property color _cFaint: _hov ? Theme.mix(Theme.withAlpha(Theme.text, 0.65), Theme.accent, 0.30)
@@ -77,14 +79,61 @@ Item {
 
     HoverHandler {
         id: _hover
+        enabled: root.enabled && root.visible && root.barActive
         cursorShape: Qt.PointingHandCursor
-        onHoveredChanged: root._syncHint()
+        onHoveredChanged: {
+            root._syncHint()
+            root._datePeek = false
+            if (hovered) _datePeekDelay.restart()
+            else _datePeekDelay.stop()
+        }
+    }
+
+    // the date reads on hover when it is not already shown; only meaningful with clockShowDate off
+    property bool _datePeek: false
+    readonly property bool _dateRevealed: root._datePeek && _hover.hovered
+        && ShellSettings.valuesOnHover && !Idle.isIdle
+
+    Timer {
+        id: _datePeekDelay
+        interval: 80
+        onTriggered: root._datePeek = true
     }
     Component.onDestruction: BarHintState.release(root)
 
     function _openCalendar(): void {
         root._syncMenuAnchor()
         CalendarState.toggleAt(root.menuAnchorX, root.screen, root)
+    }
+
+    // same cap as a Pill's, so the clock answers the pointer like every other bar widget
+    Rectangle {
+        anchors.centerIn: parent
+        width: parent.width
+        height: Metrics.barRowHeight
+        radius: Metrics.hoverRadiusFor(height)
+        color: root._pressed ? Theme.withAlpha(Theme.accent, 0.18)
+            : Theme.withAlpha(Theme.mix(Theme.text, Theme.accent, 0.30), 0.07)
+        opacity: root._pressed || root._hov ? 1.0 : 0.0
+        scale: root._pressed ? 0.985 : root._hov ? 1.0 : 0.96
+        transformOrigin: Item.Center
+        visible: opacity > 0.001
+        MotionBehavior on opacity {
+            gate: root._animatable
+            NumberAnimation {
+                duration: root._pressed || root._hov ? Motion.hoverIn : Motion.hoverOut
+                easing.type: Easing.OutCubic
+            }
+        }
+        MotionBehavior on scale {
+            gate: root._animatable
+            NumberAnimation {
+                duration: root._pressed ? Motion.press
+                    : root._hov ? Motion.hoverIn : Motion.hoverOut
+                easing.type: Easing.OutCubic
+            }
+        }
+        ColorFade on color { gate: root._animatable }
     }
 
     Row {
@@ -98,13 +147,13 @@ Item {
             id: _dateSectionClip
             anchors.verticalCenter: parent.verticalCenter
             height:  _dateRow.implicitHeight
-            width:   ShellSettings.clockShowDate ? _dateRow.implicitWidth + Metrics.clockDateGapFor(root.compact) : 0
-            opacity: ShellSettings.clockShowDate ? 1.0 : 0.0
-            visible: ShellSettings.clockShowDate || opacity > 0.001
+            // the day and date ease their own widths; easing their sum again stalls until they settle
+            property real _shown: ShellSettings.clockShowDate || root._dateRevealed ? 1 : 0
+            MotionBehavior on _shown {NumberAnimation { duration: Motion.width; easing.type: Easing.OutCubic } }
+            width:   (_dateRow.implicitWidth + Metrics.clockDateGapFor(root.compact)) * _shown
+            opacity: _shown
+            visible: _shown > 0.001
             clip:    true
-
-            MotionBehavior on width   {NumberAnimation { duration: Motion.width; easing.type: Easing.OutCubic } }
-            MotionBehavior on opacity {NumberAnimation { duration: Motion.width; easing.type: Easing.OutCubic } }
 
             Row {
                 id: _dateRow
@@ -131,12 +180,18 @@ Item {
             spacing: 0
 
             RollingText {
+                tabularDigits: true
+                reserveText: "00"
+                horizontalAlignment: Text.AlignRight
                 text:    DateTime.cachedHour
                 color:   root._cText
                 animate: root._animatable
             }
             RollingText { text: ":"; color: root._cText; animate: root._animatable }
             RollingText {
+                tabularDigits: true
+                reserveText: "00"
+                horizontalAlignment: Text.AlignRight
                 text:    DateTime.cachedMinute
                 color:   root._cText
                 animate: root._animatable
@@ -147,6 +202,7 @@ Item {
                 animate:  root._animatable
                 expanded: ShellSettings.showSeconds
                 reserveText: ":00"
+                tabularDigits: true
             }
             CollapsingText {
                 text:     DateTime.cachedAmPm ? " " + DateTime.cachedAmPm : ""
@@ -157,27 +213,38 @@ Item {
         }
     }
 
-    Accessible.role: Accessible.Button
-    Accessible.name: "Clock, " + DateTime.cachedHour + ":" + DateTime.cachedMinute
+    readonly property string accessibleName: "Clock, " + DateTime.cachedHour + ":" + DateTime.cachedMinute
         + (DateTime.cachedAmPm.length > 0 ? " " + DateTime.cachedAmPm : "")
+        + ", " + DateTime.cachedWeekday + " " + DateTime.cachedMonthDay
+    Accessible.role: Accessible.Button
+    Accessible.name: root.accessibleName
     Accessible.focusable: root.show
     Accessible.onPressAction: root._openCalendar()
 
     TapHandler {
         id: _calTap
+        enabled: root.show && root.barActive
+        gesturePolicy: TapHandler.ReleaseWithinBounds
         acceptedButtons: Qt.LeftButton
         onTapped: root._openCalendar()
     }
 
     TapHandler {
+        id: _cycleTap
+        enabled: root.show && root.barActive
+        gesturePolicy: TapHandler.ReleaseWithinBounds
         acceptedButtons: Qt.MiddleButton
-        onTapped: ShellSettings.batch(() => {
-            const s = ShellSettings.showSeconds
-            const d = ShellSettings.clockShowDate
-            if (!s && !d)     { ShellSettings.showSeconds = true }
-            else if (s && !d) { ShellSettings.showSeconds = false; ShellSettings.clockShowDate = true }
-            else if (!s && d) { ShellSettings.showSeconds = true }
-            else              { ShellSettings.showSeconds = false; ShellSettings.clockShowDate = false }
-        })
+        onTapped: {
+            // a peeked date would hide the step that turns the date off
+            root._datePeek = false
+            ShellSettings.batch(() => {
+                const s = ShellSettings.showSeconds
+                const d = ShellSettings.clockShowDate
+                if (!s && !d)     { ShellSettings.showSeconds = true }
+                else if (s && !d) { ShellSettings.showSeconds = false; ShellSettings.clockShowDate = true }
+                else if (!s && d) { ShellSettings.showSeconds = true }
+                else              { ShellSettings.showSeconds = false; ShellSettings.clockShowDate = false }
+            })
+        }
     }
 }
