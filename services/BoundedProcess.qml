@@ -30,7 +30,8 @@ Process {
         'current=$(start_of "$root_pid") || current=; [ "$current" != "$root_start" ] || collect "$root_pid"; ' +
         'signal_saved KILL'
 
-    // a binary that is gone fails to start without emitting exited, and callers recover only there
+    // a binary that is gone fails to start without emitting exited, and callers recover only there;
+    // the flag belongs to one run, so a command chained from exited starts with it clear
     property bool _exitSeen: false
     property Connections _runningWatch: Connections {
         target: root
@@ -38,6 +39,7 @@ Process {
         function onRunningChanged() {
             if (root.running) {
                 root.timedOut = false
+                root._exitSeen = false
                 return
             }
             if (!root._exitSeen) root.exited(127, 0)

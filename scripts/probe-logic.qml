@@ -2451,10 +2451,61 @@ ShellRoot {
                 root._check(supervisedMissing.gaveUp && !supervisedMissing.running,
                     "a supervised process that cannot spawn gives up instead of respawning")
                 supervisedMissing.destroy()
-                root._runTimeoutCheck()
+                root._runChainedSpawnCheck()
             })
         })
         missing.running = true
+    }
+
+    // Caffeine and the other chaining callers exec their next command from inside exited, and
+    // Process signals that exit before the new run's runningChanged, so the earlier run's exit
+    // must not stand in for a chained command that never starts
+    function _runChainedSpawnCheck(): void {
+        const chained = boundedProcessFactory.createObject(root, { command: ["true"] })
+        const codes = []
+        let settled = false
+        const settle = function() {
+            if (settled) return
+            settled = true
+            root._check(codes.length === 2 && codes[0] === 0 && codes[1] === 127,
+                "a bounded process chained from exited still reports its spawn failure")
+            chained.destroy()
+            root._runChainedSupervisedCheck()
+        }
+        chained.exited.connect(function(code) {
+            codes.push(code)
+            if (codes.length === 1) chained.exec(["/nonexistent/silere-probe-binary"])
+        })
+        chained.runningChanged.connect(function() {
+            if (codes.length > 0 && !chained.running) Qt.callLater(settle)
+        })
+        chained.running = true
+    }
+
+    // the restart delay outlasts the check, so only the failed start itself can give up
+    function _runChainedSupervisedCheck(): void {
+        const chained = supervisedProcessFactory.createObject(root, {
+            command: ["true"],
+            restartDelay: 60000,
+            superviseWhen: true
+        })
+        let exits = 0
+        let settled = false
+        const settle = function() {
+            if (settled) return
+            settled = true
+            root._check(exits === 1 && chained.gaveUp,
+                "a supervised process chained from exited gives up when that command cannot start")
+            chained.destroy()
+            root._runTimeoutCheck()
+        }
+        chained.exited.connect(function() {
+            exits++
+            if (exits === 1) chained.exec(["/nonexistent/silere-probe-binary"])
+        })
+        chained.runningChanged.connect(function() {
+            if (exits > 0 && !chained.running) Qt.callLater(settle)
+        })
     }
 
     function _runTimeoutCheck(): void {

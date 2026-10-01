@@ -94,6 +94,9 @@ naming them over upstream's CI claim.
 - Failed capability scans retain the last coherent result without advancing
   `SystemTools.scanRevision`; that revision tracks changes to capabilities.
   Hook recovery retains process-group cleanup and bounded execution.
+- `BoundedProcess` and `SupervisedProcess` clear `_exitSeen` when a run
+  starts, not only when one stops, so a command chained from `exited` still
+  reports its own failed start. Keep that line when an import rewrites them.
 - Wi-Fi forgetting uses the shared confirmation state and service-side
   saved/active guards. Capture row identity before disarming confirmation,
   which can synchronously replace the row model.
