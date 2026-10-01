@@ -1089,6 +1089,16 @@ ShellRoot {
                 && CalendarState.weekdayAt(0) === 0 && CalendarState.weekdayAt(6) === 6
                 && CalendarState.weekForRow(2026, 8, 0) === 36,
             "a sunday-first grid leads with two days and numbers by its row's thursday")
+        // Sunday 2026-10-04 closes ISO week 40 but opens the Sunday-first row that numbers 41
+        const octFourth = new Date(2026, 9, 4)
+        root._check(CalendarState.weekOfDate(octFourth) === 41
+                && CalendarState.weekForRow(2026, 9, 1) === 41,
+            "a sunday-first header names the week its own row prints")
+        ShellSettings.calendarWeekStart = "monday"
+        root._check(CalendarState.weekOfDate(octFourth) === DateTime.isoWeek(octFourth)
+                && CalendarState.weekOfDate(new Date(2026, 9, 5)) === 41
+                && CalendarState.weekForRow(2026, 9, 0) === 40,
+            "a monday-first header keeps the ISO week")
         ShellSettings.calendarWeekStart = weekStartWas
 
         CalendarState.toggleAt(probeAnchor.menuAnchorX, null, probeAnchor)

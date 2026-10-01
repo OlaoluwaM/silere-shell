@@ -79,7 +79,9 @@ PanelWindow {
         property int    _todayY:      -1
         property int    _todayM:      -1
         property int    _todayD:      -1
-        property int    _todayWeek:   -1
+        // follows the week-start setting while the card is open, so it is derived rather than captured
+        readonly property int _todayWeek: _todayY < 0 ? -1
+            : CalendarState.weekOfDate(new Date(_todayY, _todayM, _todayD))
         property string todayWeekday: ""
 
         readonly property int _lead: CalendarState.leadingDays(shownYear, shownMonth)
@@ -97,7 +99,6 @@ PanelWindow {
         function _snapToday(): void {
             const t = new Date()
             _todayY = t.getFullYear(); _todayM = t.getMonth(); _todayD = t.getDate()
-            _todayWeek = DateTime.isoWeek(t)
             todayWeekday = Qt.formatDateTime(t, "dddd")
             dispYear  = _todayY; dispMonth  = _todayM
             shownYear = _todayY; shownMonth = _todayM
@@ -137,7 +138,6 @@ PanelWindow {
                 if (!CalendarState.open) return
                 const t = new Date()
                 card._todayY = t.getFullYear(); card._todayM = t.getMonth(); card._todayD = t.getDate()
-                card._todayWeek = DateTime.isoWeek(t)
                 card.todayWeekday = Qt.formatDateTime(t, "dddd")
             }
         }

@@ -46,6 +46,12 @@ AnchoredPopupState {
         return DateTime.isoWeek(new Date(year, month, 1 - leadingDays(year, month) + row * 7 + thursday))
     }
 
+    // the number the grid prints beside a date's row, so a header naming today's week cannot disagree with it
+    function weekOfDate(d: date): int {
+        const toThursday = (4 - firstWeekday + 7) % 7 - (d.getDay() - firstWeekday + 7) % 7
+        return DateTime.isoWeek(new Date(d.getFullYear(), d.getMonth(), d.getDate() + toThursday))
+    }
+
     property var marks: ({})
     property bool _saveDirty: false
     property string persistenceError: ""
