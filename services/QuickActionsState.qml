@@ -63,21 +63,19 @@ AnchoredPopupState {
         return NightLight.enabled ? "on" : "off"
     }
 
-    // the backend answers out of process, so the profile that landed is not readable yet
+    // the backend answers out of process, so the profile that landed is not readable yet; a step
+    // that waits on a fresh read cannot name its target, so it only says one is under way
     function _powerModeReply(): string {
         if (!SystemTools.ready && !PowerProfiles.available)
             return "error: still looking for a power mode tool"
-        switch (PowerProfiles.cycleBlockedBy()) {
+        switch (PowerProfiles.cycleFresh()) {
         case "unavailable": return "error: power modes need powerprofilesctl or asusctl"
         case "busy":        return "error: a power mode change is already in flight"
-        case "loading":
-            PowerProfiles.load()
-            return "error: power modes are loading now; try again"
         case "single":      return "error: only one power mode is available"
         case "unlisted":    return "error: the current power mode is not one the backend lists"
+        case "queued":      return "switching"
         }
-        const next = PowerProfiles.cycle()
-        return next.length > 0 ? next : "error: the power mode could not be changed"
+        return PowerProfiles.profile
     }
 
     function _wifiReply(): string {

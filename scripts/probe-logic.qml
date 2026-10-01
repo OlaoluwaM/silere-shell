@@ -1628,21 +1628,59 @@ ShellRoot {
                     "Quiet\nBalanced\nPerformance\n"))
                     === JSON.stringify(["Quiet", "Balanced", "Performance"]),
             "asusctl reports its active profile and available choices in its own format")
-        // only an open surface reads the profile, so a keybind's refusal is the one chance to
-        // start it. Process announces running only once the child starts, so syncing lags the
-        // exec; refresh() taking the pending corrective flag is the synchronous sign it ran
+        // only an open surface keeps the profile read, so a keybind with every surface shut
+        // steps from one fresh read. Process announces running only once the child starts, so
+        // syncing lags the exec; refresh() taking the pending corrective flag is the synchronous
+        // sign it ran. A set still execs: the stubbed backend is missing here, and the made-up
+        // profile names are ones any real backend rejects
         const powerProfileWas = PowerProfiles.profile
-        PowerProfiles.profile = ""
+        const powerErrorWas = PowerProfiles.lastError
+        const powerReadErrorWas = PowerProfiles._readError
+        const powerCorrectiveWas = PowerProfiles._correctiveRefreshPending
+        SystemTools._tools = { powerprofilesctl: true }
+        PowerProfiles.profiles = ["probe-quiet", "probe-balanced", "probe-fast"]
+        PowerProfiles.profile = "probe-quiet"
         PowerProfiles._correctiveRefreshPending = true
+        const powerGenWas = PowerProfiles._writeGen
+        const staleReply = QuickActionsState._powerModeReply()
+        root._check(!PowerProfiles._watched && staleReply === "switching"
+                && PowerProfiles._cyclePending && !PowerProfiles._correctiveRefreshPending
+                && PowerProfiles._writeGen === powerGenWas
+                && PowerProfiles.profile === "probe-quiet",
+            "a power mode cycle with every surface shut reads the profile before it sets one")
+        PowerProfiles._correctiveRefreshPending = true
+        const repeatReply = QuickActionsState._powerModeReply()
+        root._check(repeatReply.startsWith("error:") && PowerProfiles._correctiveRefreshPending
+                && PowerProfiles._cyclePending && PowerProfiles._writeGen === powerGenWas,
+            "a second power mode press while the first waits starts no read and queues no step")
+        PowerProfiles._correctiveRefreshPending = false
+        PowerProfiles.profile = "probe-balanced"
+        PowerProfiles._settleCycle(false, true, false)
+        root._check(PowerProfiles._cyclePending && PowerProfiles._writeGen === powerGenWas,
+            "a profile read already running when the keybind came does not stand in for a fresh one")
+        PowerProfiles._settleCycle(true, false, false)
+        root._check(!PowerProfiles._cyclePending && PowerProfiles._writeGen === powerGenWas
+                && PowerProfiles.lastError.length > 0,
+            "a failed read drops the waiting power mode cycle and says why")
+        PowerProfiles.profile = ""
         const coldReply = QuickActionsState._powerModeReply()
-        root._check(coldReply.startsWith("error:") && coldReply.indexOf("loading") >= 0
-                && !PowerProfiles._correctiveRefreshPending,
-            "a power mode cycle before the profile loads refuses and starts the read")
+        root._check(coldReply === "switching" && PowerProfiles._cyclePending,
+            "a power mode cycle before the profile loads waits on a read instead of refusing")
+        PowerProfiles.profile = "probe-balanced"
+        PowerProfiles._settleCycle(true, true, false)
+        root._check(!PowerProfiles._cyclePending && PowerProfiles.profile === "probe-fast"
+                && PowerProfiles._writeGen === powerGenWas + 1,
+            "a waiting power mode cycle steps from the freshly read profile")
         // a stubbed backend's answer must not land on the restored one
         PowerProfiles._writeGen++
+        PowerProfiles._cyclePending = false
+        PowerProfiles._correctiveRefreshPending = powerCorrectiveWas
+        PowerProfiles._readError = powerReadErrorWas
+        PowerProfiles.lastError = powerErrorWas
         PowerProfiles.profile = powerProfileWas
         SystemTools._tools = powerToolsWas
         PowerProfiles.profiles = powerProfilesWas
+        // the open-surface cycle waits for _finish, once the set issued above has exited
 
 
         // qt reads the 12-hour clock off the whole format string: an hour formatted on its
@@ -2604,7 +2642,34 @@ ShellRoot {
         }
     }
 
+    // a set in flight holds the power backend busy, and the keybind checks in _run end with one;
+    // by the time _finish runs it has exited, so a surface-open cycle can step again
+    function _runPowerSurfaceCheck(): void {
+        const toolsWas = SystemTools._tools
+        const profilesWas = PowerProfiles.profiles
+        const profileWas = PowerProfiles.profile
+        const errorWas = PowerProfiles.lastError
+        const readErrorWas = PowerProfiles._readError
+        SystemTools._tools = { powerprofilesctl: true }
+        PowerProfiles.profiles = ["probe-quiet", "probe-balanced", "probe-fast"]
+        PowerProfiles.profile = "probe-quiet"
+        const genWas = PowerProfiles._writeGen
+        QuickActionsState.open = true
+        const reply = QuickActionsState._powerModeReply()
+        root._check(PowerProfiles._watched && reply === "probe-balanced"
+                && !PowerProfiles._cyclePending && PowerProfiles._writeGen === genWas + 1,
+            "a power mode cycle with a surface open steps at once and names the profile")
+        QuickActionsState.open = false
+        PowerProfiles._writeGen++
+        PowerProfiles._readError = readErrorWas
+        PowerProfiles.lastError = errorWas
+        PowerProfiles.profile = profileWas
+        SystemTools._tools = toolsWas
+        PowerProfiles.profiles = profilesWas
+    }
+
     function _finish(): void {
+        root._runPowerSurfaceCheck()
         const presetWas = ShellSettings.dndPreset
         const secondsWas = ShellSettings.showSeconds
         ShellSettings.dndPreset = presetWas === 30 ? 60 : 30
