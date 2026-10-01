@@ -1448,6 +1448,16 @@ ShellRoot {
         root._check(Scroll.wheelBelongsToPage(Date.now()),
             "a slider the pointer only just reached does not take the wheel")
         Scroll._page.movedAt = 0
+        const trayPad = (x, y) => ({ angleDelta: { x: x, y: y }, pixelDelta: { x: x / 8, y: y / 8 },
+            device: { type: PointerDevice.TouchPad } })
+        let trayPadSteps = 0
+        for (let i = 0; i < 12; i++)
+            trayPadSteps += Scroll.processTrayWheel(trayPad(0, 12), "probe-tray-a").steps
+        const trayNotch = Scroll.processTrayWheel({ angleDelta: { x: 0, y: 120 } }, "probe-tray-b")
+        const trayLeft = Scroll.processTrayWheel({ angleDelta: { x: -120, y: 0 } }, "probe-tray-c")
+        root._check(trayPadSteps === 1 && trayNotch.steps === 1 && !trayNotch.horizontal
+                && trayLeft.steps === -1 && trayLeft.horizontal,
+            "a touchpad flick reaches a tray app as one step, not one call per event")
 
         const powerToolsWas = SystemTools._tools
         const powerProfilesWas = PowerProfiles.profiles
