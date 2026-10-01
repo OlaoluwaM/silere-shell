@@ -185,7 +185,9 @@ PanelWindow {
                 contents._slideY = shown ? 0 : contents._hideY
             }
 
+            // a bar torn down before the deferred call runs (screen unplug, reload) leaves `bar` null
             Component.onCompleted: Qt.callLater(function() {
+                if (!bar) return
                 if (ShellSettings.reduceMotion) contents.settle(!bar.concealed)
                 else if (!bar.concealed) _enterAnim.start()
             })
