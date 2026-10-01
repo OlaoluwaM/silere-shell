@@ -69,9 +69,10 @@ Item {
 
         ColorFade on color {}
         MotionBehavior on scale {
+            id: _scaleMotion
             NumberAnimation {
-                duration: root.pressed ? Motion.press
-                    : _hover.hovered ? Motion.hoverIn : Motion.hoverOut
+                duration: _scaleMotion.targetValue < 1 ? Motion.press
+                    : _scaleMotion.targetValue > 1 ? Motion.hoverIn : Motion.hoverOut
                 easing.type: Easing.OutCubic
             }
         }

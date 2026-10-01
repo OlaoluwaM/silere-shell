@@ -88,9 +88,10 @@ ClippingRectangle {
                 : Theme.menuHint
             ColorFade on color {}
             MotionBehavior on scale {
+                id: _stepScale
                 NumberAnimation {
-                    duration: _stepTap.pressed ? Motion.press
-                        : _stepHover.hovered ? Motion.hoverIn : Motion.hoverOut
+                    duration: _stepScale.targetValue < 1 ? Motion.press
+                        : _stepScale.targetValue > 1 ? Motion.hoverIn : Motion.hoverOut
                     easing.type: Easing.OutCubic
                 }
             }
@@ -123,7 +124,7 @@ ClippingRectangle {
     }
 
     // fade only: a scale leg ran as a third competing animation over the card
-    Disclosure on opacity { expanded: Media.shown; enterEasing: Easing.OutCubic }
+    Disclosure on opacity { enterEasing: Easing.OutCubic }
 
     // on reappear, text may be stranded at opacity 0 by a crossfade interrupted while hidden
     Connections {

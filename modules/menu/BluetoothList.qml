@@ -194,7 +194,7 @@ Item {
                     height: _entry._detailsOpen ? _details.implicitHeight : 0
                     clip: true
                     visible: height > 0.5
-                    Disclosure on height { expanded: _entry._detailsOpen }
+                    Disclosure on height {}
 
                     BluetoothDetails {
                         id: _details

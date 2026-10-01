@@ -247,7 +247,7 @@ Item {
                     height: _entry._sel ? 40 : 0
                     clip: true
                     visible: height > 0.5
-                    Disclosure on height { expanded: _entry._sel }
+                    Disclosure on height {}
 
                     Rectangle {
                         id: _pwField
@@ -340,7 +340,7 @@ Item {
                     height: _entry._detailsOpen ? _details.implicitHeight : 0
                     clip: true
                     visible: height > 0.5
-                    Disclosure on height { expanded: _entry._detailsOpen }
+                    Disclosure on height {}
 
                     WifiDetails {
                         id: _details

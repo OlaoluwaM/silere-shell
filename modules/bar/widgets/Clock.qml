@@ -121,17 +121,19 @@ Item {
         transformOrigin: Item.Center
         visible: opacity > 0.001
         MotionBehavior on opacity {
+            id: _capFade
             gate: root._animatable
             NumberAnimation {
-                duration: root._pressed || root._hov ? Motion.hoverIn : Motion.hoverOut
+                duration: _capFade.targetValue > 0.5 ? Motion.hoverIn : Motion.hoverOut
                 easing.type: Easing.OutCubic
             }
         }
         MotionBehavior on scale {
+            id: _capScale
             gate: root._animatable
             NumberAnimation {
-                duration: root._pressed ? Motion.press
-                    : root._hov ? Motion.hoverIn : Motion.hoverOut
+                duration: _capScale.targetValue >= 1 ? Motion.hoverIn
+                    : _capScale.targetValue > 0.97 ? Motion.press : Motion.hoverOut
                 easing.type: Easing.OutCubic
             }
         }

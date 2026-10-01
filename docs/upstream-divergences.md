@@ -255,6 +255,12 @@ naming them over upstream's CI claim.
   with centered placement. Keep scaling removed from these surfaces.
   Resolve the bar edge and initial content size before the entrance; calendar
   month resizing only animates once the card is fully shown.
+- Behavior timings branch on the Behavior's `targetValue`, and `Disclosure`
+  takes a `closedValue`. The fork keeps press and hover scale Behaviors inline
+  instead of upstream's `PixelScale`; port fixes aimed at `PixelScale` into
+  those inline Behaviors. The menu panel width keys on
+  `targetValue > _compactW`, not upstream's `>= panel.width`, so its outer edge
+  keeps the rail's curve.
 
 ## What belongs here
 

@@ -240,7 +240,7 @@ Column {
                     visible: height > 0.5
                     enabled: _accentPicker._customOpen
 
-                    Disclosure on height { expanded: _accentPicker._customOpen }
+                    Disclosure on height {}
 
                     Column {
                         id: _stripCol
@@ -249,9 +249,10 @@ Column {
                         spacing: 4
                         opacity: _accentPicker._customOpen ? 1.0 : 0.0
                         MotionBehavior on opacity {
+                            id: _stripFade
                             NumberAnimation {
                                 duration: Motion.fast
-                                easing.type: _accentPicker._customOpen ? Easing.OutCubic : Easing.InCubic
+                                easing.type: _stripFade.targetValue > 0.5 ? Easing.OutCubic : Easing.InCubic
                             }
                         }
 

@@ -344,7 +344,8 @@ PanelWindow {
                     || TrayMenuState.branchHovered(_flyout, win.contentItem.children)
                 property bool _hoverEntered: false
                 on_BranchHoveredChanged: if (opened && _branchHovered) _hoverEntered = true
-                property real _shift: opened ? 0 : (_rootLaneOverlay ? 0 : (_flip ? 5 : -5))
+                readonly property real _closedShift: _rootLaneOverlay ? 0 : (_flip ? 5 : -5)
+                property real _shift: opened ? 0 : _closedShift
                 property var _menuStack: []
 
                 visible: opened || opacity > 0.001
@@ -397,8 +398,8 @@ PanelWindow {
                     outlineColor: Theme.outline
                 }
 
-                Disclosure on opacity { expanded: _flyout.opened; enterEasing: Easing.OutCubic }
-                Disclosure on _shift { expanded: _flyout.opened }
+                Disclosure on opacity { enterEasing: Easing.OutCubic }
+                Disclosure on _shift { closedValue: _flyout._closedShift }
 
                 function _prepareToOpen(): void {
                     _menuStack = [_entry.modelData]

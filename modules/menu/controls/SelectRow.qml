@@ -303,7 +303,7 @@ Item {
         interactive: contentHeight > height + 1
         visible: height > 0.5
 
-        Disclosure on height { expanded: root._open }
+        Disclosure on height {}
 
         Column {
             id: _optCol
@@ -320,9 +320,10 @@ Item {
             Item { width: parent.width; height: 1 }
 
             MotionBehavior on opacity {
+                id: _optFade
                 NumberAnimation {
                     duration: Motion.fast
-                    easing.type: root._open ? Easing.OutCubic : Easing.InCubic
+                    easing.type: _optFade.targetValue > 0.5 ? Easing.OutCubic : Easing.InCubic
                 }
             }
 
