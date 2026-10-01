@@ -1006,6 +1006,26 @@ ShellRoot {
                 && CalendarState._canonicalMarkKey({}) === "",
             "calendar rejects marks that are not date strings")
 
+        const weekStartWas = ShellSettings.calendarWeekStart
+        root._check(CalendarState.weekStartFor("monday", 0) === 1
+                && CalendarState.weekStartFor("sunday", 1) === 0
+                && CalendarState.weekStartFor("locale", 0) === 0
+                && CalendarState.weekStartFor("locale", 6) === 6
+                && CalendarState.weekStartFor("locale", 9) === 6,
+            "the calendar resolves its first weekday from the setting or the locale")
+        // September 2026 opens on a Tuesday and its first Thursday is the 3rd, ISO week 36
+        ShellSettings.calendarWeekStart = "monday"
+        root._check(CalendarState.leadingDays(2026, 8) === 1
+                && CalendarState.weekdayAt(0) === 1 && CalendarState.weekdayAt(6) === 0
+                && CalendarState.weekForRow(2026, 8, 0) === 36,
+            "a monday-first grid leads with one day and numbers its first row 36")
+        ShellSettings.calendarWeekStart = "sunday"
+        root._check(CalendarState.leadingDays(2026, 8) === 2
+                && CalendarState.weekdayAt(0) === 0 && CalendarState.weekdayAt(6) === 6
+                && CalendarState.weekForRow(2026, 8, 0) === 36,
+            "a sunday-first grid leads with two days and numbers by its row's thursday")
+        ShellSettings.calendarWeekStart = weekStartWas
+
         CalendarState.toggleAt(probeAnchor.menuAnchorX, null, probeAnchor)
         root._check(CalendarState.effectiveAnchorX === 42,
             "calendar reads its live popup anchor")

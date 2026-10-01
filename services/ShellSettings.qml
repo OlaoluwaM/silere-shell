@@ -27,6 +27,8 @@ Singleton {
     property bool   showSeconds:         GeneratedDefaults.showSeconds
     property bool   compactDate:         false
     property bool   clock12h:            GeneratedDefaults.clock12h
+    property string calendarWeekStart:   GeneratedDefaults.calendarWeekStart
+    property bool   calendarWeekNumbers: GeneratedDefaults.calendarWeekNumbers
     property bool   showWindowTitle:     false
     property bool   showWindowTitleApp:  false
     // configuration only; the separators page uses it to reveal the dot controls
@@ -371,6 +373,8 @@ Singleton {
         { k: "showSeconds",         t: "bool", sec: "clock" },
         { k: "compactDate",         t: "bool", sec: "clock" },
         { k: "clock12h",            t: "bool", sec: "clock" },
+        { k: "calendarWeekStart",   t: "enum", vals: ["monday", "sunday", "locale"], sec: "clock" },
+        { k: "calendarWeekNumbers", t: "bool", sec: "clock" },
         { k: "showWindowTitle",     t: "bool", sec: "widgets,indicators" },
         { k: "showWindowTitleApp",  t: "bool", sec: "indicators" },
         { k: "trayWidget",          t: "bool", sec: "widgets" },

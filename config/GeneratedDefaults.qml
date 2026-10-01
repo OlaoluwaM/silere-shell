@@ -50,6 +50,8 @@ Singleton {
     readonly property string fontFamily:          ""
     readonly property real   uiScale:             1.0
     readonly property bool   clock12h:            false
+    readonly property string calendarWeekStart:   "monday"
+    readonly property bool   calendarWeekNumbers: true
     readonly property bool   showSeconds:         false
     readonly property bool   osdEnabled:          true
     readonly property int    osdTimeout:          2000

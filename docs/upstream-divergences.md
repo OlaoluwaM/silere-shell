@@ -111,6 +111,10 @@ naming them over upstream's CI claim.
 - Calendar marks remain write-protected until their initial load succeeds or
   reports a missing file. Corrupt, unreadable, and newer-format files remain
   protected after loading; an early click does not replay over restored marks.
+- The calendar reads today from a fresh `new Date()`, not upstream's
+  `DateTime.currentDate`: `SystemClock.date` holds its last tick's wall time, so
+  it stays stale after a timezone change until the next tick. Do not import
+  `currentDate`; calendar week start and week numbers are otherwise upstream's.
 - Bar hover tooltips remain enabled and configurable. Keep `BarHintState`,
   `BarHintPopup`, the popup host, and every widget's hint bindings together.
   The retained popup must also take compatible upstream idle-settle fixes,
