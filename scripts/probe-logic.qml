@@ -1458,6 +1458,11 @@ ShellRoot {
         root._check(trayPadSteps === 1 && trayNotch.steps === 1 && !trayNotch.horizontal
                 && trayLeft.steps === -1 && trayLeft.horizontal,
             "a touchpad flick reaches a tray app as one step, not one call per event")
+        const levelUp = (inverted) => ({ angleDelta: { x: 0, y: 120 }, inverted: inverted })
+        root._check(Scroll.processLevelWheel(levelUp(false), "probe-level-a") === 1
+                && Scroll.processLevelWheel(levelUp(true), "probe-level-b") === -1
+                && Scroll.processControlWheel(levelUp(true), "probe-level-c") === 1,
+            "natural scrolling flips a level control but not content navigation")
 
         const powerToolsWas = SystemTools._tools
         const powerProfilesWas = PowerProfiles.profiles
