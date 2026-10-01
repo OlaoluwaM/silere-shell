@@ -46,11 +46,13 @@ Singleton {
     readonly property int pulseDuration: critical ? Motion.ms(650) : Motion.ms(2000)
     property real alertPulse: 0
 
+    // only the home page's CPU tile reads alertPulse; `needed` also covers the settings
+    // pages, where nothing renders it, so gating on it ran the loop with no consumer
     PulseLoop {
         target:         root
         targetProperty: "alertPulse"
         duration:       root.pulseDuration
-        active:         root.hot && root.needed && !Idle.isQuiet
+        active:         root.hot && MenuState.homeActive && !Idle.isQuiet
     }
 
     function _sample(t: real): void {
