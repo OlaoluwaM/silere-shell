@@ -39,7 +39,7 @@ Singleton {
     property string cachedAmPm:     ""
     property string cachedSeconds:  ""
 
-    Component.onCompleted: _update()
+    Component.onCompleted: _update(new Date())
 
     // relative "ago" text for surfaces that report when something last ran; the caller
     // owns its own now, so nothing here ticks for a readout that is not on screen
@@ -82,13 +82,14 @@ Singleton {
     Connections {
         target: clock
         function onDateChanged() { root._update() }
-        function onEnabledChanged() { if (clock.enabled) root._update() }
+        // enabledChanged fires before the clock re-reads the time, so clock.date is still the old one
+        function onEnabledChanged() { if (clock.enabled) root._update(new Date()) }
     }
 
     Connections {
         target: ShellSettings
         function onClock12hChanged() { root._refreshMinute() }
-        function onShowSecondsChanged() { root._update() }
+        function onShowSecondsChanged() { root._update(new Date()) }
         function onBarShowClockChanged() { root._refreshMinute() }
     }
 
@@ -96,7 +97,7 @@ Singleton {
         target: Idle
         function onIsIdleChanged() {
             root.catchUp()
-            root._update()
+            root._update(new Date())
         }
     }
 
@@ -129,7 +130,7 @@ Singleton {
 
     Connections {
         target: OverviewState
-        function onActiveChanged() { if (!OverviewState.active) root._update() }
+        function onActiveChanged() { if (!OverviewState.active) root._update(new Date()) }
     }
 
     // clock.date is frozen at its last tick's old-zone wall time for up to 60s; derive
@@ -145,11 +146,12 @@ Singleton {
 
     function _refreshMinute(): void {
         root._lastMinute = ""
-        root._update()
+        root._update(new Date())
     }
 
-    // no explicit arg means "now, as SystemClock last saw it"; a fresh Date() overrides
-    // that when clock.date itself can't be trusted yet (see the TimeZoneWatch handler above)
+    // no explicit arg means "now, as SystemClock last saw it"; only its own dateChanged may
+    // rely on that. Every other trigger passes a fresh Date(), since clock.date can be a whole
+    // tick behind (see the TimeZoneWatch handler above)
     function _update(at): void {
         const current = at ?? clock.date
         const minute = Qt.formatDateTime(current, "yyyyMMddHHmm")
