@@ -84,24 +84,16 @@ Singleton {
     }
     readonly property real sunriseHour: _solarNoon - _halfDay
     readonly property real sunsetHour:  _solarNoon + _halfDay
-    readonly property real _nowHour: { root._solarTick; const d = new Date(); return d.getHours() + d.getMinutes() / 60 }
-    readonly property bool isDaytime: _halfDay > 0 && _nowHour >= sunriseHour && _nowHour <= sunsetHour
-    readonly property real dayProgress:
-        _halfDay <= 0 ? -1 : Math.max(0, Math.min(1, (_nowHour - sunriseHour) / (sunsetHour - sunriseHour)))
-    readonly property real nightProgress: {
-        if (_halfDay <= 0) return 0
-        const nightDur = 24 - (sunsetHour - sunriseHour)
-        if (nightDur <= 0) return 0
-        const afterSunset = (_nowHour - sunsetHour + 24) % 24
-        return Math.max(0, Math.min(1, afterSunset / nightDur))
-    }
+    readonly property real nowHour: { root._solarTick; const d = new Date(); return d.getHours() + d.getMinutes() / 60 }
+    // a midnight sun's day wraps past 24:00, which the window below cannot express
+    readonly property bool isDaytime: _halfDay >= 12
+        || (_halfDay > 0 && nowHour >= sunriseHour && nowHour <= sunsetHour)
 
+    // routed through DateTime.clockText so the times follow the 12h/24h clock setting
     function _fmtHour(h: real): string {
         if (!isFinite(h)) return "--:--"
-        let hh = Math.floor(((h % 24) + 24) % 24)
-        let mm = Math.round((h - Math.floor(h)) * 60)
-        if (mm >= 60) { mm -= 60; hh = (hh + 1) % 24 }
-        return (hh < 10 ? "0" : "") + hh + ":" + (mm < 10 ? "0" : "") + mm
+        const mins = Math.round((((h % 24) + 24) % 24) * 60) % 1440
+        return DateTime.clockText(new Date(2000, 0, 1, Math.floor(mins / 60), mins % 60))
     }
     readonly property string sunriseLabel: _halfDay <= 0 ? "--:--" : _fmtHour(sunriseHour)
     readonly property string sunsetLabel:  _halfDay <= 0 ? "--:--" : _fmtHour(sunsetHour)
@@ -115,18 +107,17 @@ Singleton {
         root._solarTick
         if (_halfDay <= 0)  return "polar night"
         if (_halfDay >= 12) return "midnight sun"
-        if (isDaytime)            return _dur((sunsetHour - _nowHour) * 60) + " of daylight"
-        if (_nowHour < sunriseHour) return "sunrise in " + _dur((sunriseHour - _nowHour) * 60)
-        return "sunrise in " + _dur((24 - _nowHour + sunriseHour) * 60)
+        if (isDaytime)            return _dur((sunsetHour - nowHour) * 60) + " of daylight"
+        if (nowHour < sunriseHour) return "sunrise in " + _dur((sunriseHour - nowHour) * 60)
+        return "sunrise in " + _dur((24 - nowHour + sunriseHour) * 60)
     }
 
-    readonly property bool recommended: _elevation < 0
-    readonly property string recommendLabel: {
-        // this lands in the same row slot as "Not connected", which is sentence case;
-        // phaseLabel is a caption inside the arc and stays lowercase
-        if (_halfDay >= 12)  return ""
-        if (recommended)     return "Recommended"
-        if (_elevation < 12) return "From " + sunsetLabel
+    // this lands in the same row slot as "Not connected", which is sentence case;
+    // phaseLabel is a caption inside the arc and stays lowercase
+    readonly property string offStatus: {
+        if (_halfDay <= 0 || _halfDay >= 12) return ""
+        if (nowHour < sunriseHour) return "Sunrise " + sunriseLabel
+        if (nowHour >= _solarNoon && _elevation < 12) return "Sunset " + sunsetLabel
         return ""
     }
 

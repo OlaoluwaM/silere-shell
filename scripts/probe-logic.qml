@@ -1549,6 +1549,14 @@ ShellRoot {
                 && NightLight.sunriseHour < NightLight._solarNoon
                 && NightLight._solarNoon < NightLight.sunsetHour,
             "night light puts solar noon between sunrise and sunset")
+        const clock12hForSun = ShellSettings.clock12h
+        ShellSettings.clock12h = false
+        root._check(/^\d\d:\d\d$/.test(NightLight.sunriseLabel),
+            "night light sun times use the 24h clock when the clock is 24h")
+        ShellSettings.clock12h = true
+        root._check(/^\d{1,2}:\d\d [AP]M$/.test(NightLight.sunriseLabel),
+            "night light sun times follow the 12h clock setting")
+        ShellSettings.clock12h = clock12hForSun
         NightLight._geoResolved = geoResolvedWas
         NightLight._autoLat = autoLatWas
         NightLight._autoLon = autoLonWas
