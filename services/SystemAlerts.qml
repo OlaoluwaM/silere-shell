@@ -18,8 +18,11 @@ Singleton {
         return low ? "low" : ""
     }
 
+    // a test shell reads the real battery and CPU sensors, so its alerts would reach the live desktop's notification daemon
+    readonly property bool _sandboxed: Quickshell.env("SILERE_SANDBOX") === "1"
+
     function _send(summary: string, body: string, urgency: string): bool {
-        if (!SystemTools.ready || !SystemTools.hasNotifySend) return false
+        if (!SystemTools.ready || !SystemTools.hasNotifySend || _sandboxed) return false
         Quickshell.execDetached([
             "notify-send",
             "--urgency=" + urgency,

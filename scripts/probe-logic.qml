@@ -211,6 +211,8 @@ ShellRoot {
                 && SystemAlerts.batteryWarningLevel(true, false) === "low"
                 && SystemAlerts.batteryWarningLevel(false, false) === "",
             "crossing both battery thresholds selects only the critical warning")
+        root._check(SystemAlerts._sandboxed && !SystemAlerts._send("probe", "probe", "normal"),
+            "a test copy of the shell never sends a live battery or temperature alert")
         const generationWas = CpuTemp._detectGeneration
         CpuTemp._detectGeneration = 41
         root._check(CpuTemp._detectionIsCurrent(41)

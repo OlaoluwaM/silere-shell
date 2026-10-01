@@ -8,6 +8,9 @@
 # shellcheck disable=SC2034
 SILERE_PROBE_ERRORS='Unable to assign .*|Cannot assign .*|is not a type|ReferenceError: [^,]*|TypeError: [^,]*|Binding loop detected[^,]*'
 
+# a probe shell reads the real battery and CPU sensors; see SystemAlerts._sandboxed
+export SILERE_SANDBOX=1
+
 _probe_require_qs() {
     if ! command -v qs >/dev/null 2>&1; then
         if [ "${SILERE_REQUIRE_QML_TOOLS:-0}" = "1" ]; then
