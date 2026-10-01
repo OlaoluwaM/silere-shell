@@ -47,6 +47,11 @@ new commits before integration.
 - Skipped under the keep-deleted list: the updater, `silere` CLI, doctor,
   installer, AUR, release, workflow, changelog and README commits.
 - Deferred: `a98461c` still needs the deferred compositor-restart watcher.
+- Deferred by the maintainer after the QML review: the sun arc's event labels
+  can overlap when the shown day or night is shorter than about 4.5h (5.8h
+  with a 12-hour clock), and a wrapped two-column vitals strip keeps one-row
+  right padding, so bars in a column end 4px apart. Both lines come from
+  upstream unchanged.
 - Not ported: the concurrent smoke runner from `18f7546` (smoke cases stay
   sequential), `f61186a`'s lints for absent features, `1609373`'s Qt floor
   (Nix pins Qt), and `7873a48` (the fork has no long-running sunset process).
@@ -81,6 +86,9 @@ new commits before integration.
     start. Quickshell emits `exited` before `runningChanged`, so a command
     started from `exited` inherited the finished run's exit flag. The flag
     now clears when a run starts (ledger entry).
+- Found by the QML review: uptime is read only while the home page shows it,
+  since the bar's vitals widget never displays it, and an unread FileView id
+  in `Brightness` is gone.
 
 ## Material adaptations
 
@@ -222,6 +230,8 @@ the process exit flag's entry is part of its fix.
 | `a3f6998` | fix(quickactions): start the power mode read when an IPC cycle finds none | fork fix |
 | `c235647` | fix(process): clear the exit flag when a chained run starts | fork fix |
 | `792a3c4` | fix(quickactions): read the power mode fresh before a keybind cycles it | fork fix |
+| `af87c8f` | perf(system): poll uptime only while the home page shows it | fork fix |
+| `d42f8fb` | style(brightness): drop the unread actual-brightness id | fork fix |
 
 ## Validation
 
