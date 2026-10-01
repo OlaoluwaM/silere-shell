@@ -28,6 +28,7 @@ PanelWindow {
     color:         "transparent"
     exclusiveZone: -1
     WlrLayershell.namespace: "silere-wallpapers"
+    WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WallpapersPopupState.open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     visible: WallpapersPopupState.open || card.opacity > 0.001

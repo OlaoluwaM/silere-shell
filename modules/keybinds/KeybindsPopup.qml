@@ -26,6 +26,7 @@ PanelWindow {
     color:         "transparent"
     exclusiveZone: -1
     WlrLayershell.namespace: "silere-keybinds"
+    WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: KeybindsPopupState.open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     visible: KeybindsPopupState.open || card.opacity > 0.001
