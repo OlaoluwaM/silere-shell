@@ -156,6 +156,7 @@ Item {
                 readonly property bool _detailsOpen: root._detailsOpen && modelData.active
 
                 function _submitPassword(): void {
+                    if (_entry._connecting) return
                     const secret = _pw.text
                     _pw.text = ""
                     if (secret.length > 0) Network.connectWifi(modelData.ssid, secret)
@@ -185,6 +186,11 @@ Item {
                     // armed outranks a lingering failure — a stale wrong-password error
                     // must not steal the confirm prompt's tint from under the second tap
                     failed: !_entry._armed && !_entry._forgetArmed && _entry._failed
+                    // a second tap on a joining row restarts the attempt, and an enterprise
+                    // profile that was never saved has nothing the shell could connect it with
+                    interactive: !_entry._connecting
+                        && (!_entry.modelData.profileOnly || _entry.modelData.known
+                            || _entry.modelData.active)
                     // the body tap already means disconnect for the connected entry, so
                     // its details live behind the chevron's separate hit zone instead
                     expandable: _entry.modelData.active
@@ -229,6 +235,7 @@ Item {
                         if (_confirm.tryConfirm(key)) Network.forgetWifi(ssid)
                     }
                     TapHandler {
+                        enabled: _row.interactive
                         acceptedButtons: Qt.RightButton | Qt.MiddleButton
                         onTapped: _row._forgetTap()
                     }

@@ -148,6 +148,11 @@ Item {
                     status: _state
                     selected: _entry.modelData.connected
                     warning: _armed || _forgetArmed || _entry.modelData.pairing
+                    // a tap mid-connect or mid-disconnect would queue a second request against
+                    // BlueZ; a pairing row stays live because the tap is what cancels it
+                    interactive: _entry.modelData.pairing
+                        || (_entry.modelData.state !== Bt.BluetoothDeviceState.Connecting
+                            && _entry.modelData.state !== Bt.BluetoothDeviceState.Disconnecting)
                     failed: !_armed && !_forgetArmed && _failed
                     // the body tap already means connect/disconnect for this row, so
                     // details live behind the chevron's separate hit zone instead
@@ -176,6 +181,7 @@ Item {
                         if (_confirm.tryConfirm("forget:" + addr)) Bluetooth.forgetDevice(addr)
                     }
                     TapHandler {
+                        enabled: _row.interactive
                         acceptedButtons: Qt.RightButton | Qt.MiddleButton
                         onTapped: _row._forgetTap()
                     }
