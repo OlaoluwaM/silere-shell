@@ -105,8 +105,9 @@ naming them over upstream's CI claim.
   timeout and restore only pairable state owned by this service.
 - Shared fullscreen tracking retains the compositor boundary and only
   notification-silence or integrated-OSD demand. Keep removed visualizer
-  demand out of `FullscreenState`. The Hyprland backend distinguishes real
-  fullscreen (mode 2) from maximized windows (mode 1).
+  demand out of `FullscreenState`. The Hyprland backend reads the window's
+  fullscreen mode as a bitmask: bit 2 is real fullscreen, while mode 1 alone is
+  a maximized window.
 - Calendar marks remain write-protected until their initial load succeeds or
   reports a missing file. Corrupt, unreadable, and newer-format files remain
   protected after loading; an early click does not replay over restored marks.

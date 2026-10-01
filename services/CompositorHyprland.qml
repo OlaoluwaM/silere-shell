@@ -252,8 +252,8 @@ QtObject {
                 wsName: c.workspace ? String(c.workspace.name ?? "") : "",
                 focused: !root._unfocused && !!(Hyprland.activeToplevel && Hyprland.activeToplevel === t),
                 focusRank: c.focusHistoryID ?? 9999,
-                // hyprland's fullscreen is a mode enum, and 1 is merely maximized
-                fullscreen: c.fullscreen === 2
+                // hyprland's fullscreen is a mode bitmask: 1 maximized, 2 fullscreen, 3 both
+                fullscreen: (Number(c.fullscreen) & 2) !== 0
             })
         }
         return out
