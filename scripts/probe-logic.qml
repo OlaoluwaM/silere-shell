@@ -2419,6 +2419,8 @@ ShellRoot {
     }
 
     // a binary that is gone never emits exited from Process itself, so these wrappers have to
+    // stand in for it: a bounded process reports exit 127 so callers waiting on it return,
+    // and a supervised one gives up rather than respawning a command that cannot start
     function _runProcessChecks(): void {
         const missing = boundedProcessFactory.createObject(root, {
             command: ["/nonexistent/silere-probe-binary"]
