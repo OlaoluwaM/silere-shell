@@ -7,45 +7,9 @@ import Quickshell.Hyprland
 Singleton {
     id: root
 
-    // the lua config framework replaces the plain dispatchers, so this has to be
-    // known here rather than set by a caller: whichever singleton dispatches
-    // first may be the only one ever instantiated
+    // the lua config framework replaces the plain dispatchers; CompositorHyprland binds this to
+    // hyprland's own answer, so the two dispatch forms never rest on a guess about the config file
     property bool useLua: false
-    property bool _luaChecked: false
-
-    BoundedProcess {
-        id: _luaCheck
-        timeoutMs: 10000
-        command: ["bash", Quickshell.shellDir + "/scripts/install.sh", "--hypr-config-kind"]
-        onExited: (code) => {
-            if (!SystemTools.hasHyprctl) {
-                root.useLua = false
-                root._luaChecked = false
-                return
-            }
-            root.useLua = (code === 0)
-            root._luaChecked = true
-        }
-    }
-
-    // hasHyprctl arrives asynchronously, so this is retried rather than read once
-    function _detectLua(): void {
-        if (root._luaChecked || _luaCheck.running) return
-        if (!SystemTools.ready || !SystemTools.hasHyprctl) return
-        _luaCheck.running = true
-    }
-
-    Component.onCompleted: root._detectLua()
-    Connections {
-        target: SystemTools
-        function onReadyChanged() { root._detectLua() }
-        function onScanRevisionChanged() {
-            root._luaChecked = false
-            root.useLua = false
-            if (!SystemTools.hasHyprctl && _luaCheck.running) _luaCheck.running = false
-            root._detectLua()
-        }
-    }
 
     function _quote(value): string {
         return "\"" + String(value).replace(/\\/g, "\\\\").replace(/"/g, "\\\"") + "\""

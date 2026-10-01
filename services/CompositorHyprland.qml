@@ -22,6 +22,13 @@ QtObject {
     readonly property bool _liveTitlesWanted: ShellSettings.showWindowTitle
     readonly property int windowGapX: root._windowGapX
 
+    // hyprland's own answer, so a leftover hyprland.lua beside a plain config can't mislead the dispatch form
+    property Binding _luaDispatch: Binding {
+        target: HyprDispatch
+        property: "useLua"
+        value: Hyprland.usingLua
+    }
+
     function _identity(value): string {
         return SafeText.singleLineText(value, Compositor.maxWindowIdentityChars)
     }
