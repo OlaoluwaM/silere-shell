@@ -1113,6 +1113,12 @@ ShellRoot {
             "icon resolver keeps a joined emoji grapheme whole")
         root._check(SafeText.boundedText("ab👩🏽‍💻cd", 8) === "ab…",
             "text clipping never splits a joined emoji grapheme")
+        root._check(SafeText.initial("क्षमा", "?") === "क्ष"
+                && SafeText.boundedText("क्षमा", 4) === "क्ष…",
+            "a virama keeps its conjunct in one grapheme")
+        root._check(SafeText.singleLineText("a\u200Bb\u200Ec", 8) === "a b c"
+                && SafeText.singleLineText("x".repeat(100000), 16) === "x".repeat(15) + "…",
+            "external labels drop zero-width marks and are bounded before scanning")
 
         const longWindowText = "x".repeat(Compositor.maxWindowTitleChars + 20)
         const boundedWindowText = SafeText.singleLineText(
