@@ -83,6 +83,8 @@ Singleton {
 
     function refresh(): void {
         if (!available || _get.running || _set.running) return
+        // A missed startup list must recover when a panel opens, even if get succeeds.
+        if (root.profiles.length === 0) root._listProfiles()
         _get._corrective = root._correctiveRefreshPending
         _correctiveRefreshPending = false
         _get._forCycle = root._cyclePending

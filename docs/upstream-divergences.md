@@ -226,6 +226,8 @@ naming them over upstream's CI claim.
 - Power profiles keep the command backend and its `asusctl` fallback. Take
   backend-neutral upstream fixes, but do not replace this with a UPower-only
   implementation because the deploying machine runs `asusd`.
+  Refresh an empty profile list when a panel opens; a successful current-profile
+  read must not leave the System page's choices empty after a missed startup list.
 - The fork's media card lives at `modules/menu/controls/MediaCard.qml` and its
   redesign wins. Never restore the obsolete `modules/menu/MediaCard.qml` path;
   port compatible upstream privacy and metadata fixes into the controls file.
