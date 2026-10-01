@@ -6,6 +6,8 @@ import Quickshell.Io
 import "services"
 
 ShellRoot {
+    id: root
+
     Component.onCompleted: { void ShellSettings.ready }
 
     Connections {
@@ -13,8 +15,23 @@ ShellRoot {
         function onReloadCompleted() { Quickshell.inhibitReloadPopup() }
     }
 
+    property int _scaleChanges: 0
+    property int _readyChanges: 0
+
+    // a reload that assigns only what the file changed leaves untouched keys and readiness alone
+    Connections {
+        target: ShellSettings
+        function onUiScaleChanged() { root._scaleChanges++ }
+        function onReadyChanged() { root._readyChanges++ }
+    }
+
     IpcHandler {
         target: "migrationProbe"
+
+        function resetCounters(): void { root._scaleChanges = 0; root._readyChanges = 0 }
+        function counters(): string {
+            return JSON.stringify({ uiScale: root._scaleChanges, ready: root._readyChanges })
+        }
 
         function status(): string {
             return JSON.stringify({ ready: ShellSettings.ready,

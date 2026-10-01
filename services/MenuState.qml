@@ -184,6 +184,8 @@ AnchoredPopupState {
         tabRequested(tab)
     }
 
+    readonly property string _refusedText: "error: the menu stays closed while the session is idle or the overview is open"
+
     IpcHandler {
         target: "menu"
 
@@ -196,10 +198,10 @@ AnchoredPopupState {
         // kept for compatibility with keybinds already carrying the numeric index
         function tab(index: int): string {
             if (index < root.homeTab || index > root.systemTab)
-                return "unknown menu tab " + index + "; valid: 0 (home), 1 (settings), 2 (recent), 3 (system)"
+                return "error: unknown menu tab " + index + "; valid: 0 (home), 1 (settings), 2 (recent), 3 (system)"
             root._unanchor()
             root.showTab(index)
-            return "ok"
+            return root.open ? "ok" : root._refusedText
         }
         // named alternative to tab(index) so a keybind reads "menu show settings"
         // instead of a magic number; "recent" is accepted too since that's the
@@ -218,11 +220,12 @@ AnchoredPopupState {
             root._setAnchor(null)
             if (tab < 0) {
                 root.showTab(root.homeTab)
+                if (!root.open) return root._refusedText
                 return "unknown menu tab '" + name + "'; opened home instead. valid: "
                     + "home, settings, notifications, system"
             }
             root.showTab(tab)
-            return "ok"
+            return root.open ? "ok" : root._refusedText
         }
         // keep `section: "` out of any literal below: ci-lint harvests nav entries by that pattern
         function settings(name: string): string {
@@ -231,6 +234,7 @@ AnchoredPopupState {
             root._unanchor()
             root.setSettingsSection(resolved)
             root.showTab(root.settingsTab)
+            if (!root.open) return root._refusedText
             if (known) return "ok"
             // pages get renamed; a keybind carrying an old name still opens Settings rather than doing nothing, and says why it landed somewhere else
             return "unknown settings page '" + name + "'; opened theme instead. valid: "
