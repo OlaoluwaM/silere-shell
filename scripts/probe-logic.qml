@@ -46,6 +46,20 @@ ShellRoot {
     Component { id: durationPickerFactory; DurationPickerColumn {} }
     Component { id: niriBackendFactory; CompositorNiri {} }
     Component { id: processFactory; Process {} }
+    Component {
+        id: notificationStubFactory
+        QtObject {
+            property int id: 0
+            property bool tracked: true
+            property string summary: ""
+            property string body: ""
+            property var hints: ({})
+            property int urgency: 1
+            signal closed(int reason)
+            function dismiss(): void {}
+            function expire(): void {}
+        }
+    }
     Component { id: pulseLoopFactory; PulseLoop {} }
     QtObject { id: pulseTarget; property real value: 1 }
     Component { id: supervisedProcessFactory; SupervisedProcess {} }
@@ -1848,6 +1862,40 @@ ShellRoot {
                 && !liveNotification.tracked,
             "a replacement notification still retires the old object and keeps its age")
         Notifications.list = []
+
+        // quickshell updates a replaced notification in place, so only its own change signals
+        // can tell the popup layer to restart the timeout
+        const watched = notificationStubFactory.createObject(root, { id: 61 })
+        let contentUpdates = 0
+        const onUpdated = id => { if (id === 61) contentUpdates++ }
+        Notifications.contentUpdated.connect(onUpdated)
+        Notifications._watchNotification(watched)
+        watched.summary = "changed"
+        watched.body = "changed"
+        watched.hints = ({ value: 5 })
+        root._check(contentUpdates === 3,
+            "an in-place summary, body or hint change reports updated content")
+        watched.tracked = false
+        watched.body = "again"
+        root._check(contentUpdates === 3,
+            "an untracked notification reports no content updates")
+        Notifications.contentUpdated.disconnect(onUpdated)
+        watched.destroy()
+
+        const flood = []
+        for (let i = 0; i < Notifications._maxActive + 3; i++)
+            flood.push({
+                id: 700 + i, time: 1,
+                notification: notificationStubFactory.createObject(root, { id: 700 + i })
+            })
+        Notifications.list = flood
+        Notifications._retireOverflow()
+        root._check(Notifications.list.length === Notifications._maxActive
+                && Notifications.list[0].id === 703,
+            "a flood of live notifications retires the oldest past the cap")
+        for (const e of flood) e.notification.destroy()
+        Notifications.list = []
+        Notifications.clearHistory()
 
         const reusedNotification = {
             transient: false,

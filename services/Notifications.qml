@@ -727,7 +727,7 @@ Singleton {
             })
             .replace(/&nbsp;/g, " ").replace(/&hellip;/g, "…")
             .replace(/&amp;/g, "&")
-            .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u202A-\u202E\u2066-\u2069]/g, "")
+            .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u061C\u200B\u200E\u200F\u202A-\u202E\u2066-\u206F]/g, "")
         return SafeText.boundedText(plain, limit)
     }
 
@@ -877,6 +877,28 @@ Singleton {
         return true
     }
 
+    // quickshell rewrites a replaced notification in place and never re-emits it
+    function _watchNotification(n): void {
+        n.closed.connect(() => root._onClosed(n.id, n))
+        const touched = () => {
+            if (!n.tracked) return
+            root._recordUpdateTime(n.id, Date.now())
+            root.contentUpdated(n.id)
+        }
+        n.summaryChanged.connect(touched)
+        n.bodyChanged.connect(touched)
+        n.hintsChanged.connect(touched)
+    }
+
+    // a runaway sender would otherwise hold every object it ever sent
+    readonly property int _maxActive: 50
+    function _retireOverflow(): void {
+        const extra = root.list.length - root._maxActive
+        if (extra <= 0) return
+        root.dismissObjects(root.list.slice(0, extra)
+            .map(e => ({ id: e.id, notification: e.notification })), true)
+    }
+
     NotificationServer {
         id: notifServer
         keepOnReload:        true
@@ -930,11 +952,12 @@ Singleton {
             root._recordUpdateTime(n.id, Date.now())
             const isNewObject = root._upsertActiveNotification(n, arrivalTime)
             // connect once per object — stacked handlers fire _onClosed twice
-            if (isNewObject) n.closed.connect(() => root._onClosed(n.id, n))
+            if (isNewObject) root._watchNotification(n)
             n.tracked = true
             if (!isNewObject) root.contentUpdated(n.id)
             else root.notificationShown(String(n.appName || ""), String(n.summary || ""),
                 n.urgency === NotificationUrgency.Critical)
+            root._retireOverflow()
 
             if (ShellSettings.wsNotifPulse) {
                 const srcWs = WindowActions.notificationSourceWorkspace(n)
