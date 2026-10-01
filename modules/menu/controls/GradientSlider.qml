@@ -22,6 +22,7 @@ Item {
         ? Math.round(_wrapped(position) * displayScale) % displayScale
         : Math.round(_clamped(position) * displayScale)
     readonly property real stepSize: 1
+    property real _hoveredSince: 0
     // the motion lives on the position, not on the thumb's x: x also moves when the
     // track is laid out or resized, and a section opening around the slider would
     // sweep the thumb in from the left
@@ -112,6 +113,14 @@ Item {
         cursorShape: Qt.PointingHandCursor
         preventStealing: true
         hoverEnabled: true
+        onContainsMouseChanged: if (containsMouse) root._hoveredSince = Date.now()
+        onWheel: (wheel) => {
+            if (Scroll.wheelBelongsToPage(containsMouse ? root._hoveredSince : Date.now())) {
+                wheel.accepted = false; return
+            }
+            const n = Scroll.processControlWheel(wheel, root.wheelKey)
+            if (n !== 0) root._nudge(n, 1)
+        }
 
         function _set(mx: real): void {
             root.picked(root._clamped(
@@ -122,15 +131,5 @@ Item {
             _set(mouse.x)
         }
         onPositionChanged: mouse => { if (pressed) _set(mouse.x) }
-    }
-
-    WheelHandler {
-        enabled: root.enabled && root.interactive
-        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-        onWheel: event => {
-            event.accepted = true
-            const n = Scroll.processControlWheel(event, root.wheelKey)
-            if (n !== 0) root._nudge(n, 1)
-        }
     }
 }

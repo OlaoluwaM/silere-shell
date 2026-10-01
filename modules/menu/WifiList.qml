@@ -221,16 +221,16 @@ Item {
                         }
                     }
                     onTriggered: _activate()
-                    // middle-click forgets a saved profile; the first press only arms it
-                    function _middleTap(): void {
+                    // right- or middle-click forgets a saved profile; the first press only arms it
+                    function _forgetTap(): void {
                         const ssid = _entry.modelData.ssid
                         if (!_entry.modelData.known || _entry.modelData.active) return
                         const key = "forget:" + ssid
                         if (_confirm.tryConfirm(key)) Network.forgetWifi(ssid)
                     }
                     TapHandler {
-                        acceptedButtons: Qt.MiddleButton
-                        onTapped: _row._middleTap()
+                        acceptedButtons: Qt.RightButton | Qt.MiddleButton
+                        onTapped: _row._forgetTap()
                     }
                     onExpandToggled: root._detailsOpen = !root._detailsOpen
                 }

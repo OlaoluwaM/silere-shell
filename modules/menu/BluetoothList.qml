@@ -169,15 +169,15 @@ Item {
                         }
                     }
                     onTriggered: _activate()
-                    // middle-click forgets a paired device; the first press only arms it
-                    function _middleTap(): void {
+                    // right- or middle-click forgets a paired device; the first press only arms it
+                    function _forgetTap(): void {
                         const addr = _entry.modelData.address
                         if (!_entry.modelData.paired || _entry.modelData.connected) return
                         if (_confirm.tryConfirm("forget:" + addr)) Bluetooth.forgetDevice(addr)
                     }
                     TapHandler {
-                        acceptedButtons: Qt.MiddleButton
-                        onTapped: _row._middleTap()
+                        acceptedButtons: Qt.RightButton | Qt.MiddleButton
+                        onTapped: _row._forgetTap()
                     }
                     onExpandToggled: root._detailsAddr = (root._detailsAddr === _entry.modelData.address)
                         ? "" : _entry.modelData.address

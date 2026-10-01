@@ -59,7 +59,7 @@ ShellRoot {
     }
 
     function rowFor(list, role: string, value: string): var {
-        return root.findObject(list, object => typeof object._middleTap === "function"
+        return root.findObject(list, object => typeof object._forgetTap === "function"
             && object.parent?.modelData?.[role] === value, [])
     }
 
@@ -266,10 +266,10 @@ ShellRoot {
             if (root.rowPhase === 1) {
                 saved.forgot = false
                 otherWifi.forgot = false
-                root.wifiRow._middleTap()
+                root.wifiRow._forgetTap()
                 root.wifiConfirm.armedAtMs = Date.now() - 401
                 root.rebindOnDisarm(root.wifiConfirm, root.wifiRow, root.wifiOtherRow)
-                root.wifiRow._middleTap()
+                root.wifiRow._forgetTap()
                 root.check(root.wifiRow.parent.modelData.ssid === "other"
                         && saved.forgot && !otherWifi.forgot,
                     "Wi-Fi row forget dispatches the identity captured before a synchronous rebind")
@@ -281,7 +281,7 @@ ShellRoot {
                 root.wifiRow.parent.modelData = root.wifiSavedRow
                 saved.connectCalled = false
                 otherWifi.connectCalled = false
-                root.wifiRow._middleTap()
+                root.wifiRow._forgetTap()
                 root.rebindOnDisarm(root.wifiConfirm, root.wifiRow, root.wifiOtherRow)
                 root.wifiRow._activate()
                 root.check(root.wifiRow.parent.modelData.ssid === "other"
@@ -294,10 +294,10 @@ ShellRoot {
             if (root.rowPhase === 3) {
                 pairA.forgot = false
                 pendingB.forgot = false
-                root.bluetoothRow._middleTap()
+                root.bluetoothRow._forgetTap()
                 root.bluetoothConfirm.armedAtMs = Date.now() - 401
                 root.rebindOnDisarm(root.bluetoothConfirm, root.bluetoothRow, pendingB)
-                root.bluetoothRow._middleTap()
+                root.bluetoothRow._forgetTap()
                 root.check(root.bluetoothRow.parent.modelData.address === "B"
                         && pairA.forgot && !pendingB.forgot,
                     "Bluetooth row forget dispatches the identity captured before a synchronous rebind")
@@ -309,7 +309,7 @@ ShellRoot {
                 root.bluetoothRow.parent.modelData = pairA
                 pairA.connectCalled = false
                 pendingB.connectCalled = false
-                root.bluetoothRow._middleTap()
+                root.bluetoothRow._forgetTap()
                 root.rebindOnDisarm(root.bluetoothConfirm, root.bluetoothRow, pendingB)
                 root.bluetoothRow._activate()
                 root.check(root.bluetoothRow.parent.modelData.address === "B"

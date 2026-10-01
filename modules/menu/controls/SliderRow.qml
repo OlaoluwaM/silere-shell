@@ -125,6 +125,7 @@ MenuRow {
         max:   root.max
         step:  root.step
         wheelKey: "slider:" + root.label
+        wheelNeedsRest: true
         commitOnRelease: root.commitOnRelease
         onChanged: value => root.changed(value)
     }

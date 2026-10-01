@@ -1413,6 +1413,16 @@ ShellRoot {
             "two half-notches accumulate into one step")
         root._check(Scroll._processDelta(600, wheelKey, 120, 2, 0) === 2,
             "one wheel burst emits at most the step ceiling")
+        Scroll._page.movedAt = 0
+        root._check(!Scroll.wheelBelongsToPage(0),
+            "a wheel over a slider is the slider's while the page is still")
+        Scroll.notePageMoved()
+        root._check(Scroll.wheelBelongsToPage(0),
+            "a wheel gesture that just scrolled the page stays with the page")
+        Scroll._page.movedAt = 0
+        root._check(Scroll.wheelBelongsToPage(Date.now()),
+            "a slider the pointer only just reached does not take the wheel")
+        Scroll._page.movedAt = 0
 
         const powerToolsWas = SystemTools._tools
         const powerProfilesWas = PowerProfiles.profiles
