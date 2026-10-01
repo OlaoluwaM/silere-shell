@@ -60,7 +60,6 @@ Item {
     // the same gate as a Pill's, so an idle bar drops the clock's hover with the other widgets'
     readonly property bool _hoverEnabled: root.enabled && root.visible && root.barActive
         && !Idle.isIdle
-    readonly property bool _pressed: _hoverEnabled && (_calTap.pressed || _cycleTap.pressed)
     readonly property bool _hov: _hoverEnabled && _hover.hovered && ShellSettings.barHoverHighlight
     readonly property color _cSub:   _hov ? Theme.mix(Theme.subtext, Theme.accent, 0.30) : Theme.subtext
     readonly property color _cText:  _hov ? Theme.mix(Theme.text,    Theme.accent, 0.30) : Theme.text
@@ -106,38 +105,6 @@ Item {
     function _openCalendar(): void {
         root._syncMenuAnchor()
         CalendarState.toggleAt(root.menuAnchorX, root.screen, root)
-    }
-
-    // same cap as a Pill's, so the clock answers the pointer like every other bar widget
-    Rectangle {
-        anchors.centerIn: parent
-        width: parent.width
-        height: Metrics.barRowHeight
-        radius: Metrics.hoverRadiusFor(height)
-        color: root._pressed ? Theme.withAlpha(Theme.accent, 0.18)
-            : Theme.withAlpha(Theme.mix(Theme.text, Theme.accent, 0.30), 0.07)
-        opacity: root._pressed || root._hov ? 1.0 : 0.0
-        scale: root._pressed ? 0.985 : root._hov ? 1.0 : 0.96
-        transformOrigin: Item.Center
-        visible: opacity > 0.001
-        MotionBehavior on opacity {
-            id: _capFade
-            gate: root._animatable
-            NumberAnimation {
-                duration: _capFade.targetValue > 0.5 ? Motion.hoverIn : Motion.hoverOut
-                easing.type: Easing.OutCubic
-            }
-        }
-        MotionBehavior on scale {
-            id: _capScale
-            gate: root._animatable
-            NumberAnimation {
-                duration: _capScale.targetValue >= 1 ? Motion.hoverIn
-                    : _capScale.targetValue > 0.97 ? Motion.press : Motion.hoverOut
-                easing.type: Easing.OutCubic
-            }
-        }
-        ColorFade on color { gate: root._animatable }
     }
 
     Row {

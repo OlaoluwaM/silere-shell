@@ -235,9 +235,9 @@ naming them over upstream's CI claim.
   right-click; its accessible press action and name follow the click. Keep
   upstream's play/pause click and press action, middle-click focus, and
   wheel-to-skip out of it.
-- The bar clock takes upstream's hover and pressed cap, styled as a Pill's, but
-  never its calendar-open tint: an open calendar leaves the clock untinted.
-  Drop any `_calendarOpen` fill an import brings back.
+- The bar clock keeps text-only hover feedback, with no hover, pressed, or
+  calendar-open background. Drop any highlight cap or `_calendarOpen` fill
+  an import brings back.
 - The Cava audio visualizer stays removed, including its bar placements, process
   and profile management, settings, fullscreen demand, and underline glow.
   Compatible media fixes must preserve playback controls and track progress
