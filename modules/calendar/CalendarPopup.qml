@@ -25,6 +25,7 @@ PanelWindow {
     color:         "transparent"
     exclusiveZone: -1
     WlrLayershell.namespace: "silere-calendar"
+    WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: CalendarState.open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     visible: CalendarState.open || card.opacity > 0.001
