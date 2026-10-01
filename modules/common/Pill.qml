@@ -50,13 +50,17 @@ Item {
     property color  levelColor: Theme.accent
 
     property bool   hoverActive: false
-    readonly property bool hovered: _pillHover.hovered
-    readonly property bool expanded: hoverActive
+    // the handler keeps reporting a pointer over a sleeping, hidden, collapsed or idle pill, so
+    // every hover consequence (cap, reveal, hint, cursor) reads this gate instead of the handler
+    readonly property bool hoverEnabled: root.enabled && root.visible && root.barActive
+        && !root.collapsed && !Idle.isIdle
+    readonly property bool hovered: root.hoverEnabled && _pillHover.hovered
+    readonly property bool expanded: root.hoverEnabled && hoverActive
     property var    hintScreen: null
     property string hintText: ""
 
     property bool   pressed: false
-    readonly property bool visualPressed: pressed
+    readonly property bool visualPressed: pressed && root.hoverEnabled
     property string accessibleName: root.text
     readonly property int  pillH:   Metrics.barRowHeight
     readonly property bool hasText: text.length > 0
@@ -76,7 +80,7 @@ Item {
     implicitWidth:  collapsed ? 0 : Math.max(rowWidth, _minW) + horizontalPadding * 2
 
     onRowWidthChanged: {
-        if (shrinkDelay <= 0) {
+        if (shrinkDelay <= 0 || !root.hoverEnabled) {
             _shrinkDelay.stop()
             _minW = rowWidth
             return
@@ -86,10 +90,11 @@ Item {
     }
     onTextChanged: if (text.length === 0) { _minW = 0; _shrinkDelay.stop() }
     onShrinkDelayChanged: if (shrinkDelay <= 0) { _shrinkDelay.stop(); _minW = rowWidth }
-    onVisibleChanged: if (!visible) {
+    onHoverEnabledChanged: if (!hoverEnabled) {
         _hoverRevealTimer.stop()
         _shrinkDelay.stop()
         hoverActive = false
+        _minW = rowWidth
         BarHintState.release(root)
     }
     onHintTextChanged: if (hovered) root._requestBarHint(root.hovered)
@@ -199,7 +204,7 @@ Item {
         width: parent.width
         height: root.pillH
         radius: Metrics.hoverRadiusFor(height)
-        readonly property bool _hover: _pillHover.hovered
+        readonly property bool _hover: root.hovered
             && ShellSettings.barHoverHighlight
         color: root.visualPressed ? Theme.withAlpha(Theme.accent, 0.18)
              : Theme.withAlpha(Theme.mix(Theme.text, Theme.accent, 0.30), 0.07)
@@ -264,7 +269,7 @@ Item {
         }
     }
 
-    readonly property bool _contentHot: (_pillHover.hovered
+    readonly property bool _contentHot: (root.hovered
         && ShellSettings.barHoverHighlight)
         || root.visualPressed
     readonly property color _hoverGlyphColor: _contentHot
@@ -396,7 +401,7 @@ Item {
 
     HoverHandler {
         id: _pillHover
-        enabled: root.enabled && root.visible
+        enabled: root.hoverEnabled
         margin: 0
         cursorShape: root.interactive ? Qt.PointingHandCursor : Qt.ArrowCursor
         onHoveredChanged: {
@@ -416,6 +421,6 @@ Item {
     Timer {
         id: _hoverRevealTimer
         interval: 80
-        onTriggered: root.hoverActive = true
+        onTriggered: root.hoverActive = root.hoverEnabled && _pillHover.hovered
     }
 }
