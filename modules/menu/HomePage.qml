@@ -140,7 +140,7 @@ PageShell {
                 anchors.verticalCenter: _metaLine.verticalCenter
                 visible: SysInfo.uptimeSecs > 0
                 text: "up " + SysInfo.uptimeLabel
-                color: Theme.withAlpha(Theme.subtext, 0.62)
+                color: Theme.withAlpha(Theme.subtext, 0.82)
                 font.pixelSize: Settings.fontLabel
                 font.weight: Font.Medium
             }
@@ -149,7 +149,7 @@ PageShell {
         Item {
             width: 1
             height: Media.shown ? root._sectionGap : 0
-            Disclosure on height { expanded: Media.shown }
+            Disclosure on height {}
         }
 
         Item {
@@ -184,7 +184,7 @@ PageShell {
                 ? 4 * Math.ceil((_mediaLoader.item.height + 10) / 4) : 0
             clip: true
 
-            Disclosure on height { expanded: Media.shown }
+            Disclosure on height {}
 
             Loader {
                 id: _mediaLoader
@@ -326,7 +326,7 @@ PageShell {
                 glyph: NightLight.enabled ? "󰖔" : "󰖙"
                 title: "Night Light"
                 status: NightLight.lastError.length > 0 ? NightLight.lastError
-                      : NightLight.enabled ? NightLight.temperature + "K" : NightLight.recommendLabel
+                      : NightLight.enabled ? NightLight.temperature + "K" : NightLight.offStatus
                 accentColor: NightLight.lastError.length > 0 ? Theme.error : Theme.warning
                 statusColor: NightLight.lastError.length > 0 ? Theme.error : "transparent"
                 showSwitch: true

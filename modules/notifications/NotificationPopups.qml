@@ -13,6 +13,7 @@ PanelWindow {
     required property ShellScreen targetScreen
 
     WlrLayershell.namespace: "silere-notifications"
+    WlrLayershell.layer: WlrLayer.Overlay
     // on demand, not exclusive: exclusive routes every key in the session to this layer
     // and the user cannot click away from it
     WlrLayershell.keyboardFocus: win._replyOwner
@@ -32,9 +33,9 @@ PanelWindow {
         const previous = win._replyOwner
         if (previous && previous !== owner) previous.cancelReply()
         win._replyOwner = owner
+        // a PanelWindow has no requestActivate(); the on-demand keyboard focus above hands the layer the keys
         Qt.callLater(function() {
             if (win._replyOwner !== owner) return
-            win.requestActivate()
             owner.focusReplyInput()
         })
     }
@@ -93,7 +94,7 @@ PanelWindow {
         enabled: shown
         visible: height > 0.5
 
-        Disclosure on height { expanded: chip.shown }
+        Disclosure on height {}
 
         Rectangle {
             id: _surface
@@ -313,7 +314,7 @@ PanelWindow {
             enabled: shown
             visible: height > 0.5
 
-            Disclosure on height { expanded: _clearChip.shown }
+            Disclosure on height {}
 
             ConfirmButton {
                 anchors.verticalCenter: parent.verticalCenter

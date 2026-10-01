@@ -97,25 +97,34 @@ Rectangle {
     onInteractiveChanged: if (!root.interactive) root.disarm()
     onConfirmChanged: if (!root.confirm) root.disarm()
 
-    onArmedChanged: root._confirmProgress = root.armed ? 1.0 : 0.0
+    onArmedChanged: {
+        _confirmDrain.stop()
+        if (!root.armed) {
+            root._confirmProgress = 0.0
+            return
+        }
+        root._confirmProgress = 1.0
+        if (!ShellSettings.reduceMotion) _confirmDrain.start()
+    }
 
     property real _confirmProgress: 0.0
 
-    // keep the confirmation countdown time-based so delayed frames never extend it
-    Timer {
-        interval: 33
-        repeat: true
-        triggeredOnStart: true
-        running: root.armed && !ShellSettings.reduceMotion
-        onTriggered: {
-            const elapsed = Date.now() - _confirm.armedAtMs
-            root._confirmProgress = Math.max(0, 1 - elapsed / Math.max(1, root.confirmTimeout))
-        }
+    // one run-to-completion animation: it is clock-driven so a delayed frame never extends
+    // the window, and it costs no per-tick script. The duration is the disarm timeout
+    // itself, which Motion must not scale or the ring would lie
+    NumberAnimation {
+        id: _confirmDrain
+        target: root
+        property: "_confirmProgress"
+        from: 1.0
+        to: 0.0
+        duration: Math.max(1, root.confirmTimeout)
+        easing.type: Easing.Linear
     }
 
     PerimeterProgress {
         anchors.fill: parent
-        // the ticker that drains this is a motion gate, so under reduce motion the ring
+        // the animation that drains this is a motion gate, so under reduce motion the ring
         // would sit full for the whole window and read as "nothing is expiring"
         visible: root.armed && !ShellSettings.reduceMotion
         inset:        1.0

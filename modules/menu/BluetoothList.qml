@@ -148,6 +148,11 @@ Item {
                     status: _state
                     selected: _entry.modelData.connected
                     warning: _armed || _forgetArmed || _entry.modelData.pairing
+                    // a tap mid-connect or mid-disconnect would queue a second request against
+                    // BlueZ; a pairing row stays live because the tap is what cancels it
+                    interactive: _entry.modelData.pairing
+                        || (_entry.modelData.state !== Bt.BluetoothDeviceState.Connecting
+                            && _entry.modelData.state !== Bt.BluetoothDeviceState.Disconnecting)
                     failed: !_armed && !_forgetArmed && _failed
                     // the body tap already means connect/disconnect for this row, so
                     // details live behind the chevron's separate hit zone instead
@@ -169,15 +174,16 @@ Item {
                         }
                     }
                     onTriggered: _activate()
-                    // middle-click forgets a paired device; the first press only arms it
-                    function _middleTap(): void {
+                    // right- or middle-click forgets a paired device; the first press only arms it
+                    function _forgetTap(): void {
                         const addr = _entry.modelData.address
                         if (!_entry.modelData.paired || _entry.modelData.connected) return
                         if (_confirm.tryConfirm("forget:" + addr)) Bluetooth.forgetDevice(addr)
                     }
                     TapHandler {
-                        acceptedButtons: Qt.MiddleButton
-                        onTapped: _row._middleTap()
+                        enabled: _row.interactive
+                        acceptedButtons: Qt.RightButton | Qt.MiddleButton
+                        onTapped: _row._forgetTap()
                     }
                     onExpandToggled: root._detailsAddr = (root._detailsAddr === _entry.modelData.address)
                         ? "" : _entry.modelData.address
@@ -188,7 +194,7 @@ Item {
                     height: _entry._detailsOpen ? _details.implicitHeight : 0
                     clip: true
                     visible: height > 0.5
-                    Disclosure on height { expanded: _entry._detailsOpen }
+                    Disclosure on height {}
 
                     BluetoothDetails {
                         id: _details

@@ -98,7 +98,7 @@ Item {
         color: root.active
             ? Theme.mix(root.accentColor, Theme.text, 0.10)
             : Theme.withAlpha(Theme.mix(Theme.subtext, root.accentColor, _hover.hovered ? 0.24 : 0),
-                               _hover.hovered ? 0.78 : 0.50)
+                               _hover.hovered ? 0.90 : 0.76)
         font.pixelSize: Settings.iconSize + 2
         scale: _tap.pressed ? 0.92 : (root.active ? 1.015 : 1.0)
         transformOrigin: Item.Center
@@ -133,13 +133,16 @@ Item {
         transformOrigin: Item.Left
         z: 10
         MotionBehavior on opacity {
-            NumberAnimation { duration: _pill._show ? Motion.fast : Motion.instant; easing.type: Easing.OutCubic }
+            id: _pillFade
+            NumberAnimation { duration: _pillFade.targetValue > 0.5 ? Motion.fast : Motion.instant; easing.type: Easing.OutCubic }
         }
         MotionBehavior on scale {
-            NumberAnimation { duration: _pill._show ? Motion.fast : Motion.instant; easing.type: Easing.OutCubic }
+            id: _pillScale
+            NumberAnimation { duration: _pillScale.targetValue >= 1 ? Motion.fast : Motion.instant; easing.type: Easing.OutCubic }
         }
         MotionBehavior on _slide {
-            NumberAnimation { duration: _pill._show ? Motion.fast : Motion.instant; easing.type: Easing.OutCubic }
+            id: _pillSlide
+            NumberAnimation { duration: _pillSlide.targetValue >= 0 ? Motion.fast : Motion.instant; easing.type: Easing.OutCubic }
         }
         ShellText {
             id: _pillLabel

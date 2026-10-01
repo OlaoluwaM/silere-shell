@@ -25,6 +25,7 @@ PanelWindow {
     color:         "transparent"
     exclusiveZone: -1
     WlrLayershell.namespace: "silere-calendar"
+    WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: CalendarState.open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     visible: CalendarState.open || card.opacity > 0.001
@@ -64,8 +65,9 @@ PanelWindow {
 
         readonly property int  cell:     34
         readonly property int  pad:      14
-        readonly property int  weekCol:  22
-        readonly property int  panelW:   weekCol + cell * 7 + pad * 2
+        readonly property int  weekCol:  ShellSettings.calendarWeekNumbers ? 22 : 0
+        readonly property int  gridW:    weekCol + cell * 7
+        readonly property int  panelW:   Metrics.snap4Up(gridW + pad * 2)
 
         property int dispYear:  2000
         property int dispMonth: 0
@@ -77,11 +79,12 @@ PanelWindow {
         property int    _todayY:      -1
         property int    _todayM:      -1
         property int    _todayD:      -1
-        property int    _todayWeek:   -1
+        // follows the week-start setting while the card is open, so it is derived rather than captured
+        readonly property int _todayWeek: _todayY < 0 ? -1
+            : CalendarState.weekOfDate(new Date(_todayY, _todayM, _todayD))
         property string todayWeekday: ""
 
-        readonly property int _firstJs:  new Date(shownYear, shownMonth, 1).getDay()
-        readonly property int _lead:     (_firstJs + 6) % 7
+        readonly property int _lead: CalendarState.leadingDays(shownYear, shownMonth)
         readonly property int _daysThis: new Date(shownYear, shownMonth + 1, 0).getDate()
         readonly property int _daysPrev: new Date(shownYear, shownMonth,     0).getDate()
         readonly property int _todayCell:
@@ -90,13 +93,12 @@ PanelWindow {
         readonly property string monthLabel: Qt.formatDateTime(new Date(shownYear, shownMonth, 1), "MMMM yyyy")
 
         function _weekForRow(r: int): int {
-            return DateTime.isoWeek(new Date(card.shownYear, card.shownMonth, 1 - card._lead + r * 7))
+            return CalendarState.weekForRow(card.shownYear, card.shownMonth, r)
         }
 
         function _snapToday(): void {
             const t = new Date()
             _todayY = t.getFullYear(); _todayM = t.getMonth(); _todayD = t.getDate()
-            _todayWeek = DateTime.isoWeek(t)
             todayWeekday = Qt.formatDateTime(t, "dddd")
             dispYear  = _todayY; dispMonth  = _todayM
             shownYear = _todayY; shownMonth = _todayM
@@ -136,7 +138,6 @@ PanelWindow {
                 if (!CalendarState.open) return
                 const t = new Date()
                 card._todayY = t.getFullYear(); card._todayM = t.getMonth(); card._todayD = t.getDate()
-                card._todayWeek = DateTime.isoWeek(t)
                 card.todayWeekday = Qt.formatDateTime(t, "dddd")
             }
         }
@@ -175,8 +176,8 @@ PanelWindow {
 
         Column {
             id: _col
-            x: card.pad; y: card.pad
-            width: card.panelW - card.pad * 2
+            x: Math.round((card.panelW - card.gridW) / 2); y: card.pad
+            width: card.gridW
             spacing: 6
 
             Item {
@@ -237,9 +238,9 @@ PanelWindow {
                     anchors.right: parent.right
                     anchors.rightMargin: 2
                     anchors.verticalCenter: parent.verticalCenter
-                    visible: card._todayWeek > 0
+                    visible: ShellSettings.calendarWeekNumbers && card._todayWeek > 0
                     text: "Week " + card._todayWeek
-                    color: Theme.withAlpha(Theme.subtext, 0.45)
+                    color: Theme.withAlpha(Theme.subtext, 0.78)
                     font.pixelSize: Settings.fontCaption
                 }
             }
@@ -356,26 +357,27 @@ PanelWindow {
             Row {
                 width: parent.width
                 Item {
+                    visible: ShellSettings.calendarWeekNumbers
                     width: card.weekCol; height: 20
                     ShellText {
                         anchors.centerIn: parent
                         text: "Wk"
-                        color: Theme.withAlpha(Theme.subtext, 0.40)
+                        color: Theme.withAlpha(Theme.subtext, 0.78)
                         font.pixelSize: Settings.fontMicro
                         font.weight: Font.Medium; font.capitalization: Font.AllUppercase
                     }
                 }
                 Repeater {
-                    model: ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+                    model: 7
                     delegate: Item {
                         id: dayHdr
                         required property int index
-                        required property string modelData
+                        readonly property int weekday: CalendarState.weekdayAt(index)
                         width: card.cell; height: 20
                         ShellText {
                             anchors.centerIn: parent
-                            text: dayHdr.modelData
-                            color: Theme.withAlpha(Theme.subtext, dayHdr.index >= 5 ? 0.4 : 0.6)
+                            text: ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"][dayHdr.weekday]
+                            color: Theme.withAlpha(Theme.subtext, dayHdr.weekday === 0 || dayHdr.weekday === 6 ? 0.78 : 0.92)
                             font.pixelSize: Settings.fontMicro
                             font.weight: Font.Medium; font.capitalization: Font.AllUppercase
                         }
@@ -396,6 +398,7 @@ PanelWindow {
 
                 Column {
                     id: _weekAxis
+                    visible: ShellSettings.calendarWeekNumbers
                     x: 0
                     width: card.weekCol
                     opacity: _grid.opacity
@@ -409,7 +412,7 @@ PanelWindow {
                             ShellText {
                                 anchors.centerIn: parent
                                 text: card._weekForRow(_weekRow.index)
-                                color: Theme.withAlpha(Theme.subtext, 0.46)
+                                color: Theme.withAlpha(Theme.subtext, 0.78)
                                 font.pixelSize: Settings.fontTiny
                                 font.weight: Font.Medium
                             }
@@ -418,6 +421,7 @@ PanelWindow {
                 }
 
                 Hairline {
+                    visible: ShellSettings.calendarWeekNumbers
                     x: card.weekCol - width
                     y: 0
                     vertical: true
@@ -442,7 +446,8 @@ PanelWindow {
 
                             readonly property bool cur:   index >= card._lead && index < card._lead + card._daysThis
                             readonly property bool today: index === card._todayCell
-                            readonly property bool weekend: index % 7 >= 5
+                            readonly property int weekday: CalendarState.weekdayAt(index % 7)
+                            readonly property bool weekend: weekday === 0 || weekday === 6
                             readonly property bool marked: cur
                                 && CalendarState.marks[CalendarState.markKey(card.shownYear, card.shownMonth, dayNum)] === true
                             readonly property int  dayNum:
@@ -487,8 +492,8 @@ PanelWindow {
                                     anchors.centerIn: parent
                                     text: _dayCell.dayNum
                                     color: _dayCell.today ? Theme.background
-                                         : _dayCell.cur   ? Theme.withAlpha(Theme.text, _dayCell.weekend ? 0.68 : 0.9)
-                                         :                  Theme.withAlpha(Theme.subtext, 0.3)
+                                         : _dayCell.cur   ? Theme.withAlpha(Theme.text, _dayCell.weekend ? 0.82 : 0.9)
+                                         :                  Theme.withAlpha(Theme.subtext, 0.64)
                                     font.pixelSize: Settings.fontSize
                                     font.weight: _dayCell.today ? Font.DemiBold : Font.Normal
                                 }

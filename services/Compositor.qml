@@ -9,6 +9,12 @@ Singleton {
     readonly property int maxWindowIdentityChars: 512
     readonly property int maxWindowTitleChars: 2048
 
+    // a terminal's spinner glyph changes its title every frame without changing what it says
+    function windowTitle(value): string {
+        return SafeText.singleLineText(value, root.maxWindowTitleChars)
+            .replace(/^[⠀-⣿◐-◓◴-◷✢-✽] +/, "")
+    }
+
     readonly property string backend: {
         if (String(Quickshell.env("NIRI_SOCKET") || "").length > 0) return "niri"
         if (String(Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE") || "").length > 0) return "hyprland"
@@ -31,7 +37,7 @@ Singleton {
     readonly property string focusedMonitor:  _be ? _be.focusedMonitor : ""
     readonly property int focusedWorkspaceRef: _be ? _be.focusedWorkspaceRef : -1
     readonly property bool overviewActive:    _be ? _be.overviewActive : false
-    readonly property string specialOutput:   _be ? _be.specialOutput : ""
+    readonly property var specialOutputs:     _be ? _be.specialOutputs : []
     readonly property int windowGapX:         _be ? _be.windowGapX : -1
     readonly property bool activeFullscreen:  !!(activeToplevel && activeToplevel.fullscreen)
 

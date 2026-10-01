@@ -13,10 +13,33 @@ Singleton {
     readonly property real touchpadPixelScale: 8.0
     readonly property int  controlTouchpadMinStepMs: 30
     readonly property real horizontalRejectRatio: 1.25
+    readonly property int  pageLatchMs: 400
+    readonly property int  sliderRestMs: 300
 
     property var _accums: ({})
     property var _timers: ({})
     property var _lastSteps: ({})
+    // a plain field, so stamping it on every scrolled frame notifies nothing
+    readonly property var _page: ({ movedAt: 0 })
+
+    function notePageMoved(): void {
+        root._page.movedAt = Date.now()
+    }
+
+    // a wheel gesture that is scrolling the page keeps scrolling it when a slider passes under the pointer
+    function wheelBelongsToPage(hoveredSince: real): bool {
+        const now = Date.now()
+        if (now - root._page.movedAt >= root.pageLatchMs
+                && now - hoveredSince >= root.sliderRestMs) return false
+        root._page.movedAt = now
+        return true
+    }
+
+    // natural scrolling flips the delta; a level keeps "up means more", as Qt's own sliders do
+    function processLevelWheel(event, key: string): int {
+        const n = root.processControlWheel(event, key)
+        return event && event.inverted ? -n : n
+    }
 
     function processControlWheel(event, key: string): int {
         if (!event) return 0
@@ -32,6 +55,22 @@ Singleton {
             touchpad ? 1 : 2,
             touchpad ? controlTouchpadMinStepMs : 0
         )
+    }
+
+    // a tray app steps once per Scroll call, so a touchpad's stream of small deltas has to arrive as whole notches
+    function processTrayWheel(event, key: string): var {
+        if (!event) return { steps: 0, horizontal: false }
+        const touchpad = _isTouchpad(event)
+        const axes = _wheelAxes(event, touchpad)
+        const horizontal = Math.abs(axes.x) > Math.abs(axes.y)
+        return {
+            steps: _processDelta(
+                horizontal ? axes.x : axes.y, key + (horizontal ? ":h" : ":v"),
+                touchpad ? controlTouchpadNotch : notch,
+                touchpad ? 1 : 2,
+                touchpad ? controlTouchpadMinStepMs : 0),
+            horizontal: horizontal
+        }
     }
 
     function _processDelta(deltaY: real, key: string, threshold: real, maxSteps: int, minStepMs: int): int {

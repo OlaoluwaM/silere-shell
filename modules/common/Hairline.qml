@@ -1,10 +1,13 @@
 import QtQuick
+import Quickshell
 
-// 1 logical px, never 1/dpr: Qt reports dpr 2 while the compositor downscales to 1.25, making that 0.625 real px
+// whole device pixels from the window's own ratio: the screen's rounded ratio reads 2 at a 1.25 output
+// scale, which made 1/dpr 0.625 of a real pixel that survives or vanishes on sub-pixel phase alone
 Rectangle {
     property bool vertical: false
 
-    readonly property real thickness: 1
+    readonly property real _dpr: QsWindow.window ? QsWindow.window.devicePixelRatio : 1
+    readonly property real thickness: Math.max(1, Math.ceil(_dpr - 0.5)) / _dpr
 
     implicitWidth: vertical ? thickness : 0
     implicitHeight: vertical ? 0 : thickness

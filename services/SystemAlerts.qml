@@ -18,8 +18,11 @@ Singleton {
         return low ? "low" : ""
     }
 
+    // a test shell reads the real battery and CPU sensors, so its alerts would reach the live desktop's notification daemon
+    readonly property bool _sandboxed: Quickshell.env("SILERE_SANDBOX") === "1"
+
     function _send(summary: string, body: string, urgency: string): bool {
-        if (!SystemTools.ready || !SystemTools.hasNotifySend) return false
+        if (!SystemTools.ready || !SystemTools.hasNotifySend || _sandboxed) return false
         Quickshell.execDetached([
             "notify-send",
             "--urgency=" + urgency,
@@ -78,18 +81,26 @@ Singleton {
         target: Battery
 
         function onLowChanged(): void {
-            if (Battery.low) {
-                root._checkBattLow()
-            } else {
-                root._battLowSent  = false
-                root._battCritSent = false
-            }
+            if (Battery.low) root._checkBattLow()
+            else root._rearmBattery()
         }
 
         function onCriticalChanged(): void {
             if (Battery.critical) root._checkBattCrit()
-            else root._battCritSent = false
+            else root._rearmBattery()
         }
+
+        function onPctChanged(): void {
+            if (root._battLowSent || root._battCritSent) root._rearmBattery()
+        }
+    }
+
+    // a reading that wobbles across the threshold must not send the warning again
+    function _rearmBattery(): void {
+        const margin = 2
+        const plugged = !Battery.onBattery
+        if (plugged || Battery.pct >= ShellSettings.batteryLowThreshold + margin) root._battLowSent = false
+        if (plugged || Battery.pct >= Battery._critPct + margin) root._battCritSent = false
     }
 
     Connections {

@@ -94,21 +94,31 @@ naming them over upstream's CI claim.
 - Failed capability scans retain the last coherent result without advancing
   `SystemTools.scanRevision`; that revision tracks changes to capabilities.
   Hook recovery retains process-group cleanup and bounded execution.
+- `BoundedProcess` and `SupervisedProcess` clear `_exitSeen` when a run
+  starts, not only when one stops, so a command chained from `exited` still
+  reports its own failed start. Keep that line when an import rewrites them.
 - Wi-Fi forgetting uses the shared confirmation state and service-side
   saved/active guards. Capture row identity before disarming confirmation,
   which can synchronously replace the row model.
 - Bluetooth forgetting uses the same confirmation and identity rules, plus
   paired/connected guards. Hard-block state disables the fork radio controls;
-  active pairing may extend the 20-second guard at most eight times. Each new
-  attempt resets that budget. Retain the fork's 60-second adapter pairable
-  timeout and restore only pairable state owned by this service.
+  active pairing may extend the 20-second guard at most eight times, and a
+  device still reporting Connecting at most twice. Each new attempt resets that
+  budget. A completed pairing marks the device trusted and then connects it.
+  Retain the fork's 60-second adapter pairable timeout and restore only
+  pairable state owned by this service.
 - Shared fullscreen tracking retains the compositor boundary and only
   notification-silence or integrated-OSD demand. Keep removed visualizer
-  demand out of `FullscreenState`. The Hyprland backend distinguishes real
-  fullscreen (mode 2) from maximized windows (mode 1).
+  demand out of `FullscreenState`. The Hyprland backend reads the window's
+  fullscreen mode as a bitmask: bit 2 is real fullscreen, while mode 1 alone is
+  a maximized window.
 - Calendar marks remain write-protected until their initial load succeeds or
   reports a missing file. Corrupt, unreadable, and newer-format files remain
   protected after loading; an early click does not replay over restored marks.
+- The calendar reads today from a fresh `new Date()`, not upstream's
+  `DateTime.currentDate`: `SystemClock.date` holds its last tick's wall time, so
+  it stays stale after a timezone change until the next tick. Do not import
+  `currentDate`; calendar week start and week numbers are otherwise upstream's.
 - Bar hover tooltips remain enabled and configurable. Keep `BarHintState`,
   `BarHintPopup`, the popup host, and every widget's hint bindings together.
   The retained popup must also take compatible upstream idle-settle fixes,
@@ -135,7 +145,9 @@ naming them over upstream's CI claim.
   rapid marker retriggering because `restart()` first stops the animation.
   Menu access must remain available when compositor workspace data is not
   ready, without requesting workspace activation or a marker pulse.
-- Night light keeps the systemd service backend and the lock action keeps
+- Night light keeps the systemd service backend, so upstream's restore of a
+  hand-chosen state after a shell restart (`nightLightOn`) stays out: the unit
+  outlives the shell. Its solar math follows upstream's. The lock action keeps
   its existing provider selection. Additional upstream provider settings
   require a separate decision with their backend and UI consumers.
 - The floating OSD keeps its height and slide transitions. Shared bump
@@ -177,7 +189,10 @@ naming them over upstream's CI claim.
   transfer expansion to another run; a merged run keeps its oldest entry's state.
   The fork's duration-picker DND replaces
   upstream's scheduled quiet hours; keep `dndSchedule`, `dndFrom`, `dndTo`,
-  their settings rows, and their service logic removed. Notification history
+  their settings rows, and their service logic removed. The `quickActions dnd`
+  IPC toggle goes through that picker's `toggleDnd`, so turning DND on arms a
+  timed run from the saved duration; do not route it to upstream's quiet-hours
+  path or a plain `dnd` flip. Notification history
   retains `sessionCurrent` through `PersistentProperties`, which survives QML
   reloads but not process exits. Restore on its `loaded` signal, before the
   server re-emits kept notifications; defer pruning until those arrivals have
@@ -197,6 +212,12 @@ naming them over upstream's CI claim.
   The storage path is `silere-shell/notifications.json`; keep unrelated
   hardening for `quickshell/states.json` removed. Source selections and
   acceptance checks live in [the integration plan](upstream-picks-2026-09-16.md).
+- Notification icon files resolve against `IconResolver._systemIconRoots()`,
+  which adds `XDG_DATA_DIRS` entries, `/run/current-system/sw/share`,
+  `~/.nix-profile/share` and the per-user profile to upstream's FHS roots; the
+  deploy machine has no `/usr/share`. On a collision keep the union and
+  upstream's traversal, `file:` authority and length checks. These roots are
+  trusted like the user's own files, as SECURITY.md states.
 - The Bluetooth bar widget stays an actionable `StatusActionPill` that opens
   the configured manager. Take compatible upstream service, accessibility,
   hint, and lifecycle improvements without replacing it with a passive pill.
@@ -211,8 +232,12 @@ naming them over upstream's CI claim.
   Only an open media host may advance the shared artwork candidate after a
   load failure; a closed card retained during its exit must not change it.
 - The bar media widget opens that card on click and focuses the player on
-  right-click. Keep upstream's play/pause click, middle-click focus, and
+  right-click; its accessible press action and name follow the click. Keep
+  upstream's play/pause click and press action, middle-click focus, and
   wheel-to-skip out of it.
+- The bar clock takes upstream's hover and pressed cap, styled as a Pill's, but
+  never its calendar-open tint: an open calendar leaves the clock untinted.
+  Drop any `_calendarOpen` fill an import brings back.
 - The Cava audio visualizer stays removed, including its bar placements, process
   and profile management, settings, fullscreen demand, and underline glow.
   Compatible media fixes must preserve playback controls and track progress
@@ -235,6 +260,12 @@ naming them over upstream's CI claim.
   with centered placement. Keep scaling removed from these surfaces.
   Resolve the bar edge and initial content size before the entrance; calendar
   month resizing only animates once the card is fully shown.
+- Behavior timings branch on the Behavior's `targetValue`, and `Disclosure`
+  takes a `closedValue`. The fork keeps press and hover scale Behaviors inline
+  instead of upstream's `PixelScale`; port fixes aimed at `PixelScale` into
+  those inline Behaviors. The menu panel width keys on
+  `targetValue > _compactW`, not upstream's `>= panel.width`, so its outer edge
+  keeps the rail's curve.
 
 ## What belongs here
 

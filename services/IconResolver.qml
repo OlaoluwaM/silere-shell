@@ -91,16 +91,62 @@ Singleton {
     }
 
     function senderImageSource(raw): string {
-        const source = root.localSource(raw)
+        const value = String(raw ?? "").trim()
+        if (value.length > root.maxSourceChars) return ""
+        if (value.startsWith("/") || /^file:/i.test(value)) return root._systemIconFile(value)
+        // notify-send sends -i as the image-path hint, which quickshell rewrites to image://icon/<value>
+        const hinted = /^image:(?:\/\/)?icon\/([^?]*)$/i.exec(value)
+        if (hinted) {
+            const name = hinted[1]
+            if (name.startsWith("/")) return root._systemIconFile(name)
+            return name.length > 0 && name.indexOf("/") < 0 ? root.iconSource(name) : ""
+        }
+        const source = root.localSource(value)
         if (source.startsWith("qrc:")) return source
         return root._imageScheme.test(source) && root._isSafeImageProvider(source) ? source : ""
     }
 
+    // These are the icon directories of the software installed for this session: the FHS prefixes,
+    // the Nix profiles, and whatever XDG_DATA_DIRS lists. Some of them (a flatpak export under the
+    // home directory, say) are writable by the user, so they carry the same trust as the user's own
+    // files; code already running as the user is out of scope. What the check refuses is a path a
+    // notification sender can name outside them.
+    function _systemIconRoots(): var {
+        const bases = ["/usr/share", "/usr/local/share", "/var/lib/flatpak/exports/share",
+            "/run/current-system/sw/share"]
+        const home = String(Quickshell.env("HOME") || "")
+        const user = String(Quickshell.env("USER") || "")
+        if (home.startsWith("/")) bases.push(home + "/.nix-profile/share")
+        if (/^[A-Za-z0-9._-]+$/.test(user)) bases.push("/etc/profiles/per-user/" + user + "/share")
+        const dirs = String(Quickshell.env("XDG_DATA_DIRS") || "").split(":")
+        for (let i = 0; i < dirs.length; i++)
+            if (dirs[i].startsWith("/")) bases.push(dirs[i].replace(/\/+$/, ""))
+        const out = []
+        for (let i = 0; i < bases.length; i++) {
+            if (("/" + bases[i] + "/").indexOf("/../") >= 0) continue
+            for (const leaf of ["/icons/", "/pixmaps/"])
+                if (out.indexOf(bases[i] + leaf) < 0) out.push(bases[i] + leaf)
+        }
+        return out
+    }
+    readonly property var _iconRoots: root._systemIconRoots()
+
+    function _systemIconFile(value: string): string {
+        let path = value
+        if (/^file:/i.test(path)) {
+            if (!/^file:\/\/\//i.test(path) || /^file:\/\/\/\//i.test(path)) return ""
+            try { path = decodeURIComponent(path.slice(7)) } catch (e) { return "" }
+        }
+        if (("/" + path + "/").indexOf("/../") >= 0 || ("/" + path + "/").indexOf("/./") >= 0) return ""
+        return root._iconRoots.some(prefix => path.startsWith(prefix)) ? root._fileUrl(path) : ""
+    }
+
     function senderIconSource(raw): string {
         const value = String(raw ?? "").trim()
-        if (value.startsWith("/")) return ""
+        if (value.length > root.maxSourceChars) return ""
+        if (value.startsWith("/")) return root._systemIconFile(value)
         const match = root._scheme.exec(value)
-        if (match && match[1].toLowerCase() === "file") return ""
+        if (match && match[1].toLowerCase() === "file") return root._systemIconFile(value)
         return root.iconSource(value)
     }
 

@@ -11,6 +11,9 @@ Item {
     property real max:   1
     property real step:  0.05
     property string wheelKey: ""
+    // settings pages are long scrolling lists: a slider only takes the wheel once the pointer
+    // has rested on it, so a scroll that passes underneath keeps scrolling the page
+    property bool wheelNeedsRest: false
     property bool commitOnRelease: false
     property bool interactive: true
     property bool showThumb: true
@@ -36,6 +39,7 @@ Item {
     readonly property real shownValue: _shownValue
     readonly property bool dragging: _ma.pressed
     property real _shownValue: value
+    property real _hoveredSince: 0
 
     signal changed(real value)
 
@@ -63,7 +67,10 @@ Item {
         const number = Number(v)
         return isFinite(number) ? Math.max(min, Math.min(max, number)) : min
     }
-    function _snap(v: real): real  { return step > 0 ? min + Math.round((v - min) / step) * step : v }
+    // 0.5 + 28 * 0.05 is 1.9000000000000001; round off the float residue or it lands in settings.json
+    function _snap(v: real): real {
+        return step > 0 ? Math.round((min + Math.round((v - min) / step) * step) * 1e6) / 1e6 : v
+    }
     function _posToVal(px: real): real {
         if (width <= 0) return min
         const ratio = Math.max(0, Math.min(1,
@@ -138,8 +145,13 @@ Item {
         onPositionChanged: (mouse) => { if (pressed) root._setFromUser(root._posToVal(mouse.x)) }
         onReleased:        if (root.commitOnRelease) root.changed(root._shownValue)
         onCanceled:        root._shownValue = root.value
+        onContainsMouseChanged: if (containsMouse) root._hoveredSince = Date.now()
         onWheel: (wheel) => {
-            if (root.wheelKey === "") { wheel.accepted = false; return }
+            const since = !root.wheelNeedsRest ? 0
+                : containsMouse ? root._hoveredSince : Date.now()
+            if (root.wheelKey === "" || Scroll.wheelBelongsToPage(since)) {
+                wheel.accepted = false; return
+            }
             const n = Scroll.processControlWheel(wheel, root.wheelKey)
             if (n !== 0) root.nudge(n, 1)
         }

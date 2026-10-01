@@ -27,6 +27,7 @@ PanelWindow {
     color:         "transparent"
     exclusiveZone: -1
     WlrLayershell.namespace: "silere-menu"
+    WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: MenuState.open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     visible: MenuState.open || panel.opacity > 0.001
@@ -46,6 +47,7 @@ PanelWindow {
             if (panel.powerOpen) {
                 panel.powerOpen = false
             } else if (panel.activeTab === 0 && homeLoader.item && homeLoader.item.dismissInline()) {
+            } else if (panel.activeTab === 1 && settingsLoader.item && settingsLoader.item.dismissInline()) {
             } else {
                 MenuState.close()
             }
@@ -127,17 +129,16 @@ PanelWindow {
         // animated here, not on the rail Item: the content pane derives its x and width from this, and easing only the rail leaves the content snapping ahead of it
         property int railW: _railExpanded ? railExpandedW : railCollapsedW
         MotionBehavior on railW {
+            id: _railMotion
             gate: panel._geometryReady && panel.fullyShown
             NumberAnimation {
-                duration: panel._railMotionMs
+                duration: _railMotion.targetValue > panel.railCollapsedW
+                    ? Motion.panelResize : Motion.panelCollapse
                 easing.type: Easing.BezierSpline
-                easing.bezierCurve: panel._railMotionCurve
+                easing.bezierCurve: _railMotion.targetValue > panel.railCollapsedW
+                    ? Motion.emphasizedDecel : Motion.emphasizedAccel
             }
         }
-        readonly property int _railMotionMs: _railExpanded
-            ? Motion.panelResize : Motion.panelCollapse
-        readonly property var _railMotionCurve: _railExpanded
-            ? Motion.emphasizedDecel : Motion.emphasizedAccel
         // live width, not the target: the page reflows ahead of the outer edge otherwise
         readonly property int contentW: Math.max(1, Math.round(width - railW))
         readonly property int contentPad: activeTab === 1
@@ -267,10 +268,12 @@ PanelWindow {
                 if (index !== 0) _pageLifecycle.activateDeferred()
                 panel.switchTab(index)
             }
-            function onActiveTabChanged() {
+            function onTabChanging() {
                 // IPC can change the tab before tabRequested reaches this window,
-                // so capture here as well as in switchTab.
+                // so capture here as well as in switchTab, while the old page still sets the height.
                 if (!panel._tabHeightHeld) panel._beginTabHeightHold()
+            }
+            function onActiveTabChanged() {
                 contentFlick.contentY = 0
                 panel._scheduleTabHeightRelease()
                 if (!MenuState.open) panel._settlePageVisuals()
@@ -324,17 +327,22 @@ PanelWindow {
 
         // must match railW's curve, or the panel's outer edge and the rail's inner edge disagree mid-motion.
         // Not before the card is shown: a window warmed by a hover has its geometry armed
-        // before the click, and the width would grow out of the rail under the fade
+        // before the click, and the width would grow out of the rail under the fade.
+        // Only the compact width keeps the rail collapsed, so heading past it is the rail expanding;
+        // growth alone would split the two when power stays open across a narrowing tab switch
         MotionBehavior on width {
+            id: _widthMotion
             gate: panel._geometryReady && panel.fullyShown
             NumberAnimation {
-                duration: panel._railMotionMs
+                duration: _widthMotion.targetValue > panel._compactW
+                    ? Motion.panelResize : Motion.panelCollapse
                 easing.type: Easing.BezierSpline
-                easing.bezierCurve: panel._railMotionCurve
+                easing.bezierCurve: _widthMotion.targetValue > panel._compactW
+                    ? Motion.emphasizedDecel : Motion.emphasizedAccel
             }
         }
         // duration caps the velocity: without it a tall page swap crawls for ~700ms while the
-        // width beside it lands in _railMotionMs, and every scroll-affordance settle times out early
+        // width beside it has long landed, and every scroll-affordance settle times out early
         MotionBehavior on height {
             gate: panel._geometryReady && panel.open && panel._outerHeightMotion
             SmoothedAnimation {
@@ -413,19 +421,23 @@ PanelWindow {
                     enabled: panel._settingsNavVisible
                     transform: Translate { x: _settingsRailSurface._slide }
                     MotionBehavior on opacity {
+                        id: _navFade
                         NumberAnimation {
-                            duration: panel._settingsNavVisible
+                            duration: _navFade.targetValue > 0.5
                                 ? Motion.ms(130) : Motion.ms(90)
                             easing.type: Easing.BezierSpline
-                            easing.bezierCurve: panel._settingsNavVisible
+                            easing.bezierCurve: _navFade.targetValue > 0.5
                                 ? Motion.standardDecel : Motion.standardAccel
                         }
                     }
                     MotionBehavior on _slide {
+                        id: _navSlide
                         NumberAnimation {
-                            duration: panel._railMotionMs
+                            duration: _navSlide.targetValue >= 0
+                                ? Motion.panelResize : Motion.panelCollapse
                             easing.type: Easing.BezierSpline
-                            easing.bezierCurve: panel._railMotionCurve
+                            easing.bezierCurve: _navSlide.targetValue >= 0
+                                ? Motion.emphasizedDecel : Motion.emphasizedAccel
                         }
                     }
 
@@ -459,18 +471,20 @@ PanelWindow {
                     enabled: panel.powerOpen
 
                     MotionBehavior on height {
+                        id: _powerRailHeight
                         NumberAnimation {
-                            duration: panel.powerOpen ? Motion.panelResize : Motion.panelCollapse
+                            duration: _powerRailHeight.targetValue > 0 ? Motion.panelResize : Motion.panelCollapse
                             easing.type: Easing.BezierSpline
-                            easing.bezierCurve: panel.powerOpen
+                            easing.bezierCurve: _powerRailHeight.targetValue > 0
                                 ? Motion.emphasizedDecel : Motion.emphasizedAccel
                         }
                     }
                     MotionBehavior on opacity {
+                        id: _powerRailFade
                         NumberAnimation {
                             duration: Motion.fast
                             easing.type: Easing.BezierSpline
-                            easing.bezierCurve: panel.powerOpen
+                            easing.bezierCurve: _powerRailFade.targetValue > 0.5
                                 ? Motion.standardDecel : Motion.standardAccel
                         }
                     }
@@ -687,8 +701,53 @@ PanelWindow {
                     else if (contentY < 0) contentY = 0
                 }
 
+                function revealSettingsSelect(): void {
+                    const row = MenuState.settingsSelectOwner
+                    if (!row || !panel.open || panel.activeTab !== 1) return
+                    // a list taller than the viewport keeps its header in view, not its end
+                    const top = row.mapToItem(contentFlick.contentItem, 0, 0).y
+                    const bottom = top + row.height
+                    const margin = 8
+                    let target = contentY
+                    if (row.height + margin * 2 > height)
+                        target = top - margin
+                    else if (top - margin < target)
+                        target = top - margin
+                    else if (bottom + margin > target + height)
+                        target = bottom + margin - height
+                    contentY = Math.max(0,
+                        Math.min(Math.max(0, contentHeight - height), target))
+                }
+
+                // the dropdown grows over the panel's height motion; measure once it has settled
+                Timer {
+                    id: _selectReveal
+                    interval: Motion.medium + 24
+                    onTriggered: contentFlick.revealSettingsSelect()
+                }
+
+                Connections {
+                    target: MenuState
+                    function onSettingsSelectClaimed() {
+                        if (panel.open && panel.activeTab === 1) {
+                            panel._armOuterHeightMotion()
+                            _selectReveal.restart()
+                        }
+                    }
+                    function onSettingsSelectOpenChanged() {
+                        if (!MenuState.settingsSelectOpen) {
+                            _selectReveal.stop()
+                            if (panel.activeTab === 1) panel._armOuterHeightMotion()
+                        }
+                    }
+                }
+
                 onContentHeightChanged: clampToContent()
-                onHeightChanged: clampToContent()
+                onHeightChanged: {
+                    clampToContent()
+                    if (MenuState.settingsSelectOpen && panel.activeTab === 1)
+                        _selectReveal.restart()
+                }
 
                 // default focus target while the menu is open: nothing else claims focus
                 // until a field is clicked, so the arrows page the content the same way
@@ -762,10 +821,11 @@ PanelWindow {
                         z: 5
 
                         MotionBehavior on opacity {
+                            id: _placeholderFade
                             NumberAnimation {
                                 duration: Motion.pageOut
                                 easing.type: Easing.BezierSpline
-                                easing.bezierCurve: _pagePlaceholder._shown
+                                easing.bezierCurve: _placeholderFade.targetValue > 0.5
                                     ? Motion.standardDecel : Motion.standardAccel
                             }
                         }

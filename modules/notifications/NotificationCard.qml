@@ -201,8 +201,9 @@ Item {
     readonly property var   _rawProgress: notification.hints ? notification.hints["value"] : undefined
     readonly property real  _progressNumber: Number(_rawProgress)
     readonly property bool  hasProgress:  _rawProgress !== undefined && _rawProgress !== null && _progressNumber >= 0
+    // the spec's value hint is a 0-100 percentage, not a 0-1 fraction
     readonly property real  progressValue: hasProgress
-        ? Math.max(0, Math.min(1, _progressNumber > 1 ? _progressNumber / 100.0 : _progressNumber))
+        ? Math.max(0, Math.min(1, _progressNumber / 100.0))
         : 0
 
     readonly property real _createdAt: card.createdAt
@@ -219,7 +220,11 @@ Item {
         }
     }
 
-    Component.onCompleted: _updateTime()
+    Component.onCompleted: {
+        _updateTime()
+        // a card born paused has no change to start the clock, so its wait would go uncounted
+        if (card._paused) card._hoverStartMs = Date.now()
+    }
     onVisibleChanged: {
         if (!visible && card._leaving) card._completeDismiss()
         else if (visible) card._updateTime()
@@ -253,7 +258,8 @@ Item {
     // reading one card holds the whole stack: cards expiring out from under the pointer reflow what is being read.
     // an expanded body is the same explicit read-me, even after the pointer wanders off the card
     property bool stackHovered: false
-    readonly property bool _paused: _cardHover.hovered || card.stackHovered
+    // away from the keyboard nobody sees the card, so its timeout waits for the user's return
+    readonly property bool _paused: _cardHover.hovered || card.stackHovered || Idle.isQuiet
         || _body.expanded
         || card._replyOpen
 
@@ -276,7 +282,8 @@ Item {
             : (card.notification.expireTimeout !== 0)
         readonly property real fullInterval: {
             const t = card.notification.expireTimeout
-            return (t > 0 && t < 30000) ? t : ShellSettings.notifDefaultTimeout
+            // a sender's own request is clamped to the 30s ceiling, not discarded
+            return t > 0 ? Math.min(t, 30000) : ShellSettings.notifDefaultTimeout
         }
         interval: Math.max(400, fullInterval - (Date.now() - card.timeoutStartedAt) + card._hoverPausedMs)
         running:  shouldRun && !card._paused
@@ -328,8 +335,12 @@ Item {
             // an open reply holds the countdown, so nothing else would ever retire this card
             if (Idle.isIdle) {
                 card.cancelReply()
+                // expired, not dismissed: the pause at isQuiet holds the timer, so this is the only exit
+                // for a card that arrived while away, and it must still reach history. A card already
+                // leaving has nothing left to start, so complete its dismissal directly
                 // this can remove the delegate synchronously: keep it last
-                card._completeDismiss()
+                if (card.enabled) card.dismiss(true)
+                else card._completeDismiss()
                 return
             }
             card._updateTime()
@@ -663,7 +674,7 @@ Item {
                         visible: _replyInput.text.length === 0
                         text: Notifications.plainText(
                             card.notification.inlineReplyPlaceholder, 128).trim() || "Reply"
-                        color: Theme.withAlpha(Theme.subtext, 0.48)
+                        color: Theme.withAlpha(Theme.subtext, 0.76)
                         font.pixelSize: Settings.fontSize
                         elide: Text.ElideRight
                     }
@@ -703,7 +714,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     visible:        text.length > 0
                     text:           card.appNameText
-                    color:          Theme.withAlpha(Theme.menuTextMuted, card.isCritical ? 0.72 : 0.62)
+                    color:          Theme.withAlpha(Theme.menuTextMuted, card.isCritical ? 0.92 : 0.82)
                     font.pixelSize: Settings.fontMicro
                     font.weight:    Font.Medium
                     font.capitalization: Font.AllUppercase
@@ -725,7 +736,7 @@ Item {
                     id: _capTime
                     anchors.verticalCenter: parent.verticalCenter
                     text:           card._timeLabel
-                    color:          Theme.withAlpha(Theme.menuTextFaint, 0.70)
+                    color:          Theme.withAlpha(Theme.menuTextFaint, 0.82)
                     font.pixelSize: Settings.fontMicro
                 }
             }

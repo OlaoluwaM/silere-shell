@@ -33,17 +33,32 @@ Singleton {
         Math.abs(_useLat).toFixed(0) + "°" + (_useLat >= 0 ? "N" : "S")
 
     property int _solarTick: 0
-    readonly property real _declRad: {
+    // noaa's fractional-year series: declination in radians and the equation of time in minutes
+    readonly property real _yearAngle: {
         root._solarTick
         const d = new Date()
-        const n = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000)
-        return 23.44 * Math.sin(2 * Math.PI * (n - 81) / 365) * Math.PI / 180
+        // counted in utc: a local-midnight difference is an hour short across a dst change
+        const n = Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())
+            - Date.UTC(d.getFullYear(), 0, 0)) / 86400000)
+        return 2 * Math.PI / 365 * (n - 1 + (d.getHours() + d.getMinutes() / 60 - 12) / 24)
+    }
+    readonly property real _declRad: {
+        const g = root._yearAngle
+        return 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g)
+            - 0.006758 * Math.cos(2 * g) + 0.000907 * Math.sin(2 * g)
+            - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g)
+    }
+    readonly property real _eqTimeMin: {
+        const g = root._yearAngle
+        return 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g)
+            - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g))
     }
     readonly property real _elevation: {
         root._solarTick
         const d    = new Date()
         const decl = root._declRad
-        const h    = ((d.getUTCHours() + d.getUTCMinutes() / 60 + root._useLon / 15 - 12) * 15) * Math.PI / 180
+        const h    = ((d.getUTCHours() + d.getUTCMinutes() / 60 + root._useLon / 15
+            + root._eqTimeMin / 60 - 12) * 15) * Math.PI / 180
         const phi  = root._useLat * Math.PI / 180
         return Math.asin(Math.sin(phi) * Math.sin(decl) +
                          Math.cos(phi) * Math.cos(decl) * Math.cos(h)) * 180 / Math.PI
@@ -57,32 +72,28 @@ Singleton {
 
     readonly property real _solarNoon: {
         root._solarTick
-        return 12 - root._useLon / 15 - (new Date()).getTimezoneOffset() / 60
+        return 12 - root._useLon / 15 - root._eqTimeMin / 60 - (new Date()).getTimezoneOffset() / 60
     }
+    // -0.833°: refraction plus the sun's radius, so the times match published ones
     readonly property real _halfDay: {
-        const c = Math.max(-1, Math.min(1, -Math.tan(root._useLat * Math.PI / 180) * Math.tan(root._declRad)))
+        const phi = root._useLat * Math.PI / 180
+        const decl = root._declRad
+        const c = Math.max(-1, Math.min(1, Math.cos(90.833 * Math.PI / 180) / (Math.cos(phi) * Math.cos(decl))
+            - Math.tan(phi) * Math.tan(decl)))
         return Math.acos(c) * 180 / Math.PI / 15
     }
     readonly property real sunriseHour: _solarNoon - _halfDay
     readonly property real sunsetHour:  _solarNoon + _halfDay
-    readonly property real _nowHour: { root._solarTick; const d = new Date(); return d.getHours() + d.getMinutes() / 60 }
-    readonly property bool isDaytime: _halfDay > 0 && _nowHour >= sunriseHour && _nowHour <= sunsetHour
-    readonly property real dayProgress:
-        _halfDay <= 0 ? -1 : Math.max(0, Math.min(1, (_nowHour - sunriseHour) / (sunsetHour - sunriseHour)))
-    readonly property real nightProgress: {
-        if (_halfDay <= 0) return 0
-        const nightDur = 24 - (sunsetHour - sunriseHour)
-        if (nightDur <= 0) return 0
-        const afterSunset = (_nowHour - sunsetHour + 24) % 24
-        return Math.max(0, Math.min(1, afterSunset / nightDur))
-    }
+    readonly property real nowHour: { root._solarTick; const d = new Date(); return d.getHours() + d.getMinutes() / 60 }
+    // a midnight sun's day wraps past 24:00, which the window below cannot express
+    readonly property bool isDaytime: _halfDay >= 12
+        || (_halfDay > 0 && nowHour >= sunriseHour && nowHour <= sunsetHour)
 
+    // routed through DateTime.clockText so the times follow the 12h/24h clock setting
     function _fmtHour(h: real): string {
         if (!isFinite(h)) return "--:--"
-        let hh = Math.floor(((h % 24) + 24) % 24)
-        let mm = Math.round((h - Math.floor(h)) * 60)
-        if (mm >= 60) { mm -= 60; hh = (hh + 1) % 24 }
-        return (hh < 10 ? "0" : "") + hh + ":" + (mm < 10 ? "0" : "") + mm
+        const mins = Math.round((((h % 24) + 24) % 24) * 60) % 1440
+        return DateTime.clockText(new Date(2000, 0, 1, Math.floor(mins / 60), mins % 60))
     }
     readonly property string sunriseLabel: _halfDay <= 0 ? "--:--" : _fmtHour(sunriseHour)
     readonly property string sunsetLabel:  _halfDay <= 0 ? "--:--" : _fmtHour(sunsetHour)
@@ -96,18 +107,17 @@ Singleton {
         root._solarTick
         if (_halfDay <= 0)  return "polar night"
         if (_halfDay >= 12) return "midnight sun"
-        if (isDaytime)            return _dur((sunsetHour - _nowHour) * 60) + " of daylight"
-        if (_nowHour < sunriseHour) return "sunrise in " + _dur((sunriseHour - _nowHour) * 60)
-        return "sunrise in " + _dur((24 - _nowHour + sunriseHour) * 60)
+        if (isDaytime)            return _dur((sunsetHour - nowHour) * 60) + " of daylight"
+        if (nowHour < sunriseHour) return "sunrise in " + _dur((sunriseHour - nowHour) * 60)
+        return "sunrise in " + _dur((24 - nowHour + sunriseHour) * 60)
     }
 
-    readonly property bool recommended: _elevation < 0
-    readonly property string recommendLabel: {
-        // this lands in the same row slot as "Not connected", which is sentence case;
-        // phaseLabel is a caption inside the arc and stays lowercase
-        if (_halfDay >= 12)  return ""
-        if (recommended)     return "Recommended"
-        if (_elevation < 12) return "From " + sunsetLabel
+    // this lands in the same row slot as "Not connected", which is sentence case;
+    // phaseLabel is a caption inside the arc and stays lowercase
+    readonly property string offStatus: {
+        if (_halfDay <= 0 || _halfDay >= 12) return ""
+        if (nowHour < sunriseHour) return "Sunrise " + sunriseLabel
+        if (nowHour >= _solarNoon && _elevation < 12) return "Sunset " + sunsetLabel
         return ""
     }
 
@@ -141,9 +151,23 @@ Singleton {
             "[ -z \"$tz\" ] && tz=\"$(readlink -f /etc/localtime 2>/dev/null | sed -n 's#.*/zoneinfo/##p')\"; " +
             "[ -z \"$tz\" ] && [ -r /etc/timezone ] && tz=\"$(cat /etc/timezone)\"; " +
             "[ -z \"$tz\" ] && exit 0; " +
-            "for f in /usr/share/zoneinfo/zone1970.tab /usr/share/zoneinfo/zone.tab; do " +
-            "  [ -r \"$f\" ] || continue; " +
-            "  c=\"$(awk -v z=\"$tz\" 'BEGIN{FS=\"\\t\"} $0 !~ /^#/ && $3==z {print $2; exit}' \"$f\")\"; " +
+            // the tables list only canonical zones; an alias like Asia/Calcutta would fall back to 45°N
+            "for d in \"$TZDIR\" /etc/zoneinfo /usr/share/zoneinfo; do " +
+            "  [ -n \"$d\" ] && [ -r \"$d/tzdata.zi\" ] || continue; " +
+            "  for _ in 1 2 3; do " +
+            "    l=\"$(awk -v z=\"$tz\" '$1==\"L\" && $3==z {print $2; exit}' \"$d/tzdata.zi\")\"; " +
+            "    [ -n \"$l\" ] && [ \"$l\" != \"$tz\" ] || break; tz=\"$l\"; " +
+            "  done; break; " +
+            "done; " +
+            // NixOS has no /usr/share/zoneinfo: its tables live in /etc/zoneinfo, and $TZDIR
+            // names them wherever else a system keeps them; a miss everywhere falls back to 45°N
+            "c=; for d in \"$TZDIR\" /etc/zoneinfo /usr/share/zoneinfo; do " +
+            "  [ -n \"$d\" ] || continue; " +
+            "  for f in \"$d/zone1970.tab\" \"$d/zone.tab\"; do " +
+            "    [ -r \"$f\" ] || continue; " +
+            "    c=\"$(awk -v z=\"$tz\" 'BEGIN{FS=\"\\t\"} $0 !~ /^#/ && $3==z {print $2; exit}' \"$f\")\"; " +
+            "    [ -n \"$c\" ] && break; " +
+            "  done; " +
             "  [ -n \"$c\" ] && { printf '%s\\n' \"$c\"; break; }; " +
             "done"]
         stdout: StdioCollector { id: _geoOut }

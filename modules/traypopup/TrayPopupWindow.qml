@@ -29,6 +29,7 @@ PanelWindow {
     color:         "transparent"
     exclusiveZone: -1
     WlrLayershell.namespace: "silere-traypopup"
+    WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: TrayPopupState.open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     visible: TrayPopupState.open || card.opacity > 0.001

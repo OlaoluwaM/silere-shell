@@ -51,11 +51,15 @@ AnchoredPopupState {
     // lists and retarget the panel height twice. Keep one owner for the whole
     // settings surface and ask the previous row to fold before the next opens.
     property var _settingsSelectOwner: null
+    readonly property var settingsSelectOwner: _settingsSelectOwner
+    readonly property bool settingsSelectOpen: _settingsSelectOwner !== null
+    signal settingsSelectClaimed()
     function claimSettingsSelect(owner): void {
         if (!owner || _settingsSelectOwner === owner) return
         const previous = _settingsSelectOwner
         if (previous) previous._setOpen(false)
         _settingsSelectOwner = owner
+        root.settingsSelectClaimed()
     }
     function releaseSettingsSelect(owner): void {
         if (_settingsSelectOwner === owner) _settingsSelectOwner = null
@@ -144,6 +148,8 @@ AnchoredPopupState {
         && (settingsSection === "warnings" || settingsSection === "underline")
 
     signal tabRequested(int index)
+    // the window's height hold has to capture the old page before activeTab moves it
+    signal tabChanging(int index)
 
     function _validTab(index: int): int {
         return Math.max(homeTab, Math.min(systemTab, index))
@@ -163,6 +169,7 @@ AnchoredPopupState {
         const tab = root._validTab(index)
         if (tab !== settingsTab) root.closeSettingsSelect()
         if (root._activeTab !== tab) {
+            root.tabChanging(tab)
             root._previousTab = root._activeTab
             root._activeTab = tab
         }
@@ -184,22 +191,25 @@ AnchoredPopupState {
         tabRequested(tab)
     }
 
+    readonly property string _refusedText: "error: the menu stays closed while the session is idle or the overview is open"
+
     IpcHandler {
         target: "menu"
 
-        function toggle(): void {
-            if (root.open) { root.close(); return }
+        function toggle(): string {
+            if (root.open) { root.close(); return "ok" }
             root.selectTab(root.homeTab)
             root.openUnanchored()
+            return root.open ? "ok" : root._refusedText
         }
         function close(): void { root.close() }
         // kept for compatibility with keybinds already carrying the numeric index
         function tab(index: int): string {
             if (index < root.homeTab || index > root.systemTab)
-                return "unknown menu tab " + index + "; valid: 0 (home), 1 (settings), 2 (recent), 3 (system)"
+                return "error: unknown menu tab " + index + "; valid: 0 (home), 1 (settings), 2 (recent), 3 (system)"
             root._unanchor()
             root.showTab(index)
-            return "ok"
+            return root.open ? "ok" : root._refusedText
         }
         // named alternative to tab(index) so a keybind reads "menu show settings"
         // instead of a magic number; "recent" is accepted too since that's the
@@ -218,11 +228,12 @@ AnchoredPopupState {
             root._setAnchor(null)
             if (tab < 0) {
                 root.showTab(root.homeTab)
+                if (!root.open) return root._refusedText
                 return "unknown menu tab '" + name + "'; opened home instead. valid: "
                     + "home, settings, notifications, system"
             }
             root.showTab(tab)
-            return "ok"
+            return root.open ? "ok" : root._refusedText
         }
         // keep `section: "` out of any literal below: ci-lint harvests nav entries by that pattern
         function settings(name: string): string {
@@ -231,6 +242,7 @@ AnchoredPopupState {
             root._unanchor()
             root.setSettingsSection(resolved)
             root.showTab(root.settingsTab)
+            if (!root.open) return root._refusedText
             if (known) return "ok"
             // pages get renamed; a keybind carrying an old name still opens Settings rather than doing nothing, and says why it landed somewhere else
             return "unknown settings page '" + name + "'; opened theme instead. valid: "

@@ -348,6 +348,9 @@ Singleton {
         id: _inhibitWatcher
         superviseWhen: root.available && SystemTools.hasDbusMonitor
         restartDelay: 5000
+        // exit 1 is a system bus it cannot reach or arguments it rejects, neither of which a
+        // respawn fixes; the 15s poll above already carries `inhibited` without the watcher
+        giveUpCodes: [1]
         command: ["dbus-monitor", "--system",
             "type='signal',interface='org.freedesktop.DBus.Properties',member='PropertiesChanged',path='/org/freedesktop/login1'"]
         stdout: SplitParser {

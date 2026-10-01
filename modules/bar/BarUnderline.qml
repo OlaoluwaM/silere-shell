@@ -104,7 +104,10 @@ Item {
         readonly property real _sweepCenterTarget: {
             if (_notifFlash.running)                                         return 0.50
             if (_batteryGlowEnabled && (Battery.low || Battery.critical))    return _widgetSweep("battery")
-            if (_tempGlowEnabled && (CpuTemp.hot || CpuTemp.critical))       return _widgetSweep("battery")
+            // the vitals widget's TEMP chip is the bar's temperature readout; without it
+            // placed, the warning surfaces in the centred osd
+            if (_tempGlowEnabled && (CpuTemp.hot || CpuTemp.critical))       return ShellSettings.barWidgetPlaced("vitals")
+                                                                                  ? _widgetSweep("vitals") : 0.50
             if (ShellSettings.underlineScreenshotGlow
                 && _shotActive)                                              return ShellSettings.screenshotGlowSweep && !ShellSettings.reduceMotion
                                                                                   ? _screenshotSweepCenter : 0.50
@@ -306,6 +309,13 @@ Item {
             _sweepSpread = 0.28
             _screenshotSweepCenter = 0.50
         }
+        // stopping the flash mid-run freezes the spread and bloom where the animation left them,
+        // and they would then colour the next effect that shares this geometry
+        function _clearNetLossFlash(): void {
+            _netLossFlash.stop()
+            _sweepSpread = 0.28
+            _bloomBoost = 0
+        }
         Connections {
             target: ShellSettings
             function onUnderlineNotifGlowChanged() {
@@ -374,7 +384,7 @@ Item {
                     && _lineEffect._canRunEventMotion()) {
                 _netLossFlash.restart()
             } else if (currentConnected || !Network.available) {
-                _netLossFlash.stop()
+                _lineEffect._clearNetLossFlash()
                 _netGlowAnim.to = 0
                 _netGlowAnim.restart()
             }

@@ -41,16 +41,43 @@ Item {
     property int _lastNormalActiveId: 1
     property bool _initialized: false
 
-    implicitWidth:  wsRow.implicitWidth + (urgentOffPage > 0 ? 12 : 0)
-    implicitHeight: btnH
-
-    MotionBehavior on implicitWidth {
+    // the cells ease their own widths; a Behavior on their sum restarts every frame and stalls until they settle
+    property real _tickRoom: urgentOffPage > 0 ? 12 : 0
+    MotionBehavior on _tickRoom {
         gate: root.barActive && !Idle.isIdle
         NumberAnimation { duration: Motion.width; easing.type: Easing.OutCubic }
     }
+    // a dot centred in its cell leaves more slack than the pillPad inset, pushing the next divider off centre
+    readonly property int _markerInk: ShellSettings.wsActiveMarker === "bar" ? btnW - 8
+        : ShellSettings.wsActiveMarker === "dot" ? 2 * Math.round(btnH / 6)
+        : Math.ceil(2 * Math.round(btnH / 4) * Math.SQRT2)
+    readonly property int _dotTrim: Math.max(0, Math.min(Math.floor((btnW - 6) / 2),
+        Math.floor((btnW - _markerInk) / 2) + 2) - Metrics.pillPadFor(compact))
+    TextMetrics { id: _digitM; font.family: Settings.font; font.pixelSize: Settings.fontLabel; text: "0" }
+    function _edgeTrim(wsId: int): int {
+        if (wsId < 0 || _btnW(wsId) !== btnW) return 0
+        if (!ShellSettings.wsShowNumbers) return _dotTrim
+        const ink = String(wsId).length * _digitM.advanceWidth
+        return Math.max(0, Math.min(_dotTrim, Math.floor((btnW - ink) / 2) - Metrics.pillPadFor(compact)))
+    }
+    property real _leadTrim: visibleIds.length > 0 ? _edgeTrim(visibleIds[0]) : 0
+    property real _tailTrim: visibleIds.length > 0 && urgentOffPage <= 0
+        ? _edgeTrim(visibleIds[visibleIds.length - 1]) : 0
+    MotionBehavior on _leadTrim {
+        gate: root.barActive && !Idle.isIdle
+        NumberAnimation { duration: Motion.width; easing.type: Easing.OutCubic }
+    }
+    MotionBehavior on _tailTrim {
+        gate: root.barActive && !Idle.isIdle
+        NumberAnimation { duration: Motion.width; easing.type: Easing.OutCubic }
+    }
+    implicitWidth:  wsRow.implicitWidth + _tickRoom - _leadTrim - _tailTrim
+    implicitHeight: btnH
 
     readonly property string monitorName: Compositor.monitorName(root.screen)
     readonly property bool monitorReady: monitorName.length > 0 && Compositor.activeWorkspaceId(monitorName) > 0
+    // a named hyprland workspace has an id below -1337, so the monitor is live there though no dot is active; only -1 means no data yet
+    readonly property bool monitorLive: monitorName.length > 0 && rawActiveId !== -1
     readonly property bool show: true
     readonly property int  rawActiveId:  Compositor.activeWorkspaceId(root.monitorName)
     readonly property int  activeId:     rawActiveId > 0 ? rawActiveId : _lastNormalActiveId
@@ -58,7 +85,7 @@ Item {
     property int _handoffFromId: 0
     property int _handoffToId: 0
 
-    readonly property bool inSpecial: Compositor.hasSpecialWorkspaces && Compositor.specialOutput === root.monitorName
+    readonly property bool inSpecial: Compositor.hasSpecialWorkspaces && Compositor.specialOutputs.indexOf(root.monitorName) >= 0
 
     // one pass feeds ownership, lookup, page anchoring and the per-output id cap
     readonly property var _workspaceIndex: {
@@ -263,7 +290,7 @@ Item {
         return btnW
     }
     function _cellCenterX(wsId: int): real {
-        let acc = 0
+        let acc = -_leadTrim
         const ids = visibleIds
         for (let i = 0; i < ids.length; i++) {
             if (ids[i] === wsId) return acc + _btnW(ids[i]) / 2
@@ -559,7 +586,7 @@ Item {
     }
 
     function activate(id: int): void {
-        if (!monitorReady || id < 1 || id === activeId || root._knownOnOtherMonitor(id)) return
+        if (!monitorLive || id < 1 || id === rawActiveId || root._knownOnOtherMonitor(id)) return
         Compositor.focusWorkspace(id, root.monitorName)
     }
 
@@ -617,7 +644,7 @@ Item {
 
     WheelHandler {
         acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-        enabled: root.monitorReady && ShellSettings.wsScrollSwitch
+        enabled: root.monitorLive && ShellSettings.wsScrollSwitch
         onWheel: (event) => {
             event.accepted = true
             const n = Scroll.processControlWheel(event, "workspaces")
@@ -702,6 +729,7 @@ Item {
 
     Row {
         id: wsRow
+        x: -root._leadTrim
         spacing: root.gap
 
         // Dynamic mode grows/shrinks this list at the tail (occupied ids plus the
@@ -724,7 +752,7 @@ Item {
                 required property int modelData
 
                 wsId:         modelData
-                monitorReady: root.monitorReady
+                monitorReady: root.monitorLive
                 active:       root.monitorReady && root.activeId === wsId
                 occupied:     root.occupied(wsId)
                 urgent:       root.urgent(wsId)
@@ -752,7 +780,7 @@ Item {
     }
 
     WorkspaceUrgentTick {
-        x: wsRow.implicitWidth + 2
+        x: wsRow.x + wsRow.implicitWidth + 2
         liveId: root.urgentOffPage
         rowHeight: root.btnH
         barActive: root.barActive

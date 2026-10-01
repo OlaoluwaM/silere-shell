@@ -120,18 +120,24 @@ section "invisible characters in source"
 # characters in Silere's own source are the Trojan Source problem: they reorder how a
 # line renders in a review without changing what the engine runs. The tree accepts
 # outside pull requests, so the source has to hold the rule it applies to everyone else.
-if printf 'a\n' | grep -qP 'a' 2>/dev/null; then
-  bidi_hits="$(grep -rlP '[\x{202A}-\x{202E}\x{2066}-\x{2069}\x{200B}\x{200E}\x{200F}]' \
+# in the C locale grep -P rejects \x{} above 0xff with exit 2, which read as a clean tree
+bidi_pattern='[\x{061C}\x{200B}\x{200E}\x{200F}\x{202A}-\x{202E}\x{2066}-\x{206F}]'
+if printf 'a\342\200\256b\n' | LC_ALL=C.UTF-8 grep -qP "$bidi_pattern" 2>/dev/null; then
+  bidi_rc=0
+  bidi_hits="$(LC_ALL=C.UTF-8 grep -rlP "$bidi_pattern" \
     --include='*.qml' --include='*.sh' --include='*.md' --include='*.json' \
-    --include='*.yml' --include='*.toml' --exclude-dir=.git . 2>/dev/null || true)"
-  if [ -n "$bidi_hits" ]; then
+    --include='*.yml' --include='*.toml' --include='*.js' --include='*.py' \
+    --exclude-dir=.git --exclude-dir='.[!g]*' . 2>/dev/null)" || bidi_rc=$?
+  if [ "$bidi_rc" -gt 1 ]; then
+    fail "invisible character scan could not read the tree (grep exit $bidi_rc)"
+  elif [ -n "$bidi_hits" ]; then
     fail "these files carry bidi or zero-width characters; write them as \\uXXXX escapes:"
     while IFS= read -r m; do printf '  %s\n' "$m"; done <<< "$bidi_hits"
   else
     ok "source text" "no bidi or zero-width characters in tracked sources"
   fi
 else
-  skip "source text" "grep -P unavailable; invisible character scan skipped"
+  skip "source text" "grep -P or a UTF-8 locale unavailable; invisible character scan skipped"
 fi
 
 section "orphaned binding continuations"
@@ -262,7 +268,7 @@ else
 fi
 check_qml_locale_count() {
   local file="$1" expected="$2" actual
-  actual="$(grep -c 'environment: ({ "LC_ALL": "C" })' "$file" || true)"
+  actual="$(grep -Ec 'environment: \(\{ "LC_ALL": "C"[[:space:]]*[,}]' "$file" || true)"
   if [ "$actual" -ge "$expected" ]; then
     ok "$file" "$actual parser process(es)"
   else
@@ -339,7 +345,7 @@ section "compositor backend contract"
 # lockstep with the facade before a backend silently renders an empty model.
 compositor_contract_missing=""
 for member in workspaces toplevels workspaceToplevels activeToplevel focusedMonitor \
-              focusedWorkspaceRef overviewActive specialOutput windowGapX monitorName focusWorkspace \
+              focusedWorkspaceRef overviewActive specialOutputs windowGapX monitorName focusWorkspace \
               moveActiveToWorkspace focusToplevel refreshToplevels; do
   grep -qE "^[[:space:]]*(readonly[[:space:]]+)?(property[[:space:]]+[A-Za-z<>]+[[:space:]]+|function[[:space:]]+)${member}\\b" \
     services/Compositor.qml || continue
@@ -732,6 +738,57 @@ else
   ok "motion" "every animation duration routes through Motion"
 fi
 
+section "motion timing direction"
+# A duration or easing that branches on the flag moving the value runs one flip late:
+# Qt starts the Behavior's job before a binding on that flag re-evaluates, so every
+# press, hover and reveal after the first played on the other direction's timing.
+# targetValue is written before the job starts, so a branch must read it instead.
+# CollapsibleSection's symmetric never flips with the value, and Disclosure's _enter
+# is read from targetValue.
+mapfile -t motion_files < <(find shell.qml modules config -name '*.qml')
+stale_timing="$(awk '
+  function check(   e) {
+    e = expr
+    gsub(/\?\?|\?\./, "", e)
+    if (index(e, "?") == 0 || e ~ /targetValue/) return
+    if (file ~ /CollapsibleSection\.qml$/ && e ~ /^[[:space:]]*root\.symmetric[[:space:]]*\?/) return
+    if (enter_ok[file] && e ~ /^[[:space:]]*root\._enter[[:space:]]*\?/) return
+    printf "%s:%d:%s\n", file, at, expr
+  }
+  FNR == 1 { if (pending) check(); depth = 0; inb = 0; pending = 0 }
+  /readonly property bool _enter:.*targetValue/ { enter_ok[FILENAME] = 1 }
+  {
+    if (pending && $0 ~ /^[[:space:]]*[?:]/) { expr = expr " " $0; next }
+    if (pending) { check(); pending = 0 }
+    if (!inb && ($0 ~ /(MotionBehavior|ColorFade|Disclosure)[[:space:]]+on[[:space:]]+[A-Za-z_.]+[[:space:]]*\{/ \
+        || $0 ~ /^(MotionBehavior|Behavior)[[:space:]]*\{/)) {
+      inb = 1; base = depth
+    }
+    if (inb) {
+      rest = $0
+      while (match(rest, /(duration|easing\.type|easing\.bezierCurve)[[:space:]]*:/)) {
+        rest = substr(rest, RSTART + RLENGTH)
+        cut = match(rest, /[;}]/)
+        if (pending) check()
+        expr = cut ? substr(rest, 1, RSTART - 1) : rest
+        file = FILENAME; at = FNR; pending = 1
+        if (cut) { check(); pending = 0 }
+      }
+    }
+    line = $0
+    opens = gsub(/\{/, "{", line); closes = gsub(/\}/, "}", line)
+    depth += opens - closes
+    if (inb && depth <= base) inb = 0
+  }
+  END { if (pending) check() }
+' "${motion_files[@]}" </dev/null)"
+if [ -n "$stale_timing" ]; then
+  fail "a Behavior timing that branches must read its targetValue, not the flag moving the value:"
+  printf '%s\n' "$stale_timing"
+else
+  ok "motion" "branching Behavior timings follow the value's destination"
+fi
+
 section "multi-window animation pacing"
 if grep -qF '//@ pragma DefaultEnv QSG_USE_SIMPLE_ANIMATION_DRIVER = 1' shell.qml; then
   ok "motion driver" "elapsed-time pacing is the overrideable default"
@@ -773,14 +830,15 @@ fi
 
 # A Connections handler naming a signal its target does not have is the same
 # silence one step further out: no type error, no runtime warning, and the
-# effect the handler was written for simply never happens. Only targets whose
-# whole chain is local files ending at Singleton are checked; anything rooted
-# in an external type inherits members this cannot see.
+# effect the handler was written for simply never happens. A misspelt singleton
+# member is the same again, read as undefined. Only targets whose whole chain is
+# local files ending at Singleton are checked; anything rooted in an external
+# type inherits members this cannot see.
 if command -v python3 >/dev/null 2>&1 && [ -f scripts/check-connections.py ]; then
   if orphan_handlers="$(python3 scripts/check-connections.py)"; then
-    ok "handlers" "every Connections handler matches a signal on its target"
+    ok "handlers" "every Connections handler and singleton member resolves"
   else
-    fail "these Connections handlers will never fire:"
+    fail "these name nothing on their singleton:"
     printf '%s\n' "$orphan_handlers"
   fi
 else
@@ -1040,6 +1098,72 @@ if [ -n "$slider_drift" ]; then
     printf '%s\n' "$slider_drift"
 else
     ok "settings" "slider ranges match the schema"
+fi
+
+section "slider default grid"
+# A slider snaps to min + k * step. A default between two steps can never be dragged
+# back to, so that page keeps its modified dot until a full reset.
+slider_grid=$(awk '
+function braces(s, c,   n, i) {
+    n = 0
+    for (i = 1; i <= length(s); i++) if (substr(s, i, 1) == c) n++
+    return n
+}
+function literal(line, name,   seg) {
+    if (!match(line, "(^|[ \t;{])" name ": *-?[0-9]+(\\.[0-9]+)? *(;|$)")) return ""
+    seg = substr(line, RSTART, RLENGTH)
+    sub(".*" name ": *", "", seg)
+    sub(/ *;?$/, "", seg)
+    return seg
+}
+FILENAME ~ /ShellSettings\.qml$/ {
+    if (match($0, /^ *property +(real|int) +[A-Za-z0-9_]+: *-?[0-9]+(\.[0-9]+)? *$/)) {
+        line = $0
+        sub(/^ *property +(real|int) +/, "", line)
+        name = line; sub(/:.*/, "", name)
+        sub(/^[^:]*: */, "", line)
+        def[name] = line + 0
+        next
+    }
+    if (!match($0, /k: "[A-Za-z0-9_]+"/)) next
+    key = substr($0, RSTART + 4, RLENGTH - 5)
+    if (!match($0, /min: *[-0-9.]+/)) next
+    smin[key] = substr($0, RSTART + 4, RLENGTH - 4) + 0
+    sint[key] = ($0 ~ /t: "int"/)
+    next
+}
+!inrow && /SliderRow[ \t]*\{/ {
+    inrow = 1; depth = 1; rstep = ""; rmin = ""
+    delete keys
+    next
+}
+inrow {
+    depth += braces($0, "{") - braces($0, "}")
+    if (match($0, /key: *"[A-Za-z0-9_]+"/)) keys[substr($0, RSTART + 6, RLENGTH - 7)] = 1
+    line = $0
+    while (match(line, /ShellSettings\.[A-Za-z0-9_]+/)) {
+        keys[substr(line, RSTART + 14, RLENGTH - 14)] = 1
+        line = substr(line, RSTART + RLENGTH)
+    }
+    v = literal($0, "step"); if (v != "") rstep = v + 0
+    v = literal($0, "min");  if (v != "") rmin = v + 0
+    if (depth > 0) next
+    inrow = 0
+    for (k in keys) {
+        if (!(k in smin) || !(k in def)) continue
+        step = rstep != "" ? rstep : (sint[k] ? 1 : 0.05)
+        lo = rmin != "" ? rmin : smin[k]
+        r = (def[k] - lo) / step
+        if (r - int(r + 0.5) > 1e-6 || int(r + 0.5) - r > 1e-6)
+            printf "  %s: default %s is not on %s + k * %s (%s)\n", k, def[k], lo, step, FILENAME
+    }
+}
+' services/ShellSettings.qml "${slider_files[@]}")
+if [ -n "$slider_grid" ]; then
+    fail "slider defaults a slider can never return to:"
+    printf '%s\n' "$slider_grid"
+else
+    ok "settings" "every slider default sits on its step grid"
 fi
 
 section "glow strength travel"
@@ -1674,6 +1798,22 @@ if [ -n "$row_formulas" ]; then
   while IFS= read -r m; do printf '  %s\n' "$m"; done <<< "$row_formulas"
 else
   ok "row height" "every design row height derives from the shared grid"
+fi
+
+section "supervised give-up path"
+# SupervisedProcess retries with a backoff that caps, so a command failing permanently
+# respawns for as long as its gate is true. giveUpCodes is the only brake, and it was
+# already found unset once on a watcher whose permanent failure was live in the tree.
+ungoverned_supervised=""
+for f in $(grep -rl 'SupervisedProcess {' --include='*.qml' services modules); do
+  starts="$(grep -c 'SupervisedProcess {' "$f")"
+  codes="$(grep -c 'giveUpCodes' "$f")"
+  [ "$starts" -eq "$codes" ] || ungoverned_supervised="$ungoverned_supervised $(basename "$f")"
+done
+if [ -n "$ungoverned_supervised" ]; then
+  fail "these supervised processes never give up on a permanent failure:$ungoverned_supervised"
+else
+  ok "give up" "every supervised process declares the exits it will not retry"
 fi
 
 section "portability regressions"

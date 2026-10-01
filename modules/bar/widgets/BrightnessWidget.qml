@@ -38,7 +38,7 @@ Pill {
         onWheel: (event) => {
             event.accepted = true
             if (!root.canControl) return
-            const n = Scroll.processControlWheel(event, "brightness")
+            const n = Scroll.processLevelWheel(event, "brightness")
             if (n !== 0) Brightness.bumpBy(n * Brightness.stepPct)
         }
     }

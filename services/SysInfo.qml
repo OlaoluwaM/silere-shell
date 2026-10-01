@@ -12,12 +12,19 @@ Singleton {
     property real uptimeSecs: 0
     property real diskUsedKb: 0
     property real diskTotalKb: 0
+    property real diskAvailKb: 0
+    property real _lastDiskReadMs: 0
+    // the menu opening and the slow tick can both ask for df; a read this fresh answers both
+    readonly property int _diskMinGapMs: 5000
     property real cpuPct: 0
+    // false until two /proc/stat reads exist, so the tile shows a dash rather than a stale or zero load
+    property bool cpuReady: false
     property real _lastCpuTotal: 0
     property real _lastCpuIdle: 0
 
     readonly property real memPct:     memTotalKb > 0 ? (memTotalKb - memAvailKb) / memTotalKb : 0
-    readonly property real diskPct:    diskTotalKb > 0 ? diskUsedKb / diskTotalKb : 0
+    // as df counts it: blocks reserved for root are neither used nor available to the user
+    readonly property real diskPct:    diskUsedKb + diskAvailKb > 0 ? diskUsedKb / (diskUsedKb + diskAvailKb) : 0
 
     readonly property string uptimeLabel: {
         if (uptimeSecs <= 0) return "—"
@@ -49,16 +56,27 @@ Singleton {
     }
 
     // already polling for the vitals widget when the menu opens: catch disk up immediately
-    // instead of leaving it showing "—" for up to 10s until the gated slow timer first fires
+    // instead of leaving it showing "—" for up to 10s until the gated slow timer first fires.
+    // Uptime has no reader outside the home page, so its minute poll follows the page too
     Connections {
         target: MenuState
-        function onHomeActiveChanged() { if (MenuState.homeActive && root._active) root._refreshSlow() }
+        function onHomeActiveChanged() {
+            if (!MenuState.homeActive) {
+                _uptimePoll.stop()
+                return
+            }
+            if (!root._active) return
+            root._refreshSlow()
+            _uptimeFile.reload()
+        }
     }
 
     function _activate(): void {
         if (_active) return
         _active = true
+        cpuReady = false
         _refreshFast()
+        if (MenuState.homeActive) _uptimeFile.reload()
         _refreshSlow()
         // cpuPct is a delta between two /proc/stat reads; without a quick second sample the tile shows the last session's figure
         _cpuPrime.restart()
@@ -67,7 +85,9 @@ Singleton {
     function _deactivate(): void {
         _startDelay.stop()
         _cpuPrime.stop()
+        _uptimePoll.stop()
         _active = false
+        cpuReady = false
         _lastCpuTotal = 0
         _lastCpuIdle = 0
         if (_slowProc.running) _slowProc.running = false
@@ -78,6 +98,9 @@ Singleton {
 
     Timer { id: _startDelay; interval: 120; onTriggered: root._activate() }
     Timer { id: _cpuPrime; interval: 250; onTriggered: if (root._active) _statFile.reload() }
+    // the label only changes on the minute, so the reload is aimed at the next minute edge
+    // rather than riding the 2s poll
+    Timer { id: _uptimePoll; onTriggered: if (root._active && MenuState.homeActive) _uptimeFile.reload() }
 
     Timer {
         id: _poll
@@ -113,6 +136,11 @@ Singleton {
         blockAllReads: false
         printErrors: false
         onLoaded: root._applyUptime(_uptimeFile.text())
+        onLoadFailed: {
+            if (!root._active || !MenuState.homeActive) return
+            _uptimePoll.interval = 2000
+            _uptimePoll.restart()
+        }
     }
 
     FileView {
@@ -127,7 +155,6 @@ Singleton {
     function _refreshFast(): void {
         if (!_active) return
         _meminfoFile.reload()
-        _uptimeFile.reload()
         _statFile.reload()
     }
 
@@ -144,7 +171,10 @@ Singleton {
     function _applyUptime(raw: string): void {
         if (!root._active) return
         const up = raw.trim().split(/\s+/)
-        if (up.length > 0) root.uptimeSecs = parseFloat(up[0]) || 0
+        root.uptimeSecs = parseFloat(up[0]) || 0
+        _uptimePoll.interval = root.uptimeSecs < 60 ? 2000
+            : Math.max(1000, Math.ceil((60 - root.uptimeSecs % 60) * 1000) + 100)
+        if (MenuState.homeActive) _uptimePoll.restart()
     }
 
     function _applyCpuStat(_cpuRaw: string): void {
@@ -161,6 +191,7 @@ Singleton {
                 const dTotal = total - root._lastCpuTotal
                 const dIdle  = idle  - root._lastCpuIdle
                 root.cpuPct = Math.max(0, Math.min(1, (dTotal - dIdle) / dTotal))
+                root.cpuReady = true
             }
             root._lastCpuTotal = total
             root._lastCpuIdle  = idle
@@ -169,11 +200,13 @@ Singleton {
 
     function _refreshSlow(): void {
         if (_slowProc.running) return
+        const elapsed = Date.now() - root._lastDiskReadMs
+        if (root._lastDiskReadMs > 0 && elapsed >= 0 && elapsed < root._diskMinGapMs) return
         _slowProc.exec(["bash", "-c",
             // -P keeps a long device name on one line; read from the right so its spaces cannot shift the columns
             "df -Pk / 2>/dev/null | awk '" +
-            "NF >= 6 && $(NF-4) ~ /^[0-9]+$/ && $(NF-3) ~ /^[0-9]+$/ { " +
-            "printf \"d%s %s\\n\", $(NF-3), $(NF-4); exit }'"])
+            "NF >= 6 && $(NF-4) ~ /^[0-9]+$/ && $(NF-3) ~ /^[0-9]+$/ && $(NF-2) ~ /^[0-9]+$/ { " +
+            "printf \"d%s %s %s\\n\", $(NF-3), $(NF-4), $(NF-2); exit }'"])
     }
 
     BoundedProcess {
@@ -185,9 +218,11 @@ Singleton {
                 if (!root._active) return
                 if (line.startsWith("d")) {
                     const p = line.slice(1).trim().split(/\s+/)
-                    if (p.length >= 2) {
+                    if (p.length >= 3) {
                         root.diskUsedKb  = parseInt(p[0]) || 0
                         root.diskTotalKb = parseInt(p[1]) || 0
+                        root.diskAvailKb = parseInt(p[2]) || 0
+                        root._lastDiskReadMs = Date.now()
                     }
                 }
             }

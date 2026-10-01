@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell
 import "../../config"
 import "../../services"
 import "../common"
@@ -24,19 +25,27 @@ Item {
     readonly property string _batteryValue: Battery.label
     // the rail caps this at 86px and "Performance · throttled" needs 138, so the suffix
     // could never render; degraded rides the row tint here and the Now page says the word
-    readonly property string _profileValue: PowerProfiles.profile !== ""
-        ? PowerProfiles.label
+    // a failed change reads as a word on the row: the profile re-reads the daemon afterwards, so
+    // without it the label just flips back and the user is left guessing why
+    readonly property string _profileValue: PowerProfiles.lastError.length > 0 ? "Failed"
+        : PowerProfiles.profile !== "" ? PowerProfiles.label
         : PowerProfiles.syncing ? "..."
         : ""
 
     onActiveChanged: {
         if (active) return
+        _powOut.disarm()
         _powReb.disarm()
         _powOff.disarm()
     }
 
     function _runAction(command, title: string): void {
         MenuState.close()
+        // a test copy must never lock, suspend or end the real session
+        if (Quickshell.env("SILERE_SANDBOX") === "1") {
+            console.info("silere-shell: sandboxed power action skipped:", command.join(" "))
+            return
+        }
         SystemTools.runOrNotify(command, title)
     }
 
@@ -57,7 +66,7 @@ Item {
                 label: "Mode"
                 value: root._profileValue
                 glyph: PowerProfiles.glyph
-                dangerous: PowerProfiles.degraded
+                dangerous: PowerProfiles.degraded || PowerProfiles.lastError.length > 0
                 enabled: PowerProfiles.available && PowerProfiles.profile !== ""
                 onTriggered: PowerProfiles.cycle()
             }
@@ -125,6 +134,18 @@ Item {
             }
 
             PowerRailRow {
+                id: _powOut
+                width: parent.width
+                label: "Log out"
+                glyph: "󰍃"
+                enabled: SystemTools.commandAvailable(Settings.logoutCommand)
+                confirm: true
+                dangerous: true
+                onArmedChanged: if (armed) { _powReb.disarm(); _powOff.disarm() }
+                onTriggered: root._runAction(Settings.logoutCommand, "Log out failed")
+            }
+
+            PowerRailRow {
                 id: _powReb
                 width: parent.width
                 label: "Reboot"
@@ -132,7 +153,7 @@ Item {
                 enabled: SystemTools.commandAvailable(Settings.rebootCommand)
                 confirm: true
                 dangerous: true
-                onArmedChanged: if (armed) _powOff.disarm()
+                onArmedChanged: if (armed) { _powOut.disarm(); _powOff.disarm() }
                 onTriggered: root._runAction(Settings.rebootCommand, "Reboot failed")
             }
 
@@ -144,7 +165,7 @@ Item {
                 enabled: SystemTools.commandAvailable(Settings.poweroffCommand)
                 confirm: true
                 dangerous: true
-                onArmedChanged: if (armed) _powReb.disarm()
+                onArmedChanged: if (armed) { _powOut.disarm(); _powReb.disarm() }
                 onTriggered: root._runAction(Settings.poweroffCommand, "Shut down failed")
             }
         }

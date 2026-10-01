@@ -97,6 +97,13 @@ Item {
                 property bool _dwelled: false
 
                 onNeedsAttentionChanged: _attentionSettled = false
+                // the repeater reuses a tile for a different item when the list reshuffles, so the
+                // previous app's fallback and label dwell must not leak onto the new one
+                onModelDataChanged: {
+                    _tile._fallbackDue = false
+                    _tile._dwelled = false
+                    if (!_icon.ready) _fallbackTimer.restart()
+                }
 
                 Accessible.role: Accessible.Button
                 Accessible.name: _tile.label
@@ -164,6 +171,7 @@ Item {
 
                 property bool _fallbackDue: false
                 Timer {
+                    id: _fallbackTimer
                     interval: 300
                     running: !_icon.ready
                     onTriggered: _tile._fallbackDue = true
@@ -252,9 +260,8 @@ Item {
                     }
                     onWheel: (wheel) => {
                         wheel.accepted = true
-                        const horizontal = Math.abs(wheel.angleDelta.x) > Math.abs(wheel.angleDelta.y)
-                        const delta = horizontal ? wheel.angleDelta.x : wheel.angleDelta.y
-                        if (delta !== 0) _tile.modelData.scroll(delta, horizontal)
+                        const r = Scroll.processTrayWheel(wheel, "tray:" + _tile.modelData.id)
+                        if (r.steps !== 0) _tile.modelData.scroll(r.steps * Scroll.notch, r.horizontal)
                     }
                 }
 

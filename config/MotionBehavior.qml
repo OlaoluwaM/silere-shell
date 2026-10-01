@@ -1,7 +1,8 @@
 import QtQuick
 import "../services"
 
-// carries the reduce-motion and blanked-screen gates so no call site can forget them
+// carries the reduce-motion and blanked-screen gates so no call site can forget them.
+// Call sites branch timings on targetValue: a flag-bound duration updates only after the job starts
 Behavior {
     id: root
 

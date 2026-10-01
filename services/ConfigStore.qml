@@ -86,8 +86,11 @@ Singleton {
         id: _mkdir
         timeoutMs: 10000
         command: ["bash", "-c",
+            // a symlinked directory could point the chmod below at someone else's tree; exit 3 names
+            // that refusal apart from a failed mkdir
             // without the exits, the trailing file check's status hides a failed mkdir
-            "umask 077; mkdir -m 0700 -p -- \"$1\" || exit $?; " +
+            "umask 077; [ ! -L \"$1\" ] || exit 3; " +
+            "mkdir -m 0700 -p -- \"$1\" || exit $?; " +
             "chmod 0700 -- \"$1\" || exit $?; " +
             "for f in \"$2\" \"$3\" \"$4\"; do " +
             "[ ! -e \"$f\" ] || [ -L \"$f\" ] || chmod 0600 -- \"$f\" || exit $?; done",
@@ -103,7 +106,9 @@ Singleton {
             }
 
             root.ready = false
-            root._error = "Could not create " + root.directory + "."
+            root._error = code === 3
+                ? root.directory + " is a symlink, which the shell will not write through. Replace it with a real directory."
+                : "Could not create " + root.directory + "."
             root._directoryFailures++
             if (root._directoryFailures < root.maxDirectoryAttempts)
                 _mkdirRetry.restart()

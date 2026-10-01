@@ -17,53 +17,27 @@ PanelWindow {
     readonly property int menuWidth: 220
     readonly property int menuRowHeight: Metrics.rowHeightFor(32)
 
+    // Quickshell's QsMenuOpener refs the menu it shows, and that ref alone tells the app
+    // "opened" on the first one and "closed" on the last. Sending either by hand as well
+    // would give apps every open and close twice, so the openers below are the only signallers.
     property var _activeMenu: null
-    property bool _rootOpenedSent: false
 
-    function _menuRoot(): var {
-        return win._activeMenu?.menu ?? win._activeMenu
-    }
-    function _emitMenuSignal(entry, signalName: string, fallbackName: string): bool {
-        if (entry === null || entry === undefined) return false
+    function _trigger(entry): void {
+        if (entry === null || entry === undefined) return
         try {
-            const fn = entry[signalName]
-            if (typeof fn === "function") {
-                fn()
-                return true
-            }
-
-            const fallback = entry[fallbackName]
-            if (typeof fallback === "function") {
-                fallback()
-                return true
-            }
+            if (typeof entry.triggered === "function") entry.triggered()
+            else if (typeof entry.sendTriggered === "function") entry.sendTriggered()
+            else console.warn("silere-shell: tray menu entry has no triggered signal")
         } catch (error) {
             console.warn("silere-shell: tray menu signal failed:", String(error))
-            return false
         }
-
-        console.warn("silere-shell: tray menu entry has no", signalName, "signal")
-        return false
-    }
-    function _sendRootOpened(): void {
-        if (_rootOpenedSent || !TrayMenuState.open) return
-        if (_emitMenuSignal(_menuRoot(), "opened", "sendOpened"))
-            _rootOpenedSent = true
-    }
-    function _sendRootClosed(): void {
-        if (!_rootOpenedSent) return
-        _emitMenuSignal(_menuRoot(), "closed", "sendClosed")
-        _rootOpenedSent = false
     }
     function _setActiveMenu(handle): void {
-        if (win._activeMenu === handle) {
-            // a quick close/reopen reuses the handle: same object identity, but the previous close already cleared the sent flag
-            if (handle !== null) win._sendRootOpened()
-            return
-        }
-        win._sendRootClosed()
+        // a reopen while the card still fades hands back the same handle, and QsMenuOpener
+        // ignores an equal menu: no ref, so the app hears no second "opened" and its layout
+        // is never refreshed. Bounce through null so every show is one unref/ref cycle.
+        if (handle !== null && win._activeMenu === handle) win._activeMenu = null
         win._activeMenu = handle
-        win._sendRootOpened()
     }
     function _closeFlyouts(): void {
         const kids = win.contentItem.children
@@ -71,6 +45,15 @@ PanelWindow {
             const k = kids[i]
             if (k && k.opened === true) k.opened = false
         }
+    }
+    function _closeFlyoutBranch(flyout): void {
+        const kids = win.contentItem.children
+        for (let i = 0; i < kids.length; i++) {
+            const k = kids[i]
+            if (k && k.parentFlyout === flyout && k.opened === true)
+                win._closeFlyoutBranch(k)
+        }
+        flyout.opened = false
     }
     function _drillIntoFlyout(flyout, menu): void {
         flyout["_drillInto"](menu)
@@ -108,11 +91,17 @@ PanelWindow {
             if (output === win._output && TrayMenuState.open) TrayMenuState.close()
         }
     }
+    // barBottom is captured at open, so an edge change would leave the card on the old edge
+    Connections {
+        target: ShellSettings
+        function onBarPositionChanged() { if (TrayMenuState.open) TrayMenuState.close() }
+    }
 
     screen:        targetScreen
     color:         "transparent"
     exclusiveZone: -1
     WlrLayershell.namespace: "silere-traymenu"
+    WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: TrayMenuState.open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     visible: TrayMenuState.open || card.opacity > 0.001
@@ -129,18 +118,13 @@ PanelWindow {
     Connections {
         target: TrayMenuState
         function onOpenChanged() {
-            if (!TrayMenuState.open) {
-                win._closeFlyouts()
-                win._sendRootClosed()
-            } else {
-                win._sendRootOpened()
-            }
+            if (!TrayMenuState.open) win._closeFlyouts()
         }
     }
 
     QsMenuOpener {
         id: _opener
-        menu: win._menuRoot()
+        menu: win._activeMenu
     }
 
     Item { id: _fillArea; anchors.fill: parent }
@@ -152,8 +136,10 @@ PanelWindow {
         for (let i = 0; i < kids.length; i++) {
             const k = kids[i]
             if (!k || k.opened !== true || !k.visible) continue
-            if (p.x >= k.x && p.x <= k.x + k.width &&
-                p.y >= k.y && p.y <= k.y + k.height) return true
+            // mapped, not compared against k.x: the entrance Translate shifts a flyout off its x
+            const local = k.mapFromItem(win.contentItem, p.x, p.y)
+            if (local.x >= 0 && local.x <= k.width &&
+                local.y >= 0 && local.y <= k.height) return true
         }
         return false
     }
@@ -205,12 +191,12 @@ PanelWindow {
                 if (!_entry.on) return
                 // branch, not sub, for the same depth-cap reason as the leaf TapHandler below
                 if (_entry.branch) { if (_entry.sub) _entry._toggleFlyout(); return }
-                win._emitMenuSignal(_entry.modelData, "triggered", "sendTriggered")
+                win._trigger(_entry.modelData)
                 TrayMenuState.close()
             }
 
             function closeFlyout(): void {
-                if (_flyout.opened) _flyout.opened = false
+                if (_flyout.opened) win._closeFlyoutBranch(_flyout)
             }
             function _openFlyout(allowAdaptiveExpansion: bool): void {
                 if (!_entry.sub || _flyout.opened) return
@@ -268,7 +254,7 @@ PanelWindow {
                 // firing triggered on a container item and closing the whole menu
                 enabled: _entry.on && !_entry.branch
                 onTapped: {
-                    win._emitMenuSignal(_entry.modelData, "triggered", "sendTriggered")
+                    win._trigger(_entry.modelData)
                     TrayMenuState.close()
                 }
             }
@@ -358,7 +344,8 @@ PanelWindow {
                     || TrayMenuState.branchHovered(_flyout, win.contentItem.children)
                 property bool _hoverEntered: false
                 on_BranchHoveredChanged: if (opened && _branchHovered) _hoverEntered = true
-                property real _shift: opened ? 0 : (_rootLaneOverlay ? 0 : (_flip ? 5 : -5))
+                readonly property real _closedShift: _rootLaneOverlay ? 0 : (_flip ? 5 : -5)
+                property real _shift: opened ? 0 : _closedShift
                 property var _menuStack: []
 
                 visible: opened || opacity > 0.001
@@ -411,8 +398,8 @@ PanelWindow {
                     outlineColor: Theme.outline
                 }
 
-                Disclosure on opacity { expanded: _flyout.opened; enterEasing: Easing.OutCubic }
-                Disclosure on _shift { expanded: _flyout.opened }
+                Disclosure on opacity { enterEasing: Easing.OutCubic }
+                Disclosure on _shift { closedValue: _flyout._closedShift }
 
                 function _prepareToOpen(): void {
                     _menuStack = [_entry.modelData]
@@ -422,7 +409,6 @@ PanelWindow {
                     if (!opened || menu === null || menu === undefined) return
                     _menuStack = _menuStack.concat([menu])
                     _subScroll.contentY = 0
-                    win._emitMenuSignal(menu, "opened", "sendOpened")
                 }
                 function _goBack(): void {
                     if (_menuStack.length === 1 && _rootLaneOverlay) {
@@ -430,38 +416,16 @@ PanelWindow {
                         return
                     }
                     if (!_canGoBack) return
-                    const menu = _currentMenu
-                    win._emitMenuSignal(menu, "closed", "sendClosed")
                     _menuStack = _menuStack.slice(0, -1)
                     _subScroll.contentY = 0
                 }
-                // mirrors win._rootOpenedSent: with an inert opacity Behavior the close snaps
-                // visible off before onOpenedChanged runs, so whichever of the two handlers
-                // gets there first must flush closed exactly once, off the still-intact stack
-                property bool _drillMenusClosed: false
-                function _closeDrillMenus(): void {
-                    if (_drillMenusClosed) return
-                    _drillMenusClosed = true
-                    for (let i = _menuStack.length - 1; i >= 0; i--)
-                        win._emitMenuSignal(_menuStack[i], "closed", "sendClosed")
-                }
-
                 onOpenedChanged: {
-                    if (!_entry.sub) return
-                    if (opened) {
-                        _flyout._hoverEntered = _flyout._branchHovered
-                        _flyout._drillMenusClosed = false
-                        _flyout._syncOrigin()
-                        win._emitMenuSignal(_flyout._currentMenu, "opened", "sendOpened")
-                    } else {
-                        _flyout._closeDrillMenus()
-                    }
+                    if (!_entry.sub || !opened) return
+                    _flyout._hoverEntered = _flyout._branchHovered
+                    _flyout._syncOrigin()
                 }
-                onVisibleChanged: if (!visible && !opened) {
-                    _flyout._closeDrillMenus()
-                    _menuStack = []
-                }
-                Component.onDestruction: if (_entry.sub && _flyout.opened) _flyout._closeDrillMenus()
+                // releasing the stack once hidden is what lets _laneOpener tell the app "closed"
+                onVisibleChanged: if (!visible && !opened) _menuStack = []
 
                 HoverHandler {
                     id: _flyHover
@@ -550,6 +514,8 @@ PanelWindow {
                             }
                         }
 
+                        // the lane shows one menu at a time, so a drill-in closes the menu it covers
+                        // and Back reopens it: each is signalled once per stretch it is on screen
                         QsMenuOpener {
                             id: _laneOpener
                             menu: _flyout._currentMenu

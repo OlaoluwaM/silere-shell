@@ -187,7 +187,7 @@ PageShell {
                     id: _countTxt
                     anchors.centerIn: parent
                     text: String(Notifications.historyCount)
-                    color: Theme.withAlpha(Theme.text, 0.62)
+                    color: Theme.withAlpha(Theme.text, 0.82)
                     font.pixelSize: Settings.fontMicro
                     font.weight: Font.DemiBold
                 }
@@ -252,7 +252,7 @@ PageShell {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: "New notifications will appear here"
                     color: Theme.withAlpha(Theme.subtext,
-                        ShellSettings.highContrast ? 0.72 : 0.52)
+                        ShellSettings.highContrast ? 0.90 : 0.76)
                     font.pixelSize: Settings.fontCaption
                 }
             }
@@ -439,7 +439,7 @@ PageShell {
                             anchors.leftMargin:     4
                             anchors.verticalCenter: parent.verticalCenter
                             text: { root._timeTick; return root.sectionLabel(_entry.modelData.time) }
-                            color: Theme.withAlpha(Theme.mix(Theme.subtext, Theme.accent, 0.22), 0.74)
+                            color: Theme.withAlpha(Theme.mix(Theme.subtext, Theme.accent, 0.22), 0.88)
                             font.pixelSize: Settings.fontMicro
                             font.weight: Font.DemiBold
                             font.capitalization: Font.AllUppercase
@@ -639,7 +639,7 @@ PageShell {
                                             - _runActions.width - _metaRow.spacing)
                                         : _metaRow._nameSpace
                                     text: _entry.modelData.appName || "Notification"
-                                    color: _entry._critical ? Theme.error : Theme.withAlpha(Theme.subtext, 0.70)
+                                    color: _entry._critical ? Theme.error : Theme.withAlpha(Theme.subtext, 0.84)
                                     font.pixelSize: Settings.fontCaption
                                     font.weight: Font.Medium
                                     elide: Text.ElideRight
@@ -757,7 +757,7 @@ PageShell {
                                 width: parent.width
                                 enabled: !root._clearing && !_entry._removing
                                 bodyText: _entry.modelData.body || ""
-                                bodyColor: Theme.withAlpha(Theme.text, 0.58)
+                                bodyColor: Theme.withAlpha(Theme.text, 0.78)
                                 collapsedLineCount: 2
                                 spacing: 3
                                 // a folded card's tap belongs to the run, so More would be a lie
@@ -783,7 +783,7 @@ PageShell {
                                 anchors.right: parent.right
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: { root._timeTick; return root.formatTime(_entry.modelData.time) }
-                                color: Theme.withAlpha(Theme.subtext, 0.42)
+                                color: Theme.withAlpha(Theme.subtext, 0.78)
                                 font.pixelSize: Settings.fontMicro
                                 opacity: _entryHover.hovered ? 0 : 1
                                 MotionBehavior on opacity { gate: _entry._heightReady; NumberAnimation { duration: Motion.fast } }

@@ -27,6 +27,8 @@ Singleton {
     property bool   showSeconds:         GeneratedDefaults.showSeconds
     property bool   compactDate:         false
     property bool   clock12h:            GeneratedDefaults.clock12h
+    property string calendarWeekStart:   GeneratedDefaults.calendarWeekStart
+    property bool   calendarWeekNumbers: GeneratedDefaults.calendarWeekNumbers
     property bool   showWindowTitle:     false
     property bool   showWindowTitleApp:  false
     // configuration only; the separators page uses it to reveal the dot controls
@@ -371,6 +373,8 @@ Singleton {
         { k: "showSeconds",         t: "bool", sec: "clock" },
         { k: "compactDate",         t: "bool", sec: "clock" },
         { k: "clock12h",            t: "bool", sec: "clock" },
+        { k: "calendarWeekStart",   t: "enum", vals: ["monday", "sunday", "locale"], sec: "clock" },
+        { k: "calendarWeekNumbers", t: "bool", sec: "clock" },
         { k: "showWindowTitle",     t: "bool", sec: "widgets,indicators" },
         { k: "showWindowTitleApp",  t: "bool", sec: "indicators" },
         { k: "trayWidget",          t: "bool", sec: "widgets" },
@@ -506,36 +510,41 @@ Singleton {
 
     // folds only hand-typed ipc keys; schemaFor stays exact so a row's key: cannot match the wrong setting
     function _ipcKey(key: string): string {
-        if (root.schemaFor(key)) return key
-        const fold = String(key || "").toLowerCase()
+        const trimmed = String(key || "").trim()
+        if (root.schemaFor(trimmed)) return trimmed
+        const fold = trimmed.toLowerCase()
         for (let i = 0; i < root._schema.length; i++)
             if (root._schema[i].k.toLowerCase() === fold) return root._schema[i].k
-        return key
+        return trimmed
     }
 
-    function _coerce(s, v): bool {
+    function _coerced(s, v): var {
         switch (s.t) {
         case "bool":
-            if (typeof v === "boolean") root[s.k] = v
-            else if (v === "true" || v === "false") root[s.k] = v === "true"
-            else return false
-            return true
+            if (typeof v === "boolean") return { ok: true, value: v }
+            if (v === "true" || v === "false") return { ok: true, value: v === "true" }
+            return { ok: false }
         case "int": {
             const n = (typeof v === "number" || (typeof v === "string" && v.trim().length > 0)) ? Number(v) : NaN
-            if (!isFinite(n)) return false
-            root[s.k] = Math.max(s.min, Math.min(s.max, Math.round(n)))
-            return true
+            if (!isFinite(n)) return { ok: false }
+            return { ok: true, value: Math.max(s.min, Math.min(s.max, Math.round(n))) }
         }
         case "real": {
             const n = (typeof v === "number" || (typeof v === "string" && v.trim().length > 0)) ? Number(v) : NaN
-            if (!isFinite(n)) return false
-            root[s.k] = Math.max(s.min, Math.min(s.max, n))
-            return true
+            if (!isFinite(n)) return { ok: false }
+            // older slider steps saved float residue such as 1.9000000000000001
+            return { ok: true, value: Math.round(Math.max(s.min, Math.min(s.max, n)) * 1e6) / 1e6 }
         }
-        case "enum": if (s.vals.indexOf(v) >= 0) { root[s.k] = v; return true } return false
-        case "re":   if (typeof v === "string" && s.re.test(v)) { root[s.k] = v; return true } return false
+        case "enum": return s.vals.indexOf(v) >= 0 ? { ok: true, value: v } : { ok: false }
+        case "re":   return typeof v === "string" && s.re.test(v) ? { ok: true, value: v } : { ok: false }
         }
-        return false
+        return { ok: false }
+    }
+
+    function _coerce(s, v): bool {
+        const c = root._coerced(s, v)
+        if (c.ok) root[s.k] = c.value
+        return c.ok
     }
 
     function constraintOf(key: string): string {
@@ -551,11 +560,20 @@ Singleton {
         return ""
     }
 
+    // before the load, a write is overwritten by the file or never saved; a config directory that
+    // failed to come up can never take it either, so say so instead of echoing a value that is lost
+    function _ipcWriteRefusal(): string {
+        if (!root.ready) return "error: settings are still loading; try again"
+        if (!ConfigStore.ready && ConfigStore.error.length > 0)
+            return "error: " + ConfigStore.error + " The change would not be saved."
+        return ""
+    }
+
     function _ipcSet(key: string, value): string {
         const k = root._ipcKey(key)
-        if (!root.schemaFor(k)) return "unknown setting '" + key + "'; try `list`"
+        if (!root.schemaFor(k)) return "error: unknown setting '" + key + "'; try `list`"
         if (!root.setValue(k, value))
-            return "'" + value + "' is not valid for " + k
+            return "error: '" + value + "' is not valid for " + k
                 + "; expected " + root.constraintOf(k)
         // normalize widget-order writes after all three zones are readable
         if (k === "barWidgetOrderLeft" || k === "barWidgetOrderCenter"
@@ -570,20 +588,24 @@ Singleton {
 
         function get(key: string): string {
             const k = root._ipcKey(key)
-            if (!root.schemaFor(k)) return "unknown setting '" + key + "'; try `list`"
+            if (!root.schemaFor(k)) return "error: unknown setting '" + key + "'; try `list`"
             return String(root[k])
         }
 
         function set(key: string, value: string): string {
+            const refused = root._ipcWriteRefusal()
+            if (refused.length > 0) return refused
             return root._ipcSet(key, value)
         }
 
         function toggle(key: string): string {
+            const refused = root._ipcWriteRefusal()
+            if (refused.length > 0) return refused
             const k = root._ipcKey(key)
             const s = root.schemaFor(k)
-            if (!s) return "unknown setting '" + key + "'; try `list`"
+            if (!s) return "error: unknown setting '" + key + "'; try `list`"
             if (s.t !== "bool")
-                return k + " is not a toggle; expected " + root.constraintOf(k)
+                return "error: " + k + " is not a toggle; expected " + root.constraintOf(k)
             root[k] = !root[k]
             return String(root[k])
         }
@@ -624,6 +646,8 @@ Singleton {
     property var _discreteKeys: Object.create(null)
     // reset assigns every key at once; one write at the end, not one per toggle
     property bool _bulkAssign: false
+    // a reload assigns what the file changed, then recounts once; per-key tracking would re-queue a write of the file just read
+    property bool _applying: false
     readonly property int modifiedCount: _modifiedCount
 
     property var _modifiedSections: Object.create(null)
@@ -653,10 +677,12 @@ Singleton {
         let n = 0
         const keys = Object.create(null)
         for (let i = 0; i < _schema.length; i++) {
-            const key = _schema[i].k
+            const entry = _schema[i]
+            const key = entry.k
             if (root._sameValue(root[key], root._defaults[key])) continue
             keys[key] = true
-            n++
+            // a key with no page of its own is never reset, so it is no reason to offer one
+            if (entry.sec !== "-") n++
         }
         root._modifiedKeys = keys
         root._modifiedCount = n
@@ -671,11 +697,13 @@ Singleton {
     }
 
     // one user action that moves several keys is still one settings change: without this each discrete key flushes the whole file on its own
-    function batch(apply): void {
+    // flushNow false queues the write instead, for a batch a drag repeats dozens of times a second
+    function batch(apply, flushNow): void {
         if (root._bulkAssign) { apply(); return }
         root._bulkAssign = true
         try { apply() } finally { root._bulkAssign = false }
-        _store.flush(false)
+        if (flushNow === false) _store.queue()
+        else _store.flush(false)
     }
 
     function resetToDefaults(): void {
@@ -688,17 +716,18 @@ Singleton {
             return
         }
         ConfigStore.pruneBackups()
-        root._bulkAssign = true
-        for (let i = 0; i < _schema.length; i++) {
-            const k = _schema[i].k
-            if (k !== "barWidgetOrderLeft" && k !== "barWidgetOrderCenter"
-                    && k !== "barWidgetOrderRight")
-                root[k] = _defaults[k]
-        }
-        // the order keys go through the normalising setter, not a raw assignment
-        root.resetBarWidgets()
-        root._bulkAssign = false
-        _store.flush(false)
+        root.batch(function() {
+            for (let i = 0; i < _schema.length; i++) {
+                const entry = _schema[i]
+                const k = entry.k
+                // "-" keys (saved durations, commands, wallpaper) belong to no page, so no page's reset covers them
+                if (entry.sec !== "-" && k !== "barWidgetOrderLeft"
+                        && k !== "barWidgetOrderCenter" && k !== "barWidgetOrderRight")
+                    root[k] = _defaults[k]
+            }
+            // the order keys go through the normalising setter, not a raw assignment
+            root.resetBarWidgets()
+        })
         root._recountModified()
     }
 
@@ -715,14 +744,14 @@ Singleton {
     }
 
     function _onSettingChanged(key: string): void {
-        if (!_loaded) return
+        if (!_loaded || _applying) return
         // sliders can emit dozens of changes per second. Track the one key that moved instead of rescanning the entire schema on every tick
         const modified = !root._sameValue(root[key], root._defaults[key])
         const wasModified = root._modifiedKeys[key] === true
         if (modified !== wasModified) {
             if (modified) root._modifiedKeys[key] = true
             else delete root._modifiedKeys[key]
-            root._modifiedCount += modified ? 1 : -1
+            if (root._sectionOf[key] !== "-") root._modifiedCount += modified ? 1 : -1
             // only when a key crosses its default, not on every slider tick
             root._rebuildModifiedSections()
         }
@@ -829,15 +858,16 @@ Singleton {
             _loaded = true
             return
         }
-        // the startup chmod trips the watcher too: re-running the reload path below would bounce
-        // every setting through its default and back, rebuilding the bar on the way
+        // the startup chmod trips the watcher too: text already applied needs none of the
+        // parse, version and migration work below
         if (_loaded && _store.writeAllowed && raw === root._appliedText) return
         try {
             let parsed = JSON.parse(raw || "{}")
             if (parsed === null || Array.isArray(parsed) || typeof parsed !== "object")
                 throw new Error("settings root must be an object")
-            const rawVersion = typeof parsed.__version === "number" && isFinite(parsed.__version)
-                ? parsed.__version : 0
+            // a version written as a string is still a version: reading it as 0 would migrate a newer file
+            const versionNumber = Number(parsed.__version ?? 0)
+            const rawVersion = isFinite(versionNumber) ? versionNumber : 0
             const onDiskVersion = Math.max(0, Math.floor(rawVersion))
             if (onDiskVersion < _settingsVersion && Object.keys(parsed).length > 0) {
                 migrationBackupSucceeded = root._backupSettings("v" + onDiskVersion)
@@ -854,16 +884,18 @@ Singleton {
             if (fromFuture)
                 console.warn("silere-shell: settings.json is from newer version", onDiskVersion,
                     "— preserving unknown values")
-            if (_loaded) {
-                _loaded = false
-                for (let i = 0; i < _schema.length; i++) {
-                    const key = _schema[i].k
-                    root[key] = _defaults[key]
-                }
-            }
+            // assign only what differs, so a hand edit can't bounce every key through its default
+            _applying = true
             for (let i = 0; i < _schema.length; i++) {
                 const s = _schema[i]
-                if (parsed[s.k] !== undefined) _coerce(s, parsed[s.k])
+                let value = _defaults[s.k]
+                if (parsed[s.k] !== undefined) {
+                    const c = _coerced(s, parsed[s.k])
+                    if (c.ok) value = c.value
+                } else if (!_loaded) {
+                    continue
+                }
+                if (!_sameValue(root[s.k], value)) root[s.k] = value
             }
             // A locked order always resolves from GeneratedDefaults, never from disk.
             // Flag a stale override here (rather than just overwriting it in memory)
@@ -874,11 +906,10 @@ Singleton {
                         || parsed.barWidgetOrderCenter !== undefined
                         || parsed.barWidgetOrderRight !== undefined) {
                     root._scrubLockedOrder = true
-                    // _applyText runs with _loaded still false, so the usual
-                    // _onSettingChanged path never marks these keys touched; without
-                    // this, a settings.json written by a newer version would carry
-                    // its stale order back through _serialize's future-preserve path
-                    // even after the scrub write below
+                    // _applying keeps the usual _onSettingChanged path from marking
+                    // these keys touched; without this, a settings.json written by
+                    // a newer version would carry its stale order back through
+                    // _serialize's future-preserve path even after the scrub write below
                     root._futureTouched.barWidgetOrderLeft = true
                     root._futureTouched.barWidgetOrderCenter = true
                     root._futureTouched.barWidgetOrderRight = true
@@ -907,6 +938,7 @@ Singleton {
             root._readError = "Could not read settings.json. Current settings were kept."
             console.warn("silere-shell: failed to parse settings.json, keeping current settings:", String(e))
         }
+        _applying = false
         _loaded = true
         root._recountModified()
         if (root._scrubLockedOrder) {
@@ -924,14 +956,18 @@ Singleton {
         let changed = 0
         const modifiedKeys = Object.create(null)
         for (let i = 0; i < _schema.length; i++) {
-            const key = _schema[i].k
-            if (!root._sameValue(root[key], root._defaults[key])) {
-                out[key] = root[key]
+            const entry = _schema[i]
+            const key = entry.k
+            const modified = !root._sameValue(root[key], root._defaults[key])
+            if (modified) {
                 modifiedKeys[key] = true
-                changed++
-            } else if (!preserveFuture || root._futureTouched[key] === true) {
-                delete out[key]
+                if (entry.sec !== "-") changed++
             }
+            // a newer release may allow a value this one clamps, so its raw value stands until edited here
+            if (preserveFuture && root._futureTouched[key] !== true
+                    && Object.prototype.hasOwnProperty.call(out, key)) continue
+            if (modified) out[key] = root[key]
+            else delete out[key]
         }
         root._modifiedKeys = modifiedKeys
         root._modifiedCount = changed

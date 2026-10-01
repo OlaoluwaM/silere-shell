@@ -31,6 +31,7 @@ PanelWindow {
     color:         "transparent"
     exclusiveZone: -1
     WlrLayershell.namespace: "silere-mediapopup"
+    WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: MediaPopupState.open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     visible: MediaPopupState.open || card.opacity > 0.001

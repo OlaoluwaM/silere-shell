@@ -172,6 +172,7 @@ ShellRoot {
     PopupLoader {
         id: _osdPopup
         wantOpen: ShellSettings.osdEnabled && OsdBarState.activeCount > 0
+            && (!ShellSettings.osdBarIntegrated || OsdBarState.barConcealed)
         requestedScreen: root.activeOverlayScreen
         unloadDelay: 50
         surface: Component { OsdWindow { targetScreen: _osdPopup.latchedScreen } }

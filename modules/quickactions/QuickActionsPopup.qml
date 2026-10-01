@@ -18,6 +18,7 @@ PanelWindow {
     color:         "transparent"
     exclusiveZone: -1
     WlrLayershell.namespace: "silere-quickactions"
+    WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: QuickActionsState.open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     visible: QuickActionsState.open || card.opacity > 0.001
@@ -66,6 +67,7 @@ PanelWindow {
         property string label: ""
         property string stateText: ""
         property bool   active: false
+        property bool   error: false
         readonly property bool _pressed: _rowTap.pressed
 
         signal triggered()
@@ -133,14 +135,15 @@ PanelWindow {
             height: 20
             radius: 7
             antialiasing: true
-            color: _row.active
-                ? Theme.withAlpha(Theme.accent, 0.13) : "transparent"
+            color: _row.error ? Theme.withAlpha(Theme.error, 0.13)
+                : _row.active ? Theme.withAlpha(Theme.accent, 0.13) : "transparent"
             ColorFade on color {}
             MotionBehavior on width {NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic } }
 
             OutlineBorder {
                 radius: _state.radius
-                outlineColor: _row.active ? Theme.withAlpha(Theme.accent, 0.22) : "transparent"
+                outlineColor: _row.error ? Theme.withAlpha(Theme.error, 0.30)
+                    : _row.active ? Theme.withAlpha(Theme.accent, 0.22) : "transparent"
                 ColorFade on outlineColor {}
             }
 
@@ -148,7 +151,9 @@ PanelWindow {
                 id: _stateLabel
                 anchors.centerIn: parent
                 text: _row.stateText
-                color: _row.active ? Theme.mix(Theme.accent, Theme.text, 0.18) : Theme.withAlpha(Theme.subtext, 0.62)
+                color: _row.error ? Theme.error
+                    : _row.active ? Theme.mix(Theme.accent, Theme.text, 0.18)
+                    : Theme.withAlpha(Theme.subtext, 0.62)
                 font.pixelSize: Settings.fontCaption
                 font.weight: Font.Medium
                 ColorFade on color {}
@@ -204,7 +209,9 @@ PanelWindow {
                 glyph: PowerProfiles.glyph.length > 0 ? PowerProfiles.glyph : "󰾅"
                 label: "Power Mode"
                 active: PowerProfiles.profile === "performance"
-                stateText: PowerProfiles.label.length > 0 ? PowerProfiles.label
+                error: PowerProfiles.lastError.length > 0
+                stateText: PowerProfiles.lastError.length > 0 ? "Failed"
+                         : PowerProfiles.label.length > 0 ? PowerProfiles.label
                          : PowerProfiles.syncing ? "Checking…" : "…"
                 onTriggered: PowerProfiles.cycle()
             }

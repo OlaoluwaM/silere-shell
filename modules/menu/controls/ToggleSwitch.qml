@@ -33,9 +33,10 @@ Item {
             root.highlighted, root.pressed)
         ColorFade on color {}
         MotionBehavior on scale {
+            id: _trackScale
             NumberAnimation {
-                duration: root.pressed ? Motion.press
-                    : root.highlighted ? Motion.hoverIn : Motion.hoverOut
+                duration: _trackScale.targetValue < 1 ? Motion.press
+                    : _trackScale.targetValue > 1 ? Motion.hoverIn : Motion.hoverOut
                 easing.type: Easing.OutCubic
             }
         }
@@ -63,9 +64,10 @@ Item {
 
             MotionBehavior on x     { gate: root._animateX; NumberAnimation { duration: Motion.normal; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.emphasizedDecel } }
             MotionBehavior on scale {
+                id: _knobScale
                 NumberAnimation {
-                    duration: root.pressed ? Motion.press
-                        : root.highlighted ? Motion.hoverIn : Motion.hoverOut
+                    duration: _knobScale.targetValue < 1 ? Motion.press
+                        : _knobScale.targetValue > 1 ? Motion.hoverIn : Motion.hoverOut
                     easing.type: Easing.OutCubic
                 }
             }

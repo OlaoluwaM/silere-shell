@@ -52,6 +52,8 @@ Singleton {
 
     property int _writeGen: 0
     property bool _correctiveRefreshPending: false
+    // a keybind cycle waiting on a fresh read; it counts as busy, so later presses never stack
+    property bool _cyclePending: false
     // a read error is cleared by the next good read; a set error is not, so the two cannot share a string test
     property bool _readError: false
 
@@ -83,6 +85,7 @@ Singleton {
         if (!available || _get.running || _set.running) return
         _get._corrective = root._correctiveRefreshPending
         _correctiveRefreshPending = false
+        _get._forCycle = root._cyclePending
         _get._gen = root._writeGen
         _get.exec(root._getCommand())
     }
@@ -179,6 +182,8 @@ Singleton {
     // through the corrective retry chain below) reconciles it once the tool actually
     // answers, so a slow or failing set reads as briefly-wrong rather than stuck
     function _applySet(name: string): void {
+        // a set from anywhere settles the step a waiting keybind asked for, so it must not step again
+        root._cyclePending = false
         root.profile = name
         root._readError = false
         root.lastError = ""
@@ -186,12 +191,83 @@ Singleton {
         _set.exec(root._setCommand(name))
     }
 
-    function cycle(): void {
+    function nextProfile(current: string, order: var): string {
+        const at = order.indexOf(current)
+        if (order.length < 2 || at < 0) return ""
+        return order[(at + 1) % order.length]
+    }
+
+    // why a cycle cannot start, so a keybind caller can tell "wait" from "never": "" means it can
+    function cycleBlocker(isAvailable: bool, busy: bool, current: string, list: var): string {
+        if (!isAvailable) return "unavailable"
         // _set.running guard: exec while a set's in flight drops the write but still flips the optimistic profile — UI and daemon diverge
-        if (!available || profile === "" || _set.running || root.profiles.length === 0) return
-        const idx = root.profiles.indexOf(root.profile)
-        if (idx < 0) return
-        root._applySet(root.profiles[(idx + 1) % root.profiles.length])
+        if (busy) return "busy"
+        if (current === "" || list.length === 0) return "loading"
+        if (list.length < 2) return "single"
+        if (list.indexOf(current) < 0) return "unlisted"
+        return ""
+    }
+
+    // the backend answers out of process, so the caller is told what was asked for
+    function cycle(): string {
+        if (root.cycleBlocker(root.available, _set.running, root.profile, root.profiles).length > 0)
+            return ""
+        const next = root.nextProfile(root.profile, root.profiles)
+        if (next.length === 0) return ""
+        root._applySet(next)
+        return next
+    }
+
+    function cycleBlockedBy(): string {
+        return root.cycleBlocker(root.available, _set.running || root._cyclePending,
+            root.profile, root.profiles)
+    }
+
+    // only an open surface keeps `profile` read, so with every surface shut an external change
+    // (an asusd hotkey) leaves it stale; the keybind's step waits on one fresh read instead of a
+    // poll. "" means it stepped now and `profile` names the request, "queued" that the step
+    // follows the read, and anything else is cycleBlocker's reason
+    function cycleFresh(): string {
+        const blocked = root.cycleBlockedBy()
+        if (blocked === "unavailable" || blocked === "busy") return blocked
+        if (root._watched && blocked !== "loading") {
+            if (blocked.length > 0) return blocked
+            root.cycle()
+            return ""
+        }
+        root._cyclePending = true
+        // the list comes first so the read it chains to has profiles to validate and step through;
+        // a queued retry already reads on its own
+        if (root.profiles.length === 0) root._listProfiles()
+        else if (!_getRetry.running) root.refresh()
+        return "queued"
+    }
+
+    // only a read started after the request can see a change made while every surface was shut,
+    // so one already running when the keybind came is followed by another instead of counting
+    function _settleCycle(forCycle: bool, readOk: bool, timedOut: bool): void {
+        if (!root._cyclePending) return
+        if (!forCycle) {
+            _getRetry.restart()
+            return
+        }
+        // the list landing reads again, and that read steps once there is a list to step through
+        if (readOk && root.profiles.length === 0 && _list.running) return
+        root._cyclePending = false
+        if (!readOk) {
+            // the keybind was already told it was switching, so the row says why nothing did
+            if (!timedOut) {
+                root._readError = true
+                root.lastError = "Could not verify the power mode"
+            }
+            return
+        }
+        const blocked = root.cycleBlockedBy()
+        if (root.cycle().length > 0) return
+        root._readError = false
+        root.lastError = blocked === "single" ? "Only one power mode is available"
+            : blocked === "unlisted" ? "The current power mode is not one the backend lists"
+            : "Could not change the power mode"
     }
 
     // direct pick from the settings-page chip row, as opposed to cycle()'s
@@ -206,7 +282,7 @@ Singleton {
     onBackendChanged: { root.profiles = []; if (root.available) root._listProfiles() }
 
     readonly property bool _watched: ControlSurfaces.anyOpen
-    on_WatchedChanged: if (!root._watched && !root._correctiveRefreshPending) _getRetry.stop()
+    on_WatchedChanged: if (!root._watched && !root._correctiveRefreshPending && !root._cyclePending) _getRetry.stop()
 
     function _surfaceOpened(): void {
         root._getRetries = 0
@@ -228,6 +304,7 @@ Singleton {
         if (_degradedProc.running) _degradedProc.running = false
         root._getRetries = 0
         root._correctiveRefreshPending = false
+        root._cyclePending = false
         root._readError = false
         root.profile = ""
         root._degradedReason = ""
@@ -247,6 +324,7 @@ Singleton {
         id: _get
         property int _gen: 0
         property bool _corrective: false
+        property bool _forCycle: false
         timeoutMs: 8000
         environment: ({ "LC_ALL": "C" })
         stdout: StdioCollector { id: _getOut }
@@ -255,7 +333,11 @@ Singleton {
             root.lastError = "Power mode check timed out"
         }
         onExited: (code) => {
-            if (!root.available) return
+            if (!root.available) {
+                root._cyclePending = false
+                return
+            }
+            // a set since this read started has already settled any waiting cycle
             if (_set.running || _gen !== root._writeGen) return
             if (code === 0) {
                 const p = root._parseCurrent(_getOut.text)
@@ -268,9 +350,11 @@ Singleton {
                         root._readError = false
                         root.lastError = ""
                     }
+                    root._settleCycle(_forCycle, true, false)
                     return
                 }
             }
+            root._settleCycle(_forCycle, false, timedOut)
             const shouldRetry = root.profile === "" || _corrective
             if (shouldRetry && root.available && (root._watched || _corrective)
                     && root._getRetries < root._getRetryMax) {
@@ -291,10 +375,19 @@ Singleton {
         environment: ({ "LC_ALL": "C" })
         stdout: StdioCollector { id: _listOut }
         onExited: (code) => {
-            if (timedOut || code !== 0) return
-            const parsed = root.backend === "asusctl"
-                ? root._parseAsusList(_listOut.text) : root._parsePpdList(_listOut.text)
-            if (parsed.length > 0) root.profiles = parsed
+            if (!timedOut && code === 0) {
+                const parsed = root.backend === "asusctl"
+                    ? root._parseAsusList(_listOut.text) : root._parsePpdList(_listOut.text)
+                if (parsed.length > 0) root.profiles = parsed
+            }
+            if (!root._cyclePending) return
+            if (root.available && root.profiles.length > 0) {
+                if (!_getRetry.running) root.refresh()
+                return
+            }
+            root._cyclePending = false
+            root._readError = false
+            root.lastError = "Could not list the power modes"
         }
     }
     BoundedProcess {

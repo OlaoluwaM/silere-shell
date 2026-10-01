@@ -395,7 +395,7 @@ Item {
                                 // collapsed, the header is the only marker the selection has
                                 color: !_grp.groupActive
                                     ? Theme.withAlpha(Theme.menuTextMuted,
-                                        _headerHover.hovered ? 0.88 : 0.62)
+                                        _headerHover.hovered ? 1.0 : 0.82)
                                     : _grp.expanded
                                         ? Theme.withAlpha(Theme.mix(
                                             Theme.menuTextMuted, Theme.accent, 0.34), 0.96)
@@ -430,11 +430,11 @@ Item {
                                 rotation: _grp.expanded ? 90 : 0
                                 transformOrigin: Item.Center
                                 color: Theme.withAlpha(Theme.subtext,
-                                    _headerHover.hovered ? 0.78
-                                    : _grp.expanded ? 0.62 : 0.44)
+                                    _headerHover.hovered ? 0.90
+                                    : _grp.expanded ? 0.80 : 0.74)
                                 font.pixelSize: Settings.fontCaption
 
-                                Disclosure on rotation { expanded: _grp.expanded }
+                                Disclosure on rotation {}
                                 ColorFade on color {}
                             }
                         }
@@ -450,7 +450,6 @@ Item {
                             clip: height < _leafColumn.implicitHeight + root._childrenPad * 2
 
                             Disclosure on height {
-                                expanded: _grp.expanded
                                 symmetric: !root.allExpanded
                                 enterCurve: Motion.standard
                                 exitCurve: Motion.standard
@@ -465,10 +464,11 @@ Item {
                                 opacity: _grp.expanded ? 1 : 0
 
                                 MotionBehavior on opacity {
+                                    id: _leafFade
                                     NumberAnimation {
                                         duration: Motion.fast
                                         easing.type: Easing.BezierSpline
-                                        easing.bezierCurve: _grp.expanded
+                                        easing.bezierCurve: _leafFade.targetValue > 0.5
                                             ? Motion.standardDecel : Motion.standardAccel
                                     }
                                 }
@@ -537,7 +537,7 @@ Item {
                                             color: _leaf.active
                                                 ? Theme.mix(Theme.accent, Theme.text, 0.10)
                                                 : Theme.withAlpha(Theme.subtext,
-                                                    _leafHover.hovered ? 0.72 : 0.46)
+                                                    _leafHover.hovered ? 0.92 : 0.76)
                                             font.pixelSize: Settings.fontLabel
                                             ColorFade on color {}
                                         }
@@ -568,7 +568,7 @@ Item {
                                             color: _leaf.active
                                                 ? Theme.text
                                                 : Theme.withAlpha(Theme.mix(Theme.subtext, Theme.text, 0.12),
-                                                    _leafHover.hovered ? 0.92 : 0.76)
+                                                    _leafHover.hovered ? 1.0 : 0.90)
                                             font.pixelSize: Settings.fontLabel
                                             font.weight: _leaf.active ? Font.DemiBold : Font.Normal
                                             ColorFade on color {}

@@ -88,6 +88,9 @@ startup smoke-test isolation and the bounded Bluetooth pairing guard.
 The [September 18 record](docs/upstream-picks-2026-09-18.md) covers calendar
 write protection, fullscreen detection, notification stack motion, and panel
 construction checks.
+The [October 1 record](docs/upstream-picks-2026-10-01.md) covers the v1.2.0
+review: notification, tray, Hyprland, settings and IPC fixes, the calendar
+week settings, log out, and motion timing.
 
 History stays intact because nixos-config pins this branch by commit. Undo a
 landed selective import with a revert, accounting for any dependent follow-ups.

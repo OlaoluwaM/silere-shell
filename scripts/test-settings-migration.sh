@@ -28,7 +28,7 @@ wait_ready() {
     fail "settings did not become ready: $state"
 }
 
-for scenario in blocked locked current future replaced retired-current retired-future; do
+for scenario in blocked locked current future future-string hand-edit replaced retired-current retired-future; do
     case_root="$probe_root/$scenario"
     project="$case_root/project"
     export XDG_CONFIG_HOME="$case_root/config-home" XDG_STATE_HOME="$case_root/state-home"
@@ -51,7 +51,9 @@ for scenario in blocked locked current future replaced retired-current retired-f
             fi
             ;;
         current|replaced) printf '{"__version":1,"barHeight":40,"unknown":"keep"}\n' > "$original" ;;
+        hand-edit) printf '{"__version":1,"barHeight":40,"uiScale":1.1}\n' > "$original" ;;
         future) printf '{"__version":999,"barHeight":40,"unknown":"keep"}\n' > "$original" ;;
+        future-string) printf '{"__version":"999","barHeight":40,"unknown":"keep"}\n' > "$original" ;;
         retired-current|retired-future)
             version=1
             [[ "$scenario" == retired-future ]] && version=999
@@ -90,7 +92,7 @@ if sys.argv[4] == 'locked':
     assert not any(key in value for key in ('barWidgetOrderLeft', 'barWidgetOrderCenter', 'barWidgetOrderRight')), 'locked order overrides must be scrubbed'
 PY
     fi
-    if [[ "$scenario" == current || "$scenario" == future ]]; then
+    if [[ "$scenario" == current || "$scenario" == future || "$scenario" == future-string ]]; then
         [[ ! -e "$backup" ]] || fail "$scenario unexpectedly attempted legacy backup"
     fi
     if [[ "$scenario" == retired-current || "$scenario" == retired-future ]]; then
@@ -110,6 +112,27 @@ else:
     assert saved['__version'] == 1, 'removal does not require a settings version bump'
     assert not any(key in saved for key in retired), 'current-version save must omit retired values'
 PYRETIRED
+    fi
+    if [[ "$scenario" == hand-edit ]]; then
+        ipc resetCounters
+        python3 - "$settings" <<'PYEDIT'
+import json, pathlib, sys
+path = pathlib.Path(sys.argv[1])
+value = json.loads(path.read_text())
+value['barHeight'] = 44
+path.write_text(json.dumps(value))
+PYEDIT
+        sleep 0.8
+        [[ "$(ipc status)" == *'"height":44'* ]] || fail "hand-edit did not apply the changed key"
+        [[ "$(ipc counters)" == '{"uiScale":0,"ready":0}' ]] \
+            || fail "hand-edit reload touched keys or readiness the file did not change"
+        python3 - "$settings" <<'PYKEPT'
+import json, pathlib, sys
+saved = json.loads(pathlib.Path(sys.argv[1]).read_text())
+assert saved['barHeight'] == 44 and saved['uiScale'] == 1.1, 'a reload must not write back over the hand edit'
+PYKEPT
+        [[ "$(qs ipc -p "$project/probe-settings-migration.qml" call settings set noSuchKey 1)" == error:* ]] \
+            || fail "settings IPC errors must start with error:"
     fi
     if [[ "$scenario" == replaced ]]; then
         ipc edit

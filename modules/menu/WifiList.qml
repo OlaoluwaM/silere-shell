@@ -156,6 +156,7 @@ Item {
                 readonly property bool _detailsOpen: root._detailsOpen && modelData.active
 
                 function _submitPassword(): void {
+                    if (_entry._connecting) return
                     const secret = _pw.text
                     _pw.text = ""
                     if (secret.length > 0) Network.connectWifi(modelData.ssid, secret)
@@ -185,6 +186,11 @@ Item {
                     // armed outranks a lingering failure — a stale wrong-password error
                     // must not steal the confirm prompt's tint from under the second tap
                     failed: !_entry._armed && !_entry._forgetArmed && _entry._failed
+                    // a second tap on a joining row restarts the attempt, and an enterprise
+                    // profile that was never saved has nothing the shell could connect it with
+                    interactive: !_entry._connecting
+                        && (!_entry.modelData.profileOnly || _entry.modelData.known
+                            || _entry.modelData.active)
                     // the body tap already means disconnect for the connected entry, so
                     // its details live behind the chevron's separate hit zone instead
                     expandable: _entry.modelData.active
@@ -199,7 +205,7 @@ Item {
                         const failed = Network.wifiError === ssid
                         if (_entry._forgetArmed) _confirm.disarm()
                         if (network.active) {
-                            if (_confirm.tryConfirm("disconnect:" + ssid)) Network.disconnectWifi()
+                            if (_confirm.tryConfirm("disconnect:" + ssid)) Network.disconnectWifi(ssid)
                             return
                         }
                         // an enterprise or WEP network can only join from a stored profile;
@@ -221,16 +227,17 @@ Item {
                         }
                     }
                     onTriggered: _activate()
-                    // middle-click forgets a saved profile; the first press only arms it
-                    function _middleTap(): void {
+                    // right- or middle-click forgets a saved profile; the first press only arms it
+                    function _forgetTap(): void {
                         const ssid = _entry.modelData.ssid
                         if (!_entry.modelData.known || _entry.modelData.active) return
                         const key = "forget:" + ssid
                         if (_confirm.tryConfirm(key)) Network.forgetWifi(ssid)
                     }
                     TapHandler {
-                        acceptedButtons: Qt.MiddleButton
-                        onTapped: _row._middleTap()
+                        enabled: _row.interactive
+                        acceptedButtons: Qt.RightButton | Qt.MiddleButton
+                        onTapped: _row._forgetTap()
                     }
                     onExpandToggled: root._detailsOpen = !root._detailsOpen
                 }
@@ -240,7 +247,7 @@ Item {
                     height: _entry._sel ? 40 : 0
                     clip: true
                     visible: height > 0.5
-                    Disclosure on height { expanded: _entry._sel }
+                    Disclosure on height {}
 
                     Rectangle {
                         id: _pwField
@@ -279,6 +286,7 @@ Item {
                             // capitalises the first letter of a case-sensitive WPA key
                             inputMethodHints: Qt.ImhSensitiveData | Qt.ImhNoPredictiveText
                                 | Qt.ImhNoAutoUppercase
+                            Accessible.name: "Wi-Fi password"
                             color: Theme.text
                             selectionColor: Theme.withAlpha(Theme.accent, 0.4)
                             font.family: Settings.font; font.pixelSize: Settings.fontSize
@@ -332,7 +340,7 @@ Item {
                     height: _entry._detailsOpen ? _details.implicitHeight : 0
                     clip: true
                     visible: height > 0.5
-                    Disclosure on height { expanded: _entry._detailsOpen }
+                    Disclosure on height {}
 
                     WifiDetails {
                         id: _details

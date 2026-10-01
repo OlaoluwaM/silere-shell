@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Bluetooth as Bt
 import "config"
 import "services"
 import "services/SettingsMigrations.js" as SettingsMigrations
@@ -46,9 +47,24 @@ ShellRoot {
     Component { id: durationPickerFactory; DurationPickerColumn {} }
     Component { id: niriBackendFactory; CompositorNiri {} }
     Component { id: processFactory; Process {} }
+    Component {
+        id: notificationStubFactory
+        QtObject {
+            property int id: 0
+            property bool tracked: true
+            property string summary: ""
+            property string body: ""
+            property var hints: ({})
+            property int urgency: 1
+            signal closed(int reason)
+            function dismiss(): void {}
+            function expire(): void {}
+        }
+    }
     Component { id: pulseLoopFactory; PulseLoop {} }
     QtObject { id: pulseTarget; property real value: 1 }
     Component { id: supervisedProcessFactory; SupervisedProcess {} }
+    Component { id: pageShellFactory; PageShell { active: false; powerOpen: false } }
     Component { id: barUnderlineFactory; BarUnderline {} }
     Component {
         id: selectRowFactory
@@ -197,6 +213,8 @@ ShellRoot {
                 && SystemAlerts.batteryWarningLevel(true, false) === "low"
                 && SystemAlerts.batteryWarningLevel(false, false) === "",
             "crossing both battery thresholds selects only the critical warning")
+        root._check(SystemAlerts._sandboxed && !SystemAlerts._send("probe", "probe", "normal"),
+            "a test copy of the shell never sends a live battery or temperature alert")
         const generationWas = CpuTemp._detectGeneration
         CpuTemp._detectGeneration = 41
         root._check(CpuTemp._detectionIsCurrent(41)
@@ -598,6 +616,12 @@ ShellRoot {
                     && MenuState._settingsSelectOwner === null,
                 "leaving a settings page folds its open dropdown")
             MenuState.setSettingsSection(sectionBeforeSelectProbe)
+            root._check(!MenuState.settingsSelectOpen,
+                "the menu reports no open settings dropdown once it folds")
+            firstSelect._setOpen(true)
+            root._check(MenuState.settingsSelectOpen,
+                "the menu reports an open settings dropdown for Escape to fold first")
+            firstSelect._setOpen(false)
         }
         if (firstSelect) firstSelect.destroy()
         if (secondSelect) secondSelect.destroy()
@@ -616,6 +640,29 @@ ShellRoot {
         CpuTemp._sensorPath = "/sys/class/hwmon/hwmon0/temp1_input"
         root._check(!CpuTemp.sensorMissing,
             "a detected sensor keeps its controls whatever the current reading")
+        const badSensorsWas = CpuTemp._badSensorPaths
+        CpuTemp._badSensorPaths = ""
+        CpuTemp._rejectSensor("/sys/a/temp1_input")
+        CpuTemp._rejectSensor("/sys/b/temp1_input")
+        CpuTemp._rejectSensor("/sys/a/temp1_input")
+        CpuTemp._rejectSensor("")
+        root._check(CpuTemp._badSensorPaths === ":/sys/a/temp1_input:/sys/b/temp1_input:",
+            "every sensor that failed in a row stays skipped, once each")
+        CpuTemp._sensorPath = ""
+        CpuTemp._probeComplete = false
+        CpuTemp._badSensorPaths = ":/sys/only/temp1_input:"
+        CpuTemp._applyDetection("")
+        root._check(!CpuTemp._probeComplete && CpuTemp._badSensorPaths === ""
+                && CpuTemp._needsSensorDetection() && !CpuTemp.sensorMissing,
+            "a lone sensor rejected on one failed read is retried instead of latched missing")
+        CpuTemp._applyDetection("")
+        root._check(CpuTemp._probeComplete && CpuTemp.sensorMissing,
+            "a scan that finds nothing on its own still settles the probe")
+        CpuTemp._badSensorPaths = badSensorsWas
+        CpuTemp._sensorPath = ""
+        CpuTemp._probeComplete = true
+        root._check(!CpuTemp._needsSensorDetection(),
+            "a probe that already found no sensor is not repeated on every wake")
         CpuTemp._sensorPath = tempPathWas
         CpuTemp._probeComplete = tempProbeWas
 
@@ -757,6 +804,17 @@ ShellRoot {
         root._check(future.barHeight === 42,
             "a value changed by this version still lands beside the unknown keys")
 
+        // 900 is out of range here and clamps to 60, but a newer release may allow it
+        ShellSettings._futureSettings = ({ __version: 999, barHeight: 900 })
+        ShellSettings.barHeight = 60
+        ShellSettings._futureTouched = ({})
+        root._check(JSON.parse(ShellSettings._serialize()).barHeight === 900,
+            "a newer release's out-of-range value survives until this version edits it")
+        ShellSettings._futureTouched = ({ barHeight: true })
+        root._check(JSON.parse(ShellSettings._serialize()).barHeight === 60,
+            "an edited key replaces the preserved raw value")
+        ShellSettings._futureTouched = ({})
+
         ShellSettings._loadedVersion = savedVersion
         ShellSettings._futureSettings = savedFuture
         ShellSettings.barHeight = savedHeight
@@ -794,9 +852,9 @@ ShellRoot {
 
         const savedNight = ShellSettings.nightLightTemp
         ShellSettings.nightLightTemp = savedNight === 4000 ? 3500 : 4000
-        root._check(ShellSettings.modifiedCount === 1
+        root._check(ShellSettings.modifiedCount === 0
                 && Object.keys(ShellSettings.modifiedSections).length === 0,
-            "a setting with no page of its own marks nothing")
+            "a setting with no page of its own does not offer a reset")
         ShellSettings.nightLightTemp = savedNight
         ShellSettings._loaded = savedLoaded
 
@@ -812,6 +870,9 @@ ShellRoot {
             "history text drops markup and decodes entities")
         root._check(Notifications._normalizeEntry({ body: "a\u202Eb" }).body === "ab",
             "history text drops a bidi override a sender embedded")
+        root._check(Notifications._normalizeEntry({ body: "a&#65;&#x42;&#55357;<em>c</em>&#39;" }).body
+                === "aAB&#55357;c'",
+            "history text decodes numeric entities and leaves a surrogate escape alone")
         root._check(Notifications._normalizeEntry({ body: "line1\nline2" }).body
                 === "line1\nline2",
             "history text keeps the newlines a multi-line body needs")
@@ -950,12 +1011,95 @@ ShellRoot {
             "setSettingsSection itself stays case-exact")
         MenuState.setSettingsSection(savedSection)
 
-        root._check(CalendarState._validMarkKey("2024-2-29"),
+        const tabWas = MenuState.activeTab
+        const tabTarget = tabWas === MenuState.recentTab ? MenuState.homeTab : MenuState.recentTab
+        let tabSeenWhileChanging = -1
+        const noteTabChanging = function() { tabSeenWhileChanging = MenuState.activeTab }
+        MenuState.tabChanging.connect(noteTabChanging)
+        MenuState.selectTab(tabTarget)
+        MenuState.tabChanging.disconnect(noteTabChanging)
+        root._check(tabSeenWhileChanging === tabWas && MenuState.activeTab === tabTarget,
+            "a tab change is announced while the old tab is still active")
+        MenuState.selectTab(tabWas)
+
+        root._check(CalendarState._canonicalMarkKey("2024-2-29") === "2024-2-29",
             "calendar accepts leap day")
-        root._check(!CalendarState._validMarkKey("2023-2-29"),
+        root._check(CalendarState._canonicalMarkKey("2023-2-29") === "",
             "calendar rejects non-leap day")
-        root._check(!CalendarState._validMarkKey("2024-13-1"),
+        root._check(CalendarState._canonicalMarkKey("2024-13-1") === "",
             "calendar rejects invalid month")
+        root._check(CalendarState._canonicalMarkKey("2026-09-05") === "2026-9-5",
+            "a zero-padded hand-written day maps onto the key the grid reads")
+        root._check(CalendarState._canonicalMarkKey(null) === ""
+                && CalendarState._canonicalMarkKey({}) === "",
+            "calendar rejects marks that are not date strings")
+
+        const profileOrder = ["power-saver", "balanced", "performance"]
+        root._check(PowerProfiles.nextProfile("balanced", profileOrder) === "performance"
+                && PowerProfiles.nextProfile("performance", profileOrder) === "power-saver",
+            "cycling a power mode names the profile it moves to, wrapping at the end")
+        root._check(PowerProfiles.nextProfile("quiet", profileOrder) === ""
+                && PowerProfiles.nextProfile("balanced", ["balanced"]) === "",
+            "a power mode outside the offered cycle names no successor")
+
+        root._check(PowerProfiles.cycleBlocker(false, false, "balanced", profileOrder) === "unavailable"
+                && PowerProfiles.cycleBlocker(true, true, "balanced", profileOrder) === "busy"
+                && PowerProfiles.cycleBlocker(true, false, "", profileOrder) === "loading"
+                && PowerProfiles.cycleBlocker(true, false, "balanced", []) === "loading"
+                && PowerProfiles.cycleBlocker(true, false, "balanced", ["balanced"]) === "single"
+                && PowerProfiles.cycleBlocker(true, false, "quiet", profileOrder) === "unlisted"
+                && PowerProfiles.cycleBlocker(true, false, "balanced", profileOrder) === "",
+            "a power mode cycle names why it cannot start")
+        const settledWas = QuickActionsState._settled
+        QuickActionsState._settled = false
+        if (!QuickActionsState.wifiControllable && !Network.wifiHardBlocked)
+            root._check(QuickActionsState._wifiReply().indexOf("still starting") >= 0,
+                "a Wi-Fi toggle before probing settles says it is still starting")
+        if (!QuickActionsState.btControllable && !Bluetooth.hardBlocked)
+            root._check(QuickActionsState._bluetoothReply().indexOf("still starting") >= 0,
+                "a Bluetooth toggle before probing settles says it is still starting")
+        QuickActionsState._settled = settledWas
+
+        const pageReduceWas = ShellSettings.reduceMotion
+        const page = pageShellFactory.createObject(root)
+        ShellSettings.reduceMotion = true
+        root._check(page._motionAllowed === false,
+            "menu pages follow the shared motion check, not reduce-motion alone")
+        ShellSettings.reduceMotion = false
+        root._check(page._motionAllowed === !Idle.isIdle,
+            "menu pages animate again once neither idle nor reduce-motion holds")
+        ShellSettings.reduceMotion = pageReduceWas
+        page.destroy()
+
+        const weekStartWas = ShellSettings.calendarWeekStart
+        root._check(CalendarState.weekStartFor("monday", 0) === 1
+                && CalendarState.weekStartFor("sunday", 1) === 0
+                && CalendarState.weekStartFor("locale", 0) === 0
+                && CalendarState.weekStartFor("locale", 6) === 6
+                && CalendarState.weekStartFor("locale", 9) === 6,
+            "the calendar resolves its first weekday from the setting or the locale")
+        // September 2026 opens on a Tuesday and its first Thursday is the 3rd, ISO week 36
+        ShellSettings.calendarWeekStart = "monday"
+        root._check(CalendarState.leadingDays(2026, 8) === 1
+                && CalendarState.weekdayAt(0) === 1 && CalendarState.weekdayAt(6) === 0
+                && CalendarState.weekForRow(2026, 8, 0) === 36,
+            "a monday-first grid leads with one day and numbers its first row 36")
+        ShellSettings.calendarWeekStart = "sunday"
+        root._check(CalendarState.leadingDays(2026, 8) === 2
+                && CalendarState.weekdayAt(0) === 0 && CalendarState.weekdayAt(6) === 6
+                && CalendarState.weekForRow(2026, 8, 0) === 36,
+            "a sunday-first grid leads with two days and numbers by its row's thursday")
+        // Sunday 2026-10-04 closes ISO week 40 but opens the Sunday-first row that numbers 41
+        const octFourth = new Date(2026, 9, 4)
+        root._check(CalendarState.weekOfDate(octFourth) === 41
+                && CalendarState.weekForRow(2026, 9, 1) === 41,
+            "a sunday-first header names the week its own row prints")
+        ShellSettings.calendarWeekStart = "monday"
+        root._check(CalendarState.weekOfDate(octFourth) === DateTime.isoWeek(octFourth)
+                && CalendarState.weekOfDate(new Date(2026, 9, 5)) === 41
+                && CalendarState.weekForRow(2026, 9, 0) === 40,
+            "a monday-first header keeps the ISO week")
+        ShellSettings.calendarWeekStart = weekStartWas
 
         CalendarState.toggleAt(probeAnchor.menuAnchorX, null, probeAnchor)
         root._check(CalendarState.effectiveAnchorX === 42,
@@ -1042,6 +1186,35 @@ ShellRoot {
         root._check(IconResolver.senderIconSource("/tmp/fifo.png") === ""
                 && IconResolver.senderIconSource("file:///tmp/fifo.png") === "",
             "notification icons never open sender-provided filesystem nodes")
+        root._check(IconResolver.senderIconSource("/usr/share/icons/hicolor/48x48/apps/a b.png")
+                    === "file:///usr/share/icons/hicolor/48x48/apps/a%20b.png"
+                && IconResolver.senderIconSource("file:///run/current-system/sw/share/pixmaps/app.png")
+                    === "file:///run/current-system/sw/share/pixmaps/app.png",
+            "a notification icon file inside the system icon directories still shows")
+        const probeUser = Quickshell.env("USER")
+        root._check(!probeUser || IconResolver.senderIconSource("/etc/profiles/per-user/" + probeUser
+                    + "/share/icons/hicolor/48x48/apps/app.png")
+                    === "file:///etc/profiles/per-user/" + probeUser
+                    + "/share/icons/hicolor/48x48/apps/app.png",
+            "a per-user profile icon directory counts as a system icon directory")
+        root._check(IconResolver.senderImageSource("/run/current-system/sw/share/icons/hicolor/64x64/apps/app.png")
+                    === "file:///run/current-system/sw/share/icons/hicolor/64x64/apps/app.png"
+                && IconResolver.senderImageSource("/home/user/Pictures/shot.png") === ""
+                && IconResolver.senderImageSource("/usr/share/icons/../../../dev/zero") === "",
+            "notify-send's image-path shows a system icon file and nothing outside those directories")
+        root._check(IconResolver.senderImageSource("image://icon//usr/share/pixmaps/app.png")
+                    === "file:///usr/share/pixmaps/app.png"
+                && IconResolver.senderImageSource("IMAGE://Icon//home/user/app.png") === ""
+                && IconResolver.senderImageSource("image://icon/a/../../x") === ""
+                && IconResolver.senderImageSource("image://icon/x?path=/etc") === ""
+                && IconResolver.senderImageSource("image://icon/") === "",
+            "an image-path quickshell passes through the icon provider stays inside the same rules")
+        root._check(IconResolver.senderIconSource("/usr/share/icons/../../../dev/zero") === ""
+                && IconResolver.senderIconSource("file:///usr/share/icons/%2e%2e/%2e%2e/%2e%2e/dev/zero") === ""
+                && IconResolver.senderIconSource("file://host/usr/share/icons/app.png") === ""
+                && IconResolver.senderIconSource("/usr/share/iconsx/app.png") === ""
+                && IconResolver.senderIconSource("/tmp/usr/share/icons/app.png") === "",
+            "a notification icon path cannot climb or reach past the system icon directories")
         root._check(IconResolver.localSource("/tmp/icon #?.png")
                 === "file:///tmp/icon%20%23%3F.png",
             "icon resolver encodes local file paths")
@@ -1067,6 +1240,12 @@ ShellRoot {
             "icon resolver keeps a joined emoji grapheme whole")
         root._check(SafeText.boundedText("ab👩🏽‍💻cd", 8) === "ab…",
             "text clipping never splits a joined emoji grapheme")
+        root._check(SafeText.initial("क्षमा", "?") === "क्ष"
+                && SafeText.boundedText("क्षमा", 4) === "क्ष…",
+            "a virama keeps its conjunct in one grapheme")
+        root._check(SafeText.singleLineText("a\u200Bb\u200Ec", 8) === "a b c"
+                && SafeText.singleLineText("x".repeat(100000), 16) === "x".repeat(15) + "…",
+            "external labels drop zero-width marks and are bounded before scanning")
 
         const longWindowText = "x".repeat(Compositor.maxWindowTitleChars + 20)
         const boundedWindowText = SafeText.singleLineText(
@@ -1212,6 +1391,10 @@ ShellRoot {
             "slider scroll steps stop at the minimum")
         root._check(track._posToVal(0) === 0 && track._posToVal(100) === 1,
             "slider inset endpoints preserve the full range")
+        track.min = 0.5; track.max = 3; track.step = 0.05
+        root._check(String(track._snap(1.9)) === "1.9" && String(track._snap(0.96)) === "0.95",
+            "slider steps land on the grid without float residue")
+        track.min = 0; track.max = 1; track.step = 0.1
         track.enabled = false
         trackChanged = -1
         track.nudge(1, 1)
@@ -1351,6 +1534,18 @@ ShellRoot {
             "losing VPN detection clears both published and in-flight state")
         Network._vpnState = vpnStateWas
 
+        root._check(Network.formatRate(99.97 * 1024).startsWith(" 100 ")
+                && Network.formatRate(99.4 * 1024).startsWith("99.4"),
+            "a rate that rounds up to 100 drops its decimal instead of widening the column")
+        const diskUsedWas = SysInfo.diskUsedKb
+        const diskAvailWas = SysInfo.diskAvailKb
+        SysInfo.diskUsedKb = 90
+        SysInfo.diskAvailKb = 10
+        root._check(Math.abs(SysInfo.diskPct - 0.9) < 0.0001,
+            "disk usage excludes blocks reserved for root, as df counts it")
+        SysInfo.diskUsedKb = diskUsedWas
+        SysInfo.diskAvailKb = diskAvailWas
+
         const wheelKey = "probe-scroll"
         root._check(Scroll._processDelta(60, wheelKey, 120, 2, 0) === 0,
             "a half-notch wheel step emits nothing on its own")
@@ -1358,6 +1553,44 @@ ShellRoot {
             "two half-notches accumulate into one step")
         root._check(Scroll._processDelta(600, wheelKey, 120, 2, 0) === 2,
             "one wheel burst emits at most the step ceiling")
+        Scroll._page.movedAt = 0
+        root._check(!Scroll.wheelBelongsToPage(0),
+            "a wheel over a slider is the slider's while the page is still")
+        Scroll.notePageMoved()
+        root._check(Scroll.wheelBelongsToPage(0),
+            "a wheel gesture that just scrolled the page stays with the page")
+        Scroll._page.movedAt = 0
+        root._check(Scroll.wheelBelongsToPage(Date.now()),
+            "a slider the pointer only just reached does not take the wheel")
+        Scroll._page.movedAt = 0
+        const trayPad = (x, y) => ({ angleDelta: { x: x, y: y }, pixelDelta: { x: x / 8, y: y / 8 },
+            device: { type: PointerDevice.TouchPad } })
+        let trayPadSteps = 0
+        for (let i = 0; i < 12; i++)
+            trayPadSteps += Scroll.processTrayWheel(trayPad(0, 12), "probe-tray-a").steps
+        const trayNotch = Scroll.processTrayWheel({ angleDelta: { x: 0, y: 120 } }, "probe-tray-b")
+        const trayLeft = Scroll.processTrayWheel({ angleDelta: { x: -120, y: 0 } }, "probe-tray-c")
+        root._check(trayPadSteps === 1 && trayNotch.steps === 1 && !trayNotch.horizontal
+                && trayLeft.steps === -1 && trayLeft.horizontal,
+            "a touchpad flick reaches a tray app as one step, not one call per event")
+        const levelUp = (inverted) => ({ angleDelta: { x: 0, y: 120 }, inverted: inverted })
+        root._check(Scroll.processLevelWheel(levelUp(false), "probe-level-a") === 1
+                && Scroll.processLevelWheel(levelUp(true), "probe-level-b") === -1
+                && Scroll.processControlWheel(levelUp(true), "probe-level-c") === 1,
+            "natural scrolling flips a level control but not content navigation")
+        const rootsWas = Screenshot._pictureRoots
+        Screenshot._pictureRoots = []
+        Screenshot._maybeFlash("ROOT /probe/pictures/")
+        Screenshot._lastFile = ""
+        Screenshot._maybeFlash("/probe/pictures/IMG_2041.jpg")
+        const photoSeen = Screenshot._lastFile
+        Screenshot._maybeFlash("/probe/pictures/Screenshot from 2026-09-25.png")
+        root._check(photoSeen === "" && Screenshot._lastFile.endsWith(".png")
+                && Screenshot._screenshotName("2026-09-25T12-30-01.png")
+                && !Screenshot._screenshotName("holiday.jpg"),
+            "a photo in the shared pictures root does not flash the bar but a screenshot does")
+        Screenshot._pictureRoots = rootsWas
+        Screenshot._lastFile = ""
 
         const powerToolsWas = SystemTools._tools
         const powerProfilesWas = PowerProfiles.profiles
@@ -1395,8 +1628,59 @@ ShellRoot {
                     "Quiet\nBalanced\nPerformance\n"))
                     === JSON.stringify(["Quiet", "Balanced", "Performance"]),
             "asusctl reports its active profile and available choices in its own format")
+        // only an open surface keeps the profile read, so a keybind with every surface shut
+        // steps from one fresh read. Process announces running only once the child starts, so
+        // syncing lags the exec; refresh() taking the pending corrective flag is the synchronous
+        // sign it ran. A set still execs: the stubbed backend is missing here, and the made-up
+        // profile names are ones any real backend rejects
+        const powerProfileWas = PowerProfiles.profile
+        const powerErrorWas = PowerProfiles.lastError
+        const powerReadErrorWas = PowerProfiles._readError
+        const powerCorrectiveWas = PowerProfiles._correctiveRefreshPending
+        SystemTools._tools = { powerprofilesctl: true }
+        PowerProfiles.profiles = ["probe-quiet", "probe-balanced", "probe-fast"]
+        PowerProfiles.profile = "probe-quiet"
+        PowerProfiles._correctiveRefreshPending = true
+        const powerGenWas = PowerProfiles._writeGen
+        const staleReply = QuickActionsState._powerModeReply()
+        root._check(!PowerProfiles._watched && staleReply === "switching"
+                && PowerProfiles._cyclePending && !PowerProfiles._correctiveRefreshPending
+                && PowerProfiles._writeGen === powerGenWas
+                && PowerProfiles.profile === "probe-quiet",
+            "a power mode cycle with every surface shut reads the profile before it sets one")
+        PowerProfiles._correctiveRefreshPending = true
+        const repeatReply = QuickActionsState._powerModeReply()
+        root._check(repeatReply.startsWith("error:") && PowerProfiles._correctiveRefreshPending
+                && PowerProfiles._cyclePending && PowerProfiles._writeGen === powerGenWas,
+            "a second power mode press while the first waits starts no read and queues no step")
+        PowerProfiles._correctiveRefreshPending = false
+        PowerProfiles.profile = "probe-balanced"
+        PowerProfiles._settleCycle(false, true, false)
+        root._check(PowerProfiles._cyclePending && PowerProfiles._writeGen === powerGenWas,
+            "a profile read already running when the keybind came does not stand in for a fresh one")
+        PowerProfiles._settleCycle(true, false, false)
+        root._check(!PowerProfiles._cyclePending && PowerProfiles._writeGen === powerGenWas
+                && PowerProfiles.lastError.length > 0,
+            "a failed read drops the waiting power mode cycle and says why")
+        PowerProfiles.profile = ""
+        const coldReply = QuickActionsState._powerModeReply()
+        root._check(coldReply === "switching" && PowerProfiles._cyclePending,
+            "a power mode cycle before the profile loads waits on a read instead of refusing")
+        PowerProfiles.profile = "probe-balanced"
+        PowerProfiles._settleCycle(true, true, false)
+        root._check(!PowerProfiles._cyclePending && PowerProfiles.profile === "probe-fast"
+                && PowerProfiles._writeGen === powerGenWas + 1,
+            "a waiting power mode cycle steps from the freshly read profile")
+        // a stubbed backend's answer must not land on the restored one
+        PowerProfiles._writeGen++
+        PowerProfiles._cyclePending = false
+        PowerProfiles._correctiveRefreshPending = powerCorrectiveWas
+        PowerProfiles._readError = powerReadErrorWas
+        PowerProfiles.lastError = powerErrorWas
+        PowerProfiles.profile = powerProfileWas
         SystemTools._tools = powerToolsWas
         PowerProfiles.profiles = powerProfilesWas
+        // the open-surface cycle waits for _finish, once the set issued above has exited
 
 
         // qt reads the 12-hour clock off the whole format string: an hour formatted on its
@@ -1447,6 +1731,11 @@ ShellRoot {
         DateTime._update(new Date(2026, 8, 24, 1, 30))
         root._check(DateTime.cachedHour === "01" && DateTime.cachedMinute === "30",
             "_update(current) formats the instant it's given instead of always reading clock.date")
+        // a tick that never came (suspend) leaves the cached minute behind until something asks
+        DateTime.catchUp()
+        root._check(!DateTime._resync && (!DateTime._clockNeeded
+                || DateTime._lastMinute === Qt.formatDateTime(new Date(), "yyyyMMddHHmm")),
+            "catchUp brings a stale clock up to the present and leaves the clock enabled")
         ShellSettings.clock12h = clock12hForUpdate
         DateTime._update()
 
@@ -1483,6 +1772,28 @@ ShellRoot {
         root._check(!NightLight._parseCoord("+9001+18000")
                 && !NightLight._parseCoord("+9000+18001"),
             "night light rejects coordinates beyond the latitude and longitude poles")
+        // the clock can't be pinned, so these hold on any date: the equation of time
+        // never exceeds ~17 minutes, and at the equator the -0.833 degree correction
+        // stretches the day to ~12.11-12.13 h where a bare horizon would give exactly 12
+        root._check(Math.abs(NightLight._eqTimeMin) < 17.5
+                && Math.abs(NightLight._declRad) < 0.4093,
+            "night light's solar series stays inside the annual declination and equation-of-time range")
+        NightLight._parseCoord("+0000-07830")
+        const equatorDay = NightLight.sunsetHour - NightLight.sunriseHour
+        root._check(equatorDay > 12.10 && equatorDay < 12.14,
+            "night light day length includes refraction and the sun's radius")
+        root._check(NightLight._parseCoord("+513030-0000731")
+                && NightLight.sunriseHour < NightLight._solarNoon
+                && NightLight._solarNoon < NightLight.sunsetHour,
+            "night light puts solar noon between sunrise and sunset")
+        const clock12hForSun = ShellSettings.clock12h
+        ShellSettings.clock12h = false
+        root._check(/^\d\d:\d\d$/.test(NightLight.sunriseLabel),
+            "night light sun times use the 24h clock when the clock is 24h")
+        ShellSettings.clock12h = true
+        root._check(/^\d{1,2}:\d\d [AP]M$/.test(NightLight.sunriseLabel),
+            "night light sun times follow the 12h clock setting")
+        ShellSettings.clock12h = clock12hForSun
         NightLight._geoResolved = geoResolvedWas
         NightLight._autoLat = autoLatWas
         NightLight._autoLon = autoLonWas
@@ -1559,7 +1870,30 @@ ShellRoot {
             "dispatch quotes a monitor name in the lua form")
         root._check(HyprDispatch._text("togglefloating", "") === "togglefloating",
             "dispatch passes an unmapped dispatcher through untouched")
+        root._check(HyprDispatch.exitCommand()[4] === "hl.dsp.exit()",
+            "a Lua config logs out with the Lua exit dispatcher")
+        HyprDispatch.useLua = false
+        root._check(HyprDispatch.exitCommand()[4] === "exit",
+            "a classic config logs out with the exit dispatcher")
         HyprDispatch.useLua = luaWas
+
+        root._check(Compositor.windowTitle("⠹ build") === "build"
+                && Compositor.windowTitle("✳ claude") === "claude"
+                && Compositor.windowTitle("⠹build") === "⠹build"
+                && Compositor.windowTitle("plain title") === "plain title",
+            "a leading terminal spinner glyph is stripped from a window title and nothing else")
+        root._check(WindowActions._hasBrowserToken("org.mozilla.firefox", "firefox")
+                && WindowActions._hasBrowserToken("google-chrome", "chrome")
+                && !WindowActions._hasBrowserToken("operator", "opera")
+                && !WindowActions._hasBrowserToken("zenity", "zen"),
+            "a browser name matches a whole class token, not a substring of another app")
+        const stepNear = (got, want) => Math.abs(got - want) < 1e-9
+        root._check(stepNear(Audio._stepFrom(0.37, Audio.stepPct), 0.40)
+                && stepNear(Audio._stepFrom(0.35, Audio.stepPct), 0.40)
+                && stepNear(Audio._stepFrom(0.37, -Audio.stepPct), 0.35)
+                && stepNear(Audio._stepFrom(0.40, -Audio.stepPct), 0.35)
+                && stepNear(Audio._stepFrom(0.37, 0.01), 0.38),
+            "a volume notch lands on the step grid and a sub-step nudge moves by its own size")
 
         const spacing = ShellSettings.schemaFor("barSpacing")
         root._check(spacing !== null && spacing.t === "int"
@@ -1625,6 +1959,9 @@ ShellRoot {
         root._check(ShellSettings.notifHistoryLimit === 5,
             "settings clamp history limit low")
         ShellSettings.notifHistoryLimit = originalLimit
+        const residue = ShellSettings._coerced({ k: "barLineStrength", t: "real", min: 0.5, max: 3 }, 1.9000000000000001)
+        root._check(residue.ok && String(residue.value) === "1.9",
+            "a saved real drops float residue on load")
 
         // the IPC surface reports failure from the same coercion the file load uses,
         // so a key added to the schema is scriptable without touching the handler
@@ -1646,8 +1983,23 @@ ShellRoot {
         ShellSettings.osdTimeout = timeoutWas
 
         root._check(ShellSettings._ipcKey("BARSPACING") === "barSpacing"
+                && ShellSettings._ipcKey(" osdTimeout ") === "osdTimeout"
                 && ShellSettings._ipcKey("noSuchSetting") === "noSuchSetting",
-            "settings IPC folds known key capitalization without weakening schema lookup")
+            "settings IPC trims hand-typed keys and folds known capitalization")
+        const configReadyWas = ConfigStore.ready
+        const configErrorWas = ConfigStore._error
+        const loadedForRefusal = ShellSettings._loaded
+        ShellSettings._loaded = true
+        ConfigStore.ready = false
+        ConfigStore._error = ""
+        root._check(ShellSettings._ipcWriteRefusal() === "",
+            "a config directory still coming up does not refuse settings IPC writes")
+        ConfigStore._error = "/x is a symlink."
+        root._check(ShellSettings._ipcWriteRefusal().startsWith("error: /x is a symlink."),
+            "settings IPC refuses a write the failed config directory could never save")
+        ConfigStore.ready = configReadyWas
+        ConfigStore._error = configErrorWas
+        ShellSettings._loaded = loadedForRefusal
         const ipcSpacingWas = ShellSettings.barSpacing
         root._check(ShellSettings._ipcSet("BARSPACING", "999") === "24"
                 && ShellSettings.barSpacing === 24,
@@ -1771,6 +2123,18 @@ ShellRoot {
         const wifiHighKey = Network._wifiListKey([Object.assign({}, wifiKeyBase, { glyph: "high" })])
         root._check(wifiLowKey !== wifiHighKey,
             "wifi snapshot key changes when the rendered signal tier changes")
+        const wifiStrongStranger = { ssid: "b", active: false, known: false, signal: 90 }
+        const wifiWeakSaved = { ssid: "a", active: false, known: true, signal: 20 }
+        const wifiConnected = { ssid: "c", active: true, known: true, signal: 10 }
+        root._check(Network._compareWifi(wifiWeakSaved, wifiStrongStranger) < 0
+                && Network._compareWifi(wifiConnected, wifiWeakSaved) < 0,
+            "wifi lists the connected network first, then saved ones above a stronger stranger")
+        root._check(Network._preferWifiNetwork({ known: true, signalStrength: 0.2 },
+                    { known: false, signalStrength: 0.9 })
+                && !Network._preferWifiNetwork({ known: false, signalStrength: 0.9 },
+                    { known: true, signalStrength: 0.2 })
+                && Network._preferWifiNetwork({ known: false, signalStrength: 0.9 }, null),
+            "one ssid across several access points keeps its saved profile over a stronger unknown")
 
         const keptOff = QuickActionsState._airplaneRestore(true, true, false)
         root._check(keptOff.wifi && !keptOff.bt,
@@ -1845,6 +2209,40 @@ ShellRoot {
                 && !liveNotification.tracked,
             "a replacement notification still retires the old object and keeps its age")
         Notifications.list = []
+
+        // quickshell updates a replaced notification in place, so only its own change signals
+        // can tell the popup layer to restart the timeout
+        const watched = notificationStubFactory.createObject(root, { id: 61 })
+        let contentUpdates = 0
+        const onUpdated = id => { if (id === 61) contentUpdates++ }
+        Notifications.contentUpdated.connect(onUpdated)
+        Notifications._watchNotification(watched)
+        watched.summary = "changed"
+        watched.body = "changed"
+        watched.hints = ({ value: 5 })
+        root._check(contentUpdates === 3,
+            "an in-place summary, body or hint change reports updated content")
+        watched.tracked = false
+        watched.body = "again"
+        root._check(contentUpdates === 3,
+            "an untracked notification reports no content updates")
+        Notifications.contentUpdated.disconnect(onUpdated)
+        watched.destroy()
+
+        const flood = []
+        for (let i = 0; i < Notifications._maxActive + 3; i++)
+            flood.push({
+                id: 700 + i, time: 1,
+                notification: notificationStubFactory.createObject(root, { id: 700 + i })
+            })
+        Notifications.list = flood
+        Notifications._retireOverflow()
+        root._check(Notifications.list.length === Notifications._maxActive
+                && Notifications.list[0].id === 703,
+            "a flood of live notifications retires the oldest past the cap")
+        for (const e of flood) e.notification.destroy()
+        Notifications.list = []
+        Notifications.clearHistory()
 
         const reusedNotification = {
             transient: false,
@@ -1962,6 +2360,18 @@ ShellRoot {
             "a pair attempt BlueZ has not moved yet is not called a failure")
         root._check(Bluetooth._attemptOutcome("connect", true, true, false, false, 0) === "ok",
             "a connected device settles a connect attempt as success")
+        root._check(Bluetooth._extendAttemptGuard("connect", false,
+                Bt.BluetoothDeviceState.Connecting, 0)
+                && Bluetooth._extendAttemptGuard("connect", false,
+                    Bt.BluetoothDeviceState.Connecting, 1)
+                && !Bluetooth._extendAttemptGuard("connect", false,
+                    Bt.BluetoothDeviceState.Connecting, 2)
+                && !Bluetooth._extendAttemptGuard("connect", false, 0, 0),
+            "a connecting Bluetooth device gets bounded extra time before failing")
+        root._check(Bluetooth._extendAttemptGuard("pair", true, 0, 7)
+                && !Bluetooth._extendAttemptGuard("pair", true, 0, 8)
+                && !Bluetooth._extendAttemptGuard("pair", false, 0, 0),
+            "an active pairing keeps its eight-extension guard budget")
 
         const retiredNotification = {
             transient: false, tracked: true,
@@ -2059,7 +2469,84 @@ ShellRoot {
         }
     }
 
+    // a binary that is gone never emits exited from Process itself, so these wrappers have to
+    // stand in for it: a bounded process reports exit 127 so callers waiting on it return,
+    // and a supervised one gives up rather than respawning a command that cannot start
     function _runProcessChecks(): void {
+        const missing = boundedProcessFactory.createObject(root, {
+            command: ["/nonexistent/silere-probe-binary"]
+        })
+        missing.exited.connect(function(code) {
+            root._check(code === 127,
+                "a bounded process that cannot spawn still reports an exit")
+            missing.destroy()
+            const supervisedMissing = supervisedProcessFactory.createObject(root, {
+                command: ["/nonexistent/silere-probe-binary"],
+                superviseWhen: true
+            })
+            supervisedMissing.gaveUpChanged.connect(function() {
+                if (!supervisedMissing.gaveUp) return
+                root._check(supervisedMissing.gaveUp && !supervisedMissing.running,
+                    "a supervised process that cannot spawn gives up instead of respawning")
+                supervisedMissing.destroy()
+                root._runChainedSpawnCheck()
+            })
+        })
+        missing.running = true
+    }
+
+    // Caffeine and the other chaining callers exec their next command from inside exited, and
+    // Process signals that exit before the new run's runningChanged, so the earlier run's exit
+    // must not stand in for a chained command that never starts
+    function _runChainedSpawnCheck(): void {
+        const chained = boundedProcessFactory.createObject(root, { command: ["true"] })
+        const codes = []
+        let settled = false
+        const settle = function() {
+            if (settled) return
+            settled = true
+            root._check(codes.length === 2 && codes[0] === 0 && codes[1] === 127,
+                "a bounded process chained from exited still reports its spawn failure")
+            chained.destroy()
+            root._runChainedSupervisedCheck()
+        }
+        chained.exited.connect(function(code) {
+            codes.push(code)
+            if (codes.length === 1) chained.exec(["/nonexistent/silere-probe-binary"])
+        })
+        chained.runningChanged.connect(function() {
+            if (codes.length > 0 && !chained.running) Qt.callLater(settle)
+        })
+        chained.running = true
+    }
+
+    // the restart delay outlasts the check, so only the failed start itself can give up
+    function _runChainedSupervisedCheck(): void {
+        const chained = supervisedProcessFactory.createObject(root, {
+            command: ["true"],
+            restartDelay: 60000,
+            superviseWhen: true
+        })
+        let exits = 0
+        let settled = false
+        const settle = function() {
+            if (settled) return
+            settled = true
+            root._check(exits === 1 && chained.gaveUp,
+                "a supervised process chained from exited gives up when that command cannot start")
+            chained.destroy()
+            root._runTimeoutCheck()
+        }
+        chained.exited.connect(function() {
+            exits++
+            if (exits === 1) chained.exec(["/nonexistent/silere-probe-binary"])
+        })
+        chained.runningChanged.connect(function() {
+            if (exits > 0 && !chained.running) Qt.callLater(settle)
+        })
+    }
+
+    function _runTimeoutCheck(): void {
         root._timeoutProbe = boundedProcessFactory.createObject(root, {
             command: ["bash", "-c", "sleep 5"],
             timeoutMs: 80
@@ -2155,7 +2642,44 @@ ShellRoot {
         }
     }
 
+    // a set in flight holds the power backend busy, and the keybind checks in _run end with one;
+    // by the time _finish runs it has exited, so a surface-open cycle can step again
+    function _runPowerSurfaceCheck(): void {
+        const toolsWas = SystemTools._tools
+        const profilesWas = PowerProfiles.profiles
+        const profileWas = PowerProfiles.profile
+        const errorWas = PowerProfiles.lastError
+        const readErrorWas = PowerProfiles._readError
+        SystemTools._tools = { powerprofilesctl: true }
+        PowerProfiles.profiles = ["probe-quiet", "probe-balanced", "probe-fast"]
+        PowerProfiles.profile = "probe-quiet"
+        const genWas = PowerProfiles._writeGen
+        QuickActionsState.open = true
+        const reply = QuickActionsState._powerModeReply()
+        root._check(PowerProfiles._watched && reply === "probe-balanced"
+                && !PowerProfiles._cyclePending && PowerProfiles._writeGen === genWas + 1,
+            "a power mode cycle with a surface open steps at once and names the profile")
+        QuickActionsState.open = false
+        PowerProfiles._writeGen++
+        PowerProfiles._readError = readErrorWas
+        PowerProfiles.lastError = errorWas
+        PowerProfiles.profile = profileWas
+        SystemTools._tools = toolsWas
+        PowerProfiles.profiles = profilesWas
+    }
+
     function _finish(): void {
+        root._runPowerSurfaceCheck()
+        const presetWas = ShellSettings.dndPreset
+        const secondsWas = ShellSettings.showSeconds
+        ShellSettings.dndPreset = presetWas === 30 ? 60 : 30
+        ShellSettings.showSeconds = !ShellSettings._defaults.showSeconds
+        ShellSettings.resetToDefaults()
+        root._check(ShellSettings.dndPreset !== ShellSettings._defaults.dndPreset
+                && ShellSettings.showSeconds === ShellSettings._defaults.showSeconds,
+            "restoring settings keeps a choice that no settings page owns")
+        ShellSettings.dndPreset = presetWas
+        ShellSettings.showSeconds = secondsWas
         root._runPaletteTransitionChecks()
         ShellSettings.notifHistoryPersistent = true
         Notifications.clearHistory()

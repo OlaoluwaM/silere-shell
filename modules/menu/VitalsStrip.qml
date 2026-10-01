@@ -51,7 +51,9 @@ Rectangle {
         readonly property real _p: Math.max(0, Math.min(1, progress))
         property real _disp: _p
         MotionBehavior on _disp {
-            gate: tile.live
+            id: _glide
+            // a step under five points moves the bar a pixel or two; snap it rather than redraw every window
+            gate: tile.live && Math.abs(_glide.targetValue - tile._disp) >= 0.05
             NumberAnimation { duration: Motion.ms(450); easing.type: Easing.OutCubic }
         }
 
@@ -99,13 +101,13 @@ Rectangle {
                 text: tile.glyph
                 color: tile.pulse > 0.001
                     ? Theme.mix(Theme.menuTextMuted, tile.tint, 0.36 + tile.pulse * 0.38)
-                    : Theme.withAlpha(Theme.menuTextMuted, 0.66)
+                    : Theme.withAlpha(Theme.menuTextMuted, 0.82)
                 font.pixelSize: Settings.fontMicro
             }
             ShellText {
                 anchors.baseline: _gl.baseline
                 text: tile.label
-                color: Theme.withAlpha(Theme.menuTextMuted, 0.62)
+                color: Theme.withAlpha(Theme.menuTextMuted, 0.82)
                 font.pixelSize: Settings.fontMicro
                 font.letterSpacing: 0.4
                 font.weight: Font.DemiBold
@@ -164,12 +166,17 @@ Rectangle {
         }
     }
 
-    Row {
+    // the tiles stay one row only while each keeps a readable width; at a large font or a narrow
+    // menu they wrap to two columns instead of clipping their values
+    Grid {
         id: _grid
         y: root._pad
         width: parent.width
-        readonly property int  cells: Battery.available ? 4 : 3
+        readonly property int naturalCells: Battery.available ? 4 : 3
+        readonly property int minCellW: 80 + Math.max(0, Settings.fontSize - Settings.fontSizeBase) * 4
+        readonly property int cells: width >= naturalCells * minCellW ? naturalCells : 2
         readonly property real cellW: width / cells
+        columns: cells
 
         Vital {
             width: _grid.cellW
@@ -178,9 +185,9 @@ Rectangle {
             widget: "cpu"
             glyph: "󰔏"
             label: "CPU"
-            value: Math.round(SysInfo.cpuPct * 100) + "%"
+            value: SysInfo.cpuReady ? Math.round(SysInfo.cpuPct * 100) + "%" : "—"
             sub: CpuTemp.available ? Math.round(CpuTemp.temp) + "°" : ""
-            progress: SysInfo.cpuPct
+            progress: SysInfo.cpuReady ? SysInfo.cpuPct : 0
             status: CpuTemp.critical ? 2 : (CpuTemp.hot ? 1 : 0)
             pulse: CpuTemp.alertPulse
         }
@@ -200,10 +207,11 @@ Rectangle {
             width: _grid.cellW
             live: root.active
             padR: Battery.available ? 18 : 14
+            divider: _grid.cells !== 2
             widget: "disk"
             glyph: "󰋊"
             label: "Disk"
-            value: SysInfo.diskPct > 0 ? Math.round(SysInfo.diskPct * 100) + "%" : "—"
+            value: SysInfo.diskTotalKb > 0 ? Math.round(SysInfo.diskPct * 100) + "%" : "—"
             progress: SysInfo.diskPct
             status: SysInfo.diskPct > 0.9 ? 2 : (SysInfo.diskPct > 0.75 ? 1 : 0)
         }

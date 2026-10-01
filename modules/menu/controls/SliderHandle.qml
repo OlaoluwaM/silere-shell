@@ -24,10 +24,11 @@ Rectangle {
 
     // scale magnitudes stay larger than Motion.hoverScale: on a 14px handle 1.8% is a sub-pixel no-op
     MotionBehavior on scale {
+        id: _scaleMotion
         gate: root.animate
         NumberAnimation {
-            duration: root.pressed ? Motion.press
-                : root.hovered ? Motion.hoverIn : Motion.hoverOut
+            duration: _scaleMotion.targetValue < 1 ? Motion.press
+                : _scaleMotion.targetValue > 1 ? Motion.hoverIn : Motion.hoverOut
             easing.type: Easing.OutCubic
         }
     }

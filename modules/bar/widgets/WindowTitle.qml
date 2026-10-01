@@ -21,9 +21,10 @@ Item {
 
     readonly property bool layoutVisible: root._titleVisible || root._op > 0.001
         || root.implicitWidth > 0.5 || _debounce.running || _seq.running
-    // the width takes longer to collapse than the fade-out, and it leads the fade-in;
-    // a divider keyed off either one marks a slot with nothing painted in it
-    readonly property bool contentVisible: root._op > 0.001 && root._displayText.length > 0
+    // the width lags the fade both ways, so a divider keyed off it marks an empty slot;
+    // a crossfade between titles holds this up, or each focus change blinks the divider
+    readonly property bool contentVisible: root._displayText.length > 0
+        && (root._op > 0.001 || (_seq.running && root._pendVisible))
 
     Accessible.role: Accessible.StaticText
     Accessible.name: root._spokenText.length > 0

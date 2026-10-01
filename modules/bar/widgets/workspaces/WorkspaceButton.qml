@@ -35,7 +35,8 @@ Item {
     // an underline marker leaves the cell centre free, so the active workspace keeps its own content
     readonly property bool _blanked: active && markerCovers
     readonly property int _menuHintDelay: 2400
-    readonly property bool _showIcons: ShellSettings.wsShowAppIcons && !_blanked && apps.length > 0
+    readonly property bool _iconCell: ShellSettings.wsShowAppIcons && apps.length > 0
+    readonly property bool _showIcons: _iconCell && !_blanked
 
     width:  cellWidth
     height: rowHeight
@@ -302,7 +303,7 @@ Item {
             height: width
             radius: width / 2
             antialiasing: true
-            visible: !ShellSettings.wsShowNumbers && !root._showIcons
+            visible: !ShellSettings.wsShowNumbers && !root._iconCell
             opacity: (1 - root._revealAmt) * root._dotFade
                 * (root._hoverFx && !root.urgent ? Math.min(1, root._dotAlpha + 0.18)
                     : root._dotAlpha)
@@ -320,8 +321,8 @@ Item {
         Loader {
             anchors.centerIn: parent
             transform: Translate { x: root._shakeX }
-            opacity: 1 - root._revealAmt
-            active: root._showIcons
+            opacity: (1 - root._revealAmt) * root._dotFade
+            active: root._iconCell && (!root._blanked || root._dotFade > 0.01)
             sourceComponent: Component {
                 WorkspaceAppIcons {
                     apps: root.compact ? root.apps.slice(0, 1) : root.apps

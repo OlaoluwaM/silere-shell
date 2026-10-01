@@ -16,18 +16,26 @@ QtObject {
     property bool _refreshAgain: false
     property string _activeAddr: ""
     property bool _unfocused: false
-    property string _special: ""
+    // per output: two monitors can each show a special workspace
+    property var _specialOn: ({})
     property int _windowGapX: -1
     property bool _gapRecheckPending: false
     readonly property bool _liveTitlesWanted: ShellSettings.showWindowTitle
     readonly property int windowGapX: root._windowGapX
+
+    // hyprland's own answer, so a leftover hyprland.lua beside a plain config can't mislead the dispatch form
+    property Binding _luaDispatch: Binding {
+        target: HyprDispatch
+        property: "useLua"
+        value: Hyprland.usingLua
+    }
 
     function _identity(value): string {
         return SafeText.singleLineText(value, Compositor.maxWindowIdentityChars)
     }
 
     function _title(value): string {
-        return SafeText.singleLineText(value, Compositor.maxWindowTitleChars)
+        return Compositor.windowTitle(value)
     }
 
     function monitorName(screen): string {
@@ -190,7 +198,7 @@ QtObject {
 
     // hyprland has no compositor-side overview; OverviewState drives its own (overviewIsLive is false)
     readonly property bool overviewActive: false
-    readonly property string specialOutput: root._special
+    readonly property var specialOutputs: Object.keys(root._specialOn)
 
     readonly property var workspaces: {
         root._layoutTick
@@ -252,8 +260,8 @@ QtObject {
                 wsName: c.workspace ? String(c.workspace.name ?? "") : "",
                 focused: !root._unfocused && !!(Hyprland.activeToplevel && Hyprland.activeToplevel === t),
                 focusRank: c.focusHistoryID ?? 9999,
-                // hyprland's fullscreen is a mode enum, and 1 is merely maximized
-                fullscreen: c.fullscreen === 2
+                // hyprland's fullscreen is a mode bitmask: 1 maximized, 2 fullscreen, 3 both
+                fullscreen: (Number(c.fullscreen) & 2) !== 0
             })
         }
         return out
@@ -303,14 +311,17 @@ QtObject {
 
     function _updateSpecial(data): void {
         const parts = String(data ?? "").split(",")
-        if (parts.length < 2) { root._special = ""; return }
-        root._special = String(parts[parts.length - 2]).length > 0
-            ? String(parts[parts.length - 1]) : ""
+        const output = parts.length >= 2 ? String(parts[parts.length - 1]) : ""
+        if (output.length === 0) return
+        const next = Object.assign({}, root._specialOn)
+        if (String(parts[parts.length - 2]).length > 0) next[output] = true
+        else delete next[output]
+        root._specialOn = next
     }
 
     readonly property var _inertEvents: ({
         "openlayer": true, "closelayer": true, "submap": true, "activelayout": true,
-        "screencast": true, "changefloatingmode": true, "bell": true, "pin": true,
+        "screencast": true, "screencastv2": true, "changefloatingmode": true, "bell": true, "pin": true,
         "minimized": true, "togglegroup": true, "moveintogroup": true,
         "moveoutofgroup": true, "ignoregrouplock": true, "lockgroups": true
     })
