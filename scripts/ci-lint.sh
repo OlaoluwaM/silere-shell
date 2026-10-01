@@ -1676,6 +1676,22 @@ else
   ok "row height" "every design row height derives from the shared grid"
 fi
 
+section "supervised give-up path"
+# SupervisedProcess retries with a backoff that caps, so a command failing permanently
+# respawns for as long as its gate is true. giveUpCodes is the only brake, and it was
+# already found unset once on a watcher whose permanent failure was live in the tree.
+ungoverned_supervised=""
+for f in $(grep -rl 'SupervisedProcess {' --include='*.qml' services modules); do
+  starts="$(grep -c 'SupervisedProcess {' "$f")"
+  codes="$(grep -c 'giveUpCodes' "$f")"
+  [ "$starts" -eq "$codes" ] || ungoverned_supervised="$ungoverned_supervised $(basename "$f")"
+done
+if [ -n "$ungoverned_supervised" ]; then
+  fail "these supervised processes never give up on a permanent failure:$ungoverned_supervised"
+else
+  ok "give up" "every supervised process declares the exits it will not retry"
+fi
+
 section "portability regressions"
 portability_log="$(mktemp "${TMPDIR:-/tmp}/silere-portability.XXXXXX.log")"
 if bash scripts/test-portability.sh 2>&1 | tee "$portability_log"; [ "${PIPESTATUS[0]}" -eq 0 ]; then

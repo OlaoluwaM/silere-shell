@@ -103,6 +103,9 @@ Singleton {
         // alone decides whether this ever runs, same split Screenshot.qml's watcher uses.
         superviseWhen: root._wanted
         restartDelay: 5000
+        // 126/127 mean the exec of inotifywait itself failed. Exit 1 stays retryable: it is
+        // also what inotifywait reports when the watched directory is removed and recreated
+        giveUpCodes: [126, 127]
         // mkdir first: the state dir lives on tmpfs, born empty each boot, and only the
         // wrapper's own mkdir creates it -- so on a fresh login inotifywait had nothing
         // to watch and exited instantly, and the supervisor's growing backoff could hold

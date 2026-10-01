@@ -64,6 +64,10 @@ Singleton {
         id: _watcher
         superviseWhen: SystemTools.ready && SystemTools.hasInotifywait
         restartDelay: 5000
+        // 126/127 mean inotifywait itself cannot run. Exit 1 stays retryable: it is also an
+        // exhausted inotify instance limit, which clears, and giving up would leave the
+        // clock on the old zone until the next shell start
+        giveUpCodes: [126, 127]
         command: ["inotifywait", "-m", "-q", "-e", "moved_to,create", "--include", "/localtime$", "/etc"]
         stdout: SplitParser {
             onRead: line => _debounce.restart()
