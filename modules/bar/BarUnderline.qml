@@ -104,8 +104,10 @@ Item {
         readonly property real _sweepCenterTarget: {
             if (_notifFlash.running)                                         return 0.50
             if (_batteryGlowEnabled && (Battery.low || Battery.critical))    return _widgetSweep("battery")
-            // no bar widget shows temperature; its warning surfaces in the centred osd
-            if (_tempGlowEnabled && (CpuTemp.hot || CpuTemp.critical))       return 0.50
+            // the vitals widget's TEMP chip is the bar's temperature readout; without it
+            // placed, the warning surfaces in the centred osd
+            if (_tempGlowEnabled && (CpuTemp.hot || CpuTemp.critical))       return ShellSettings.barWidgetPlaced("vitals")
+                                                                                  ? _widgetSweep("vitals") : 0.50
             if (ShellSettings.underlineScreenshotGlow
                 && _shotActive)                                              return ShellSettings.screenshotGlowSweep && !ShellSettings.reduceMotion
                                                                                   ? _screenshotSweepCenter : 0.50
