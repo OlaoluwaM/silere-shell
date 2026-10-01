@@ -20,6 +20,12 @@ Item {
     readonly property bool _crosses: _half > 0 && _half < 12
     readonly property real _t0: 0.5 - (_isDay ? _half : 12 - _half) / 24
 
+    // the event labels centre under sunrise and sunset on the arc, so they share its span
+    readonly property real _canvasInset: 2
+    readonly property real _arcPadX: 18
+    readonly property real _spanX: _canvasInset + _arcPadX
+    readonly property real _spanW: Math.max(0, width - 2 * _spanX)
+
     property real animProg: 0
     onAnimProgChanged: if (_cvLoader.item) _cvLoader.item.requestPaint()
 
@@ -66,14 +72,14 @@ Item {
         sourceComponent: Component {
             Canvas {
                 id: _cv
-                anchors.left: parent.left;     anchors.leftMargin: 2
-                anchors.right: parent.right;   anchors.rightMargin: 2
+                anchors.left: parent.left;     anchors.leftMargin: root._canvasInset
+                anchors.right: parent.right;   anchors.rightMargin: root._canvasInset
                 anchors.top: parent.top;       anchors.topMargin: 33
                 anchors.bottom: parent.bottom; anchors.bottomMargin: 20
                 renderTarget:   Canvas.Image
                 renderStrategy: Canvas.Threaded
 
-                readonly property real padX: 18
+                readonly property real padX: root._arcPadX
                 readonly property color horizonColor: Theme.withAlpha(Theme.subtext, 0.22)
                 readonly property color arcColor:     Theme.withAlpha(Theme.subtext, 0.30)
                 readonly property color tailColor:    Theme.withAlpha(Theme.subtext, 0.12)
@@ -228,8 +234,6 @@ Item {
         }
     }
 
-    readonly property real _spanX: 2 + 18
-    readonly property real _spanW: Math.max(0, width - 4 - 36)
     EventLabel {
         glyph: root._isDay ? "󰖜" : "󰖛"
         time: root._isDay ? NightLight.sunriseLabel : NightLight.sunsetLabel
