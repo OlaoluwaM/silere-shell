@@ -1698,6 +1698,11 @@ ShellRoot {
                 && Compositor.windowTitle("⠹build") === "⠹build"
                 && Compositor.windowTitle("plain title") === "plain title",
             "a leading terminal spinner glyph is stripped from a window title and nothing else")
+        root._check(WindowActions._hasBrowserToken("org.mozilla.firefox", "firefox")
+                && WindowActions._hasBrowserToken("google-chrome", "chrome")
+                && !WindowActions._hasBrowserToken("operator", "opera")
+                && !WindowActions._hasBrowserToken("zenity", "zen"),
+            "a browser name matches a whole class token, not a substring of another app")
 
         const spacing = ShellSettings.schemaFor("barSpacing")
         root._check(spacing !== null && spacing.t === "int"
