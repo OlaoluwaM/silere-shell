@@ -1888,6 +1888,18 @@ ShellRoot {
         const wifiHighKey = Network._wifiListKey([Object.assign({}, wifiKeyBase, { glyph: "high" })])
         root._check(wifiLowKey !== wifiHighKey,
             "wifi snapshot key changes when the rendered signal tier changes")
+        const wifiStrongStranger = { ssid: "b", active: false, known: false, signal: 90 }
+        const wifiWeakSaved = { ssid: "a", active: false, known: true, signal: 20 }
+        const wifiConnected = { ssid: "c", active: true, known: true, signal: 10 }
+        root._check(Network._compareWifi(wifiWeakSaved, wifiStrongStranger) < 0
+                && Network._compareWifi(wifiConnected, wifiWeakSaved) < 0,
+            "wifi lists the connected network first, then saved ones above a stronger stranger")
+        root._check(Network._preferWifiNetwork({ known: true, signalStrength: 0.2 },
+                    { known: false, signalStrength: 0.9 })
+                && !Network._preferWifiNetwork({ known: false, signalStrength: 0.9 },
+                    { known: true, signalStrength: 0.2 })
+                && Network._preferWifiNetwork({ known: false, signalStrength: 0.9 }, null),
+            "one ssid across several access points keeps its saved profile over a stronger unknown")
 
         const keptOff = QuickActionsState._airplaneRestore(true, true, false)
         root._check(keptOff.wifi && !keptOff.bt,

@@ -199,7 +199,7 @@ Item {
                         const failed = Network.wifiError === ssid
                         if (_entry._forgetArmed) _confirm.disarm()
                         if (network.active) {
-                            if (_confirm.tryConfirm("disconnect:" + ssid)) Network.disconnectWifi()
+                            if (_confirm.tryConfirm("disconnect:" + ssid)) Network.disconnectWifi(ssid)
                             return
                         }
                         // an enterprise or WEP network can only join from a stored profile;
