@@ -812,6 +812,9 @@ ShellRoot {
             "history text drops markup and decodes entities")
         root._check(Notifications._normalizeEntry({ body: "a\u202Eb" }).body === "ab",
             "history text drops a bidi override a sender embedded")
+        root._check(Notifications._normalizeEntry({ body: "a&#65;&#x42;&#55357;<em>c</em>&#39;" }).body
+                === "aAB&#55357;c'",
+            "history text decodes numeric entities and leaves a surrogate escape alone")
         root._check(Notifications._normalizeEntry({ body: "line1\nline2" }).body
                 === "line1\nline2",
             "history text keeps the newlines a multi-line body needs")

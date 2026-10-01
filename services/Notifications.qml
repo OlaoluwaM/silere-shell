@@ -717,10 +717,14 @@ Singleton {
             ? Math.min(root._maxBodyChars, Math.floor(requested)) : root._maxBodyChars
         const source = SafeText.boundedText(s, limit * 2)
         const plain = source
-            .replace(/<\/?(b|i|u|a|span|small|big|tt|markup|sub|sup|s)\b[^>]*>/gi, "")
-            .replace(/<br\s*\/?>/gi, " ")
+            .replace(/<\/?(b|i|u|a|span|small|big|tt|markup|sub|sup|s|em|strong|font|img)\b[^>]*>/gi, "")
+            .replace(/<br\s*\/?>|<\/?(p|div)\b[^>]*>/gi, " ")
             .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-            .replace(/&quot;/g, "\"").replace(/&apos;/g, "'").replace(/&#39;/g, "'")
+            .replace(/&quot;/g, "\"").replace(/&apos;/g, "'")
+            .replace(/&#(x[0-9a-f]{1,6}|[0-9]{1,7});/gi, (m, n) => {
+                const cp = n[0] === "x" || n[0] === "X" ? parseInt(n.slice(1), 16) : parseInt(n, 10)
+                return cp > 0 && cp <= 0x10FFFF && (cp < 0xD800 || cp > 0xDFFF) ? String.fromCodePoint(cp) : m
+            })
             .replace(/&nbsp;/g, " ").replace(/&hellip;/g, "…")
             .replace(/&amp;/g, "&")
             .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u202A-\u202E\u2066-\u2069]/g, "")
@@ -903,19 +907,20 @@ Singleton {
             if (!carriedAcrossReload) root._forgetState(n.id)
             const bypasses = ShellSettings.notifCriticalBypass
                 && n.urgency === NotificationUrgency.Critical
+            // expired, not dismissed: a sender may read a dismissal as the user having seen it
             if (root.dnd && !bypasses) {
                 root._archiveNotification(n, n.id, Date.now())
-                n.tracked = false
+                n.expire()
                 return
             }
             if (root.fullscreenSilenced && !bypasses) {
                 root._archiveNotification(n, n.id, Date.now())
-                n.tracked = false
+                n.expire()
                 return
             }
             if (!ShellSettings.notifPopupEnabled) {
                 root._archiveNotification(n, n.id, Date.now())
-                n.tracked = false
+                n.expire()
                 return
             }
             const arrivalTime = root._ensureTime(n.id)
