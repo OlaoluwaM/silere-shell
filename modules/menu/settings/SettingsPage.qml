@@ -185,7 +185,7 @@ PageShell {
             width: parent.width
             readonly property real _mainH: Math.max(30, _hdrText.implicitHeight)
             readonly property real _contentBottom: _hdrError.visible
-                ? _mainH + 4 + _hdrError.implicitHeight
+                ? _mainH + 8 + _hdrError.height
                 : _mainH
             height: 4 * Math.ceil((_contentBottom + 4) / 4)
             readonly property var _meta: root._sectionMeta[root._shownSection]
@@ -236,16 +236,45 @@ PageShell {
                 }
             }
 
-            ShellText {
+            // a persistence error can run to a sentence, so it wraps inside its own card instead of eliding
+            Rectangle {
                 id: _hdrError
                 visible: ShellSettings.settingsError.length > 0
-                anchors.left: _hdrText.left
-                anchors.right: parent.right
-                y: _detailHeader._mainH + 4
-                text: ShellSettings.settingsError
-                color: Theme.warning
-                font.pixelSize: Settings.fontMicro
-                elide: Text.ElideRight
+                x: 0
+                y: _detailHeader._mainH + 8
+                width: parent.width
+                height: _errorText.implicitHeight + 16
+                radius: Theme.radiusInline
+                color: Theme.withAlpha(Theme.warning, 0.08)
+
+                OutlineBorder {
+                    radius: _hdrError.radius
+                    outlineColor: Theme.withAlpha(Theme.warning, 0.24)
+                }
+
+                ShellText {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 10
+                    anchors.top: parent.top
+                    anchors.topMargin: 8
+                    text: "󰀦"
+                    color: Theme.warning
+                    font.pixelSize: Settings.fontCaption
+                }
+
+                ShellText {
+                    id: _errorText
+                    anchors.left: parent.left
+                    anchors.leftMargin: 30
+                    anchors.right: parent.right
+                    anchors.rightMargin: 10
+                    anchors.top: parent.top
+                    anchors.topMargin: 8
+                    text: ShellSettings.settingsError
+                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                    color: Theme.warning
+                    font.pixelSize: Settings.fontCaption
+                }
             }
         }
 

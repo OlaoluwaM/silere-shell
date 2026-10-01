@@ -691,8 +691,53 @@ PanelWindow {
                     else if (contentY < 0) contentY = 0
                 }
 
+                function revealSettingsSelect(): void {
+                    const row = MenuState._settingsSelectOwner
+                    if (!row || !panel.open || panel.activeTab !== 1) return
+                    // a list taller than the viewport keeps its header in view, not its end
+                    const top = row.mapToItem(contentFlick.contentItem, 0, 0).y
+                    const bottom = top + row.height
+                    const margin = 8
+                    let target = contentY
+                    if (row.height + margin * 2 > height)
+                        target = top - margin
+                    else if (top - margin < target)
+                        target = top - margin
+                    else if (bottom + margin > target + height)
+                        target = bottom + margin - height
+                    contentY = Math.max(0,
+                        Math.min(Math.max(0, contentHeight - height), target))
+                }
+
+                // the dropdown grows over the panel's height motion; measure once it has settled
+                Timer {
+                    id: _selectReveal
+                    interval: Motion.medium + 24
+                    onTriggered: contentFlick.revealSettingsSelect()
+                }
+
+                Connections {
+                    target: MenuState
+                    function onSettingsSelectClaimed() {
+                        if (panel.open && panel.activeTab === 1) {
+                            panel._armOuterHeightMotion()
+                            _selectReveal.restart()
+                        }
+                    }
+                    function onSettingsSelectOpenChanged() {
+                        if (!MenuState.settingsSelectOpen) {
+                            _selectReveal.stop()
+                            if (panel.activeTab === 1) panel._armOuterHeightMotion()
+                        }
+                    }
+                }
+
                 onContentHeightChanged: clampToContent()
-                onHeightChanged: clampToContent()
+                onHeightChanged: {
+                    clampToContent()
+                    if (MenuState.settingsSelectOpen && panel.activeTab === 1)
+                        _selectReveal.restart()
+                }
 
                 // default focus target while the menu is open: nothing else claims focus
                 // until a field is clicked, so the arrows page the content the same way

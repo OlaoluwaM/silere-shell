@@ -52,11 +52,13 @@ AnchoredPopupState {
     // settings surface and ask the previous row to fold before the next opens.
     property var _settingsSelectOwner: null
     readonly property bool settingsSelectOpen: _settingsSelectOwner !== null
+    signal settingsSelectClaimed()
     function claimSettingsSelect(owner): void {
         if (!owner || _settingsSelectOwner === owner) return
         const previous = _settingsSelectOwner
         if (previous) previous._setOpen(false)
         _settingsSelectOwner = owner
+        root.settingsSelectClaimed()
     }
     function releaseSettingsSelect(owner): void {
         if (_settingsSelectOwner === owner) _settingsSelectOwner = null
