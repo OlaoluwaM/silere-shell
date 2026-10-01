@@ -1024,6 +1024,14 @@ ShellRoot {
                 && CalendarState._canonicalMarkKey({}) === "",
             "calendar rejects marks that are not date strings")
 
+        const profileOrder = ["power-saver", "balanced", "performance"]
+        root._check(PowerProfiles.nextProfile("balanced", profileOrder) === "performance"
+                && PowerProfiles.nextProfile("performance", profileOrder) === "power-saver",
+            "cycling a power mode names the profile it moves to, wrapping at the end")
+        root._check(PowerProfiles.nextProfile("quiet", profileOrder) === ""
+                && PowerProfiles.nextProfile("balanced", ["balanced"]) === "",
+            "a power mode outside the offered cycle names no successor")
+
         const pageReduceWas = ShellSettings.reduceMotion
         const page = pageShellFactory.createObject(root)
         ShellSettings.reduceMotion = true

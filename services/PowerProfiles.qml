@@ -186,12 +186,20 @@ Singleton {
         _set.exec(root._setCommand(name))
     }
 
-    function cycle(): void {
+    function nextProfile(current: string, order: var): string {
+        const at = order.indexOf(current)
+        if (order.length < 2 || at < 0) return ""
+        return order[(at + 1) % order.length]
+    }
+
+    // the backend answers out of process, so the caller is told what was asked for
+    function cycle(): string {
         // _set.running guard: exec while a set's in flight drops the write but still flips the optimistic profile — UI and daemon diverge
-        if (!available || profile === "" || _set.running || root.profiles.length === 0) return
-        const idx = root.profiles.indexOf(root.profile)
-        if (idx < 0) return
-        root._applySet(root.profiles[(idx + 1) % root.profiles.length])
+        if (!available || profile === "" || _set.running || root.profiles.length === 0) return ""
+        const next = root.nextProfile(root.profile, root.profiles)
+        if (next.length === 0) return ""
+        root._applySet(next)
+        return next
     }
 
     // direct pick from the settings-page chip row, as opposed to cycle()'s

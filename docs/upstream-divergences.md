@@ -185,7 +185,10 @@ naming them over upstream's CI claim.
   transfer expansion to another run; a merged run keeps its oldest entry's state.
   The fork's duration-picker DND replaces
   upstream's scheduled quiet hours; keep `dndSchedule`, `dndFrom`, `dndTo`,
-  their settings rows, and their service logic removed. Notification history
+  their settings rows, and their service logic removed. The `quickActions dnd`
+  IPC toggle goes through that picker's `toggleDnd`, so turning DND on arms a
+  timed run from the saved duration; do not route it to upstream's quiet-hours
+  path or a plain `dnd` flip. Notification history
   retains `sessionCurrent` through `PersistentProperties`, which survives QML
   reloads but not process exits. Restore on its `loaded` signal, before the
   server re-emits kept notifications; defer pruning until those arrivals have
