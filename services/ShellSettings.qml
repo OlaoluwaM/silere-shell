@@ -665,10 +665,12 @@ Singleton {
         let n = 0
         const keys = Object.create(null)
         for (let i = 0; i < _schema.length; i++) {
-            const key = _schema[i].k
+            const entry = _schema[i]
+            const key = entry.k
             if (root._sameValue(root[key], root._defaults[key])) continue
             keys[key] = true
-            n++
+            // a key with no page of its own is never reset, so it is no reason to offer one
+            if (entry.sec !== "-") n++
         }
         root._modifiedKeys = keys
         root._modifiedCount = n
@@ -700,17 +702,18 @@ Singleton {
             return
         }
         ConfigStore.pruneBackups()
-        root._bulkAssign = true
-        for (let i = 0; i < _schema.length; i++) {
-            const k = _schema[i].k
-            if (k !== "barWidgetOrderLeft" && k !== "barWidgetOrderCenter"
-                    && k !== "barWidgetOrderRight")
-                root[k] = _defaults[k]
-        }
-        // the order keys go through the normalising setter, not a raw assignment
-        root.resetBarWidgets()
-        root._bulkAssign = false
-        _store.flush(false)
+        root.batch(function() {
+            for (let i = 0; i < _schema.length; i++) {
+                const entry = _schema[i]
+                const k = entry.k
+                // "-" keys (saved durations, commands, wallpaper) belong to no page, so no page's reset covers them
+                if (entry.sec !== "-" && k !== "barWidgetOrderLeft"
+                        && k !== "barWidgetOrderCenter" && k !== "barWidgetOrderRight")
+                    root[k] = _defaults[k]
+            }
+            // the order keys go through the normalising setter, not a raw assignment
+            root.resetBarWidgets()
+        })
         root._recountModified()
     }
 
@@ -734,7 +737,7 @@ Singleton {
         if (modified !== wasModified) {
             if (modified) root._modifiedKeys[key] = true
             else delete root._modifiedKeys[key]
-            root._modifiedCount += modified ? 1 : -1
+            if (root._sectionOf[key] !== "-") root._modifiedCount += modified ? 1 : -1
             // only when a key crosses its default, not on every slider tick
             root._rebuildModifiedSections()
         }
@@ -939,11 +942,12 @@ Singleton {
         let changed = 0
         const modifiedKeys = Object.create(null)
         for (let i = 0; i < _schema.length; i++) {
-            const key = _schema[i].k
+            const entry = _schema[i]
+            const key = entry.k
             const modified = !root._sameValue(root[key], root._defaults[key])
             if (modified) {
                 modifiedKeys[key] = true
-                changed++
+                if (entry.sec !== "-") changed++
             }
             // a newer release may allow a value this one clamps, so its raw value stands until edited here
             if (preserveFuture && root._futureTouched[key] !== true

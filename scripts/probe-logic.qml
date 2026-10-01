@@ -842,9 +842,9 @@ ShellRoot {
 
         const savedNight = ShellSettings.nightLightTemp
         ShellSettings.nightLightTemp = savedNight === 4000 ? 3500 : 4000
-        root._check(ShellSettings.modifiedCount === 1
+        root._check(ShellSettings.modifiedCount === 0
                 && Object.keys(ShellSettings.modifiedSections).length === 0,
-            "a setting with no page of its own marks nothing")
+            "a setting with no page of its own does not offer a reset")
         ShellSettings.nightLightTemp = savedNight
         ShellSettings._loaded = savedLoaded
 
@@ -2479,6 +2479,16 @@ ShellRoot {
     }
 
     function _finish(): void {
+        const presetWas = ShellSettings.dndPreset
+        const secondsWas = ShellSettings.showSeconds
+        ShellSettings.dndPreset = presetWas === 30 ? 60 : 30
+        ShellSettings.showSeconds = !ShellSettings._defaults.showSeconds
+        ShellSettings.resetToDefaults()
+        root._check(ShellSettings.dndPreset !== ShellSettings._defaults.dndPreset
+                && ShellSettings.showSeconds === ShellSettings._defaults.showSeconds,
+            "restoring settings keeps a choice that no settings page owns")
+        ShellSettings.dndPreset = presetWas
+        ShellSettings.showSeconds = secondsWas
         root._runPaletteTransitionChecks()
         ShellSettings.notifHistoryPersistent = true
         Notifications.clearHistory()
