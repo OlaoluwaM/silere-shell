@@ -221,12 +221,15 @@ Item {
         }
     }
 
+    function _toggleCard(): void {
+        if (Media.available) MediaPopupState.toggleAt(root.menuAnchorX, root.screen, root)
+    }
+
     Accessible.role: Accessible.Button
-    Accessible.name: Media.label.length > 0
-        ? (Media.playing ? "Pause " : "Play ") + Media.label
-        : (Media.playing ? "Pause" : "Play")
+    Accessible.name: Media.label.length > 0 ? "Media controls, " + Media.label : "Media controls"
+    Accessible.description: Media.playing ? "Playing" : "Paused"
     Accessible.focusable: root.show
-    Accessible.onPressAction: Media.togglePlay()
+    Accessible.onPressAction: root._toggleCard()
 
     function _syncHint(): void {
         if (!root.barActive || !_rootHover.hovered) {
@@ -250,8 +253,8 @@ Item {
         onTapped: (eventPoint, button) => {
             if (button === Qt.RightButton)
                 WindowActions.focusMediaPlayer(Media.playerName, Media.title)
-            else if (Media.available)
-                MediaPopupState.toggleAt(root.menuAnchorX, root.screen, root)
+            else
+                root._toggleCard()
         }
     }
 }

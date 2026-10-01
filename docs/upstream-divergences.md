@@ -228,7 +228,8 @@ naming them over upstream's CI claim.
   Only an open media host may advance the shared artwork candidate after a
   load failure; a closed card retained during its exit must not change it.
 - The bar media widget opens that card on click and focuses the player on
-  right-click. Keep upstream's play/pause click, middle-click focus, and
+  right-click; its accessible press action and name follow the click. Keep
+  upstream's play/pause click and press action, middle-click focus, and
   wheel-to-skip out of it.
 - The bar clock takes upstream's hover and pressed cap, styled as a Pill's, but
   never its calendar-open tint: an open calendar leaves the clock untinted.
