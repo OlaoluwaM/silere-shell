@@ -1463,6 +1463,19 @@ ShellRoot {
                 && Scroll.processLevelWheel(levelUp(true), "probe-level-b") === -1
                 && Scroll.processControlWheel(levelUp(true), "probe-level-c") === 1,
             "natural scrolling flips a level control but not content navigation")
+        const rootsWas = Screenshot._pictureRoots
+        Screenshot._pictureRoots = []
+        Screenshot._maybeFlash("ROOT /probe/pictures/")
+        Screenshot._lastFile = ""
+        Screenshot._maybeFlash("/probe/pictures/IMG_2041.jpg")
+        const photoSeen = Screenshot._lastFile
+        Screenshot._maybeFlash("/probe/pictures/Screenshot from 2026-09-25.png")
+        root._check(photoSeen === "" && Screenshot._lastFile.endsWith(".png")
+                && Screenshot._screenshotName("2026-09-25T12-30-01.png")
+                && !Screenshot._screenshotName("holiday.jpg"),
+            "a photo in the shared pictures root does not flash the bar but a screenshot does")
+        Screenshot._pictureRoots = rootsWas
+        Screenshot._lastFile = ""
 
         const powerToolsWas = SystemTools._tools
         const powerProfilesWas = PowerProfiles.profiles
