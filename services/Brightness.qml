@@ -59,8 +59,13 @@ Singleton {
     property int pendingPercent: percent
     onPercentChanged: pendingPercent = percent
 
+    // like volume, a notch lands on the step grid rather than keeping an odd starting level
     function bumpBy(delta: int): void {
-        setPercent(pendingPercent + delta)
+        const notches = Math.round(delta / stepPct)
+        if (notches === 0) { setPercent(pendingPercent + delta); return }
+        const base = notches > 0 ? Math.floor(pendingPercent / stepPct)
+            : Math.ceil(pendingPercent / stepPct)
+        setPercent((base + notches) * stepPct)
     }
 
     function setPercent(p: int): void {
@@ -257,6 +262,17 @@ Singleton {
         onFileChanged: if (!_applyDebounce.running && !_setProc.running) reload()
     }
 
+    // a firmware hotkey notifies only actual_brightness, whose value amdgpu reports on its own
+    // hardware scale, so it is a trigger to re-read brightness rather than a reading itself
+    FileView {
+        id: _actualBrightnessFile
+        path: root._device.length > 0
+            ? "/sys/class/backlight/" + root._device + "/actual_brightness" : ""
+        watchChanges: root._device.length > 0
+        printErrors: false
+        onFileChanged: if (!_applyDebounce.running && !_setProc.running) _brightnessFile.reload()
+    }
+
     FileView {
         id: _maxBrightnessFile
         path: root._device.length > 0 ? "/sys/class/backlight/" + root._device + "/max_brightness" : ""
@@ -289,7 +305,8 @@ Singleton {
                 return
             }
             root._applyQueued = false
-            _setProc.exec(["brightnessctl", "-d", root._device, "set", `${root.pendingPercent}%`, "-q"])
+            // raw, not percent: brightnessctl rounds 1% of a 15-step backlight down to off
+            _setProc.exec(["brightnessctl", "-d", root._device, "set", String(root.currentBrightness), "-q"])
         }
     }
 

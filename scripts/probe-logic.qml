@@ -1703,6 +1703,13 @@ ShellRoot {
                 && !WindowActions._hasBrowserToken("operator", "opera")
                 && !WindowActions._hasBrowserToken("zenity", "zen"),
             "a browser name matches a whole class token, not a substring of another app")
+        const stepNear = (got, want) => Math.abs(got - want) < 1e-9
+        root._check(stepNear(Audio._stepFrom(0.37, Audio.stepPct), 0.40)
+                && stepNear(Audio._stepFrom(0.35, Audio.stepPct), 0.40)
+                && stepNear(Audio._stepFrom(0.37, -Audio.stepPct), 0.35)
+                && stepNear(Audio._stepFrom(0.40, -Audio.stepPct), 0.35)
+                && stepNear(Audio._stepFrom(0.37, 0.01), 0.38),
+            "a volume notch lands on the step grid and a sub-step nudge moves by its own size")
 
         const spacing = ShellSettings.schemaFor("barSpacing")
         root._check(spacing !== null && spacing.t === "int"

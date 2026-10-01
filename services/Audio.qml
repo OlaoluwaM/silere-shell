@@ -302,12 +302,21 @@ Singleton {
         }
     }
 
+    // a level set elsewhere rejoins the step grid on the first notch instead of staying off it
+    function _stepFrom(v: real, delta: real): real {
+        const notches = Math.round(delta / stepPct)
+        if (notches === 0) return v + delta
+        const at = v / stepPct
+        const base = notches > 0 ? Math.floor(at + 0.01) : Math.ceil(at - 0.01)
+        return (base + notches) * stepPct
+    }
+
     function bumpBy(delta: real): void {
         const a = ready ? audio : null
         if (!a || delta === 0) return
         if (_pendingMuted) unmute()
-        let v = pendingApply ? targetVolume : _clampVolume(a.volume)
-        _writeVolume(v + delta)
+        const v = pendingApply ? targetVolume : _clampVolume(a.volume)
+        _writeVolume(root._stepFrom(v, delta))
     }
 
     function setVolume(v: real): void {
