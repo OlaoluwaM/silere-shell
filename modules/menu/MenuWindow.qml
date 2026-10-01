@@ -47,6 +47,7 @@ PanelWindow {
             if (panel.powerOpen) {
                 panel.powerOpen = false
             } else if (panel.activeTab === 0 && homeLoader.item && homeLoader.item.dismissInline()) {
+            } else if (panel.activeTab === 1 && settingsLoader.item && settingsLoader.item.dismissInline()) {
             } else {
                 MenuState.close()
             }

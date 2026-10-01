@@ -616,6 +616,12 @@ ShellRoot {
                     && MenuState._settingsSelectOwner === null,
                 "leaving a settings page folds its open dropdown")
             MenuState.setSettingsSection(sectionBeforeSelectProbe)
+            root._check(!MenuState.settingsSelectOpen,
+                "the menu reports no open settings dropdown once it folds")
+            firstSelect._setOpen(true)
+            root._check(MenuState.settingsSelectOpen,
+                "the menu reports an open settings dropdown for Escape to fold first")
+            firstSelect._setOpen(false)
         }
         if (firstSelect) firstSelect.destroy()
         if (secondSelect) secondSelect.destroy()
