@@ -836,8 +836,9 @@ Singleton {
             let parsed = JSON.parse(raw || "{}")
             if (parsed === null || Array.isArray(parsed) || typeof parsed !== "object")
                 throw new Error("settings root must be an object")
-            const rawVersion = typeof parsed.__version === "number" && isFinite(parsed.__version)
-                ? parsed.__version : 0
+            // a version written as a string is still a version: reading it as 0 would migrate a newer file
+            const versionNumber = Number(parsed.__version ?? 0)
+            const rawVersion = isFinite(versionNumber) ? versionNumber : 0
             const onDiskVersion = Math.max(0, Math.floor(rawVersion))
             if (onDiskVersion < _settingsVersion && Object.keys(parsed).length > 0) {
                 migrationBackupSucceeded = root._backupSettings("v" + onDiskVersion)
@@ -925,13 +926,16 @@ Singleton {
         const modifiedKeys = Object.create(null)
         for (let i = 0; i < _schema.length; i++) {
             const key = _schema[i].k
-            if (!root._sameValue(root[key], root._defaults[key])) {
-                out[key] = root[key]
+            const modified = !root._sameValue(root[key], root._defaults[key])
+            if (modified) {
                 modifiedKeys[key] = true
                 changed++
-            } else if (!preserveFuture || root._futureTouched[key] === true) {
-                delete out[key]
             }
+            // a newer release may allow a value this one clamps, so its raw value stands until edited here
+            if (preserveFuture && root._futureTouched[key] !== true
+                    && Object.prototype.hasOwnProperty.call(out, key)) continue
+            if (modified) out[key] = root[key]
+            else delete out[key]
         }
         root._modifiedKeys = modifiedKeys
         root._modifiedCount = changed

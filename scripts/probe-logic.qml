@@ -787,6 +787,17 @@ ShellRoot {
         root._check(future.barHeight === 42,
             "a value changed by this version still lands beside the unknown keys")
 
+        // 900 is out of range here and clamps to 60, but a newer release may allow it
+        ShellSettings._futureSettings = ({ __version: 999, barHeight: 900 })
+        ShellSettings.barHeight = 60
+        ShellSettings._futureTouched = ({})
+        root._check(JSON.parse(ShellSettings._serialize()).barHeight === 900,
+            "a newer release's out-of-range value survives until this version edits it")
+        ShellSettings._futureTouched = ({ barHeight: true })
+        root._check(JSON.parse(ShellSettings._serialize()).barHeight === 60,
+            "an edited key replaces the preserved raw value")
+        ShellSettings._futureTouched = ({})
+
         ShellSettings._loadedVersion = savedVersion
         ShellSettings._futureSettings = savedFuture
         ShellSettings.barHeight = savedHeight

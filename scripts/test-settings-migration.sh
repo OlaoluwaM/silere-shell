@@ -28,7 +28,7 @@ wait_ready() {
     fail "settings did not become ready: $state"
 }
 
-for scenario in blocked locked current future replaced retired-current retired-future; do
+for scenario in blocked locked current future future-string replaced retired-current retired-future; do
     case_root="$probe_root/$scenario"
     project="$case_root/project"
     export XDG_CONFIG_HOME="$case_root/config-home" XDG_STATE_HOME="$case_root/state-home"
@@ -52,6 +52,7 @@ for scenario in blocked locked current future replaced retired-current retired-f
             ;;
         current|replaced) printf '{"__version":1,"barHeight":40,"unknown":"keep"}\n' > "$original" ;;
         future) printf '{"__version":999,"barHeight":40,"unknown":"keep"}\n' > "$original" ;;
+        future-string) printf '{"__version":"999","barHeight":40,"unknown":"keep"}\n' > "$original" ;;
         retired-current|retired-future)
             version=1
             [[ "$scenario" == retired-future ]] && version=999
@@ -90,7 +91,7 @@ if sys.argv[4] == 'locked':
     assert not any(key in value for key in ('barWidgetOrderLeft', 'barWidgetOrderCenter', 'barWidgetOrderRight')), 'locked order overrides must be scrubbed'
 PY
     fi
-    if [[ "$scenario" == current || "$scenario" == future ]]; then
+    if [[ "$scenario" == current || "$scenario" == future || "$scenario" == future-string ]]; then
         [[ ! -e "$backup" ]] || fail "$scenario unexpectedly attempted legacy backup"
     fi
     if [[ "$scenario" == retired-current || "$scenario" == retired-future ]]; then
