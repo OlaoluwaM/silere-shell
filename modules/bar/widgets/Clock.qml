@@ -93,8 +93,8 @@ Item {
 
     // the date reads on hover when it is not already shown; only meaningful with clockShowDate off
     property bool _datePeek: false
-    readonly property bool _dateRevealed: root._datePeek && _hover.hovered
-        && ShellSettings.valuesOnHover && !Idle.isIdle
+    readonly property bool _dateRevealed: root._datePeek && root._hoverEnabled && _hover.hovered
+        && ShellSettings.valuesOnHover
 
     Timer {
         id: _datePeekDelay
