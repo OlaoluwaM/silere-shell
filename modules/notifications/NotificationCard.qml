@@ -220,7 +220,11 @@ Item {
         }
     }
 
-    Component.onCompleted: _updateTime()
+    Component.onCompleted: {
+        _updateTime()
+        // a card born paused has no change to start the clock, so its wait would go uncounted
+        if (card._paused) card._hoverStartMs = Date.now()
+    }
     onVisibleChanged: {
         if (!visible && card._leaving) card._completeDismiss()
         else if (visible) card._updateTime()
@@ -254,7 +258,8 @@ Item {
     // reading one card holds the whole stack: cards expiring out from under the pointer reflow what is being read.
     // an expanded body is the same explicit read-me, even after the pointer wanders off the card
     property bool stackHovered: false
-    readonly property bool _paused: _cardHover.hovered || card.stackHovered
+    // away from the keyboard nobody sees the card, so its timeout waits for the user's return
+    readonly property bool _paused: _cardHover.hovered || card.stackHovered || Idle.isQuiet
         || _body.expanded
         || card._replyOpen
 
