@@ -145,6 +145,7 @@ Column {
                     SettingsCard {
                         SelectRow {
                             glyph: "󰔛"; label: "Dismiss after"
+                            enabled: SystemTools.hasNotifySend
                             currentValue: ShellSettings.sysAlertTimeout
                             fallbackLabel: ShellSettings.sysAlertTimeout === 0
                                 ? "Stay" : (ShellSettings.sysAlertTimeout / 1000) + "s"
