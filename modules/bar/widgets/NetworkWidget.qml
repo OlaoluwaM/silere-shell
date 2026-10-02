@@ -21,11 +21,12 @@ StatusActionPill {
     readonly property string _signal: Network.isWifi && Network.signalStrength > 0
         ? Network.signalStrength + "%"
         : ""
+    // the glyph's tiers already show signal strength, so the hover label names the link only;
+    // the percentage stays in the accessible name
     readonly property string _linkSummary: {
         if (!Network.connected) return ""
-        const label = root.compact ? Network.underlyingIcon
+        return root.compact ? Network.underlyingIcon
             : Network.underlyingIcon + " " + root._physical
-        return root._signal.length > 0 ? label + " " + root._signal : label
     }
     readonly property string _inlineText: {
         const parts = []
@@ -55,12 +56,7 @@ StatusActionPill {
         const parts = []
         if (Network.hasVpn) parts.push(Network.vpnName.length > 0 ? Network.vpnName : "VPN")
         if (root._showPhysicalLink) parts.push(root._linkSummary)
-        else if (!Network.hasVpn) {
-            const physical = root._signal.length > 0
-                ? root._physical + " " + root._signal
-                : root._physical
-            parts.push(physical)
-        }
+        else if (!Network.hasVpn) parts.push(root._physical)
         if (Network.trafficActive) parts.push(Network.trafficLabel)
         return root._join(parts)
     }
@@ -75,6 +71,9 @@ StatusActionPill {
     accessibleName: "Network, " + root._accessibleDetail
     // full-strength wifi: the widest ink in this widget's glyph family
     glyphAlignReference: "󰤨"
+    // the fan's weight sits in its wide top arc, so ink-centred it still reads high
+    // beside the label's capitals; measured about 1px at 1.6x
+    glyphAlignNudge: 1
     maxTextWidth:   compact ? 150 : 260
     // above the 2s traffic-stats poll: shrinkDelay:0 re-animated the pill's width on every single tick
     shrinkDelay:    2400
