@@ -53,14 +53,16 @@ _hyprland_up() {
     hyprctl version >/dev/null 2>&1
 }
 
-# hyprshutdown exits 0 whether the apps closed, the user forced them or the user cancelled,
-# and a cancel can't be read off the desktop afterwards: apps it already asked to close may
-# still finish closing. Its own log can tell: a force quit logs each kill, and each 150 ms
+# Stock hyprshutdown exits 0 whether the apps closed, the user forced them or the user
+# cancelled, and a cancel can't be read off the desktop afterwards: apps it already asked to
+# close may still finish closing. nixos-config patches it to exit 2 on Cancel; without that
+# patch its log is the best evidence there is. A force quit logs each kill, and each 150 ms
 # check logs how many apps it still waits on, so a finished run ends on 0 and one cancelled
-# while anything was still open doesn't. A Cancel in the 150 ms after the last app closed
-# still reads as finished, with nothing left open for it to protect. A run that ended before
-# its first check only counts as finished when it parsed no apps and asked none to quit.
-# A log that says none of this is reported, not guessed at.
+# while anything was still open doesn't. Two gaps stay open on stock hyprshutdown only: a
+# Cancel in the 150 ms after the last app closed reads as finished, and app classes are
+# logged verbatim, so a class containing a newline could forge a line. A run that ended
+# before its first check only counts as finished when it parsed no apps and asked none to
+# quit. A log that says none of this is reported, not guessed at.
 _outcome() {
     local last
     if _logged TRACE 'CApp::kill: killing ' "$1" || _logged TRACE "Can't kill " "$1"; then
@@ -132,6 +134,11 @@ if $watch; then
     rm -f "$log"
     # something else already ended the session
     _hyprland_up || exit 0
+    # the patched exit status for Cancel, which no app's text can forge
+    if [ "$rc" -eq 2 ]; then
+        _restore_session
+        exit 0
+    fi
     if [ "$rc" -ne 0 ]; then
         _restore_session
         _notify_failure "hyprshutdown stopped with status $rc."

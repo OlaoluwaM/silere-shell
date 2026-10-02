@@ -279,9 +279,11 @@ naming them over upstream's CI claim.
   commands in it on Hyprland. hyprshutdown kills every layer client, this
   shell included, so it must run in its own transient systemd unit; started
   from the shell's service it dies with that unit. It runs with `--no-exit`
-  and the script ends the session itself once hyprshutdown's apps are gone,
-  judged from hyprshutdown's `--verbose` log because its exit status is the
-  same for a cancel; recheck those log lines when hyprshutdown is upgraded.
+  and the script ends the session itself once hyprshutdown's apps are gone.
+  Cancel is read from exit status 2, which nixos-config patches into
+  hyprshutdown; stock hyprshutdown exits 0 for it too, so the script falls back
+  on its `--verbose` log. Recheck the patch and those log lines when
+  hyprshutdown is upgraded.
   Keep the unit, the restart of the session units it stopped, and the failure
   notification. Port upstream's hyprshutdown flag or fallback changes into the
   script.
