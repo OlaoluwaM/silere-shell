@@ -12,7 +12,7 @@ import "../config"
 PopupState {
     id: root
 
-    readonly property int seconds: 10
+    readonly property int seconds: 60
     property string _kind: ""
     property int _remaining: 0
     property real _deadline: 0
