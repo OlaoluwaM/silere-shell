@@ -24,8 +24,19 @@ PageShell {
         return String(s || "").split(/[\s_-]+/).filter(w => w.length > 0)
             .map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
     }
+    function _profileHint(value: string): string {
+        switch (String(value || "").toLowerCase()) {
+        case "quiet":
+        case "power-saver": return "Lower clocks, quieter fans"
+        case "balanced":    return "Everyday default"
+        case "performance": return "Highest clocks, louder fans"
+        default:            return ""
+        }
+    }
+    // an empty list would leave the card a bordered sliver
+    readonly property bool _hasProfiles: PowerProfiles.available && PowerProfiles.profiles.length > 0
     readonly property var _profileModel: PowerProfiles.profiles.map(p =>
-        ({ value: p, label: root._titleCase(p) }))
+        ({ value: p, label: root._titleCase(p), description: root._profileHint(p) }))
 
     Column {
         id: _col
@@ -47,14 +58,22 @@ PageShell {
             }
         }
 
-        SectionLabel { label: "POWER PROFILE"; first: true; visible: PowerProfiles.available }
+        SectionLabel { label: "POWER PROFILE"; first: true; visible: root._hasProfiles }
         SettingsCard {
-            visible: PowerProfiles.available
-            ChoiceChipRow {
-                glyph: "󰾅"; label: "Profile"
-                currentValue: PowerProfiles.current
+            visible: root._hasProfiles
+            // the card's radius and divider scans walk its column, and a Repeater
+            // parents its delegates there, so these rows join them like literal ones
+            Repeater {
                 model: root._profileModel
-                onChosen: (v) => PowerProfiles.setProfile(v)
+                delegate: ChoiceListRow {
+                    required property var modelData
+                    groupName: "Power profile"
+                    value: modelData.value
+                    label: modelData.label
+                    description: modelData.description
+                    active: modelData.value === PowerProfiles.current
+                    onChosen: (v) => PowerProfiles.setProfile(v)
+                }
             }
         }
 

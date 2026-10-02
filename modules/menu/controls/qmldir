@@ -11,6 +11,7 @@ SettingsCard       1.0 SettingsCard.qml
 
 # rows and inputs
 ChoiceChipRow   1.0 ChoiceChipRow.qml
+ChoiceListRow   1.0 ChoiceListRow.qml
 ControlRow      1.0 ControlRow.qml
 DetailRow       1.0 DetailRow.qml
 DurationPickerColumn 1.0 DurationPickerColumn.qml
