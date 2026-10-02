@@ -114,7 +114,7 @@ Singleton {
     // opt-in and off by default
     readonly property color popup: _glass ? withAlpha(_glassTint, ShellSettings.glassOpacity)
                                         : ShellSettings.popupMatchBarOpacity ? panel : background
-    // hover step for popup-based fills (notification cards, the settings-nav rail strip):
+    // hover step for popup-based fills that sit straight on the blur (notification cards):
     // mix() always returns alpha 1.0, so the inline `mix(popup, subtext, 0.06)` views used to
     // reach for would flash a hovered card solid over the blur the instant popup turns translucent,
     // whether from glass or from matching the bar's opacity. Same 0.06 step, aimed at text instead
