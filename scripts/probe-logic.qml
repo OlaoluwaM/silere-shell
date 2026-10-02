@@ -76,6 +76,75 @@ ShellRoot {
                     { value: "b", label: "B" }]
         }
     }
+    Component {
+        id: dividerCardFactory
+        Item {
+            width: 300
+            height: 200
+            property alias dividers: _dividers
+            property alias rows: _col.children
+            Column {
+                id: _col
+                width: parent.width
+                MenuRow { height: 40 }
+                MenuRow { height: 40 }
+                Item { width: 300; height: 40 }
+                MenuRow { height: 40 }
+            }
+            RowDividers { id: _dividers; column: _col }
+        }
+    }
+    // a card row that wraps a slider the way VolumeRow and BrightnessRow do: the card sees the
+    // wrapper, and only the contract forwarded from the slider tells it who is hovered
+    Component {
+        id: dividerWrapperCardFactory
+        Item {
+            width: 300
+            height: 200
+            property alias dividers: _dividers
+            property alias rows: _col.children
+            property alias slider: _slider
+            Column {
+                id: _col
+                width: parent.width
+                MenuRow { height: 40 }
+                Item {
+                    width: parent.width
+                    height: _slider.height
+                    property real topRadius: 0
+                    readonly property bool rowHovered:     _slider.rowHovered
+                    readonly property bool rowPressed:     _slider.rowPressed
+                    readonly property bool rowInteractive: _slider.rowInteractive
+                    QuickSlider { id: _slider; width: parent.width }
+                }
+                MenuRow { height: 40 }
+            }
+            RowDividers { id: _dividers; column: _col }
+        }
+    }
+    Component {
+        id: dividerGroupCardFactory
+        Item {
+            width: 300
+            height: 300
+            property alias dividers: _dividers
+            property alias rows: _col.children
+            property alias group: _group
+            property alias inner: _group.rows
+            Column {
+                id: _col
+                width: parent.width
+                MenuRow { height: 40 }
+                CollapsibleSection {
+                    id: _group
+                    MenuRow { height: 40 }
+                    MenuRow { height: 40 }
+                }
+                MenuRow { height: 40 }
+            }
+            RowDividers { id: _dividers; column: _col }
+        }
+    }
     Component { id: workspaceButtonFactory; WorkspaceButton {} }
     Component { id: pillFactory; Pill { visible: true; glyph: "a" } }
     Component { id: rollingTextFactory; RollingText { visible: true; text: "one" } }
@@ -625,6 +694,105 @@ ShellRoot {
         }
         if (firstSelect) firstSelect.destroy()
         if (secondSelect) secondSelect.destroy()
+
+        // reduce-motion makes the fade land at once, so a line's _fade is its settled outcome
+        const dividerReduceWas = ShellSettings.reduceMotion
+        ShellSettings.reduceMotion = true
+        const dividerCard = dividerCardFactory.createObject(root)
+        root._check(dividerCard !== null, "a divider card builds for hover checks")
+        if (dividerCard) {
+            const lines = dividerCard.dividers
+            const rows = dividerCard.rows
+            // line i sits on row i's top: 1 between rows 0 and 1, 2 above the plain Item, 3 above the last row
+            const faded = i => lines.itemAt(i)._fade === 0 && !lines.itemAt(i).visible
+            const kept  = i => lines.itemAt(i)._fade === 1 && lines.itemAt(i).visible
+            root._check(lines.count === 4 && kept(1) && kept(2) && kept(3),
+                "resting rows keep every divider")
+            rows[1].rowHovered = true
+            root._check(faded(1) && faded(2) && kept(3),
+                "a hovered row fades the line above it and the line below it")
+            rows[1].rowHovered = false
+            rows[1].rowPressed = true
+            root._check(faded(1) && faded(2) && kept(3),
+                "a pressed row fades its neighbouring dividers")
+            rows[1].rowPressed = false
+            root._check(kept(1) && kept(2), "dividers return when the hover ends")
+            rows[1].rowInteractive = false
+            rows[1].rowHovered = true
+            root._check(kept(1) && kept(2),
+                "a non-interactive hovered row leaves its dividers alone")
+            rows[1].rowHovered = false
+            rows[1].rowPressed = true
+            root._check(kept(1) && kept(2),
+                "a non-interactive pressed row leaves its dividers alone")
+            rows[1].rowPressed = false
+            rows[1].rowInteractive = true
+            // the row above a line fades it though the row that owns the line is at rest
+            rows[0].rowHovered = true
+            root._check(faded(1) && kept(2) && kept(3),
+                "a line fades for the row just above it")
+            rows[0].rowHovered = false
+            rows[3].rowHovered = true
+            root._check(faded(3) && kept(2) && kept(1),
+                "the last row fades only the line above it; the plain Item above it adds nothing")
+            rows[3].rowHovered = false
+            rows[1].visible = false
+            rows[0].rowHovered = true
+            root._check(faded(2),
+                "a line looks past an absent row to the nearest present one")
+            rows[0].rowHovered = false
+            rows[1].visible = true
+            root._check(!lines.engaged(null) && !lines.engaged(rows[2]),
+                "an item without the hover contract is never engaged")
+            dividerCard.destroy()
+        }
+
+        const wrapperCard = dividerWrapperCardFactory.createObject(root)
+        root._check(wrapperCard !== null, "a wrapper divider card builds")
+        if (wrapperCard) {
+            const lines = wrapperCard.dividers
+            const faded = i => lines.itemAt(i)._fade === 0 && !lines.itemAt(i).visible
+            const kept  = i => lines.itemAt(i)._fade === 1 && lines.itemAt(i).visible
+            root._check(lines.count === 3 && kept(1) && kept(2),
+                "a wrapper card rests with both dividers")
+            wrapperCard.slider.rowHovered = true
+            root._check(faded(1) && faded(2),
+                "a wrapped slider's hover reaches the dividers either side of its wrapper")
+            wrapperCard.slider.rowHovered = false
+            wrapperCard.slider.rowPressed = true
+            root._check(faded(1) && faded(2),
+                "a wrapped slider's drag reaches the dividers either side of its wrapper")
+            wrapperCard.slider.rowPressed = false
+            wrapperCard.slider.rowInteractive = false
+            wrapperCard.slider.rowHovered = true
+            root._check(kept(1) && kept(2),
+                "a disabled wrapped slider leaves the dividers alone")
+            wrapperCard.destroy()
+        }
+
+        const groupCard = dividerGroupCardFactory.createObject(root)
+        root._check(groupCard !== null, "a radius-group divider card builds")
+        if (groupCard) {
+            const lines = groupCard.dividers
+            const inner = groupCard.inner
+            const faded = i => lines.itemAt(i)._fade === 0 && !lines.itemAt(i).visible
+            const kept  = i => lines.itemAt(i)._fade === 1 && lines.itemAt(i).visible
+            root._check(lines.count === 3 && kept(1) && kept(2),
+                "a group card rests with the outer line above and below the group")
+            root._check(lines.edgeRow(groupCard.group, true) === inner[0]
+                && lines.edgeRow(groupCard.group, false) === inner[1],
+                "a radius group resolves to its first and last present rows")
+            inner[0].rowHovered = true
+            root._check(faded(1) && kept(2),
+                "a group's first row fades the outer line above the group only")
+            inner[0].rowHovered = false
+            inner[1].rowHovered = true
+            root._check(faded(2) && kept(1),
+                "a group's last row fades the outer line below the group only")
+            inner[1].rowHovered = false
+            groupCard.destroy()
+        }
+        ShellSettings.reduceMotion = dividerReduceWas
 
         // available is temp>0, which drops to 0 every time the service is
         // released; a control gated on it flickers on every menu open

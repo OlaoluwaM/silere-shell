@@ -15,6 +15,10 @@ Item {
     property real cardInset: 1
     property real cardLeftBleed: 0
     property bool reserveExpandSlot: false
+    // the card treats this wrapper as a row, but only the slider underneath tracks the pointer
+    readonly property bool rowHovered:     _slider.rowHovered
+    readonly property bool rowPressed:     _slider.rowPressed
+    readonly property bool rowInteractive: _slider.rowInteractive
 
     width: parent ? parent.width : 0
     implicitHeight: _slider.height + _options.height

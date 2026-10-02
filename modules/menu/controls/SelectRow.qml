@@ -22,6 +22,11 @@ Item {
     property real   bottomRadius: 0
     property real   cardInset:    1
     property real   cardLeftBleed: 0
+    // RowDividers reads these to fade the lines around the header's fill; an open list pushes the
+    // next line away from the header, so it holds its lines until it closes
+    readonly property bool rowHovered:     _hov.hovered && !_open
+    readonly property bool rowPressed:     _headerTap.pressed && !_open
+    readonly property bool rowInteractive: enabled
     readonly property bool _hasDesc: description.length > 0
     readonly property bool _hasLead: glyph.length > 0 || optionPreview !== null
     readonly property int _controlH: Metrics.rowHeightFor(28)
@@ -144,8 +149,10 @@ Item {
         bottomRadius: root._open ? 0 : root.bottomRadius
         cardInset:    root.cardInset
         leftBleed:    root.cardLeftBleed
-        active:       (_hov.hovered) && root.enabled
-        pressed:      _headerTap.pressed && root.enabled
+        // an open header already wears the accent tint, and the line below sits past the list, so
+        // the fill steps aside together with the divider fade (rowHovered/rowPressed)
+        active:       root.rowHovered && root.rowInteractive
+        pressed:      root.rowPressed && root.rowInteractive
     }
 
     ShellText {

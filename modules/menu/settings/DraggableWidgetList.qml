@@ -345,9 +345,10 @@ Item {
             }
             RowHoverBg {
                 anchors.fill: parent
-                cardInset: 0
-                topRadius: Theme.radiusControl
-                bottomRadius: Theme.radiusControl
+                // these rows are not card rows: the list brings its own 4px margin and no dividers
+                insetX: 0
+                insetY: 0
+                radius: Theme.radiusControl
                 active: _row.dragging || _rowHover.hovered
                 fillColor: _row.dragging ? Theme.accent : Theme.text
                 fillOpacity: _row.dragging ? 0.11 : 0.04
