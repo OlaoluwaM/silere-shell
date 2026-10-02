@@ -4,7 +4,7 @@ import QtQuick
 import "../../config"
 import "../../services"
 import "../common"
-import "controls"
+// import "controls" // only ArmConfirm, which is commented out with arm-and-confirm below
 
 Rectangle {
     id: root
@@ -14,18 +14,24 @@ Rectangle {
     property string value: ""
     property bool interactive: true
     property bool dangerous: false
-    property bool confirm: false
-    readonly property bool armed: _confirm.armed
+    // Arm-and-press-again stays commented out rather than deleted. Log out, Reboot and Power
+    // off confirm through PowerActionState's countdown card, so no row arms, and live arm
+    // code would build a hidden PerimeterProgress shape on every row of every rail load.
+    // This is upstream's row, and keeping the code in place keeps merges into it readable.
+    // `armed` is a constant and `confirmLabel` stays live only so the branches that read
+    // them need no edits to come back.
+    // property bool confirm: false
+    readonly property bool armed: false // _confirm.armed
     property bool tintedGlyph: false
     property string confirmLabel: "Press again"
-    property int confirmTimeout: 3000
+    // property int confirmTimeout: 3000
     property color accentColor: Theme.accent
 
     signal triggered()
 
-    // single-target row -- any non-empty key means "this row is armed", so the
-    // key itself carries no meaning beyond that
-    ArmConfirm { id: _confirm; interval: root.confirmTimeout }
+    // // single-target row -- any non-empty key means "this row is armed", so the
+    // // key itself carries no meaning beyond that
+    // ArmConfirm { id: _confirm; interval: root.confirmTimeout }
 
     readonly property bool _hot: root.enabled && root.interactive && (_hover.hovered)
     readonly property bool _showValue: root.value.length > 0 && !root.armed
@@ -101,56 +107,57 @@ Rectangle {
         ColorFade on outlineColor {}
     }
 
-    function disarm(): void {
-        _confirm.disarm()
-    }
+    // function disarm(): void {
+    //     _confirm.disarm()
+    // }
 
     function activate(): void {
         if (!root.enabled || !root.interactive) return
-        if (!root.confirm) { root.triggered(); return }
-        if (_confirm.tryConfirm("armed")) root.triggered()
+        root.triggered()
+        // if (!root.confirm) { root.triggered(); return }
+        // if (_confirm.tryConfirm("armed")) root.triggered()
     }
 
-    onEnabledChanged: if (!root.enabled) root.disarm()
-    onInteractiveChanged: if (!root.interactive) root.disarm()
-    onConfirmChanged: if (!root.confirm) root.disarm()
-
-    onArmedChanged: {
-        _confirmDrain.stop()
-        if (!root.armed) {
-            root._confirmProgress = 0.0
-            return
-        }
-        root._confirmProgress = 1.0
-        if (!ShellSettings.reduceMotion) _confirmDrain.start()
-    }
-
-    property real _confirmProgress: 0.0
-
-    // one run-to-completion animation: it is clock-driven so a delayed frame never extends
-    // the window, and it costs no per-tick script. The duration is the disarm timeout
-    // itself, which Motion must not scale or the ring would lie
-    NumberAnimation {
-        id: _confirmDrain
-        target: root
-        property: "_confirmProgress"
-        from: 1.0
-        to: 0.0
-        duration: Math.max(1, root.confirmTimeout)
-        easing.type: Easing.Linear
-    }
-
-    PerimeterProgress {
-        anchors.fill: parent
-        // the animation that drains this is a motion gate, so under reduce motion the ring
-        // would sit full for the whole window and read as "nothing is expiring"
-        visible: root.armed && !ShellSettings.reduceMotion
-        inset:        1.0
-        cornerRadius: root.radius
-        progress:     root._confirmProgress
-        trackColor:   Theme.menuControlLine
-        arcColor:     Theme.withAlpha(Theme.error, 0.72)
-    }
+    // onEnabledChanged: if (!root.enabled) root.disarm()
+    // onInteractiveChanged: if (!root.interactive) root.disarm()
+    // onConfirmChanged: if (!root.confirm) root.disarm()
+    //
+    // onArmedChanged: {
+    //     _confirmDrain.stop()
+    //     if (!root.armed) {
+    //         root._confirmProgress = 0.0
+    //         return
+    //     }
+    //     root._confirmProgress = 1.0
+    //     if (!ShellSettings.reduceMotion) _confirmDrain.start()
+    // }
+    //
+    // property real _confirmProgress: 0.0
+    //
+    // // one run-to-completion animation: it is clock-driven so a delayed frame never extends
+    // // the window, and it costs no per-tick script. The duration is the disarm timeout
+    // // itself, which Motion must not scale or the ring would lie
+    // NumberAnimation {
+    //     id: _confirmDrain
+    //     target: root
+    //     property: "_confirmProgress"
+    //     from: 1.0
+    //     to: 0.0
+    //     duration: Math.max(1, root.confirmTimeout)
+    //     easing.type: Easing.Linear
+    // }
+    //
+    // PerimeterProgress {
+    //     anchors.fill: parent
+    //     // the animation that drains this is a motion gate, so under reduce motion the ring
+    //     // would sit full for the whole window and read as "nothing is expiring"
+    //     visible: root.armed && !ShellSettings.reduceMotion
+    //     inset:        1.0
+    //     cornerRadius: root.radius
+    //     progress:     root._confirmProgress
+    //     trackColor:   Theme.menuControlLine
+    //     arcColor:     Theme.withAlpha(Theme.error, 0.72)
+    // }
 
     HoverHandler {
         id: _hover

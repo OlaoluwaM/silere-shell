@@ -284,7 +284,9 @@ naming them over upstream's CI claim.
   arm-and-press-again rows; every power action runs through
   `PowerActionState.run`, which keeps the sandbox guard. Port upstream's rail
   changes around the rows' `onTriggered`, and do not restore their `confirm`
-  or cross-disarm wiring.
+  or cross-disarm wiring. `PowerRailRow`'s arm-and-confirm code stays
+  commented out in place, with `armed` a constant `false`; take upstream
+  edits to it into the commented block rather than reviving it.
 
 ## What belongs here
 
