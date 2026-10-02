@@ -18,7 +18,10 @@ PanelWindow {
     readonly property string _output: Compositor.monitorName(win.screen)
 
     // leaving the workspace is a way out like any other, so it cancels as the other
-    // centered cards close
+    // centered cards close. On Hyprland this signal also fires for monitor focus
+    // (focusedmon, activemon), so with several outputs, moving the pointer to another
+    // monitor and back cancels too. It fails safe, and splitting real workspace switches
+    // out would mean a new signal on the shared Compositor boundary.
     Connections {
         target: Compositor
         function onWorkspaceActivated(output) {
