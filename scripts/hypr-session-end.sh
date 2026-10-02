@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# The power rail's Log out, Reboot and Power off on Hyprland.
-# Usage: hypr-session-end.sh <logout|reboot|poweroff> <exit dispatcher text> [command...]
+# The power rail's Log out, Reboot and Power off on Hyprland; arguments as in $usage below.
 # The command is what Reboot or Power off runs once apps have closed, and what runs in
 # hyprshutdown's place when it is missing; Log out ends the session with the exit dispatcher.
 #
