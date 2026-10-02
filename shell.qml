@@ -17,6 +17,7 @@ import "modules/mediapopup"
 import "modules/quickactions"
 import "modules/keybinds"
 import "modules/wallpapers"
+import "modules/power"
 import "services"
 import "config"
 
@@ -260,5 +261,12 @@ ShellRoot {
         wantOpen: WallpapersPopupState.open
         requestedScreen: WallpapersPopupState.triggerScreen ?? root.activeOverlayScreen
         surface: Component { WallpapersPopup { targetScreen: _wallpapersPopup.latchedScreen } }
+    }
+
+    PopupLoader {
+        id: _powerActionPopup
+        wantOpen: PowerActionState.open
+        requestedScreen: PowerActionState.triggerScreen ?? root.activeOverlayScreen
+        surface: Component { PowerActionCard { targetScreen: _powerActionPopup.latchedScreen } }
     }
 }

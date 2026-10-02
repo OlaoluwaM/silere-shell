@@ -252,20 +252,21 @@ naming them over upstream's CI claim.
   and root-lane overlays so nested menus fit without overlapping their ancestors.
   Apply hover/lifecycle fixes around that geometry; upstream's simpler
   `Metrics.flyoutX` placement is not a replacement for it.
-- Control popups keep one exclusive `OverlayCoordinator` claim: menu, calendar,
-  tray menu/list, quick actions, keybinds, wallpapers, and media all close their
-  peers and reject late opens while idle or in overview. All eight states
-  inherit `PopupState`, directly or through `AnchoredPopupState`, and register
-  with the coordinator. Represent the popup-sourced tray menu's parent with
-  `popupParent`; keep centered pickers free of anchor machinery. Media and
-  tray-list anchor loss closes immediately; the other anchored states retain
-  150 ms replacement recovery. Registry metadata preserves the existing
-  control-surface/bar-hint sets and `ControlSurfaces.opened` refresh signal.
-  Panels, menus, centered pickers, and tooltips share `PopupAnimation` for the
-  menu's fade and short vertical slide. Centered pickers use `FloatingPopupCard`
-  with centered placement. Keep scaling removed from these surfaces.
-  Resolve the bar edge and initial content size before the entrance; calendar
-  month resizing only animates once the card is fully shown.
+- Control popups keep one exclusive `OverlayCoordinator` claim: menu,
+  calendar, tray menu/list, quick actions, keybinds, wallpapers, media, and
+  the power countdown all close their peers and reject late opens while idle
+  or in overview. All nine states inherit `PopupState`, directly or through
+  `AnchoredPopupState`, and register with the coordinator. Represent the
+  popup-sourced tray menu's parent with `popupParent`; keep centered pickers
+  free of anchor machinery. Media and tray-list anchor loss closes
+  immediately; the other anchored states retain 150 ms replacement recovery.
+  Registry metadata preserves the existing control-surface/bar-hint sets and
+  `ControlSurfaces.opened` refresh signal. Panels, menus, centered pickers,
+  and tooltips share `PopupAnimation` for the menu's fade and short vertical
+  slide. Centered pickers use `FloatingPopupCard` with centered placement.
+  Keep scaling removed from these surfaces. Resolve the bar edge and initial
+  content size before the entrance; calendar month resizing only animates once
+  the card is fully shown.
 - Behavior timings branch on the Behavior's `targetValue`, and `Disclosure`
   takes a `closedValue`. The fork keeps press and hover scale Behaviors inline
   instead of upstream's `PixelScale`; port fixes aimed at `PixelScale` into
@@ -278,6 +279,12 @@ naming them over upstream's CI claim.
   unit; started from the shell's service it dies with that unit. Keep the
   unit, the shell restart, and the failure notification. Port upstream's
   hyprshutdown flag or fallback changes into the script.
+- Log out, Reboot and Power off open the fork's countdown card
+  (`PowerActionState`, `modules/power`) instead of upstream's
+  arm-and-press-again rows; every power action runs through
+  `PowerActionState.run`, which keeps the sandbox guard. Port upstream's rail
+  changes around the rows' `onTriggered`, and do not restore their `confirm`
+  or cross-disarm wiring.
 
 ## What belongs here
 

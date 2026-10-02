@@ -2071,6 +2071,28 @@ ShellRoot {
             "a classic config logs out with the exit dispatcher")
         HyprDispatch.useLua = luaWas
 
+        PowerActionState.request("hibernate", null)
+        root._check(!PowerActionState.open, "an unknown power action opens no countdown")
+        PowerActionState.request("reboot", null)
+        root._check(PowerActionState.open && PowerActionState._armed
+                && PowerActionState.remaining === PowerActionState.seconds
+                && PowerActionState.action.label === "Reboot",
+            "a power action opens its countdown armed and full")
+        PowerActionState.close()
+        root._check(!PowerActionState._armed && PowerActionState.action.label === "Reboot",
+            "cancelling disarms the countdown but keeps its label for the exit fade")
+        PowerActionState.confirm()
+        root._check(!PowerActionState.open, "a cancelled countdown cannot be confirmed")
+        // confirming really runs the action; only the sandbox stands between it and the session
+        if (Quickshell.env("SILERE_SANDBOX") === "1") {
+            PowerActionState.request("logout", null)
+            PowerActionState.confirm()
+            root._check(!PowerActionState.open && !PowerActionState._armed,
+                "confirming closes the countdown before the action runs")
+        } else {
+            root._check(false, "power action confirm checks need SILERE_SANDBOX=1")
+        }
+
         root._check(Compositor.windowTitle("⠹ build") === "build"
                 && Compositor.windowTitle("✳ claude") === "claude"
                 && Compositor.windowTitle("⠹build") === "⠹build"

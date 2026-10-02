@@ -47,6 +47,7 @@ singleton Notifications 1.0 Notifications.qml
 singleton FullscreenState 1.0 FullscreenState.qml
 singleton OsdBarState   1.0 OsdBarState.qml
 singleton OverlayCoordinator 1.0 OverlayCoordinator.qml
+singleton PowerActionState 1.0 PowerActionState.qml
 singleton PowerProfiles 1.0 PowerProfiles.qml
 singleton QuickActionsState 1.0 QuickActionsState.qml
 singleton Scroll        1.0 Scroll.qml

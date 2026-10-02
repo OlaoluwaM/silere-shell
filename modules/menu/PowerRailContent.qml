@@ -32,21 +32,15 @@ Item {
         : PowerProfiles.syncing ? "..."
         : ""
 
-    onActiveChanged: {
-        if (active) return
-        _powOut.disarm()
-        _powReb.disarm()
-        _powOff.disarm()
-    }
-
     function _runAction(command, title: string): void {
         MenuState.close()
-        // a test copy must never lock, suspend or end the real session
-        if (Quickshell.env("SILERE_SANDBOX") === "1") {
-            console.info("silere-shell: sandboxed power action skipped:", command.join(" "))
-            return
-        }
-        SystemTools.runOrNotify(command, title)
+        PowerActionState.run(command, title)
+    }
+
+    // the window's own screen, not MenuState.triggerScreen: an IPC-opened menu has no
+    // trigger screen, and the card's fallback can pick another output than the menu's
+    function _countDown(kind: string): void {
+        PowerActionState.request(kind, QsWindow.window ? QsWindow.window.screen : null)
     }
 
     Column {
@@ -139,10 +133,8 @@ Item {
                 label: "Log out"
                 glyph: "󰍃"
                 enabled: SystemTools.commandAvailable(Settings.logoutCommand)
-                confirm: true
                 dangerous: true
-                onArmedChanged: if (armed) { _powReb.disarm(); _powOff.disarm() }
-                onTriggered: root._runAction(Settings.logoutCommand, "Log out failed")
+                onTriggered: root._countDown("logout")
             }
 
             PowerRailRow {
@@ -151,10 +143,8 @@ Item {
                 label: "Reboot"
                 glyph: "󰑐"
                 enabled: SystemTools.commandAvailable(Settings.rebootCommand)
-                confirm: true
                 dangerous: true
-                onArmedChanged: if (armed) { _powOut.disarm(); _powOff.disarm() }
-                onTriggered: root._runAction(Settings.rebootCommand, "Reboot failed")
+                onTriggered: root._countDown("reboot")
             }
 
             PowerRailRow {
@@ -163,10 +153,8 @@ Item {
                 label: "Power off"
                 glyph: "󰐥"
                 enabled: SystemTools.commandAvailable(Settings.poweroffCommand)
-                confirm: true
                 dangerous: true
-                onArmedChanged: if (armed) { _powOut.disarm(); _powReb.disarm() }
-                onTriggered: root._runAction(Settings.poweroffCommand, "Shut down failed")
+                onTriggered: root._countDown("poweroff")
             }
         }
     }
