@@ -240,11 +240,10 @@ naming them over upstream's CI claim.
 - The bar clock keeps text-only hover feedback, with no hover, pressed, or
   calendar-open background. Drop any highlight cap or `_calendarOpen` fill
   an import brings back.
-- Menu row hover is an inset rounded fill (`RowHoverBg` `insetX`/`insetY`/`radius`),
-  and `RowDividers` fades the lines either side of a hovered or pressed row.
-  Upstream's edge-to-edge fill shaped by `topRadius`/`bottomRadius`/`cardInset`
-  loses on a collision; keep those properties declared, since `SettingsCard`
-  and `present()` key on them, and `SelectRow` exposes the `row*` hover contract.
+- `RowDividers` fades the lines either side of a hovered or pressed row, so
+  the edge-to-edge `RowHoverBg` fill reads as one band. Keep the fade on a
+  collision, along with the `row*` hover contract it reads from `SelectRow`
+  and the `VolumeRow`/`BrightnessRow` wrappers.
 - The Cava audio visualizer stays removed, including its bar placements, process
   and profile management, settings, fullscreen demand, and underline glow.
   Compatible media fixes must preserve playback controls and track progress

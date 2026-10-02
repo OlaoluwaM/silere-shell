@@ -66,7 +66,8 @@ Repeater {
         readonly property bool hasRowAbove: root._sepVisible[index] ?? false
         readonly property Item rowAbove: root.column
             ? (root.column.children[root._aboveIndex[index]] ?? null) : null
-        // the inset fill on either side of the line would otherwise sit a few px off a hard rule
+        // a hovered row's fill runs to the card edge past the inset line and covers only the line at
+        // its own top, so both lines beside it fade and the fill reads as one clean band
         readonly property bool _engaged: root.engaged(root.edgeRow(row, true))
             || root.engaged(root.edgeRow(rowAbove, false))
         // a separate factor: the row-driven opacity below must follow a collapsing row frame for frame
