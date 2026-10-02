@@ -402,9 +402,9 @@ PanelWindow {
                     anchors.bottom: parent.bottom
                     // this strip sits over the rail's own Theme.menuPane fill above, so under glass any
                     // pane-alpha fill here (popupHover included) stacks a second layer and frosts the
-                    // drawer near-opaque; a text wash at popupHover's 0.06 step lifts it the same way
-                    // menuCard lifts off the pane, and mix() outside glass is opaque, so it stacks nothing
-                    color: Theme._glass ? Theme.withAlpha(Theme.text, 0.06) : Theme.mix(Theme.menuPane, Theme.menuControl, 0.14)
+                    // drawer near-opaque; menuCard's glass wash lifts it off the pane the way cards
+                    // lift, and mix() outside glass is opaque, so it stacks nothing
+                    color: Theme._glass ? Theme.menuCard : Theme.mix(Theme.menuPane, Theme.menuControl, 0.14)
                     visible: parent.width > panel.railCollapsedW + 0.5
                 }
 
