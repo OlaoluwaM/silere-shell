@@ -272,6 +272,12 @@ naming them over upstream's CI claim.
   those inline Behaviors. The menu panel width keys on
   `targetValue > _compactW`, not upstream's `>= panel.width`, so its outer edge
   keeps the rail's curve.
+- Hyprland Log out runs `scripts/hypr-logout.sh`, not upstream's inline
+  `sh -c` in `HyprDispatch.exitCommand()`. hyprshutdown kills every layer
+  client, this shell included, so it must run in its own transient systemd
+  unit; started from the shell's service it dies with that unit. Keep the
+  unit, the shell restart, and the failure notification. Port upstream's
+  hyprshutdown flag or fallback changes into the script.
 
 ## What belongs here
 

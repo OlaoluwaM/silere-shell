@@ -53,10 +53,10 @@ Singleton {
     }
 
     // an argv rather than a dispatch: the power rail runs it through SystemTools.runOrNotify so a
-    // failure is reported. hyprshutdown lets apps close first, as Hyprland's default quit bind does
+    // failure is reported. The script hands off to hyprshutdown when installed, which lets apps close
+    // first as Hyprland's default quit bind does, and falls back to this exit dispatcher otherwise
     function exitCommand(): var {
-        return ["sh", "-c", "command -v hyprshutdown >/dev/null 2>&1 && exec hyprshutdown; exec hyprctl dispatch \"$1\"",
-            "sh", root._text("exit", "")]
+        return ["bash", Quickshell.shellDir + "/scripts/hypr-logout.sh", root._text("exit", "")]
     }
 
     // two sequential in-process dispatches instead of a forked sh + two hyprctls:
