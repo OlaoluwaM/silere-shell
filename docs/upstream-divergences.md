@@ -282,8 +282,9 @@ naming them over upstream's CI claim.
   and the script ends the session itself once hyprshutdown's apps are gone,
   judged from hyprshutdown's `--verbose` log because its exit status is the
   same for a cancel; recheck those log lines when hyprshutdown is upgraded.
-  Keep the unit, the shell restart, and the failure notification. Port
-  upstream's hyprshutdown flag or fallback changes into the script.
+  Keep the unit, the restart of the session units it stopped, and the failure
+  notification. Port upstream's hyprshutdown flag or fallback changes into the
+  script.
 - Log out, Reboot and Power off open the fork's countdown card
   (`PowerActionState`, `modules/power`) instead of upstream's
   arm-and-press-again rows; every power action runs through

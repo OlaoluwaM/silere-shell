@@ -6,18 +6,22 @@
 # hyprshutdown lets apps close first, but it SIGTERMs every layer client, this shell among
 # them. Launched from the shell it would sit in the shell's systemd unit and die with it,
 # so it runs in a transient unit of its own. It runs with --no-exit, and this script ends
-# the session once the apps are gone, which keeps Hyprland up to report a failure. With the
-# shell gone there is no notification server, so the unit also restarts the shell before
-# reporting anything.
+# the session once the apps are gone, which keeps Hyprland up to report a failure.
+#
+# hyprshutdown's Cancel can't bring back what it already stopped, and systemd treats the
+# SIGTERM as a clean exit, so Restart=on-failure leaves those services down. The launcher
+# records which of the session's units are running before hyprshutdown starts, and after a
+# cancel or a failure the unit starts the ones that stopped. That brings back the shell,
+# which is also the notification server, before anything is reported.
 set -u
 
 usage="usage: hypr-session-end.sh <logout|reboot|poweroff> <exit dispatcher text> [command...]"
 
-shell_unit=""
+restore_units=""
 watch=false
 if [ "${1:-}" = "--watch" ]; then
     watch=true
-    shell_unit="${2:-}"
+    restore_units="${2:-}"
     shift 2
 fi
 
@@ -83,8 +87,25 @@ _logged() {
     grep -qE "$(_line "$1" "$2")" "$3"
 }
 
-_restore_shell() {
-    [ -n "$shell_unit" ] && systemctl --user start "$shell_unit"
+# the shell's unit and whatever its session target wants that is running now. Only what was
+# running counts: a unit stopped on purpose, like night light's hyprsunset, stays stopped
+_running_session_units() {
+    local target unit units="$1"
+    for target in $(systemctl --user show -p PartOf --value "$1" 2>/dev/null); do
+        for unit in $(systemctl --user show -p Wants --value "$target" 2>/dev/null); do
+            systemctl --user is-active --quiet "$unit" && units="$units $unit"
+        done
+    done
+    printf '%s' "$units"
+}
+
+_restore_session() {
+    local unit
+    local stopped=()
+    for unit in $restore_units; do
+        systemctl --user is-active --quiet "$unit" || stopped+=("$unit")
+    done
+    [ "${#stopped[@]}" -eq 0 ] || systemctl --user start "${stopped[@]}"
 }
 
 _notify_failure() {
@@ -112,17 +133,17 @@ if $watch; then
     # something else already ended the session
     _hyprland_up || exit 0
     if [ "$rc" -ne 0 ]; then
-        _restore_shell
+        _restore_session
         _notify_failure "hyprshutdown stopped with status $rc."
         exit 0
     fi
     case "$outcome" in
         cancelled)
-            _restore_shell
+            _restore_session
             exit 0
             ;;
         unknown)
-            _restore_shell
+            _restore_session
             _notify_failure "Couldn't tell whether hyprshutdown finished, so nothing else was done."
             exit 0
             ;;
@@ -139,7 +160,7 @@ if $watch; then
         [ "$erc" -eq 0 ] && exit 0
         reason="Your apps closed, but $* failed with status $erc."
     fi
-    _restore_shell
+    _restore_session
     _notify_failure "$reason"
     exit 0
 fi
@@ -147,11 +168,11 @@ fi
 if command -v hyprshutdown >/dev/null 2>&1 && command -v systemd-run >/dev/null 2>&1; then
     # only a service can be started again; a shell run from a scope or a terminal has no unit to restore
     shell_unit="$(systemctl --user whoami 2>/dev/null)" || shell_unit=""
-    case "$shell_unit" in *.service) ;; *) shell_unit="" ;; esac
+    case "$shell_unit" in *.service) restore_units="$(_running_session_units "$shell_unit")" ;; esac
     # a transient unit starts from the user manager's environment, which need not carry the session's
     exec systemd-run --user --collect --quiet --unit=silere-session-end \
         -E PATH -E WAYLAND_DISPLAY -E HYPRLAND_INSTANCE_SIGNATURE -E XDG_RUNTIME_DIR \
-        -- bash "$0" --watch "$shell_unit" "$action" "$exit_text" "$@"
+        -- bash "$0" --watch "$restore_units" "$action" "$exit_text" "$@"
 fi
 if [ "$action" = "logout" ]; then exec hyprctl dispatch "$exit_text"; fi
 exec "$@"
