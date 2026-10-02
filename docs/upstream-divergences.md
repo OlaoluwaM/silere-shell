@@ -273,6 +273,10 @@ naming them over upstream's CI claim.
   those inline Behaviors. The menu panel width keys on
   `targetValue > _compactW`, not upstream's `>= panel.width`, so its outer edge
   keeps the rail's curve.
+- `ActionButton` has no hover lift: its surface moves only on press, and hover
+  is the fill alone. At a fractional output scale the 1px lift lands between
+  device pixels and resamples the label, which reads as the button shifting.
+  Keep the lift out when an import touches the button's motion.
 - Hyprland Log out, Reboot and Power off run `scripts/hypr-session-end.sh`
   (`HyprDispatch.sessionEndCommand`), not upstream's inline `sh -c` in
   `HyprDispatch.exitCommand()`, and Settings wraps the reboot and power-off

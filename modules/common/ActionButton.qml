@@ -20,8 +20,10 @@ Item {
     implicitHeight: Metrics.rowHeightFor(32)
     width: implicitWidth
     height: implicitHeight
-    // no scale anywhere: the surface already nudges a whole pixel on press and lifts one
-    // on hover, and scaling text resamples every glyph for as long as it lasts
+    // no scale anywhere: scaling text resamples every glyph for as long as it lasts. Hover
+    // doesn't lift the surface either: at a fractional output scale a logical pixel lands
+    // between device pixels, so an animated lift resamples the label the same way, and the
+    // fill already marks hover. Only a press nudges the surface, for as long as it's held
     opacity: root.enabled ? 1.0 : Theme.disabledOpacity
     MotionBehavior on opacity {
         NumberAnimation { duration: Motion.fast }
@@ -52,13 +54,12 @@ Item {
         id: _surface
         anchors.left: parent.left
         anchors.right: parent.right
-        y: root.pressed ? 1 : _hover.hovered ? -1 : 0
+        y: root.pressed ? 1 : 0
         height: parent.height - y
         MotionBehavior on y {
-            id: _liftMotion
+            id: _pressMotion
             NumberAnimation {
-                duration: _liftMotion.targetValue > 0 ? Motion.press
-                    : _liftMotion.targetValue < 0 ? Motion.hoverIn : Motion.hoverOut
+                duration: _pressMotion.targetValue > 0 ? Motion.press : Motion.hoverOut
                 easing.type: Easing.OutCubic
             }
         }
