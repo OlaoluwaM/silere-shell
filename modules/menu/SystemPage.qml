@@ -33,9 +33,7 @@ PageShell {
         default:            return ""
         }
     }
-    // an empty list would leave the card a bordered sliver
-    readonly property bool _hasProfiles: PowerProfiles.available && PowerProfiles.profiles.length > 0
-    readonly property var _profileModel: PowerProfiles.profiles.map(p =>
+    readonly property var _profileModel: PowerProfiles.choices.map(p =>
         ({ value: p, label: root._titleCase(p), description: root._profileHint(p) }))
 
     Column {
@@ -58,9 +56,9 @@ PageShell {
             }
         }
 
-        SectionLabel { label: "POWER PROFILE"; first: true; visible: root._hasProfiles }
+        SectionLabel { label: "POWER PROFILE"; first: true; visible: PowerProfiles.available }
         SettingsCard {
-            visible: root._hasProfiles
+            visible: PowerProfiles.available
             // the card's radius and divider scans walk its column, and a Repeater
             // parents its delegates there, so these rows join them like literal ones
             Repeater {
@@ -71,8 +69,30 @@ PageShell {
                     value: modelData.value
                     label: modelData.label
                     description: modelData.description
-                    active: modelData.value === PowerProfiles.current
+                    // a pick before the daemon answers would be refused or overwritten, and
+                    // until then no row can claim to be current
+                    enabled: PowerProfiles.confirmed
+                    active: PowerProfiles.confirmed && modelData.value === PowerProfiles.current
                     onChosen: (v) => PowerProfiles.setProfile(v)
+                }
+            }
+            // stays while the daemon is silent, so the inert rows are never left unexplained
+            CollapsibleSection {
+                expanded: !PowerProfiles.confirmed
+                Item {
+                    width: parent.width
+                    height: Metrics.rowHeightFor(36)
+                    ShellText {
+                        anchors.left: parent.left
+                        anchors.leftMargin: 14
+                        anchors.right: parent.right
+                        anchors.rightMargin: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Waiting for the power daemon…"
+                        elide: Text.ElideRight
+                        color: Theme.withAlpha(Theme.subtext, 0.5)
+                        font.pixelSize: Settings.fontLabel
+                    }
                 }
             }
         }

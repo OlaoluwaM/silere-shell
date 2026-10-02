@@ -1796,6 +1796,32 @@ ShellRoot {
                     "Quiet\nBalanced\nPerformance\n"))
                     === JSON.stringify(["Quiet", "Balanced", "Performance"]),
             "asusctl reports its active profile and available choices in its own format")
+        // the System page shows the backend's fixed names until both reads land, and stays inert till then
+        const fixedChoicesProfileWas = PowerProfiles.profile
+        PowerProfiles.profiles = []
+        PowerProfiles.profile = ""
+        root._check(JSON.stringify(PowerProfiles.choices)
+                    === JSON.stringify(["Quiet", "Balanced", "Performance"])
+                && !PowerProfiles.confirmed,
+            "with no list yet the asusctl backend offers its fixed names, unconfirmed")
+        PowerProfiles.profile = "Balanced"
+        root._check(!PowerProfiles.confirmed,
+            "a current profile without the backend's list is still unconfirmed")
+        PowerProfiles.profiles = ["Quiet", "Balanced"]
+        PowerProfiles.profile = ""
+        root._check(!PowerProfiles.confirmed
+                && JSON.stringify(PowerProfiles.choices) === JSON.stringify(["Quiet", "Balanced"]),
+            "the backend's own list replaces the fixed names, but stays unconfirmed without a current profile")
+        PowerProfiles.profile = "Balanced"
+        root._check(PowerProfiles.confirmed,
+            "the list and the current profile together confirm the choices")
+        SystemTools._tools = { powerprofilesctl: true }
+        PowerProfiles.profiles = []
+        root._check(JSON.stringify(PowerProfiles.choices)
+                    === JSON.stringify(["power-saver", "balanced", "performance"]),
+            "power-profiles-daemon's fixed names stand in until its list lands")
+        SystemTools._tools = { asusctl: true }
+        PowerProfiles.profile = fixedChoicesProfileWas
         // only an open surface keeps the profile read, so a keybind with every surface shut
         // steps from one fresh read. Process announces running only once the child starts, so
         // syncing lags the exec; refresh() taking the pending corrective flag is the synchronous
