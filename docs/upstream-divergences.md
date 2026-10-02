@@ -273,12 +273,17 @@ naming them over upstream's CI claim.
   those inline Behaviors. The menu panel width keys on
   `targetValue > _compactW`, not upstream's `>= panel.width`, so its outer edge
   keeps the rail's curve.
-- Hyprland Log out runs `scripts/hypr-logout.sh`, not upstream's inline
-  `sh -c` in `HyprDispatch.exitCommand()`. hyprshutdown kills every layer
-  client, this shell included, so it must run in its own transient systemd
-  unit; started from the shell's service it dies with that unit. Keep the
-  unit, the shell restart, and the failure notification. Port upstream's
-  hyprshutdown flag or fallback changes into the script.
+- Hyprland Log out, Reboot and Power off run `scripts/hypr-session-end.sh`
+  (`HyprDispatch.sessionEndCommand`), not upstream's inline `sh -c` in
+  `HyprDispatch.exitCommand()`, and Settings wraps the reboot and power-off
+  commands in it on Hyprland. hyprshutdown kills every layer client, this
+  shell included, so it must run in its own transient systemd unit; started
+  from the shell's service it dies with that unit. It runs with `--no-exit`
+  and the script ends the session itself once hyprshutdown's apps are gone,
+  judged from hyprshutdown's `--verbose` log because its exit status is the
+  same for a cancel; recheck those log lines when hyprshutdown is upgraded.
+  Keep the unit, the shell restart, and the failure notification. Port
+  upstream's hyprshutdown flag or fallback changes into the script.
 - Log out, Reboot and Power off open the fork's countdown card
   (`PowerActionState`, `modules/power`) instead of upstream's
   arm-and-press-again rows; every power action runs through

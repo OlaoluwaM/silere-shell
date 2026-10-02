@@ -2064,11 +2064,15 @@ ShellRoot {
             "dispatch quotes a monitor name in the lua form")
         root._check(HyprDispatch._text("togglefloating", "") === "togglefloating",
             "dispatch passes an unmapped dispatcher through untouched")
-        root._check(HyprDispatch.exitCommand()[2] === "hl.dsp.exit()",
+        root._check(HyprDispatch.exitCommand()[3] === "hl.dsp.exit()",
             "a Lua config logs out with the Lua exit dispatcher")
         HyprDispatch.useLua = false
-        root._check(HyprDispatch.exitCommand()[2] === "exit",
+        root._check(HyprDispatch.exitCommand()[3] === "exit",
             "a classic config logs out with the exit dispatcher")
+        const rebootEnd = HyprDispatch.sessionEndCommand("reboot", ["systemctl", "reboot"])
+        root._check(rebootEnd[2] === "reboot" && rebootEnd.length === 6
+                && rebootEnd[4] === "systemctl" && rebootEnd[5] === "reboot",
+            "a reboot closes apps first and carries its own command through")
         HyprDispatch.useLua = luaWas
 
         PowerActionState.request("hibernate", null)

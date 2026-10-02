@@ -54,9 +54,15 @@ Singleton {
 
     // an argv rather than a dispatch: the power rail runs it through SystemTools.runOrNotify so a
     // failure is reported. The script hands off to hyprshutdown when installed, which lets apps close
-    // first as Hyprland's default quit bind does, and falls back to this exit dispatcher otherwise
+    // first as Hyprland's default quit bind does, then runs `command`; without it, a log out falls
+    // back to this exit dispatcher and the others to `command` alone
+    function sessionEndCommand(action: string, command): var {
+        return ["bash", Quickshell.shellDir + "/scripts/hypr-session-end.sh", action,
+            root._text("exit", "")].concat(command)
+    }
+
     function exitCommand(): var {
-        return ["bash", Quickshell.shellDir + "/scripts/hypr-logout.sh", root._text("exit", "")]
+        return root.sessionEndCommand("logout", [])
     }
 
     // two sequential in-process dispatches instead of a forked sh + two hyprctls:

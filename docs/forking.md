@@ -9,7 +9,7 @@ whole shell to change part of it.
 - `config/` — colours, durations, sizes
 - `services/` — settings and system state, no UI
 - `modules/` — one folder per surface: `bar/`, `menu/`, `notifications/`, `osd/`, …
-- `scripts/` — install, uninstall, checks, and development probes
+- `scripts/` — install, uninstall, checks, development probes, and helpers the running shell calls
 
 ## Changing things
 

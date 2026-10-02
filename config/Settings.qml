@@ -56,10 +56,18 @@ Singleton {
         : SystemTools.hasLoginctl ? ["loginctl", "lock-session"] : []
     readonly property list<string> suspendCommand: SystemTools.hasSystemctl ? ["systemctl", "suspend"]
         : SystemTools.hasLoginctl ? ["loginctl", "suspend"] : []
-    readonly property list<string> rebootCommand: SystemTools.hasSystemctl ? ["systemctl", "reboot"]
-        : SystemTools.hasLoginctl ? ["loginctl", "reboot"] : []
-    readonly property list<string> poweroffCommand: SystemTools.hasSystemctl ? ["systemctl", "poweroff"]
-        : SystemTools.hasLoginctl ? ["loginctl", "poweroff"] : []
+    readonly property list<string> rebootCommand: root._closingAppsFirst("reboot",
+        SystemTools.hasSystemctl ? ["systemctl", "reboot"]
+        : SystemTools.hasLoginctl ? ["loginctl", "reboot"] : [])
+    readonly property list<string> poweroffCommand: root._closingAppsFirst("poweroff",
+        SystemTools.hasSystemctl ? ["systemctl", "poweroff"]
+        : SystemTools.hasLoginctl ? ["loginctl", "poweroff"] : [])
+    // on Hyprland the same script as Log out gives apps the chance to save first; an empty
+    // command stays empty so the row still reads as unavailable
+    function _closingAppsFirst(action: string, command): var {
+        if (command.length === 0 || !Compositor.isHyprland || !SystemTools.hasHyprctl) return command
+        return HyprDispatch.sessionEndCommand(action, command)
+    }
     // the compositor's own exit ends the session the way its quit keybind would
     readonly property list<string> logoutCommand: {
         if (Compositor.isHyprland && SystemTools.hasHyprctl) return HyprDispatch.exitCommand()
