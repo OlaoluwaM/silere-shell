@@ -74,6 +74,8 @@ StatusActionPill {
     // the fan's weight sits in its wide top arc, so ink-centred it still reads high
     // beside the label's capitals; measured about 1px at 1.6x
     glyphAlignNudge: 1
+    // the fan's top arc spans the whole icon cell, so the name needs more room than a narrow rune
+    glyphGap: Metrics.pillGapFor(root.compact) + 3
     maxTextWidth:   compact ? 150 : 260
     // above the 2s traffic-stats poll: shrinkDelay:0 re-animated the pill's width on every single tick
     shrinkDelay:    2400

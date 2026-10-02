@@ -35,6 +35,8 @@ Item {
     // shift), so widgets may carry the residual here. Keep values from
     // measurement, not eyeballing.
     property int    glyphAlignNudge: 0
+    // a glyph whose ink fills its cell edge to edge crowds the label at the shared gap
+    property int    glyphGap: Metrics.pillGapFor(root.compact)
     // glyph-only fade hook (the recording pill's blink): pulsing the whole pill would
     // take the text with it, and routing a per-frame value through glyphColor would
     // retarget the ColorFade behavior on every tick instead of animating cleanly
@@ -281,7 +283,7 @@ Item {
         id: row
         x: Math.round((parent.width - width) / 2)
         y: Math.round((parent.height - height) / 2)
-        spacing: Metrics.pillGapFor(root.compact)
+        spacing: root.glyphGap
 
         Item {
             id: _glyphBox
