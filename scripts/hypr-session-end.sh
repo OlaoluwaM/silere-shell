@@ -98,7 +98,11 @@ _notify_failure() {
 }
 
 if $watch; then
-    log="$(mktemp -p "${XDG_RUNTIME_DIR:-/tmp}" silere-session-end.XXXXXX)"
+    # nothing has been asked to close yet, so the shell is still up to show this
+    if ! log="$(mktemp -p "${XDG_RUNTIME_DIR:-/tmp}" silere-session-end.XXXXXX)"; then
+        _notify_failure "Couldn't create a log for hyprshutdown, so nothing was closed."
+        exit 0
+    fi
     hyprshutdown --no-fork --no-exit --verbose --top-label "$label" >"$log" 2>&1
     rc=$?
     outcome="$(_outcome "$log")"
