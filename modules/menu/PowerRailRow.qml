@@ -44,6 +44,24 @@ Rectangle {
     readonly property int _valueMaxW: Math.max(42, Math.min(86,
         Math.round(root.width * 0.52),
         root.width - 62 - Math.ceil(_labelInk.advanceWidth) - 1))
+    // the yielded value still has to be readable somewhere; the rail clips anything outside it,
+    // so the hint reveals the full value in place over the row rather than floating beside it
+    readonly property bool _hintWanted: root._hot && root._showValue && _value.truncated
+    property bool _hintReady: false
+    on_HintWantedChanged: {
+        if (root._hintWanted) {
+            _hintDelay.restart()
+        } else {
+            _hintDelay.stop()
+            root._hintReady = false
+        }
+    }
+    // the bar's dwell, so a sweep down the rail toward Lock passes this row without a flash
+    Timer {
+        id: _hintDelay
+        interval: BarHintState.showDelay
+        onTriggered: root._hintReady = root._hintWanted
+    }
     property real _shift: root._hot || root.armed ? 0.5 : 0.0
     readonly property color _fg: root.armed
         ? Theme.text
@@ -194,5 +212,49 @@ Rectangle {
         font.weight: root.armed ? Font.DemiBold : Font.Normal
         transform: Translate { x: root._shift }
         ColorFade on color {}
+    }
+
+    Rectangle {
+        id: _hint
+        readonly property bool _show: root._hintWanted && root._hintReady
+
+        // 9px padding puts the hint's text exactly where the elided value's sits
+        anchors.right: parent.right
+        anchors.rightMargin: 3
+        anchors.verticalCenter: parent.verticalCenter
+        width: Math.min(_hintLabel.implicitWidth + 18, root.width - 6)
+        height: 22; radius: Theme.radiusInline
+        // menuHint, not menuCard: this paints over the row's own label, so under glass it must be opaque
+        color: Theme.menuHint
+        antialiasing: true
+        opacity: _show ? 1.0 : 0.0
+        scale:   _show ? 1.0 : 0.96
+        transformOrigin: Item.Right
+        visible: opacity > 0.01
+
+        OutlineBorder {
+            radius: _hint.radius
+            outlineColor: Theme.menuCardBorder
+        }
+        MotionBehavior on opacity {
+            id: _hintFade
+            NumberAnimation { duration: _hintFade.targetValue > 0.5 ? Motion.fast : Motion.instant; easing.type: Easing.OutCubic }
+        }
+        MotionBehavior on scale {
+            id: _hintScale
+            NumberAnimation { duration: _hintScale.targetValue >= 1 ? Motion.fast : Motion.instant; easing.type: Easing.OutCubic }
+        }
+        ShellText {
+            id: _hintLabel
+            anchors.right: parent.right
+            anchors.rightMargin: 9
+            anchors.verticalCenter: parent.verticalCenter
+            width: Math.min(implicitWidth, parent.width - 18)
+            text: root.value
+            elide: Text.ElideRight
+            color: Theme.withAlpha(Theme.text, 0.78)
+            font.pixelSize: Settings.fontCaption
+            font.weight: Font.Medium
+        }
     }
 }
