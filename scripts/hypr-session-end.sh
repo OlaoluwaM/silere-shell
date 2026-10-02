@@ -49,40 +49,38 @@ _hyprland_up() {
     hyprctl version >/dev/null 2>&1
 }
 
-# with nothing to close, hyprshutdown exits before its first check and logs no count, so
-# the desktop has to show it: no window, no layer client and no process Hyprland started,
-# Xwayland aside
-_apps_gone() {
-    local clients layers hl_pid child
-    command -v pgrep >/dev/null 2>&1 || return 1
-    clients="$(hyprctl -j clients 2>/dev/null)" || return 1
-    [ "$(printf '%s' "$clients" | tr -d '[:space:]')" = "[]" ] || return 1
-    layers="$(hyprctl -j layers 2>/dev/null)" || return 1
-    if printf '%s' "$layers" | grep -q '"namespace"'; then return 1; fi
-    hl_pid="$(hyprctl -j instances 2>/dev/null | tr -d '[:space:]' \
-        | grep -o "\"instance\":\"${HYPRLAND_INSTANCE_SIGNATURE:-}\"[^}]*" \
-        | grep -o '"pid":[0-9]*' | cut -d: -f2)"
-    [ -n "$hl_pid" ] || return 1
-    for child in $(pgrep -P "$hl_pid"); do
-        [ "$(cat "/proc/$child/comm" 2>/dev/null)" = "Xwayland" ] || return 1
-    done
-    return 0
-}
-
 # hyprshutdown exits 0 whether the apps closed, the user forced them or the user cancelled,
 # and a cancel can't be read off the desktop afterwards: apps it already asked to close may
 # still finish closing. Its own log can tell: a force quit logs each kill, and each 150 ms
-# check logs how many apps it still waits on, so a finished run ends on 0 and a cancelled
-# one doesn't. A log that says neither is reported, not guessed at.
+# check logs how many apps it still waits on, so a finished run ends on 0 and one cancelled
+# while anything was still open doesn't. A Cancel in the 150 ms after the last app closed
+# still reads as finished, with nothing left open for it to protect. A run that ended before
+# its first check only counts as finished when it parsed no apps and asked none to quit.
+# A log that says none of this is reported, not guessed at.
 _outcome() {
     local last
-    if grep -q -e 'CApp::kill: killing' -e "Can't kill" "$1"; then echo finished; return; fi
-    last="$(grep -o 'Updated state: apps size [0-9]*' "$1" | tail -n 1 | grep -o '[0-9]*$')"
+    if _logged TRACE 'CApp::kill: killing ' "$1" || _logged TRACE "Can't kill " "$1"; then
+        echo finished
+        return
+    fi
+    last="$(grep -E "$(_line DEBUG 'Updated state: apps size [0-9]+$')" "$1" | tail -n 1 | grep -oE '[0-9]+$')"
     if [ "$last" = "0" ]; then echo finished
     elif [ -n "$last" ]; then echo cancelled
-    elif grep -q 'Parsed [0-9]* apps from socket' "$1" && _apps_gone; then echo finished
+    elif _logged DEBUG 'Parsed 0 apps from socket$' "$1" && ! grep -q 'CApp::quit:' "$1"; then echo finished
     else echo unknown
     fi
+}
+
+# a log line from the start: an app's class or namespace is logged too, so matching anywhere
+# would let a window named after one of these messages decide the outcome. The level may be
+# wrapped in colour codes, and a timestamp or source can sit before the "]: "
+_line() {
+    local esc=$'\e'
+    printf '^(%s\\[[0-9;]*m)?%s (%s\\[0m)?[^]]*\\]: %s' "$esc" "$1" "$esc" "$2"
+}
+
+_logged() {
+    grep -qE "$(_line "$1" "$2")" "$3"
 }
 
 _restore_shell() {
