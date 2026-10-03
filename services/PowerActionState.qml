@@ -35,11 +35,14 @@ PopupState {
 
     signal started()
 
+    // no bootstrap property needed: shell.qml eagerly references PowerActionState.open (the
+    // card's PopupLoader.wantOpen binding), which brings this singleton and its handler up
+    // at shell start.
     IpcHandler {
         target: "power"
 
         function request(kind: string): string {
-            if (kind !== "logout" && kind !== "reboot" && kind !== "poweroff")
+            if (!root._isAction(kind))
                 return "error: unknown power action; valid: logout, reboot, poweroff"
             if (!SystemTools.commandAvailable(root._command(kind)))
                 return "error: the requested power command is unavailable"
@@ -50,6 +53,12 @@ PopupState {
         function close(): void { root.close() }
     }
 
+    // a plain object also answers inherited names such as "toString", and an IPC caller can
+    // send any string
+    function _isAction(kind: string): bool {
+        return Object.prototype.hasOwnProperty.call(root._actions, kind)
+    }
+
     function _command(kind: string): var {
         if (kind === "logout") return Settings.logoutCommand
         if (kind === "reboot") return Settings.rebootCommand
@@ -58,7 +67,7 @@ PopupState {
     }
 
     function request(kind: string, screen: ShellScreen): void {
-        if (!root._actions[kind]) return
+        if (!root._isAction(kind)) return
         root._kind = kind
         root._remaining = root.seconds
         root._deadline = Date.now() + root.seconds * 1000
