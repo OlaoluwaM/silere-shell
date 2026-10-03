@@ -21,6 +21,7 @@ ShellRoot {
     property QtObject temporaryPopup: null
     readonly property bool coldKeybindsOpen: KeybindsPopupState.open
     readonly property bool coldWallpapersOpen: WallpapersPopupState.open
+    readonly property bool coldPowerOpen: PowerActionState.open
 
     PersistentProperties {
         id: progress
@@ -436,6 +437,40 @@ ShellRoot {
             root.check(root.onlyStateOpen(name), "cold IPC opens " + name + " exclusively")
             return root.failures === 0 ? "ok" : "failed"
         }
+        function verifyPower(kind: string): string {
+            const expectedOpen = kind !== "closed"
+            root.check(PowerActionState.open === expectedOpen
+                    && PowerActionState._armed === expectedOpen,
+                "power IPC opens or disarms the countdown")
+            if (expectedOpen) {
+                root.check(root.onlyStateOpen("powerAction") && PowerActionState.kind === kind
+                        && PowerActionState.triggerScreen === null
+                        && PowerActionState.remaining > 0 && PowerActionState.remaining <= 60,
+                    "power IPC requests the selected action with no explicit screen")
+            }
+            return root.failures === 0 ? "ok" : "failed"
+        }
+        // Override capabilities so power IPC tests do not depend on host tools.
+        function powerTools(available: bool): void {
+            const tools = Object.assign({}, SystemTools._tools)
+            tools.systemctl = available
+            tools.loginctl = available
+            tools.hyprctl = available
+            SystemTools._tools = tools
+        }
+        function powerDeadline(): string { return String(PowerActionState.deadline) }
+        function verifyPowerRestart(previousDeadline: string): string {
+            root.check(PowerActionState.deadline > Number(previousDeadline)
+                    && PowerActionState.deadline - Date.now() > 59000
+                    && PowerActionState.remaining === 60,
+                "a repeated power request restarts the full countdown")
+            return root.failures === 0 ? "ok" : "failed"
+        }
+        function environment(name: string): void {
+            root.reset()
+            Idle.isIdle = name === "idle"
+            OverviewState.active = name === "overview"
+        }
         function run(): void { root.run() }
     }
 
@@ -444,7 +479,9 @@ ShellRoot {
         running: true
         repeat: true
         onTriggered: {
-            if (!root.persistentReady || !ShellSettings.ready) return
+            // Finish the initial scan before tests override capabilities; its result
+            // would otherwise overwrite the controlled tool map.
+            if (!root.persistentReady || !ShellSettings.ready || !SystemTools.ready || SystemTools.checking) return
             if (progress.reloaded) {
                 root.check(root.noControlsOpen(), "reload starts with closed popup state")
                 root.testRegistry()

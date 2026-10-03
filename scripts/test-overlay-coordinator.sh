@@ -51,7 +51,10 @@ cp "$ROOT/scripts/probe-overlay-coordinator.qml" "$probe_project/probe-overlay-c
 ln -s "$ROOT/config" "$probe_project/config"
 ln -s "$ROOT/modules" "$probe_project/modules"
 
+# Keep compositor selection independent of the host. The fixture session ID
+# lets logout availability follow the controlled loginctl flag.
 XDG_CONFIG_HOME="$cfg" XDG_STATE_HOME="$cfg" XDG_RUNTIME_DIR="$runtime" \
+    HYPRLAND_INSTANCE_SIGNATURE="" NIRI_SOCKET="" XDG_SESSION_ID=probe \
     QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen QT_NO_XDG_DESKTOP_PORTAL=1 \
     qs -p "$probe_project/probe-overlay-coordinator.qml" --no-color >"$log" 2>&1 &
 probe_pid=$!
@@ -65,10 +68,60 @@ fi
 ipc() {
     XDG_RUNTIME_DIR="$runtime" qs ipc -p "$probe_project/probe-overlay-coordinator.qml" call -- "$@"
 }
+fail() { cat "$log" >&2; echo "FAIL: $*" >&2; exit 1; }
+expect_reply() {
+    local label="$1" expected="$2" reply
+    shift 2
+    if ! reply="$(ipc "$@")"; then
+        fail "$label: IPC call failed"
+    fi
+    # The expected value may be a glob, such as error:*.
+    # shellcheck disable=SC2053
+    if [[ "$reply" != $expected ]]; then
+        fail "$label: expected $expected, got $reply"
+    fi
+}
 ipc keybinds toggle
-[[ "$(ipc popupProbe verify keybinds)" == "ok" ]]
+expect_reply 'cold keybinds IPC' ok popupProbe verify keybinds
 ipc wallpapers toggle
-[[ "$(ipc popupProbe verify wallpapers)" == "ok" ]]
+expect_reply 'cold wallpapers IPC' ok popupProbe verify wallpapers
+# Control availability independently of the tools installed on the test host.
+ipc popupProbe powerTools false
+for action in logout reboot poweroff; do
+    expect_reply "$action unavailable" 'error: the requested power command is unavailable' power request "$action"
+    expect_reply "$action unavailable stays closed" ok popupProbe verifyPower closed
+done
+ipc popupProbe powerTools true
+for action in logout reboot poweroff; do
+    expect_reply "$action accepted" ok power request "$action"
+    expect_reply "$action armed" ok popupProbe verifyPower "$action"
+    # An invalid request must not replace an already armed action.
+    expect_reply "$action rejects invalid replacement" 'error:*' power request toString
+    expect_reply "$action remains armed" ok popupProbe verifyPower "$action"
+    ipc power close
+    expect_reply "$action cancelled" ok popupProbe verifyPower closed
+done
+expect_reply 'initial action accepted' ok power request reboot
+previous_deadline="$(ipc popupProbe powerDeadline)"
+sleep 0.05
+expect_reply 'replacement action accepted' ok power request poweroff
+expect_reply 'replacement action armed' ok popupProbe verifyPower poweroff
+expect_reply 'replacement restarts countdown' ok popupProbe verifyPowerRestart "$previous_deadline"
+# Availability refusal must also preserve an existing countdown.
+ipc popupProbe powerTools false
+expect_reply 'unavailable replacement refused' 'error: the requested power command is unavailable' power request reboot
+expect_reply 'refusal preserves armed action' ok popupProbe verifyPower poweroff
+ipc popupProbe powerTools true
+ipc power close
+expect_reply 'replacement cancelled' ok popupProbe verifyPower closed
+expect_reply 'unsupported action refused' 'error:*' power request hibernate
+expect_reply 'unsupported action stays closed' ok popupProbe verifyPower closed
+for environment in idle overview; do
+    ipc popupProbe environment "$environment"
+    expect_reply "$environment refuses countdown" 'error:*' power request reboot
+    expect_reply "$environment stays closed" ok popupProbe verifyPower closed
+done
+ipc popupProbe environment normal
 ipc popupProbe run
 
 _probe_wait "$log" "$probe_pid" 'PROBE-OVERLAY-COORDINATOR' 100 0.25 || true

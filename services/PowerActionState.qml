@@ -2,6 +2,7 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import "../config"
 
 // State for PowerActionCard (modules/power). Log out, Reboot and Power off run behind a
@@ -33,6 +34,21 @@ PopupState {
     })
 
     signal started()
+
+    IpcHandler {
+        target: "power"
+
+        function request(kind: string): string {
+            if (kind !== "logout" && kind !== "reboot" && kind !== "poweroff")
+                return "error: unknown power action; valid: logout, reboot, poweroff"
+            if (!SystemTools.commandAvailable(root._command(kind)))
+                return "error: the requested power command is unavailable"
+            root.request(kind, null)
+            return root.open ? "ok"
+                : "error: the power countdown stays closed while the session is idle or the overview is open"
+        }
+        function close(): void { root.close() }
+    }
 
     function _command(kind: string): var {
         if (kind === "logout") return Settings.logoutCommand

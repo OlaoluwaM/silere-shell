@@ -294,11 +294,16 @@ naming them over upstream's CI claim.
 - Log out, Reboot and Power off open the fork's countdown card
   (`PowerActionState`, `modules/power`) instead of upstream's
   arm-and-press-again rows; every power action runs through
-  `PowerActionState.run`, which keeps the sandbox guard. Port upstream's rail
-  changes around the rows' `onTriggered`, and do not restore their `confirm`
-  or cross-disarm wiring. `PowerRailRow`'s arm-and-confirm code stays
-  commented out in place, with `armed` a constant `false`; take upstream
-  edits to it into the commented block rather than reviving it.
+  `PowerActionState.run`, which keeps the sandbox guard. The `power` IPC
+  target exposes `request logout|reboot|poweroff` and `close` for launchers;
+  requests require an available command and use the same countdown and
+  idle/overview refusal as the rail, with no direct-execution fallback.
+  Another accepted request replaces the action and restarts the countdown.
+  Port upstream's rail changes around the rows' `onTriggered`, and do not
+  restore their `confirm` or cross-disarm wiring. `PowerRailRow`'s
+  arm-and-confirm code stays commented out in place, with `armed` a constant
+  `false`; take upstream edits to it into the commented block rather than
+  reviving it.
 
 ## What belongs here
 
