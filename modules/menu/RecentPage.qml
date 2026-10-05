@@ -356,7 +356,7 @@ PageShell {
                     readonly property int _cardHeight: Metrics.snap4Up(2 * _entry._topPad
                         + (_metaRow.visible ? _metaRow.height + _entryContent.spacing : 0)
                         + _summary.implicitHeight
-                        + (_body.visible ? _entryContent.spacing + _body.implicitHeight : 0))
+                        + (_body.visible ? _entryContent.spacing + _body.contentHeight : 0))
                     readonly property int _fullHeight: _gapAbove + _sectionHeight + _cardHeight
                     property bool _removing: false
 
