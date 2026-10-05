@@ -57,11 +57,13 @@ Rectangle {
     onBusyChanged: if (busy) root.disarm()
 
     // mix, not withAlpha: the notification popup window is transparent, so an alpha tint
-    // would let the desktop through where the menu's opaque backdrop hides it
+    // would let the desktop through where the menu's opaque backdrop hides it. controlFill,
+    // not a mix into menuControl: under glass that is a text-coloured wash, and mixing into
+    // it drops the alpha that carried its darkness
     color: root._armed
-        ? Theme.mix(Theme.menuControl, root.tint, _tap.pressed ? 0.28 : 0.16)
-        : _tap.pressed ? Theme.mix(Theme.menuControl, root.tint, 0.20)
-        : _hover.hovered ? Theme.mix(Theme.menuControl, Theme.subtext, 0.16) : Theme.menuControl
+        ? Theme.controlFill(root.tint, _tap.pressed ? 0.28 : 0.16)
+        : _tap.pressed ? Theme.controlFill(root.tint, 0.20)
+        : _hover.hovered ? Theme.controlFill(Theme.subtext, 0.16) : Theme.menuControl
 
     opacity: root._interactive ? 1.0 : Theme.disabledOpacity
 
