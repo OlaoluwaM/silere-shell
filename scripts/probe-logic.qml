@@ -1575,6 +1575,39 @@ ShellRoot {
             "non-interactive slider ignores scroll steps")
         track.destroy()
 
+        // a step that does not divide the range must still reach both bounds
+        const offGrid = sliderTrackFactory.createObject(root, {
+            width: 100, value: 4, min: 2, max: 11, step: 4
+        })
+        let offGridChanged = -1
+        offGrid.changed.connect(value => offGridChanged = value)
+        root._check(offGrid.minimumValue === 2 && offGrid.maximumValue === 11
+                && offGrid.stepSize === 4,
+            "slider accessibility exposes its live bounds and increment")
+        root._check(offGrid._posToVal(100) === 11 && offGrid._posToVal(0) === 2,
+            "slider endpoints stay reachable when the step does not divide the range")
+        offGrid._setFromUser(1000)
+        root._check(offGrid.shownValue === 11 && offGridChanged === 11,
+            "slider reaches a maximum between grid steps")
+        offGrid._setFromUser(-1000)
+        root._check(offGrid.shownValue === 2 && offGridChanged === 2,
+            "slider reaches a minimum above zero")
+        offGrid._setFromUser(5)
+        root._check(offGrid.shownValue === 6,
+            "slider still snaps interior values to the grid")
+        root._check(isNaN(offGrid._snap(NaN)) && offGrid._snap(Infinity) === Infinity
+                && offGrid._clamp(NaN) === 2 && offGrid._clamp(Infinity) === 2,
+            "slider snapping leaves non-finite values to the clamp")
+        offGrid.step = 0
+        offGrid.max = 202
+        root._check(offGrid.stepSize === 2,
+            "continuous slider accessibility reports the effective nudge increment")
+        offGridChanged = -1
+        offGrid.Accessible.increaseAction()
+        root._check(offGrid.shownValue === 8 && offGridChanged === 8,
+            "accessible slider increase uses the effective increment")
+        offGrid.destroy()
+
         const gradient = gradientSliderFactory.createObject(root, {
             width: 100, position: 0.5, displayScale: 360, wraps: true
         })
