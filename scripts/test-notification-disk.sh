@@ -49,10 +49,10 @@ run_phase() {
     local phase="$1"
     local log="$probe_root/$phase.log"
     SILERE_NOTIFICATION_DISK_PHASE="$phase" \
-        XDG_CONFIG_HOME="$probe_root/config-home" XDG_STATE_HOME="$probe_root/state-home" \
+        XDG_CONFIG_HOME="$probe_root/config-home" XDG_STATE_HOME="$probe_root/state-home" XDG_CACHE_HOME="$probe_root/config-home/cache" \
         XDG_RUNTIME_DIR="$probe_root/runtime" QT_FORCE_STDERR_LOGGING=1 \
         QT_QPA_PLATFORM=offscreen QT_NO_XDG_DESKTOP_PORTAL=1 \
-        qs -p "$probe_root/project/probe-notification-disk.qml" --no-color >"$log" 2>&1 &
+        setsid qs -p "$probe_root/project/probe-notification-disk.qml" --no-color >"$log" 2>&1 &
     probe_pid=$!
     _probe_wait "$log" "$probe_pid" 'PROBE-DISK-DONE' 100 0.1 || true
     if ! grep -q "PROBE-DISK $phase passed" "$log" || grep -q 'PROBE-FAIL' "$log" \

@@ -58,9 +58,9 @@ printf '{"__version":1,"reduceMotion":true}\n' \
 
 run_probe() { # $1 = label, $2 = config dir
     : > "$log"
-    XDG_CONFIG_HOME="$2" XDG_STATE_HOME="$2" XDG_RUNTIME_DIR="$runtime" \
+    XDG_CONFIG_HOME="$2" XDG_STATE_HOME="$2" XDG_CACHE_HOME="$2/cache" XDG_RUNTIME_DIR="$runtime" \
         QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen \
-        qs -p "$probe_project/probe-popup-lifecycle.qml" --no-color >"$log" 2>&1 &
+        setsid qs -p "$probe_project/probe-popup-lifecycle.qml" --no-color >"$log" 2>&1 &
     probe_pid=$!
 
     _probe_wait "$log" "$probe_pid" 'PROBE-POPUP-LIFECYCLE' 80 0.25 || true

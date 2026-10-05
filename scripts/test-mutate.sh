@@ -46,10 +46,10 @@ mkdir -p "$cfg/silere-shell"
 printf '{"__version":1}\n' > "$cfg/silere-shell/settings.json"
 
 printf 'sweeping the settings schema against %s live surfaces\n' "$count"
-XDG_CONFIG_HOME="$cfg" XDG_STATE_HOME="$cfg" XDG_RUNTIME_DIR="$runtime" \
+XDG_CONFIG_HOME="$cfg" XDG_STATE_HOME="$cfg" XDG_CACHE_HOME="$cfg/cache" XDG_RUNTIME_DIR="$runtime" \
     SILERE_PROBE_ROOT="$ROOT" SILERE_PROBE_LIST="$list" \
     QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen \
-    qs -p "$probe_project/probe-mutate.qml" --no-color >"$log" 2>&1 &
+    setsid qs -p "$probe_project/probe-mutate.qml" --no-color >"$log" 2>&1 &
 probe_pid=$!
 
 _probe_wait "$log" "$probe_pid" 'PROBE-MUTATE' 400 0.5 || true

@@ -32,6 +32,7 @@ for scenario in blocked locked current future future-string hand-edit replaced r
     case_root="$probe_root/$scenario"
     project="$case_root/project"
     export XDG_CONFIG_HOME="$case_root/config-home" XDG_STATE_HOME="$case_root/state-home"
+    export XDG_CACHE_HOME="$XDG_CONFIG_HOME/cache"
     export XDG_RUNTIME_DIR="$case_root/r" QT_QPA_PLATFORM=offscreen QT_NO_XDG_DESKTOP_PORTAL=1
     directory="$XDG_CONFIG_HOME/silere-shell"
     settings="$directory/settings.json"
@@ -61,7 +62,7 @@ for scenario in blocked locked current future future-string hand-edit replaced r
             ;;
     esac
     cp "$original" "$settings"
-    qs -p "$project/probe-settings-migration.qml" --no-color > "$log" 2>&1 &
+    setsid qs -p "$project/probe-settings-migration.qml" --no-color > "$log" 2>&1 &
     probe_pid=$!
     wait_ready
     sleep 0.8

@@ -28,10 +28,10 @@ for retention in true false; do
     printf '{"__version":1,"notifHistoryLimit":100,"notifHistoryPersistent":%s}\n' \
         "$retention" > "$probe_root/config-home/silere-shell/settings.json"
     log="$probe_root/$retention.log"
-    XDG_CONFIG_HOME="$probe_root/config-home" XDG_STATE_HOME="$probe_root/config-home" \
+    XDG_CONFIG_HOME="$probe_root/config-home" XDG_STATE_HOME="$probe_root/config-home" XDG_CACHE_HOME="$probe_root/config-home/cache" \
         XDG_RUNTIME_DIR="$probe_root/runtime" QT_FORCE_STDERR_LOGGING=1 \
         QT_QPA_PLATFORM=offscreen QT_NO_XDG_DESKTOP_PORTAL=1 \
-        qs -p "$probe_root/project/probe-notification-reload.qml" --no-color >"$log" 2>&1 &
+        setsid qs -p "$probe_root/project/probe-notification-reload.qml" --no-color >"$log" 2>&1 &
     probe_pid=$!
     _probe_wait "$log" "$probe_pid" 'PROBE-RELOAD-DONE' 80 0.25 || true
     if ! grep -q 'PROBE-RELOAD passed' "$log" || grep -q 'PROBE-FAIL' "$log" \

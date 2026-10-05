@@ -41,10 +41,10 @@ sed -i -e 's/^internal WifiList /WifiList /' \
     -e 's/^internal BluetoothList /BluetoothList /' \
     "$probe_root/project/modules/menu/qmldir"
 
-XDG_CONFIG_HOME="$probe_root/config" XDG_STATE_HOME="$probe_root/config" \
+XDG_CONFIG_HOME="$probe_root/config" XDG_STATE_HOME="$probe_root/config" XDG_CACHE_HOME="$probe_root/config/cache" \
     XDG_RUNTIME_DIR="$probe_root/runtime" QT_FORCE_STDERR_LOGGING=1 \
     QT_QPA_PLATFORM=offscreen \
-    qs -p "$probe_root/project/probe-upstream-connectivity-paths.qml" --no-color >"$probe_root/probe.log" 2>&1 &
+    setsid qs -p "$probe_root/project/probe-upstream-connectivity-paths.qml" --no-color >"$probe_root/probe.log" 2>&1 &
 probe_pid=$!
 _probe_wait "$probe_root/probe.log" "$probe_pid" 'PROBE-UPSTREAM-CONNECTIVITY-PATHS' 100 0.25 || true
 

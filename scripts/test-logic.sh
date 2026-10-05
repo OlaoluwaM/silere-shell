@@ -26,9 +26,9 @@ trap 'exit 130' INT TERM
 mkdir -p "$cfg/silere-shell"
 printf '{"__version":1}\n' > "$cfg/silere-shell/settings.json"
 
-XDG_CONFIG_HOME="$cfg" XDG_STATE_HOME="$cfg" XDG_RUNTIME_DIR="$runtime" \
+XDG_CONFIG_HOME="$cfg" XDG_STATE_HOME="$cfg" XDG_CACHE_HOME="$cfg/cache" XDG_RUNTIME_DIR="$runtime" \
     QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen \
-    qs -p "$probe_project/probe-logic.qml" --no-color >"$log" 2>&1 &
+    setsid qs -p "$probe_project/probe-logic.qml" --no-color >"$log" 2>&1 &
 probe_pid=$!
 
 _probe_wait "$log" "$probe_pid" 'PROBE-LOGIC' 80 0.25 || true

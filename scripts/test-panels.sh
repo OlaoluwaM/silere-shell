@@ -69,10 +69,10 @@ _probe_project "$ROOT" "$PROBE" "$probe_project"
 # XDG_RUNTIME_DIR is deliberately inherited: it is where the Wayland socket lives.
 # Force the Wayland platform so an inherited offscreen setting cannot turn this into
 # the headless surface check. Never pkill: a name match would take down the user's shell.
-XDG_CONFIG_HOME="$probe_cfg" XDG_STATE_HOME="$probe_cfg" \
+XDG_CONFIG_HOME="$probe_cfg" XDG_STATE_HOME="$probe_cfg" XDG_CACHE_HOME="$probe_cfg/cache" \
     SILERE_PROBE_ROOT="$ROOT" SILERE_PROBE_LIST="$list" \
     QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=wayland QT_NO_XDG_DESKTOP_PORTAL=1 \
-    qs -p "$probe_project/${PROBE##*/}" --no-color >"$log" 2>&1 &
+    setsid qs -p "$probe_project/${PROBE##*/}" --no-color >"$log" 2>&1 &
 probe_pid=$!
 _probe_wait "$log" "$probe_pid" 'PROBE-PANELS' 120 0.5 || true
 

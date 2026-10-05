@@ -27,7 +27,7 @@ _probe_project "$ROOT" scripts/probe-history-grouping.qml "$probe_project"
 
 SILERE_PROBE_ROOT="$probe_project" XDG_RUNTIME_DIR="$runtime" \
     QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen QT_NO_XDG_DESKTOP_PORTAL=1 \
-    qs -p "$probe_project/probe-history-grouping.qml" --no-color >"$log" 2>&1 &
+    setsid qs -p "$probe_project/probe-history-grouping.qml" --no-color >"$log" 2>&1 &
 probe_pid=$!
 
 _probe_wait "$log" "$probe_pid" 'PROBE-HISTORY-DONE' 80 0.25 || true

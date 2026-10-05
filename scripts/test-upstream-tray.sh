@@ -20,10 +20,10 @@ chmod 0700 "$probe_root/runtime"
 printf '{"__version":1}\n' > "$probe_root/config/silere-shell/settings.json"
 _probe_project "$ROOT" scripts/probe-upstream-tray.qml "$probe_root/project"
 
-XDG_CONFIG_HOME="$probe_root/config" XDG_STATE_HOME="$probe_root/config" \
+XDG_CONFIG_HOME="$probe_root/config" XDG_STATE_HOME="$probe_root/config" XDG_CACHE_HOME="$probe_root/config/cache" \
     XDG_RUNTIME_DIR="$probe_root/runtime" QT_FORCE_STDERR_LOGGING=1 \
     QT_QPA_PLATFORM=offscreen \
-    qs -p "$probe_root/project/probe-upstream-tray.qml" --no-color >"$probe_root/probe.log" 2>&1 &
+    setsid qs -p "$probe_root/project/probe-upstream-tray.qml" --no-color >"$probe_root/probe.log" 2>&1 &
 probe_pid=$!
 _probe_wait "$probe_root/probe.log" "$probe_pid" 'PROBE-UPSTREAM-TRAY' 80 0.25 || true
 

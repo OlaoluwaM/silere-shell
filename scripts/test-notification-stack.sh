@@ -161,9 +161,9 @@ run_mode() { # $1 = label, $2 = reduce motion, $3 = idle state, $4 = implementat
     printf '{"__version":1,"notifMaxVisible":2,"reduceMotion":%s}\n' "$reduce" \
         >"$cfg/silere-shell/settings.json"
     log="$probe_root/$label.log"
-    XDG_CONFIG_HOME="$cfg" XDG_STATE_HOME="$cfg" XDG_RUNTIME_DIR="$probe_root/runtime-$label" \
+    XDG_CONFIG_HOME="$cfg" XDG_STATE_HOME="$cfg" XDG_CACHE_HOME="$cfg/cache" XDG_RUNTIME_DIR="$probe_root/runtime-$label" \
         WAYLAND_DISPLAY="$wayland_socket" QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=wayland \
-        QT_NO_XDG_DESKTOP_PORTAL=1 qs -p "$project/probe-notification-stack.qml" --no-color >"$log" 2>&1 &
+        QT_NO_XDG_DESKTOP_PORTAL=1 setsid qs -p "$project/probe-notification-stack.qml" --no-color >"$log" 2>&1 &
     probe_pid=$!
     for _ in $(seq 1 40); do
         gdbus introspect --session --dest org.freedesktop.Notifications \
@@ -280,9 +280,9 @@ run_height_mode() { # $1 = label, $2 = timeout or expand, $3 = implementation
     [ "$action" = timeout ] && max_visible=2
     printf '{"__version":1,"notifMaxVisible":%s,"reduceMotion":false}\n' "$max_visible" >"$cfg/silere-shell/settings.json"
     log="$probe_root/$label.log"
-    XDG_CONFIG_HOME="$cfg" XDG_STATE_HOME="$cfg" XDG_RUNTIME_DIR="$probe_root/runtime-$label" \
+    XDG_CONFIG_HOME="$cfg" XDG_STATE_HOME="$cfg" XDG_CACHE_HOME="$cfg/cache" XDG_RUNTIME_DIR="$probe_root/runtime-$label" \
         WAYLAND_DISPLAY="$wayland_socket" QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=wayland \
-        QT_NO_XDG_DESKTOP_PORTAL=1 qs -p "$project/probe-notification-stack.qml" --no-color >"$log" 2>&1 &
+        QT_NO_XDG_DESKTOP_PORTAL=1 setsid qs -p "$project/probe-notification-stack.qml" --no-color >"$log" 2>&1 &
     probe_pid=$!
     for _ in $(seq 1 40); do
         gdbus introspect --session --dest org.freedesktop.Notifications \

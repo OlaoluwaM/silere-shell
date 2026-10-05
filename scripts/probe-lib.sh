@@ -10,6 +10,8 @@ SILERE_PROBE_ERRORS='Unable to assign .*|Cannot assign .*|is not a type|Referenc
 
 # a probe shell reads the real battery and CPU sensors; see SystemAlerts._sandboxed
 export SILERE_SANDBOX=1
+# probes load fresh temp copies, whose compiled units would pile up in ~/.cache/quickshell/qmlcache forever
+export QML_DISABLE_DISK_CACHE=1
 
 _probe_require_qs() {
     if ! command -v qs >/dev/null 2>&1; then
@@ -64,17 +66,30 @@ _probe_errors() { # $1 = log
     grep -oE "$SILERE_PROBE_ERRORS" "$1" | sort -u | head -10 || true
 }
 
+# A probe's children, such as fontconfig's fc-list, must not outlive it and race the
+# runner's cleanup, so a probe started with setsid is stopped as a whole group. The
+# group is only signalled when the pid leads its own: a pgid that is not the probe's
+# would take the runner or the user's shell down with it.
 _probe_stop() { # $1 = pid
     [ -n "${1:-}" ] || return 0
     kill -0 "$1" 2>/dev/null || return 0
-    kill "$1" 2>/dev/null || true
+    local target="$1" pgid
+    pgid="$(ps -o pgid= -p "$1" 2>/dev/null | tr -d ' ')"
+    [ "$pgid" = "$1" ] && target="-$1"
+    kill -TERM -- "$target" 2>/dev/null || true
     # A broken probe must not wedge the test runner while ignoring TERM. Poll the
     # exact child briefly, then force it down before wait reaps its status.
     local i
     for ((i = 0; i < 20; i++)); do
-        kill -0 "$1" 2>/dev/null || { wait "$1" 2>/dev/null || true; return 0; }
+        kill -0 "$1" 2>/dev/null || {
+            wait "$1" 2>/dev/null || true
+            # survivors of the leader share its group until they exit
+            [ "$target" = "$1" ] || kill -KILL -- "$target" 2>/dev/null || true
+            return 0
+        }
         sleep 0.05
     done
-    kill -KILL "$1" 2>/dev/null || true
+    kill -KILL -- "$target" 2>/dev/null || true
     wait "$1" 2>/dev/null || true
+    [ "$target" = "$1" ] || kill -KILL -- "$target" 2>/dev/null || true
 }

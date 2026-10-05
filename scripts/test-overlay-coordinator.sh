@@ -53,10 +53,10 @@ ln -s "$ROOT/modules" "$probe_project/modules"
 
 # Keep compositor selection independent of the host. The fixture session ID
 # lets logout availability follow the controlled loginctl flag.
-XDG_CONFIG_HOME="$cfg" XDG_STATE_HOME="$cfg" XDG_RUNTIME_DIR="$runtime" \
+XDG_CONFIG_HOME="$cfg" XDG_STATE_HOME="$cfg" XDG_CACHE_HOME="$cfg/cache" XDG_RUNTIME_DIR="$runtime" \
     HYPRLAND_INSTANCE_SIGNATURE="" NIRI_SOCKET="" XDG_SESSION_ID=probe \
     QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen QT_NO_XDG_DESKTOP_PORTAL=1 \
-    qs -p "$probe_project/probe-overlay-coordinator.qml" --no-color >"$log" 2>&1 &
+    setsid qs -p "$probe_project/probe-overlay-coordinator.qml" --no-color >"$log" 2>&1 &
 probe_pid=$!
 
 _probe_wait "$log" "$probe_pid" 'PROBE-OVERLAY-READY' 100 0.25 || true

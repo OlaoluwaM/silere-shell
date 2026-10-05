@@ -111,11 +111,11 @@ printf '{"__version":1,"uiScale":%s,"barIconSize":%s}\n' "$ui_max" "$icon_max" \
 run_probe() {  # $1 = label, $2 = XDG_CONFIG_HOME, $3 = Qt scale
     local qt_scale="${3:-1}"
     : > "$log"
-    XDG_CONFIG_HOME="$2" XDG_RUNTIME_DIR="$probe_runtime" \
+    XDG_CONFIG_HOME="$2" XDG_CACHE_HOME="$2/cache" XDG_RUNTIME_DIR="$probe_runtime" \
         SILERE_PROBE_ROOT="$ROOT" SILERE_PROBE_LIST="$list" \
         QT_SCALE_FACTOR="$qt_scale" \
         QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen \
-        qs -p "$PROBE" --no-color >"$log" 2>&1 &
+        setsid qs -p "$PROBE" --no-color >"$log" 2>&1 &
     probe_pid=$!
     _probe_wait "$log" "$probe_pid" 'PROBE-SURFACES built' 120 0.5 || true
     if ! grep -q 'PROBE-SURFACES built' "$log" 2>/dev/null; then

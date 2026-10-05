@@ -38,5 +38,5 @@ _silere_run_smoke_probe() { # $1 = resolved config home, $2 = private config hom
     _silere_prepare_smoke_config "$1" "$2" || return 1
     # shellcheck disable=SC2034 # check.sh reads this result after the launcher returns
     SILERE_SMOKE_CONFIG_READY=1
-    _run_shell_probe "$3" "XDG_CONFIG_HOME=$2"
+    _run_shell_probe "$3" "XDG_CONFIG_HOME=$2" "XDG_CACHE_HOME=$2/cache"
 }

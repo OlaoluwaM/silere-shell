@@ -33,10 +33,10 @@ chmod 0700 "$runtime"
 printf 'blocking regular file\n' > "$settings_dir"
 _probe_project "$ROOT" scripts/probe-config-recovery.qml "$project"
 
-XDG_CONFIG_HOME="$config_home" XDG_STATE_HOME="$state_home" \
+XDG_CONFIG_HOME="$config_home" XDG_STATE_HOME="$state_home" XDG_CACHE_HOME="$config_home/cache" \
     XDG_RUNTIME_DIR="$runtime" QT_FORCE_STDERR_LOGGING=1 \
     QT_QPA_PLATFORM=offscreen QT_NO_XDG_DESKTOP_PORTAL=1 \
-    qs -p "$project/probe-config-recovery.qml" --no-color >"$log" 2>&1 &
+    setsid qs -p "$project/probe-config-recovery.qml" --no-color >"$log" 2>&1 &
 probe_pid=$!
 
 _probe_wait "$log" "$probe_pid" 'PROBE-CONFIG-BLOCKED' 100 0.05 || true

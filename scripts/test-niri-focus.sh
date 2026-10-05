@@ -28,10 +28,10 @@ log="$probe_root/probe.log"
 
 PATH="$probe_root/bin:$PATH" NIRI_SOCKET="$probe_root/runtime/mock-niri.sock" \
     HYPRLAND_INSTANCE_SIGNATURE="" XDG_CONFIG_HOME="$probe_root/config" \
-    XDG_STATE_HOME="$probe_root/config" XDG_RUNTIME_DIR="$probe_root/runtime" \
+    XDG_STATE_HOME="$probe_root/config" XDG_CACHE_HOME="$probe_root/config/cache" XDG_RUNTIME_DIR="$probe_root/runtime" \
     SILERE_NIRI_FOCUS_PROBE=1 SILERE_NIRI_FOCUS_LOG="$probe_root/dispatch.log" \
     QT_QPA_PLATFORM=offscreen QT_NO_XDG_DESKTOP_PORTAL=1 QT_FORCE_STDERR_LOGGING=1 \
-    qs -p "$probe_root/project/probe-logic.qml" --no-color >"$log" 2>&1 &
+    setsid qs -p "$probe_root/project/probe-logic.qml" --no-color >"$log" 2>&1 &
 probe_pid=$!
 
 _probe_wait "$log" "$probe_pid" 'PROBE-NIRI-FOCUS' 80 0.25 || true

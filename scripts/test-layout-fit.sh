@@ -86,9 +86,9 @@ for scale in 1.0 1.15; do
 
     : > "$log"
     FIT_ROOT="$probe_project" FIT_LIST="$list" FIT_W="$CONTENT_WIDTH" \
-        XDG_CONFIG_HOME="$conf" XDG_STATE_HOME="$conf" XDG_RUNTIME_DIR="$runtime" \
+        XDG_CONFIG_HOME="$conf" XDG_STATE_HOME="$conf" XDG_CACHE_HOME="$conf/cache" XDG_RUNTIME_DIR="$runtime" \
         QT_QPA_PLATFORM=offscreen QT_FORCE_STDERR_LOGGING=1 \
-        qs -p "$probe_project/${PROBE##*/}" --no-color >"$log" 2>&1 &
+        setsid qs -p "$probe_project/${PROBE##*/}" --no-color >"$log" 2>&1 &
     probe_pid=$!
     _probe_wait "$log" "$probe_pid" 'FIT-DONE' 240 0.5 || true
 

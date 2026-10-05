@@ -3,6 +3,8 @@ set -eu
 export LC_ALL=C
 # every shell this launches must leave the desktop's alerts alone
 export SILERE_SANDBOX=1
+# qt sends its startup warnings (the LC_ALL=C one above) to the user's journal once stderr is redirected
+export QT_FORCE_STDERR_LOGGING=1
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/scripts/lib/xdg.sh"
@@ -495,11 +497,18 @@ if [ "$qs_usable" = 1 ]; then
     cov_cfg=""
     bad_log=""
     bad_cfg=""
+    # the detailed log is ~150 KB per shell in the RAM-backed runtime dir, kept until logout
+    smoke_flags=()
+    env -u LC_ALL qs --no-detailed-logs --version >/dev/null 2>&1 && smoke_flags=(--no-detailed-logs)
     # one launcher for every runtime probe below: the timeout, entry point and log
-    # plumbing must not drift between the smoke, coverage and bad-settings runs
+    # plumbing must not drift between the smoke, coverage and bad-settings runs.
+    # These shells share the live display, so their bars stay unmapped; qt's elapsed-time
+    # animation driver stalls the event loop of a window that never maps. Each edit of the
+    # tree makes new compiled units, which would pile up in the qml cache forever
     _run_shell_probe() { # logfile [ENV=val ...]
       local _log="$1"; shift
-      timeout --kill-after=2s 5s env "$@" qs -p shell.qml --no-color >"$_log" 2>&1
+      timeout --kill-after=2s 5s env SILERE_UNMAPPED_BARS=1 QSG_USE_SIMPLE_ANIMATION_DRIVER=0 \
+        QML_DISABLE_DISK_CACHE=1 "$@" qs "${smoke_flags[@]}" -p shell.qml --no-color >"$_log" 2>&1
     }
 
     _smoke_cleanup() {
@@ -560,7 +569,7 @@ if [ "$qs_usable" = 1 ]; then
         } > "$cov_cfg/silere-shell/settings.json"
         cov_log="$(mktemp "${TMPDIR:-/tmp}/silere-qs-cov.XXXXXX.log")"
         code=0
-        _run_shell_probe "$cov_log" XDG_CONFIG_HOME="$cov_cfg" || code=$?
+        _run_shell_probe "$cov_log" XDG_CONFIG_HOME="$cov_cfg" XDG_CACHE_HOME="$cov_cfg/cache" || code=$?
         if [ "$code" -ne 124 ]; then
           cat "$cov_log"
           fail "off-path load" "Quickshell exited before the dwell (status $code) with every option on"
@@ -595,7 +604,7 @@ if [ "$qs_usable" = 1 ]; then
         mkdir -p "$bad_cfg/silere-shell"
         printf '%s' "$_case" > "$bad_cfg/silere-shell/settings.json"
         code=0
-        _run_shell_probe "$bad_log" XDG_CONFIG_HOME="$bad_cfg" || code=$?
+        _run_shell_probe "$bad_log" XDG_CONFIG_HOME="$bad_cfg" XDG_CACHE_HOME="$bad_cfg/cache" || code=$?
         if [ "$code" -ne 124 ]; then
           bad_failures="$bad_failures  exited $code on: ${_case:-<empty>}"$'\n'
         elif grep -qE 'Failed to load configuration|Type [^ ]+ unavailable|Binding loop detected' "$bad_log"; then

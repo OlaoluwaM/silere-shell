@@ -25,7 +25,7 @@ trap cleanup EXIT
 trap 'exit 130' INT TERM
 
 QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen \
-    qs -p "$project/probe-fullscreen-state.qml" --no-color >"$log" 2>&1 &
+    setsid qs -p "$project/probe-fullscreen-state.qml" --no-color >"$log" 2>&1 &
 probe_pid=$!
 
 _probe_wait "$log" "$probe_pid" 'PROBE-FULLSCREEN-STATE' 80 0.25 || true

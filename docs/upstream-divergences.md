@@ -84,7 +84,10 @@ naming them over upstream's CI claim.
   The startup case uses a private configuration copy. Dereference source
   symlinks and fail the check if copying fails; never silently substitute an
   incomplete copy for the real settings. This isolates shell-owned configuration
-  writes, not arbitrary configured commands or desktop services.
+  writes, not arbitrary configured commands or desktop services. Every smoke
+  shell also gets a private cache directory beside that configuration and
+  unmapped bars, so it neither fills the user's QML cache nor reserves screen
+  space on the live display.
   Layer-shell construction checks use a private configuration/state directory
   and session bus while retaining the Wayland runtime directory. Probe windows
   stay unmapped; cleanup targets only the child that the probe started.

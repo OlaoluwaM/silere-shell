@@ -24,6 +24,8 @@ import "config"
 ShellRoot {
     id: root
 
+    // check.sh's smoke shells share the live display; a mapped bar would reserve its exclusive zone on the user's screen
+    readonly property bool unmappedBars: Quickshell.env("SILERE_UNMAPPED_BARS") === "1"
     readonly property ShellScreen activeOverlayScreen: Monitors.overlayScreen
     // bar-anchored popups open with no trigger screen over IPC, and the overlay screen
     // is whichever one has focus — including one the user turned the bar off on
@@ -78,7 +80,7 @@ ShellRoot {
                     active = false
                     Qt.callLater(() => _barLoader.active = _barLoader.barOn)
                 }
-                component: Bar { targetScreen: _barScope.modelData }
+                component: Bar { targetScreen: _barScope.modelData; visible: !root.unmappedBars }
             }
         }
     }

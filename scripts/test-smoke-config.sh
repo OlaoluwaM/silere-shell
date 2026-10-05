@@ -15,11 +15,13 @@ fail() {
 probe_calls=0
 probe_log=""
 probe_env=""
+probe_cache=""
 _run_shell_probe() {
     probe_calls=$((probe_calls + 1))
-    [ "$#" -eq 2 ] || return 1
+    [ "$#" -eq 3 ] || return 1
     probe_log="$1"
     probe_env="$2"
+    probe_cache="$3"
 }
 
 source_home="$test_root/source home"
@@ -71,6 +73,8 @@ _silere_run_smoke_probe "$source_home" "$probe_private" "$test_root/probe.log" \
     || fail "probe did not receive its log path"
 [ "$probe_env" = "XDG_CONFIG_HOME=$probe_private" ] \
     || fail "probe did not receive the private XDG configuration home"
+[ "$probe_cache" = "XDG_CACHE_HOME=$probe_private/cache" ] \
+    || fail "probe did not receive a private XDG cache home"
 
 missing_home="$test_root/missing source"
 missing_private="$test_root/missing private"
