@@ -91,6 +91,10 @@ naming them over upstream's CI claim.
   Layer-shell construction checks use a private configuration/state directory
   and session bus while retaining the Wayland runtime directory. Probe windows
   stay unmapped; cleanup targets only the child that the probe started.
+  The whole run holds idle off through `systemd-inhibit`, since the fork's
+  notification-stack probe draws on the live compositor and a session that
+  idle-locks mid-run stops giving it frames. Keep the re-exec at the top when
+  an import rewrites the script's preamble.
 
 ## Feature collisions — standing resolutions
 

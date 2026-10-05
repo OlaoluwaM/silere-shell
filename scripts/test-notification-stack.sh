@@ -20,10 +20,25 @@ esac
     exit 0
 }
 
+# a locked session gets no frames for any other surface, so the probe would log no layout at
+# all and read as a motion regression. Fail on the real cause; a skip would let an unattended
+# gate run pass with no motion coverage
+_session_locked() {
+    command -v pgrep >/dev/null 2>&1 && pgrep -x hyprlock >/dev/null 2>&1
+}
+if _session_locked; then
+    echo "FAIL: the session is locked, so the compositor withholds frames from the probe" >&2
+    exit 1
+fi
+
 probe_root="$(mktemp -d "${TMPDIR:-/tmp}/silere-notification-stack.XXXXXX")"
 probe_pid=""
 cleanup() {
+    local rc=$?
     _probe_stop "$probe_pid"
+    if [ "$rc" -ne 0 ] && _session_locked; then
+        echo "note: the session locked during the run; the failure above may be the withheld frames" >&2
+    fi
     if [ "${SILERE_PROBE_KEEP:-0}" = 1 ]; then
         echo "kept notification stack probe: $probe_root" >&2
         return
