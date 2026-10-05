@@ -2582,7 +2582,9 @@ ShellRoot {
                 && Notifications.updateTimeFor(53) === 2400,
             "a notification update records its card timestamp without cloning the map")
 
-        const replacementNotification = { id: 53, tracked: true }
+        const replacementNotification = { id: 53, tracked: true, transient: false,
+            appName: "Probe", summary: "Replacement", body: "", urgency: 1,
+            appIcon: "", desktopEntry: "" }
         const replacementIsNew = Notifications._upsertActiveNotification(
             replacementNotification, 2500)
         root._check(replacementIsNew
@@ -2591,6 +2593,27 @@ ShellRoot {
                 && Notifications.list[0].time === 2300
                 && !liveNotification.tracked,
             "a replacement notification still retires the old object and keeps its age")
+        // the replacement now owns id 53, so a close aimed at the old object is not its close
+        Notifications._seen = { "53": true }
+        Notifications._times = { "53": 2300 }
+        Notifications._updateTimes = { "53": 2500 }
+        const replacementList = Notifications.list
+        Notifications._onClosed(53, liveNotification)
+        Notifications._onClosed(53, liveNotification)
+        Notifications._onClosed(53, { id: 53 })
+        root._check(Notifications.list === replacementList
+                && Notifications._seen["53"] === true
+                && Notifications._times["53"] === 2300
+                && Notifications._updateTimes["53"] === 2500
+                && Notifications.historyCount === 0,
+            "late, duplicate and unknown closes cannot retire a replacement notification or its state")
+        Notifications._onClosed(53, replacementNotification)
+        Notifications._onClosed(53, replacementNotification)
+        root._check(Notifications.list.length === 0 && Notifications.historyCount === 1
+                && Notifications.historyModel.get(0).summary === "Replacement"
+                && Notifications._seen["53"] === undefined,
+            "a sender close of the current object archives it once and forgets its state")
+        Notifications.clearHistory()
         Notifications.list = []
 
         // quickshell updates a replaced notification in place, so only its own change signals

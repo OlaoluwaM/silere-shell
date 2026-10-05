@@ -843,10 +843,11 @@ Singleton {
     function _onClosed(id: int, notification): void {
         if (root._consumeClosing(id, notification)) return
         const n = root.list.find(e => e.id === id && e.notification === notification)
-        if (n) {
-            const entry = root._historyEntry(n)
-            if (entry) { root._prependHistory(entry); root._saveHistory() }
-        }
+        // a late or repeated close belongs to that object, not to a newer one that
+        // reused its id
+        if (!n) return
+        const entry = root._historyEntry(n)
+        if (entry) { root._prependHistory(entry); root._saveHistory() }
         root._forget(id)
     }
 
