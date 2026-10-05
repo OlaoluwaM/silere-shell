@@ -1794,6 +1794,45 @@ ShellRoot {
             "two half-notches accumulate into one step")
         root._check(Scroll._processDelta(600, wheelKey, 120, 2, 0) === 2,
             "one wheel burst emits at most the step ceiling")
+        root._check(Scroll._processDelta(1, wheelKey, 120, 2, 0) === 0,
+            "a capped wheel burst leaves no queued whole steps for the next movement")
+        const remainderKey = "probe-scroll-remainder"
+        root._check(Scroll._processDelta(660, remainderKey, 120, 2, 0) === 2
+                && Scroll._processDelta(59, remainderKey, 120, 2, 0) === 0
+                && Scroll._processDelta(1, remainderKey, 120, 2, 0) === 1,
+            "a capped wheel burst retains its fractional notch")
+        const negativeKey = "probe-scroll-negative"
+        root._check(Scroll._processDelta(-660, negativeKey, 120, 2, 0) === -2
+                && Scroll._processDelta(-59, negativeKey, 120, 2, 0) === 0
+                && Scroll._processDelta(-1, negativeKey, 120, 2, 0) === -1,
+            "negative wheel bursts discard excess whole steps and retain their fraction")
+        const reverseKey = "probe-scroll-reverse"
+        root._check(Scroll._processDelta(60, reverseKey, 60, 1, 0) === 1,
+            "a touchpad can emit a complete notch with no remainder")
+        Scroll._lastSteps[reverseKey] = Date.now()
+        root._check(Scroll._processDelta(-60, reverseKey, 60, 1, 1000) === -1,
+            "a touchpad direction reversal bypasses throttling even with no remainder")
+        Scroll._lastSteps[reverseKey] = Date.now()
+        root._check(Scroll._processDelta(20, reverseKey, 60, 1, 1000) === 0
+                && Scroll._processDelta(40, reverseKey, 60, 1, 1000) === 1,
+            "a touchpad reversal split across events bypasses the previous direction's throttle")
+        const wheelReverseKey = "probe-scroll-wheel-reverse"
+        root._check(Scroll._processDelta(120, wheelReverseKey, 120, 2, 0) === 1
+                && Scroll._processDelta(-120, wheelReverseKey, 120, 2, 0) === -1,
+            "a wheel reversal right after an exact notch emits in the new direction")
+        const fractionKey = "probe-scroll-fraction-reverse"
+        root._check(Scroll._processDelta(50, fractionKey, 60, 1, 0) === 0
+                && Scroll._processDelta(-20, fractionKey, 60, 1, 0) === 0
+                && Scroll._processDelta(-40, fractionKey, 60, 1, 0) === -1,
+            "a reversal discards the old direction's leftover fraction")
+        const throttleKey = "probe-scroll-throttle"
+        Scroll._lastSteps[throttleKey] = Date.now()
+        root._check(Scroll._processDelta(180, throttleKey, 60, 1, 1000) === 0,
+            "touchpad input respects the interval between steps")
+        Scroll._lastSteps[throttleKey] = Date.now() - 2000
+        root._check(Scroll._processDelta(1, throttleKey, 60, 1, 1000) === 1
+                && Scroll._accums[throttleKey] === 1,
+            "a throttled touchpad burst resumes with one step and no whole-step backlog")
         Scroll._page.movedAt = 0
         root._check(!Scroll.wheelBelongsToPage(0),
             "a wheel over a slider is the slider's while the page is still")
