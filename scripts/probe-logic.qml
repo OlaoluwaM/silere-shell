@@ -1711,6 +1711,57 @@ ShellRoot {
         SysInfo.cpuPct = cpuPctWas
         SysInfo._active = cpuActiveWas
 
+        // hardening: counter rollback, malformed samples, and memory validation
+        const cpuReadyWas = SysInfo.cpuReady
+        SysInfo._active = true
+        SysInfo.cpuReady = false
+        SysInfo._lastCpuTotal = 0
+        SysInfo._lastCpuIdle = 0
+        SysInfo._applyCpuStat("cpu  100 0 100 800 100 0 0 0 0 0\n")
+        root._check(!SysInfo.cpuReady,
+            "the Now page waits for a CPU delta before showing a percentage")
+        SysInfo._applyCpuStat("cpu  150 0 150 900 150 0 0 0 0 0\n")
+        root._check(SysInfo.cpuReady && Math.abs(SysInfo.cpuPct - 0.4) < 0.001,
+            "cpu load counts iowait as idle, not as busy")
+        SysInfo._lastCpuTotal = 0
+        SysInfo._lastCpuIdle = 0
+        SysInfo._applyCpuStat("cpu  100 0 100 800 0 0 0 0 500 500\n")
+        SysInfo._applyCpuStat("cpu  150 0 150 900 0 0 0 0 900 900\n")
+        root._check(Math.abs(SysInfo.cpuPct - 0.5) < 0.001,
+            "cpu load leaves out guest time already counted in user")
+        SysInfo._applyCpuStat("cpu  1 0 1 8 0 0 0 0\n")
+        root._check(!SysInfo.cpuReady && SysInfo.cpuPct === 0,
+            "CPU counter rollback discards the stale percentage and re-primes")
+        SysInfo._applyCpuStat("cpu  2 0 2 16 0 0 0 0\n")
+        root._check(SysInfo.cpuReady && Math.abs(SysInfo.cpuPct - 0.2) < 0.001,
+            "CPU readings recover after a counter reset")
+        SysInfo._applyCpuStat("cpu  4 0 4 15 0 0 0 0\n")
+        root._check(!SysInfo.cpuReady && SysInfo.cpuPct === 0,
+            "an idle-counter rollback cannot flash a bogus 100 percent CPU load")
+        SysInfo._applyCpuStat("cpu  broken 0 3 14 0 0 0 0\n")
+        root._check(!SysInfo.cpuReady && SysInfo._lastCpuTotal === 0,
+            "malformed CPU counters clear the sample rather than partially parsing it")
+        SysInfo._applyCpuStat("cpu  10 0 10 80 0 0 0 0\n")
+        root._check(!SysInfo.cpuReady,
+            "the first valid CPU sample after a failed read is a baseline")
+        SysInfo._lastCpuTotal = cpuTotalWas
+        SysInfo._lastCpuIdle = cpuIdleWas
+        SysInfo.cpuPct = cpuPctWas
+        SysInfo.cpuReady = cpuReadyWas
+        SysInfo._active = cpuActiveWas
+
+        const memTotalWas = SysInfo.memTotalKb, memAvailWas = SysInfo.memAvailKb
+        SysInfo._active = true
+        SysInfo._applyMeminfo("MemTotal: 100 kB\nMemAvailable: 150 kB\n")
+        root._check(SysInfo.memPct === 0 && SysInfo.memAvailKb === 100,
+            "inconsistent memory samples cannot produce a negative percentage")
+        SysInfo._applyMeminfo("MemTotal: 100 kB\n")
+        root._check(SysInfo.memTotalKb === 0 && SysInfo.memPct === 0,
+            "missing memory fields retire the previous reading")
+        SysInfo.memTotalKb = memTotalWas
+        SysInfo.memAvailKb = memAvailWas
+        SysInfo._active = cpuActiveWas
+
         const niri = niriBackendFactory.createObject(root)
         niri._onLine(JSON.stringify({ WorkspacesChanged: { workspaces: [
             { id: 11, idx: 1, output: "DP-1", is_active: true, is_focused: true },
