@@ -126,6 +126,15 @@ naming them over upstream's CI claim.
 - Palette changes keep the fork's central `MatugenTheme` transition and its
   leaf-fade gate. Do not introduce upstream's parallel `PaletteFade` mechanism
   or replace the fork's glass and control tokens with upstream's palette.
+- Blur stays with the deploying Hyprland config's `silere-*` layer rule. Do
+  not import upstream's `BackgroundEffect.blurRegion` protocol blur
+  (`995f262`, `d13d351`, `5aca380`, `b21d987`) or the region hunks later
+  commits carry, such as `FloatingPopupCard.blurItem` and the OSD's blur
+  shapes. Once a surface creates a background effect, Hyprland lets its
+  region replace the layer rule, so one imported region takes that surface
+  off the rule and it loses blur on every frame upstream clears the region,
+  such as while it moves or fades. A popup window split can still be
+  considered on its own; it keeps the layer rule.
 - Sound keeps the fork's audio service, sound settings, privacy widget, and
   `audio` IPC contract. Do not add a second microphone widget or replace its
   controls with `PwVolumeControl`; compatible device and lifecycle fixes can
