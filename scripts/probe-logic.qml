@@ -1026,6 +1026,46 @@ ShellRoot {
         ShellSettings.nightLightTemp = savedNight
         ShellSettings._loaded = savedLoaded
 
+        // brightness write identity: a mid-write device switch must not let the old write
+        // poison the new display's status or queued next write
+        const brightnessToolsWas = SystemTools._tools
+        const brightnessErrorWas = Brightness.lastError
+        const brightnessQueuedWas = Brightness._applyQueued
+        SystemTools._tools = Object.assign({}, brightnessToolsWas, { brightnessctl: true })
+        Brightness.lastError = "Current display error"
+        Brightness._applyQueued = true
+        Brightness._acceptWriteResult(Brightness._device + "-old", 1, false,
+            "Old display error")
+        root._check(Brightness.lastError === "Current display error"
+                && Brightness._applyQueued,
+            "a completed write to the old display cannot overwrite the new display's status")
+        Brightness._acceptWriteResult(Brightness._device + "-old", -1, true, "")
+        root._check(Brightness.lastError === "Current display error"
+                && Brightness._applyQueued,
+            "an old display's timeout preserves the new display's queued brightness write")
+        Brightness._acceptWriteResult(Brightness._device, 1, false,
+            "Permission denied\n")
+        root._check(Brightness.lastError === "Permission denied",
+            "brightness failures on the current display remain visible")
+        Brightness._acceptWriteResult(Brightness._device, -1, true, "")
+        root._check(Brightness.lastError === "Brightness write timed out",
+            "a timeout on the current display remains a failure")
+        Brightness._acceptWriteResult(Brightness._device, 0, false, "")
+        root._check(Brightness.lastError === "",
+            "a successful write on the current display clears its previous error")
+        const pendingBefore = Brightness.pendingPercent
+        const errorBefore = Brightness.lastError
+        Brightness.setPercent(NaN)
+        root._check(Brightness.pendingPercent === pendingBefore
+                && Brightness.lastError === errorBefore,
+            "non-finite input to setPercent is rejected")
+        Brightness.setPercent(Infinity)
+        root._check(Brightness.pendingPercent === pendingBefore,
+            "infinite input to setPercent is rejected")
+        Brightness.lastError = brightnessErrorWas
+        Brightness._applyQueued = brightnessQueuedWas
+        SystemTools._tools = brightnessToolsWas
+
         // history is restored from JSON an older release wrote, so entry shape is not given
         root._check(Notifications._normalizeEntry(null) === null,
             "a null history entry is dropped")

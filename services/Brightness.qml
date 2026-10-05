@@ -68,8 +68,8 @@ Singleton {
         setPercent((base + notches) * stepPct)
     }
 
-    function setPercent(p: int): void {
-        if (!controllable) return
+    function setPercent(p: real): void {
+        if (!controllable || !isFinite(p)) return
         const clamped = Math.max(1, Math.min(100, Math.round(p)))
         if (clamped === pendingPercent) return
         pendingPercent = clamped
@@ -188,6 +188,7 @@ Singleton {
         root._maxValid = false
         root._applyQueued = false
         _applyDebounce.stop()
+        root.lastError = ""
         root.currentBrightness = 0
         root.maxBrightness = 0
         root._device = next
@@ -304,14 +305,26 @@ Singleton {
                 return
             }
             root._applyQueued = false
+            _setProc.device = root._device
             // raw, not percent: brightnessctl rounds 1% of a 15-step backlight down to off
             _setProc.exec(["brightnessctl", "-d", root._device, "set", String(root.currentBrightness), "-q"])
         }
     }
 
+    function _acceptWriteResult(device: string, code: int, timedOut: bool,
+            error: string): void {
+        // the display can change mid-write; the old write's result must not touch the new
+        // display's status or queue
+        if (device !== root._device || !root.toolAvailable) return
+        if (timedOut) root.lastError = "Brightness write timed out"
+        else root.lastError = code === 0 ? ""
+            : SafeText.lastNonEmptyLine(error, "Could not set brightness")
+    }
+
     // bounded: a DDC/CI backlight writes over i2c and can block on a sleeping monitor, and onExited is the only thing that clears _applyQueued
     BoundedProcess {
         id: _setProc
+        property string device: ""
         timeoutMs: 5000
         stderr: StdioCollector { id: _setErr }
         onExited: code => {
@@ -320,9 +333,8 @@ Singleton {
                 root._applyQueued = false
                 return
             }
-            if (!_setProc.timedOut)
-                root.lastError = code === 0 ? ""
-                    : SafeText.lastNonEmptyLine(_setErr.text, "Could not set brightness")
+            root._acceptWriteResult(_setProc.device, code, _setProc.timedOut,
+                _setErr.text)
             if (root._applyQueued) {
                 root._applyQueued = false
                 if (!_applyDebounce.running) _applyDebounce.restart()
@@ -331,8 +343,7 @@ Singleton {
             }
         }
         onTimeoutReached: {
-            root._applyQueued = false
-            root.lastError = "Brightness write timed out"
+            root._acceptWriteResult(_setProc.device, -1, true, "")
         }
     }
 
