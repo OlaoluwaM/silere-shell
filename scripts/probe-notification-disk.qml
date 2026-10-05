@@ -220,6 +220,35 @@ ShellRoot {
                 return
             }
 
+            // The reload destroys this generation with a save still queued, so the
+            // shutdown flush gets its chance to overwrite the file as well.
+            if (root.phase === "malformed-history" && !root.started) {
+                root.started = true
+                root.check(Notifications.historyPersistenceError.length > 0,
+                    "a non-array history field reports that its file was preserved")
+                if (!reloadProgress.requested) {
+                    root.archive("Malformed", "must not overwrite", 78, 7800)
+                    reloadProgress.requested = true
+                    poll.stop()
+                    Qt.callLater(function() { Quickshell.reload(false) })
+                } else {
+                    root.check(Notifications.historyCount === 1
+                            && Notifications.historyModel.get(0).summary === "must not overwrite",
+                        "session history survives while the malformed file stays protected")
+                    finishTimer.start()
+                }
+                return
+            }
+
+            if (root.phase === "absent-history" && !root.started) {
+                root.started = true
+                root.check(Notifications.historyPersistenceError.length === 0,
+                    "a history-less file stays writable")
+                root.archive("Absent", "written back", 79, 7900)
+                finishTimer.start()
+                return
+            }
+
             if (root.phase === "settings-order" && !root.started) {
                 root.started = true
                 Notifications.clearHistory()

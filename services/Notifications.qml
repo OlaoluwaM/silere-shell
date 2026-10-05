@@ -452,6 +452,10 @@ Singleton {
                 throw new Error("notifications root must be an object")
             const version = Number(parsed.__version ?? 0)
             const fromFuture = isFinite(version) && version > 1
+            // a present but non-array history is a file this schema did not write; saving
+            // over it would replace whatever the field really holds
+            if (!fromFuture && parsed.history !== undefined && !Array.isArray(parsed.history))
+                throw new Error("notification history must be an array")
             if (fromFuture) {
                 _diskStore.writeAllowed = false
                 _diskStore.lastSavedText = trimmed

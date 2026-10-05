@@ -122,6 +122,17 @@ run_phase guard
 cmp -s "$history" "$history.expected" \
     || { echo "FAIL: malformed notifications.json was overwritten" >&2; exit 1; }
 
+printf '{"__version":1,"history":{"summary":"keep malformed history"}}\n' > "$history"
+cp "$history" "$history.expected"
+run_phase malformed-history
+cmp -s "$history" "$history.expected" \
+    || { echo "FAIL: non-array history overwrote notifications.json" >&2; exit 1; }
+
+printf '{"__version":1,"seen":{},"times":{}}\n' > "$history"
+run_phase absent-history
+grep -q '"summary":"written back"' "$history" \
+    || { echo "FAIL: a history-less notifications.json was not written back" >&2; exit 1; }
+
 calendar="$probe_root/config-home/silere-shell/calendar-marks.json"
 printf '{"__version":2,"marks":["2026-1-1"]}' > "$calendar"
 cp "$calendar" "$calendar.expected"
