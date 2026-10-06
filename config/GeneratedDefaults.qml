@@ -55,7 +55,9 @@ Singleton {
     readonly property bool   showSeconds:         false
     readonly property bool   osdEnabled:          true
     readonly property int    osdTimeout:          2000
+    readonly property int    notifMaxVisible:     3
     readonly property bool   notifHistoryPersistent: true
+    readonly property int    notifHistoryLimit:   20
     readonly property bool   mediaRemoteArt:      false
     readonly property bool   glassSurfaces:       false
     readonly property real   glassOpacity:        0.85

@@ -73,8 +73,6 @@ naming them over upstream's CI claim.
 - `services/ShellSettings.qml`: fork-added properties and `_schema` rows
   merge as a union with upstream's. `barCenterInGap` defaults to `true`
   against upstream's `false`; keep the fork's default on any collision.
-  `notifMaxVisible` and `notifHistoryLimit` default to `4` and `50`
-  against upstream's `3` and `20`; keep the fork's defaults likewise.
   `mediaRemoteArt` reads its initial value from `GeneratedDefaults`, whose
   checked-in copy carries upstream's `false`. Nix may declare `true`,
   accepting the OpenSSL crash risk `Media.artSource` documents. On a collision
