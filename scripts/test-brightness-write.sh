@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# a disposable shell registers the notification server; on the desktop bus it could claim the
-# live daemon's name should that daemon drop out mid-run
-if [[ "${1:-}" != "--private-bus" ]]; then
-    exec dbus-run-session -- bash "$0" --private-bus
-fi
-
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 source "$ROOT/scripts/probe-lib.sh"
+# a disposable shell registers the notification server; on the desktop bus it could claim the
+# live daemon's name should that daemon drop out mid-run. The launcher never returns
+if [[ "${1:-}" != "--private-bus" ]]; then
+    _probe_private_bus "$0" "$@"
+fi
+shift
 _probe_require_qs
 
 probe_root="$(mktemp -d "${TMPDIR:-/tmp}/silere-brightness-write.XXXXXX")"
@@ -26,14 +26,17 @@ chmod 0700 "$probe_root/runtime"
 printf '{"__version":1}\n' > "$probe_root/config/silere-shell/settings.json"
 _probe_project "$ROOT" scripts/probe-brightness-write.qml "$probe_root/project"
 
-# brightnessctl -d DEVICE set VALUE -q: slow enough for the probe to switch displays underneath.
-# The call log's path is written in, since the shell decides what environment a child sees
+# brightnessctl -d DEVICE set VALUE -q: each write is held until the probe releases its
+# display, so the display switch provably precedes the stale result. The paths are written in
 cat > "$probe_root/bin/brightnessctl" <<EOF2
 #!/usr/bin/env bash
 case "\${3:-}" in
     set)
         printf '%s\\n' "\$2" >> "$probe_root/set-calls"
-        sleep 1.2
+        for _ in \$(seq 1 200); do
+            [ -e "$probe_root/release-\$2" ] && break
+            sleep 0.05
+        done
         echo "Permission denied" >&2
         exit 1
         ;;
@@ -41,8 +44,10 @@ case "\${3:-}" in
 esac
 EOF2
 chmod +x "$probe_root/bin/brightnessctl"
+# only the first display's write is held; the second reports as soon as it runs
+touch "$probe_root/release-probe-b"
 
-PATH="$probe_root/bin:$PATH" \
+PATH="$probe_root/bin:$PATH" SILERE_BRIGHTNESS_PROBE_ROOT="$probe_root" \
     XDG_CONFIG_HOME="$probe_root/config" XDG_STATE_HOME="$probe_root/config" XDG_CACHE_HOME="$probe_root/config/cache" \
     XDG_RUNTIME_DIR="$probe_root/runtime" QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen \
     QT_NO_XDG_DESKTOP_PORTAL=1 setsid qs -p "$probe_root/project/probe-brightness-write.qml" --no-color >"$probe_root/probe.log" 2>&1 &

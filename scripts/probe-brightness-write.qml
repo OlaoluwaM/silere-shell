@@ -3,7 +3,7 @@ import Quickshell
 import "services"
 
 // a write's result routes by device through the real process exit, so the stand-in
-// brightnessctl on PATH fails slowly enough for the display to change underneath it
+// brightnessctl on PATH holds the first write until this probe has switched displays
 ShellRoot {
     id: root
 
@@ -55,8 +55,8 @@ ShellRoot {
                 return
             }
             // a write only starts the tick after its display was stood in or last written to,
-            // once the failed reads have landed. The stand-in holds each write for 1.2s: one
-            // started in a tick is still running the next and has exited two later
+            // once the failed reads have landed; the stand-in holds the first write until the
+            // probe releases it after the switch, and the second returns at once
             switch (root.phase++) {
             case 1:
                 root.standIn("probe-a")
@@ -70,14 +70,16 @@ ShellRoot {
                 Brightness._selectDevice()
                 root.check(Brightness._device === "probe-b" && Brightness.lastError === "",
                     "the display switches while the first write is in flight")
+                Quickshell.execDetached(["touch",
+                    Quickshell.env("SILERE_BRIGHTNESS_PROBE_ROOT") + "/release-probe-a"])
                 break
-            case 5:
+            case 4:
                 root.check(Brightness.lastError === "",
                     "a failed write to the display no longer selected leaves the new display's status alone")
                 root.rearm()
                 Brightness.setPercent(70)
                 break
-            case 8:
+            case 5:
                 root.check(Brightness.lastError === "Permission denied",
                     "a failed write to the current display reports through the process exit")
                 root.finish()
