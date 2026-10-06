@@ -230,7 +230,12 @@ naming them over upstream's CI claim.
   Rows restored from disk have `sessionCurrent: false`; reload restoration
   retains current-session identity. A reused server ID must not inherit an
   earlier process's read state or target its live notification through an
-  archived row. Preserve unreadable and corrupt files. For newer-format files,
+  archived row. Preserve unreadable and corrupt files, including a
+  supported-version file whose `history` is not a list. Upstream resets the
+  write permission on every read; the fork restores `notifications.json` once
+  per engine and every exit from that restore sets the permission, so that
+  per-read reset is not ported. Keep the once-per-engine restore the only
+  path that decides the permission. For newer-format files,
   restore compatible history/state into memory while leaving the file untouched;
   writes stay blocked, including after in-memory edits or persistence changes.
   Disabling persistence clears existing history and queues an empty disk

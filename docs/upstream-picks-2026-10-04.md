@@ -40,8 +40,9 @@ hunks for one fix.
 - Malformed history: upstream's per-read write-permission reset is not
   ported. The fork restores `notifications.json` once per engine, and every
   exit from that restore already sets the permission.
-- Slider: upstream's `QuickSlider` chevron accessibility hunks are a separate
-  change and were not taken.
+- Slider: upstream's `QuickSlider` chevron accessibility hunks, its
+  `_requestExpand` guard and `GradientSlider`'s minimum and maximum
+  accessibility values are separate changes and were not taken.
 
 ## Declined, deferred and skipped
 
@@ -60,10 +61,18 @@ hunks for one fix.
     workspace timer already expires the preload.
 - Deferred: Bluetooth discovery ownership (`afe4242`), tray rendering and
   fallback (`af8cde3`), dropdown virtualization (`a4a5cc2`), the inline reply
-  focus change (`738523a`), the popup window split (`066b3c0`, `a2cff64`),
-  and the remote-art disk cache (`afe4242`). The split, if taken, keeps the
-  layer rule. Battery status, CPU sensor rediscovery and the Bluetooth
-  `wpctl` volume path remain candidates for a later review.
+  focus change (`738523a`), the popup window split (`066b3c0`), the
+  outside-click close for popups (`a2cff64`), and the remote-art disk cache
+  (`afe4242`). The split, if taken, keeps the layer rule. Battery status, CPU
+  sensor rediscovery and the Bluetooth `wpctl` volume path remain candidates
+  for a later review.
+- Untriaged: the remaining hunks of `afe4242`, `066b3c0` and `af8cde3`
+  outside the fixes above. The Hyprland-relevant ones sit in
+  `services/CompositorHyprland.qml`: a restart when the event socket dies,
+  one rebuild for the twin workspace events, and the string workspace
+  address Hyprland 0.57 sends. The rest touch `NightLight`,
+  `PwVolumeControl`, `Network`, `OsdBarState` and the workspace and bar
+  widgets.
 - Not ported: the rest of `466bec2`'s suite, including the parallel smoke
   runner and checks for absent features.
 
@@ -77,10 +86,12 @@ routing helper they call does not exist yet. An adversarial review of the
 notification and persistence ports found no blocking defects; reverting each
 fix with its tests kept fails them.
 
-`scripts/test-notification-stack.sh` draws on the live compositor and fails
-intermittently with "initial slot did not settle in one step" on the
-unchanged base as well, so `test-logic.sh` and `check.sh` can fail on it at
-random.
+`scripts/test-notification-stack.sh` draws on the live compositor. Its
+"initial slot did not settle in one step" failures during this work were the
+session idle-locking mid-run: a locked session gives no other surface frames.
+`check.sh` now holds idle off for its run and the stack runner fails by name
+on a locked session (`2faca3e`); a host without logind access still runs
+unguarded.
 
 ## Not yet verified live
 
