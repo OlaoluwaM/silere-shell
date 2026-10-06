@@ -102,8 +102,9 @@ _probe_stop() { # $1 = pid
         [ "$ppid" = "$$" ] || [ "$ppid" = "$BASHPID" ] || return 0
         [ "$pgid" = "$1" ] && target="-$1"
     fi
-    # a live pid neither ps nor /proc can describe has no known parent or group: signal that
-    # one pid, as before the group stop, rather than guess at a group and wait on it forever
+    # a live pid neither ps nor /proc can describe has no known parent or group, so the one
+    # pid is the only target that cannot hit a stranger; a guessed group could, and a wait on
+    # a pid this shell may not own never returns
     kill -TERM -- "$target" 2>/dev/null || true
     # A broken probe must not wedge the test runner while ignoring TERM. Poll the
     # exact child briefly, then force it down before wait reaps its status.
