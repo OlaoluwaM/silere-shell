@@ -339,6 +339,17 @@ naming them over upstream's CI claim.
   and the two tokens, plus `Motion.frameAllowance`, the measurement slack that
   reduce-motion deliberately does not scale, when an import touches
   `PageShell` or the page Loaders.
+- Menu pages are laid out at the destination geometry, not at the live width:
+  `MenuWindow.contentPad` and `innerW` key on `panelW` (`contentW` stays live
+  only as the clip box), and a page on its way out keeps its own geometry in a
+  per-page `PagePin` until it has faded; a page called back mid-fade under a
+  pin that no longer matches its resting geometry finishes its exit under the
+  pin and enters fresh instead of resuming. `PageShell` drops its 10 px slide
+  (`slideOnSwap`) while the panel width is changing, and every tab change
+  closes the power drawer from `tabChanging`, so the width it predicts is the
+  width it gets. Upstream sizes pages from the live width, which reflows text
+  every frame of a resize; keep the target layout, the pins and
+  `_widthFor` as the single width decision when an import touches the pane.
 - `ActionButton` has no hover lift: its surface moves only on press, and hover
   is the fill alone. At a fractional output scale the 1px lift lands between
   device pixels and resamples the label, which reads as the button shifting.

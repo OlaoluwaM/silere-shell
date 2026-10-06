@@ -151,7 +151,8 @@ AnchoredPopupState {
         && (settingsSection === "warnings" || settingsSection === "underline")
 
     signal tabRequested(int index)
-    // the window's height hold has to capture the old page before activeTab moves it
+    // emitted before activeTab moves, so the window can still read the outgoing page's geometry and
+    // height; every route to a tab change passes through here, IPC included
     signal tabChanging(int index)
 
     function _validTab(index: int): int {

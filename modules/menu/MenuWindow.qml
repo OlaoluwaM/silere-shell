@@ -45,7 +45,7 @@ PanelWindow {
         enabled:  MenuState.open
         onActivated: {
             if (panel.powerOpen) {
-                panel.powerOpen = false
+                panel._setPowerOpen(false)
             } else if (panel.activeTab === 0 && homeLoader.item && homeLoader.item.dismissInline()) {
             } else if (panel.activeTab === 1 && settingsLoader.item && settingsLoader.item.dismissInline()) {
             } else {
@@ -72,6 +72,39 @@ PanelWindow {
                 p.y < panel.y || p.y > panel.y + panel.height) {
                 MenuState.close()
             }
+        }
+    }
+
+    // one leaving page's frozen geometry. It outlasts the page's exit by a beat, so the page
+    // reflows only once it is fully clear
+    component PagePin: QtObject {
+        id: pin
+        property bool held: false
+        property int pad: 0
+        property int innerW: 0
+        // what the geometry was derived from, so a page called back mid-fade can tell whether
+        // it would rest where it is pinned
+        property int panelW: 0
+        property bool railExpanded: false
+        function hold(padNow: int, innerNow: int, panelNow: int, expandedNow: bool): void {
+            pin.pad = padNow
+            pin.innerW = innerNow
+            pin.panelW = panelNow
+            pin.railExpanded = expandedNow
+            pin.held = true
+            _release.restart()
+        }
+        // the page leaves again before its exit ends, so the same geometry has to outlast a new exit
+        function extend(): void {
+            _release.restart()
+        }
+        function drop(): void {
+            _release.stop()
+            pin.held = false
+        }
+        readonly property Timer _release: Timer {
+            interval: Motion.pageSwapOut + Motion.ms(30)
+            onTriggered: pin.held = false
         }
     }
 
@@ -106,13 +139,16 @@ PanelWindow {
         readonly property bool _settingsNavVisible:
             activeTab === 1 && !powerOpen
         readonly property bool _railExpanded: _settingsNavVisible || powerOpen
-        readonly property int _targetPanelW: activeTab === 1 ? _settingsW
-            : powerOpen ? _powerW : _compactW
         readonly property int _availablePanelW: win.width > 0
             ? Math.max(4, Metrics.snap4Down(win.width - _minX * 2))
             : _settingsW
-        readonly property int panelW: Math.max(1,
-            Math.min(_targetPanelW, _availablePanelW))
+        // the one place a panel width is decided, so predicting a width before a change lands
+        // cannot drift from the width the change then produces
+        function _widthFor(tab: int, power: bool): int {
+            return Math.max(1, Math.min(
+                tab === 1 ? _settingsW : power ? _powerW : _compactW, _availablePanelW))
+        }
+        readonly property int panelW: _widthFor(activeTab, powerOpen)
         readonly property int placementW: Math.max(1,
             Math.min(_settingsW, _availablePanelW))
         readonly property int railCollapsedW: 44
@@ -136,17 +172,48 @@ PanelWindow {
                 easing.bezierCurve: Motion.standard
             }
         }
-        // live width, not the target: the page reflows ahead of the outer edge otherwise
+        // the pane is the clip box, so it tracks the live edge and uncovers the page as the panel
+        // moves. The pages inside do not follow it: one that re-lays out on every frame of a resize
+        // reads as the text shaking, so they lay out at the geometry they will rest at (innerW)
         readonly property int contentW: Math.max(1, Math.round(width - railW))
+        readonly property int _restContentW: Math.max(1,
+            panelW - (_railExpanded ? railExpandedW : railCollapsedW))
+        // keyed on the target width, or the pad steps 16 -> 22 mid-run as the live width crosses 460
         readonly property int contentPad: activeTab === 1
             ? Math.max(16, Math.min(24,
-                Metrics.snap4(16 + (width - _compactW) * 8 / (_settingsW - _compactW))))
-            : _railExpanded && width >= 460 ? 22 : 16
+                Metrics.snap4(16 + (panelW - _compactW) * 8 / (_settingsW - _compactW))))
+            : _railExpanded && panelW >= 460 ? 22 : 16
         // the left inset sits against the rail's hairline, which already reads as
         // separation; the right inset meets the panel outline directly, so it gets
         // a touch more room for the two edges to feel equally spaced
         readonly property int contentPadRight: contentPad + 4
-        readonly property int innerW: Math.max(1, contentW - contentPad - contentPadRight)
+        readonly property int innerW: Math.max(1, _restContentW - contentPad - contentPadRight)
+        // a page on its way out keeps the geometry it started with until it has faded: the
+        // destination's would reflow it under its own exit. Held per page, so a second switch
+        // cannot move a page that is still fading from the first
+        PagePin { id: _pinHome }
+        PagePin { id: _pinSettings }
+        PagePin { id: _pinRecent }
+        PagePin { id: _pinSystem }
+        function _pinFor(tab: int): PagePin {
+            return tab === 0 ? _pinHome : tab === 1 ? _pinSettings
+                : tab === 2 ? _pinRecent : _pinSystem
+        }
+        // a called-back page still finishing its exit is leaving in every sense but activeTab
+        function _pinApplies(tab: int): bool {
+            return panel._pinFor(tab).held && (tab !== panel.activeTab
+                || panel._loaderFor(tab).item?.exiting === true)
+        }
+        function _pageX(tab: int): real {
+            return panel._pinApplies(tab) ? panel._pinFor(tab).pad - panel.contentPad : 0
+        }
+        function _pageW(tab: int): real {
+            return panel._pinApplies(tab) ? panel._pinFor(tab).innerW : panel.innerW
+        }
+        // a switch that keeps the width has no moving edge to show direction, so the pages slide.
+        // Settled before anything moves: a page reading panelW from inside its own active
+        // handler can still see the width it is leaving
+        property bool _swapMovesEdge: false
         readonly property int idealMinH: 360
         readonly property int minRailFitH: 252
         readonly property int pageTopInset: 16
@@ -194,6 +261,15 @@ PanelWindow {
         readonly property int activeTab: MenuState.activeTab
 
         property bool powerOpen: false
+        // armed before the write, not from a handler on it: the width change reflows the page and
+        // can retarget the height in the same flush, which a handler would reach after the first
+        // write and leave it snapping. The open and close resets do not go through here
+        function _setPowerOpen(open: bool): void {
+            if (panel.powerOpen === open) return
+            panel._armOuterHeightMotion()
+            panel.powerOpen = open
+        }
+
         property bool _geometryReady:  false
         property bool _outerHeightMotion: false
         property bool _tabHeightHeld: false
@@ -224,9 +300,10 @@ PanelWindow {
 
         function switchTab(idx: int): void {
             const tab = Math.max(0, Math.min(3, idx))
-            if (powerOpen) powerOpen = false
-            if (tab !== activeTab) panel._beginTabHeightHold(tab)
+            // a change announces itself through tabChanging, which pins the leaving page and closes the
+            // drawer in that order; this covers a tap on the tab already showing
             MenuState.selectTab(tab)
+            panel._setPowerOpen(false)
             contentFlick.contentY = 0
         }
 
@@ -241,17 +318,40 @@ PanelWindow {
         }
         function _beginTabSwap(to: int): void {
             const now = Date.now()
+            const from = panel.activeTab
+            // a page called back while still fading resumes in place, which is only right when its
+            // pinned geometry is the geometry it rests at; otherwise it would move at partial opacity
+            const arriving = panel._loaderFor(to).item
+            const arrivingPin = panel._pinFor(to)
+            if (arriving && arriving.opacity > 0.01 && arrivingPin.held
+                    && (arrivingPin.panelW !== panel._widthFor(to, false)
+                        || arrivingPin.railExpanded !== (to === 1)))
+                arriving.finishExitBeforeEnter()
             let wait = 0
             for (let tab = 0; tab < 4; tab++) {
                 const page = panel._loaderFor(tab).item
                 if (tab === to || !page || page.opacity <= 0.01) continue
                 // the leaving page's own exit starts in the flush the arriving page waits in, so it
                 // needs no slack; one still fading from an earlier switch was timed by the clock
-                wait = Math.max(wait, tab === panel.activeTab ? Motion.pageSwapOut
+                wait = Math.max(wait, tab === from ? Motion.pageSwapOut
                     : page.exitEndsAt - now + Motion.frameAllowance)
             }
             panel._swapWait = Math.min(Motion.pageSwapOut + Motion.frameAllowance,
                 Math.max(0, wait))
+            // every tab change closes the drawer, so the width it lands on is the drawerless one
+            // a width still travelling from an earlier change counts too: the edge is moving even
+            // when this change leaves the target where it was
+            panel._swapMovesEdge = panel._widthFor(to, false) !== panel.panelW
+                || Math.abs(panel.width - panel.panelW) > 0.5
+            const leaving = panel._loaderFor(from).item
+            if (panel.open && Motion.allowsMotion(Idle.isIdle, ShellSettings.reduceMotion)
+                    && leaving && leaving.opacity > 0.01) {
+                // a called-back page still finishing its exit sits at its pinned geometry, not the
+                // panel's; re-pinning from the panel would move it mid-fade
+                if (panel._pinApplies(from)) panel._pinFor(from).extend()
+                else panel._pinFor(from).hold(panel.contentPad, panel.innerW,
+                    panel.panelW, panel._railExpanded)
+            }
         }
 
         function _beginTabHeightHold(tab: int): void {
@@ -265,6 +365,7 @@ PanelWindow {
                 panel._armOuterHeightMotion()
                 return
             }
+            if (panel._tabHeightHeld) return
             panel._tabHeldH = Math.max(1, Math.round(panel.height))
             panel._tabHeightHeld = true
         }
@@ -299,10 +400,12 @@ PanelWindow {
                 panel.switchTab(index)
             }
             function onTabChanging(index) {
-                // IPC can change the tab before tabRequested reaches this window,
-                // so capture here as well as in switchTab, while the old page still sets the height.
+                // every route to a tab change passes here, IPC included, while the old page still
+                // sets the height and fills the pane. The pin has to read the geometry before the
+                // drawer closes, since closing it retargets the geometry being pinned
                 panel._beginTabSwap(index)
-                if (!panel._tabHeightHeld) panel._beginTabHeightHold(index)
+                panel._setPowerOpen(false)
+                panel._beginTabHeightHold(index)
             }
             function onActiveTabChanged() {
                 contentFlick.contentY = 0
@@ -314,10 +417,17 @@ PanelWindow {
             }
             function onOpenChanged() {
                 if (MenuState.open) {
+                    // reopening before closeFinished leaves the last swap half-run: its leaving page
+                    // still exiting while the active one snaps in. Settle every page before the
+                    // pins drop, or a page at partial opacity reflows
+                    panel._settlePageVisuals()
                     // closeFinished is canceled when a close animation reverses; transient drawer state must not depend on that callback
                     panel.powerOpen = false
                     panel._outerHeightMotion = false
                     panel._tabHeightHeld = false
+                    panel._swapMovesEdge = false
+                    panel._swapWait = 0
+                    for (let tab = 0; tab < 4; tab++) panel._pinFor(tab).drop()
                     _tabHeightRelease.stop()
                     _outerHeightMotionHold.stop()
                     contentFlick.contentY = 0
@@ -665,7 +775,7 @@ PanelWindow {
                         || panel.navW < panel._navMinW
                     accentColor: Theme.error
                     active: panel.powerOpen
-                    onTapped: panel.powerOpen = !panel.powerOpen
+                    onTapped: panel._setPowerOpen(!panel.powerOpen)
                 }
             }
         }
@@ -702,7 +812,7 @@ PanelWindow {
 
             TapHandler {
                 enabled: panel.powerOpen
-                onTapped: panel.powerOpen = false
+                onTapped: panel._setPowerOpen(false)
             }
 
             ShellFlickable {
@@ -911,7 +1021,8 @@ PanelWindow {
 
                     Loader {
                         id: homeLoader
-                        width: parent.width
+                        x: panel._pageX(0)
+                        width: panel._pageW(0)
                         active: _pageLifecycle.homeRetained
                         asynchronous: false
                         onStatusChanged: panel._scheduleTabHeightRelease()
@@ -919,6 +1030,7 @@ PanelWindow {
                             HomePage {
                                 width: parent.width
                                 swapWait: panel._swapWait
+                                slideOnSwap: !panel._swapMovesEdge
                                 active: panel.activeTab === 0 && MenuState.open
                                 powerOpen: panel.powerOpen
                                 animateOnCreate: panel.fullyShown
@@ -928,7 +1040,8 @@ PanelWindow {
 
                     Loader {
                         id: settingsLoader
-                        width: parent.width
+                        x: panel._pageX(1)
+                        width: panel._pageW(1)
                         active: _pageLifecycle.loadedDeferred
                             && _pageLifecycle.settingsRetained
                         asynchronous: true
@@ -937,6 +1050,7 @@ PanelWindow {
                             SettingsPage {
                                 width: parent.width
                                 swapWait: panel._swapWait
+                                slideOnSwap: !panel._swapMovesEdge
                                 active: panel.activeTab === 1 && MenuState.open
                                 powerOpen: panel.powerOpen
                                 animateOnCreate: panel.fullyShown
@@ -949,7 +1063,8 @@ PanelWindow {
 
                     Loader {
                         id: recentLoader
-                        width: parent.width
+                        x: panel._pageX(2)
+                        width: panel._pageW(2)
                         active: _pageLifecycle.loadedDeferred
                             && _pageLifecycle.recentRetained
                         asynchronous: true
@@ -958,6 +1073,7 @@ PanelWindow {
                             RecentPage {
                                 width: parent.width
                                 swapWait: panel._swapWait
+                                slideOnSwap: !panel._swapMovesEdge
                                 viewportHeight: panel.recentViewportH
                                 active: panel.activeTab === 2 && MenuState.open
                                 powerOpen: panel.powerOpen
@@ -968,7 +1084,8 @@ PanelWindow {
 
                     Loader {
                         id: systemLoader
-                        width: parent.width
+                        x: panel._pageX(3)
+                        width: panel._pageW(3)
                         active: _pageLifecycle.loadedDeferred
                             && _pageLifecycle.systemRetained
                         asynchronous: true
@@ -977,6 +1094,7 @@ PanelWindow {
                             SystemPage {
                                 width: parent.width
                                 swapWait: panel._swapWait
+                                slideOnSwap: !panel._swapMovesEdge
                                 active: panel.activeTab === 3 && MenuState.open
                                 powerOpen: panel.powerOpen
                                 animateOnCreate: panel.fullyShown

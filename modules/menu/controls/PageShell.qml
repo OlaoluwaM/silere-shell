@@ -9,6 +9,9 @@ Item {
     required property bool powerOpen
 
     property bool animateOnCreate: false
+    // a swap that moves the panel's edge already shows its direction; sliding the page too would
+    // make it two moving things, so the owner turns the slide off while the width is changing
+    property bool slideOnSwap: true
     // how long the arriving page holds back for a visible page that is still leaving, as of the
     // tab change; the owner knows what else is on screen, so the shell takes the number as given
     property int swapWait: 0
@@ -22,6 +25,7 @@ Item {
     enabled: root.active && !root.powerOpen
     visible: opacity > 0.001
     property real _pageShift: 0
+    property real _exitShift: 0
     property real _transitionDirection: 1
     property int _enterDelay: 0
     transform: Translate { x: root._pageShift }
@@ -52,9 +56,20 @@ Item {
         return Math.min(total, Math.max(0, total - elapsedMs))
     }
 
+    // the owner pins a leaving page's geometry for as long as this runs, including after the page is
+    // called back, so a page finishing its exit never re-lays out at partial opacity
+    readonly property bool exiting: _exit.running
+    property bool _finishExit: false
+    // asked of a page about to be called back whose pinned geometry is not where it will rest:
+    // resuming in place would move it mid-fade, so it finishes the fade and enters fresh instead
+    function finishExitBeforeEnter(): void {
+        root._finishExit = _exit.running
+    }
+
     function settleVisual(shown: bool): void {
         _enter.stop()
         _exit.stop()
+        root._finishExit = false
         root.exitEndsAt = 0
         root.opacity = shown ? 1.0 : 0.0
         root._pageShift = 0
@@ -76,7 +91,7 @@ Item {
         root._transitionDirection = MenuState.tabDirection === 0
             ? 1 : MenuState.tabDirection
         root.opacity = root.active && !enterNow ? 1.0 : 0.0
-        root._pageShift = enterNow
+        root._pageShift = enterNow && root.slideOnSwap
             ? Motion.pageOffset * root._transitionDirection : 0
         if (MenuState.open) Qt.callLater(() => root._menuOpenSettled = MenuState.open)
         if (enterNow) Qt.callLater(function() {
@@ -92,6 +107,17 @@ Item {
         root._transitionDirection = MenuState.tabDirection === 0
             ? 1 : MenuState.tabDirection
         if (root.active) {
+            const finishExit = root._finishExit
+            root._finishExit = false
+            if (finishExit && root._menuOpenSettled && root._motionAllowed) {
+                // the exit keeps running at the pinned geometry; the enter waits it out, and for
+                // any other page still leaving, then starts from the cleared page
+                root._enterDelay = Math.min(Motion.pageSwapOut,
+                    Math.max(root.swapWait, root.exitEndsAt - Date.now())) + Motion.frameAllowance
+                _enter.restart()
+                root._announceShown()
+                return
+            }
             _exit.stop()
             root.exitEndsAt = 0
             if (!root._menuOpenSettled || !root._motionAllowed) {
@@ -103,7 +129,8 @@ Item {
             // clocks up. A page still fading out and coming back has nobody to wait for: the page
             // that took its place has not started yet
             if (root.opacity < 0.01) {
-                root._pageShift = Motion.pageOffset * root._transitionDirection
+                root._pageShift = root.slideOnSwap
+                    ? Motion.pageOffset * root._transitionDirection : 0
                 root._enterDelay = root.swapWait
             } else {
                 root._enterDelay = 0
@@ -117,6 +144,8 @@ Item {
             }
             if (root._motionAllowed) {
                 root.exitEndsAt = Date.now() + Motion.pageSwapOut
+                root._exitShift = root.slideOnSwap
+                    ? -Motion.pageOffset * root._transitionDirection : 0
                 _exit.restart()
             } else root.settleVisual(false)
             root._announceHidden()
@@ -143,6 +172,6 @@ Item {
     ParallelAnimation {
         id: _exit
         NumberAnimation { target: root; property: "opacity"; to: 0.0; duration: Motion.pageSwapOut; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.standardAccel }
-        NumberAnimation { target: root; property: "_pageShift"; to: -Motion.pageOffset * root._transitionDirection; duration: Motion.pageSwapOut; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.emphasizedAccel }
+        NumberAnimation { target: root; property: "_pageShift"; to: root._exitShift; duration: Motion.pageSwapOut; easing.type: Easing.BezierSpline; easing.bezierCurve: Motion.emphasizedAccel }
     }
 }
