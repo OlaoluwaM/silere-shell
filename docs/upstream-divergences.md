@@ -320,11 +320,13 @@ naming them over upstream's CI claim.
   is the fill alone. At a fractional output scale the 1px lift lands between
   device pixels and resamples the label, which reads as the button shifting.
   Keep the lift out when an import touches the button's motion.
-- `ConfirmButton` paints its hover, press and armed fills with
+- `ConfirmButton` paints its rest, hover, press and armed fills with
   `Theme.controlFill`, not upstream's mix into `Theme.menuControl`. Under
   glass `menuControl` is a text-coloured wash, and a mix into it drops the
   alpha that kept it dark, so the button turns into a bright block with an
-  unreadable label. Keep `controlFill` when an import touches its colours.
+  unreadable label. Rest also uses the opaque control base so the hover fade
+  cannot flash bright while interpolating from a pale translucent wash to a
+  dark solid. Keep `controlFill` when an import touches its colours.
 - Hyprland Log out, Reboot and Power off run `scripts/hypr-session-end.sh`
   (`HyprDispatch.sessionEndCommand`), not upstream's inline `sh -c` in
   `HyprDispatch.exitCommand()`, and Settings wraps the reboot and power-off
