@@ -1078,14 +1078,20 @@ ShellRoot {
         Brightness.maxBrightness = brightnessMaxWas
         Brightness._device = brightnessDeviceWas
         Brightness.ready = brightnessReadyWas
-        // the display switch resets the old display's error along with its readings
+        // the display switch resets the old display's error along with its readings and
+        // queued write; offscreen those start cleared, so dirty them first
         const brightnessDevicesWas = Brightness.devices
         Brightness.lastError = "Old display error"
+        Brightness.ready = true
+        Brightness.maxBrightness = 100
+        Brightness.currentBrightness = 7
+        Brightness._applyQueued = true
         Brightness.devices = [{ name: brightnessDeviceWas + "-next", type: "raw", max: 100 }]
         Brightness._selectDevice()
         root._check(Brightness._device === brightnessDeviceWas + "-next"
-                && Brightness.lastError === "" && !Brightness.ready,
-            "switching display clears the old display's error")
+                && Brightness.lastError === "" && !Brightness.ready && !Brightness._applyQueued
+                && Brightness.currentBrightness === 0 && Brightness.maxBrightness === 0,
+            "switching display clears the old display's error, readings and queued write")
         Brightness.devices = brightnessDevicesWas
         Brightness._selectDevice()
         Brightness.lastError = brightnessErrorWas
