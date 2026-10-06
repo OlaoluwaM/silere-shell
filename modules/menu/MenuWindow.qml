@@ -225,31 +225,40 @@ PanelWindow {
         function switchTab(idx: int): void {
             const tab = Math.max(0, Math.min(3, idx))
             if (powerOpen) powerOpen = false
-            if (tab !== activeTab) panel._beginTabHeightHold()
+            if (tab !== activeTab) panel._beginTabHeightHold(tab)
             MenuState.selectTab(tab)
             contentFlick.contentY = 0
         }
 
-        function _beginTabHeightHold(): void {
+        function _beginTabHeightHold(tab: int): void {
             if (!panel.open || ShellSettings.reduceMotion) return
+            // a page that is already final has one height destination, so there is nothing to
+            // hold: the height starts with the width instead of a timer tick later
+            if (panel._pageSettled(tab)) {
+                // a hold left by an earlier lazy switch would start this height a tick behind the width
+                panel._tabHeightHeld = false
+                _tabHeightRelease.stop()
+                panel._armOuterHeightMotion()
+                return
+            }
             panel._tabHeldH = Math.max(1, Math.round(panel.height))
             panel._tabHeightHeld = true
         }
 
-        function _activePageSettled(): bool {
-            if (panel.activeTab === 1) {
+        function _pageSettled(tab: int): bool {
+            if (tab === 1) {
                 if (settingsLoader.status === Loader.Error) return true
                 return settingsLoader.status === Loader.Ready
                     && settingsLoader.item?.contentReady === true
             }
-            const status = panel.activeTab === 0 ? homeLoader.status
-                : panel.activeTab === 2 ? recentLoader.status
+            const status = tab === 0 ? homeLoader.status
+                : tab === 2 ? recentLoader.status
                 : systemLoader.status
             return status === Loader.Ready || status === Loader.Error
         }
 
         function _scheduleTabHeightRelease(): void {
-            if (panel._tabHeightHeld && panel._activePageSettled())
+            if (panel._tabHeightHeld && panel._pageSettled(panel.activeTab))
                 _tabHeightRelease.restart()
         }
 
@@ -265,10 +274,10 @@ PanelWindow {
                 if (index !== 0) _pageLifecycle.activateDeferred()
                 panel.switchTab(index)
             }
-            function onTabChanging() {
+            function onTabChanging(index) {
                 // IPC can change the tab before tabRequested reaches this window,
                 // so capture here as well as in switchTab, while the old page still sets the height.
-                if (!panel._tabHeightHeld) panel._beginTabHeightHold()
+                if (!panel._tabHeightHeld) panel._beginTabHeightHold(index)
             }
             function onActiveTabChanged() {
                 contentFlick.contentY = 0
@@ -295,7 +304,7 @@ PanelWindow {
 
         Timer {
             id: _outerHeightMotionHold
-            interval: Motion.pageOut + Motion.panelResize + Motion.ms(60)
+            interval: Motion.pageOut + Motion.menuResize + Motion.ms(60)
             onTriggered: panel._outerHeightMotion = false
         }
 
@@ -303,7 +312,7 @@ PanelWindow {
             id: _tabHeightRelease
             interval: 0
             onTriggered: {
-                if (!panel._tabHeightHeld || !panel._activePageSettled()) return
+                if (!panel._tabHeightHeld || !panel._pageSettled(panel.activeTab)) return
                 panel._armOuterHeightMotion()
                 panel._tabHeightHeld = false
             }
@@ -335,16 +344,14 @@ PanelWindow {
                 easing.bezierCurve: Motion.standard
             }
         }
-        // duration caps the velocity: without it a tall page swap crawls for ~700ms while the
-        // width beside it has long landed, and every scroll-affordance settle times out early
+        // width and height are one motion, or the panel's corner travels a bent path: same curve,
+        // same length, same start frame
         MotionBehavior on height {
             gate: panel._geometryReady && panel.open && panel._outerHeightMotion
-            SmoothedAnimation {
-                velocity: Motion.panelVelocity
-                duration: Motion.panelResize
-                maximumEasingTime: Motion.panelResize
-                // Immediate retargets without carrying the old velocity; Sync snaps the panel edge on a reversal
-                reversingMode: SmoothedAnimation.Immediate
+            NumberAnimation {
+                duration: Motion.menuResize
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Motion.standard
             }
         }
 
@@ -442,6 +449,8 @@ PanelWindow {
                             SettingsNav {
                                 powerOpen: panel.powerOpen
                                 onCurrentPageRetapped: contentFlick.contentY = 0
+                                // the nav reports its final height at once while its groups animate, so
+                                // here the panel does need its own easing
                                 onGroupToggled: panel._armOuterHeightMotion()
                             }
                         }
@@ -708,7 +717,8 @@ PanelWindow {
                         Math.min(Math.max(0, contentHeight - height), target))
                 }
 
-                // the dropdown grows over the panel's height motion; measure once it has settled
+                // the dropdown grows over its own Disclosure and the panel follows it frame by frame, so
+                // the reveal measures once that has landed
                 Timer {
                     id: _selectReveal
                     interval: Motion.medium + 24
@@ -717,17 +727,13 @@ PanelWindow {
 
                 Connections {
                     target: MenuState
+                    // the panel's own height motion stays off for these: the content already animates its
+                    // height, and a NumberAnimation restarted every frame trails it and lands late
                     function onSettingsSelectClaimed() {
-                        if (panel.open && panel.activeTab === 1) {
-                            panel._armOuterHeightMotion()
-                            _selectReveal.restart()
-                        }
+                        if (panel.open && panel.activeTab === 1) _selectReveal.restart()
                     }
                     function onSettingsSelectOpenChanged() {
-                        if (!MenuState.settingsSelectOpen) {
-                            _selectReveal.stop()
-                            if (panel.activeTab === 1) panel._armOuterHeightMotion()
-                        }
+                        if (!MenuState.settingsSelectOpen) _selectReveal.stop()
                     }
                 }
 

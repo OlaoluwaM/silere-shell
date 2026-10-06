@@ -314,12 +314,18 @@ naming them over upstream's CI claim.
   takes a `closedValue`. The fork keeps press and hover scale Behaviors inline
   instead of upstream's `PixelScale`; port fixes aimed at `PixelScale` into
   those inline Behaviors. The menu panel's geometry (width, rail, settings-nav
-  slide, power drawer) runs on `Motion.standard` over the single
+  slide, power drawer, height) runs on `Motion.standard` over the single
   `Motion.menuResize`, in both directions, not upstream's emphasized pair over
   `panelResize` and `panelCollapse` with a `>= panel.width` branch, which
-  front-loads half the distance into one frame and reads as a snap. One length
-  keeps the outer edge and the rail landing together; keep the token and curve
-  when an import touches those Behaviors.
+  front-loads half the distance into one frame and reads as a snap. The height
+  is a `NumberAnimation` on the same curve and length, starting on the same
+  frame as the width, not a `SmoothedAnimation` of its own, so upstream's
+  `Motion.panelVelocity` stays deleted with it. One length keeps
+  every edge landing together; keep the token, the curve and the single clock
+  when an import touches those Behaviors. The height Behavior is armed only
+  for changes that step (tab switches, section swaps, nav group toggles); a
+  select dropdown or collapsible already animates its own height, and arming
+  the Behavior for it makes the panel trail the content.
 - `Motion.pageIn` no longer promises to outlast the panel's resize. Upstream
   defines it as `panelResize` so content never lands opaque inside a
   still-resizing panel, but the menu panel now resizes over `menuResize`, so
