@@ -352,11 +352,13 @@ PageShell {
                     readonly property int _gapAbove: _shape.first ? 0 : _showSection ? 14 : 8
                     // summed from the parts rather than read off the Column: a positioner
                     // reports its new implicitHeight a frame late, after the list has already
-                    // aimed the rows below at the old height, and they snap when the slide ends
+                    // aimed the rows below at the old height, and they snap when the slide ends.
+                    // The body counts by its text, not its visibility: a hidden page makes
+                    // every body invisible, and rows sized without them grow on each reveal
                     readonly property int _cardHeight: Metrics.snap4Up(2 * _entry._topPad
-                        + (_metaRow.visible ? _metaRow.height + _entryContent.spacing : 0)
+                        + (_entry._showHeader ? _metaRow.height + _entryContent.spacing : 0)
                         + _summary.implicitHeight
-                        + (_body.visible ? _entryContent.spacing + _body.contentHeight : 0))
+                        + (_body.bodyText.length > 0 ? _entryContent.spacing + _body.contentHeight : 0))
                     readonly property int _fullHeight: _gapAbove + _sectionHeight + _cardHeight
                     property bool _removing: false
 
@@ -582,7 +584,9 @@ PageShell {
                             Row {
                                 id: _metaRow
                                 width: parent.width
-                                height: visible ? Math.max(16, _appName.implicitHeight) : 0
+                                // sized by its own condition, not its visibility, so the row's
+                                // height sum reads the same while the page is hidden
+                                height: _entry._showHeader ? Math.max(16, _appName.implicitHeight) : 0
                                 visible: _entry._showHeader
                                 spacing: 7
 
@@ -744,7 +748,7 @@ PageShell {
                             ShellText {
                                 id: _summary
                                 width: Math.max(0, parent.width
-                                    - (_metaRow.visible ? 0 : _entry._rightGutter))
+                                    - (_entry._showHeader ? 0 : _entry._rightGutter))
                                 text: _entry.modelData.summary || "Notification"
                                 color: Theme.text
                                 font.pixelSize: Settings.fontSize

@@ -15,10 +15,13 @@ Column {
     // a host that owns the tap (a folded stack) hides the pill so one tap means one thing
     property bool showDisclosure: true
     readonly property bool truncated: bodyLabel.truncated
+    readonly property bool _disclosed: root.showDisclosure && (root.expanded || bodyLabel.truncated)
+    readonly property real _pillHeight: Math.max(16, disclosureLabel.implicitHeight)
     // a Column reports implicitHeight on its next polish, a frame after the text re-wraps,
-    // so a host that lays out from the body's height (a list row) reads this instead
+    // so a host that lays out from the body's height (a list row) reads this instead. It
+    // follows the pill's condition rather than its visibility, which a hidden page clears
     readonly property real contentHeight: bodyLabel.implicitHeight
-        + (disclosure.visible ? root.spacing + disclosure.height : 0)
+        + (root._disclosed ? root.spacing + root._pillHeight : 0)
 
     visible: bodyText.length > 0
     spacing: 5
@@ -42,9 +45,9 @@ Column {
 
     Item {
         id: disclosure
-        visible: root.showDisclosure && (root.expanded || bodyLabel.truncated)
+        visible: root._disclosed
         width: root.width
-        height: visible ? Math.max(16, disclosureLabel.implicitHeight) : 0
+        height: root._disclosed ? root._pillHeight : 0
 
         Item {
             width: disclosureLabel.implicitWidth

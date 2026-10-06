@@ -7,7 +7,9 @@ import "modules/menu" as Menu
 
 // A history row sizes itself from its parts, so a row inserted while the page is shown, or
 // while it is hidden and then revealed, must end up starting where the row above ends once
-// the motion is over. The checks read the rows back rather than the list's own bookkeeping
+// the motion is over, and a hidden page must already size its rows as the shown one will,
+// or every card grows on reveal. The checks read the rows back rather than the list's own
+// bookkeeping
 ShellRoot {
     id: root
 
@@ -17,6 +19,7 @@ ShellRoot {
     property int phase: 0
     property int nextId: 1
     property real expandedBefore: 0
+    property var fullWhileHidden: []
     readonly property string longBody: "The body wraps over more than two lines at this width so the "
         + "collapsed card truncates it and the disclosure pill has something to reveal when tapped."
 
@@ -89,6 +92,22 @@ ShellRoot {
         return out
     }
 
+    // the size a row aims for is its own sum, which a reveal must not change: a row sized
+    // smaller while hidden animates up to its real height every time the page is shown
+    function recordHidden(): void {
+        root.fullWhileHidden = root.rows().map(r => r._fullHeight)
+    }
+
+    function sizedWhileHidden(label: string): void {
+        const live = root.rows()
+        root.check(live.length === root.fullWhileHidden.length,
+            label + ": the rows seen while hidden are the rows that settled")
+        for (let i = 0; i < live.length && i < root.fullWhileHidden.length; i++)
+            root.check(live[i]._fullHeight === root.fullWhileHidden[i],
+                label + ": row " + i + " aimed at " + root.fullWhileHidden[i]
+                    + " while hidden but settled at " + live[i]._fullHeight)
+    }
+
     function settled(label: string, expected: int): void {
         const live = root.rows()
         const list = root.findList(page)
@@ -137,12 +156,16 @@ ShellRoot {
                 root.check(!page.visible, "an inactive page is hidden")
                 root.insert("Epsilon", root.longBody)
                 break
+            case 14:
+                root.recordHidden()
+                break
             case 15:
                 root.pageActive = true
                 page.settleVisual(true)
                 break
             case 21: {
                 root.settled("inserted while hidden, then revealed", 5)
+                root.sizedWhileHidden("inserted while hidden, then revealed")
                 const live = root.rows()
                 const body = live.length > 0 ? root.findBody(live[0]) : null
                 root.check(body !== null && body.truncated, "the newest row's body is truncated")
@@ -163,12 +186,16 @@ ShellRoot {
                 root.insert("Zeta", root.longBody)
                 break
             }
+            case 28:
+                root.recordHidden()
+                break
             case 29:
                 root.pageActive = true
                 page.settleVisual(true)
                 break
             case 33:
                 root.settled("revealed under reduced motion", 6)
+                root.sizedWhileHidden("revealed under reduced motion")
                 console.log("PROBE-RECENT-GEOMETRY " + (root.failures ? "failed" : "passed")
                     + " " + root.checks + " checks")
                 console.log("PROBE-RECENT-DONE")
