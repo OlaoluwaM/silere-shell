@@ -67,6 +67,7 @@ probe_pid=""
 bash scripts/test-notification-reload.sh
 bash scripts/test-niri-focus.sh
 bash scripts/test-history-grouping.sh
+bash scripts/test-recent-geometry.sh
 bash scripts/test-popup-lifecycle.sh
 bash scripts/test-config-recovery.sh
 bash scripts/test-settings-migration.sh

@@ -47,6 +47,7 @@ The full check already includes the runners below, directly or through
 | [test-notification-stack.sh](test-notification-stack.sh) | Notification stack placement, movement, expansion, and timeout collapse on a private session bus; requires Wayland and skips otherwise |
 | [test-niri-focus.sh](test-niri-focus.sh) | Niri focus handling using a mock compositor |
 | [test-history-grouping.sh](test-history-grouping.sh) | Notification history grouping |
+| [test-recent-geometry.sh](test-recent-geometry.sh) | Recent page rows start where the row above ends after an insert while shown, an insert while hidden and revealed, a body expansion, and a reveal under reduced motion; offscreen window |
 | [test-popup-lifecycle.sh](test-popup-lifecycle.sh) | Popup lifecycle under normal and reduced motion |
 | [test-config-recovery.sh](test-config-recovery.sh) | Recovery from malformed configuration |
 | [test-settings-migration.sh](test-settings-migration.sh) | Settings migration and write protection |
