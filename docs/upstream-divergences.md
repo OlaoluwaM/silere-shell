@@ -331,6 +331,14 @@ naming them over upstream's CI claim.
   still-resizing panel, but the menu panel now resizes over `menuResize`, so
   `SettingsPage._sectionEnterDefer` waits that length itself. Keep the wait on
   `menuResize` and `pageIn` unlinked from it when an import touches either.
+- Menu pages fade through on a tab swap: the leaving page exits over
+  `Motion.pageSwapOut`, and the arriving page holds back for it (`swapWait`,
+  measured by `MenuWindow._beginTabSwap` from the pages actually on screen)
+  before entering over `pageSwapIn`. Upstream's `PageShell` starts both at once,
+  so the two pages sit on top of each other at partial opacity. Keep the wait
+  and the two tokens, plus `Motion.frameAllowance`, the measurement slack that
+  reduce-motion deliberately does not scale, when an import touches
+  `PageShell` or the page Loaders.
 - `ActionButton` has no hover lift: its surface moves only on press, and hover
   is the fill alone. At a fractional output scale the 1px lift lands between
   device pixels and resamples the label, which reads as the button shifting.

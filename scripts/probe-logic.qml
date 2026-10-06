@@ -1309,6 +1309,20 @@ ShellRoot {
         root._check(page._motionAllowed === !Idle.isIdle,
             "menu pages animate again once neither idle nor reduce-motion holds")
         ShellSettings.reduceMotion = pageReduceWas
+        // an arriving page holds back for what the owner measured, less the time since, and never
+        // outside [0, swapWait + a frame]: a clock stepped backwards must not hold a page blank
+        page.swapWait = 90
+        root._check(page._enterWait(0) === 107 && page._enterWait(40) === 67
+                && page._enterWait(107) === 0 && page._enterWait(500) === 0
+                && page._enterWait(-500) === 107,
+            "a late page waits out the rest of the leaving exit plus a frame, clamped to that")
+        // a wait the owner already padded still stays inside the same bound
+        page.swapWait = 107
+        root._check(page._enterWait(0) === 107 && page._enterWait(-500) === 107,
+            "a late page never waits past the exit plus the frame allowance")
+        page.swapWait = 0
+        root._check(page._enterWait(0) === 0 && page._enterWait(-500) === 0,
+            "a page waits for nothing when no visible page is leaving")
         page.destroy()
 
         const weekStartWas = ShellSettings.calendarWeekStart

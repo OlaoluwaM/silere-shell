@@ -230,6 +230,30 @@ PanelWindow {
             contentFlick.contentY = 0
         }
 
+        // how long the page arriving on a tab change holds back: the page leaving now takes a full
+        // exit, a page still fading from an earlier switch takes what is left of its own, and
+        // nothing visible leaving means nothing to wait for. Measured before the change moves
+        // anything, since the pages read it from inside their own active handlers
+        property int _swapWait: 0
+        function _loaderFor(tab: int): Loader {
+            return tab === 0 ? homeLoader : tab === 1 ? settingsLoader
+                : tab === 2 ? recentLoader : systemLoader
+        }
+        function _beginTabSwap(to: int): void {
+            const now = Date.now()
+            let wait = 0
+            for (let tab = 0; tab < 4; tab++) {
+                const page = panel._loaderFor(tab).item
+                if (tab === to || !page || page.opacity <= 0.01) continue
+                // the leaving page's own exit starts in the flush the arriving page waits in, so it
+                // needs no slack; one still fading from an earlier switch was timed by the clock
+                wait = Math.max(wait, tab === panel.activeTab ? Motion.pageSwapOut
+                    : page.exitEndsAt - now + Motion.frameAllowance)
+            }
+            panel._swapWait = Math.min(Motion.pageSwapOut + Motion.frameAllowance,
+                Math.max(0, wait))
+        }
+
         function _beginTabHeightHold(tab: int): void {
             if (!panel.open || ShellSettings.reduceMotion) return
             // a page that is already final has one height destination, so there is nothing to
@@ -277,6 +301,7 @@ PanelWindow {
             function onTabChanging(index) {
                 // IPC can change the tab before tabRequested reaches this window,
                 // so capture here as well as in switchTab, while the old page still sets the height.
+                panel._beginTabSwap(index)
                 if (!panel._tabHeightHeld) panel._beginTabHeightHold(index)
             }
             function onActiveTabChanged() {
@@ -893,6 +918,7 @@ PanelWindow {
                         sourceComponent: Component {
                             HomePage {
                                 width: parent.width
+                                swapWait: panel._swapWait
                                 active: panel.activeTab === 0 && MenuState.open
                                 powerOpen: panel.powerOpen
                                 animateOnCreate: panel.fullyShown
@@ -910,6 +936,7 @@ PanelWindow {
                         sourceComponent: Component {
                             SettingsPage {
                                 width: parent.width
+                                swapWait: panel._swapWait
                                 active: panel.activeTab === 1 && MenuState.open
                                 powerOpen: panel.powerOpen
                                 animateOnCreate: panel.fullyShown
@@ -930,6 +957,7 @@ PanelWindow {
                         sourceComponent: Component {
                             RecentPage {
                                 width: parent.width
+                                swapWait: panel._swapWait
                                 viewportHeight: panel.recentViewportH
                                 active: panel.activeTab === 2 && MenuState.open
                                 powerOpen: panel.powerOpen
@@ -948,6 +976,7 @@ PanelWindow {
                         sourceComponent: Component {
                             SystemPage {
                                 width: parent.width
+                                swapWait: panel._swapWait
                                 active: panel.activeTab === 3 && MenuState.open
                                 powerOpen: panel.powerOpen
                                 animateOnCreate: panel.fullyShown

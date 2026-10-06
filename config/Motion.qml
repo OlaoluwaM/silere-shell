@@ -64,6 +64,14 @@ Singleton {
     readonly property int pageIn:      _rm ? 0 : 240
     readonly property int pageOut:     _rm ? 0 : 120
     readonly property real pageOffset: 10
+    // a tab swap fades through: the leaving page clears before the arriving one starts, so no frame
+    // holds two pages at partial opacity. The exit is short because it only has to clear the way
+    readonly property int pageSwapOut: _rm ? 0 : 90
+    readonly property int pageSwapIn:  _rm ? 0 : 210
+    // a wall-clock reading is taken before the animation driver's next tick starts the exit it times,
+    // so a wait measured from it has to leave one frame, or the two pages overlap for a frame. This is
+    // measurement slack rather than motion, so reduce-motion does not scale it
+    readonly property int frameAllowance: 17
 
     readonly property int barMorph: _rm ? 0 : 260
 }

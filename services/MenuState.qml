@@ -18,6 +18,9 @@ AnchoredPopupState {
     property int _previousTab: homeTab
     readonly property int activeTab: _activeTab
     readonly property int previousTab: _previousTab
+    // when the tab last changed, so a lazily built page can tell how much of the swap wait is left
+    property real _tabChangedAt: 0
+    readonly property real tabChangedAt: _tabChangedAt
     readonly property int tabDirection: {
         const delta = tabPosition(activeTab) - tabPosition(previousTab)
         return delta === 0 ? 0 : (delta > 0 ? 1 : -1)
@@ -169,6 +172,7 @@ AnchoredPopupState {
         const tab = root._validTab(index)
         if (tab !== settingsTab) root.closeSettingsSelect()
         if (root._activeTab !== tab) {
+            root._tabChangedAt = Date.now()
             root.tabChanging(tab)
             root._previousTab = root._activeTab
             root._activeTab = tab
