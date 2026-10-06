@@ -90,11 +90,22 @@ naming them over upstream's CI claim.
   space on the live display.
   Layer-shell construction checks use a private configuration/state directory
   and session bus while retaining the Wayland runtime directory. Probe windows
-  stay unmapped; cleanup targets only the child that the probe started.
+  stay unmapped, except the notification-stack probe, which measures motion
+  on the live compositor; each probe is stopped as the process group it was
+  started in (next entry).
   The whole run holds idle off through `systemd-inhibit`, since the fork's
   notification-stack probe draws on the live compositor and a session that
   idle-locks mid-run stops giving it frames. Keep the re-exec at the top when
-  an import rewrites the script's preamble.
+  an import rewrites the script's preamble; a host without logind access runs
+  unguarded, and the stack runner fails by name when this user's session is
+  already locked.
+- `scripts/probe-lib.sh` and the `scripts/test-*.sh` runners: every probe
+  starts under `setsid` and `_probe_stop` ends its whole process group, since
+  a probe's helpers such as fontconfig's `fc-list` outlive a single-pid stop
+  and race the runner's cleanup. Upstream stops the one pid and hides the
+  same race behind its lazy font scan. On a collision keep the group stop and
+  its guards: a group is only signalled when the pid leads it and was started
+  by the calling shell, and a malformed pid never reaches `kill`.
 
 ## Feature collisions — standing resolutions
 

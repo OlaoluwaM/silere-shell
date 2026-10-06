@@ -71,23 +71,39 @@ _probe_errors() { # $1 = log
 # group is only signalled when the pid leads its own: a pgid that is not the probe's
 # would take the runner or the user's shell down with it.
 _probe_stop() { # $1 = pid
-    [ -n "${1:-}" ] || return 0
+    # negated, 0 is the caller's own group and 1 every process on the host, and kill reads
+    # "01" as 1; only a plain pid above 1 may reach a signal
+    case "${1:-}" in
+        '' | *[!0-9]* | 0* | 1) return 0 ;;
+    esac
     local target="$1" ppid="" pgid=""
     # ps finds nothing once the probe exits between checks; under errexit that must not
     # abort the caller's cleanup
     read -r ppid pgid < <(ps -o ppid=,pgid= -p "$1" 2>/dev/null) || true
     if [ -z "$ppid" ]; then
-        # an already reaped leader can leave its group behind, still writing into the
-        # runner's temp dirs. POSIX keeps a pid unused while a group carries its number,
-        # so a live group here is still the probe's own
-        wait "$1" 2>/dev/null || true
-        kill -KILL -- "-$1" 2>/dev/null || true
-        return 0
+        if ! kill -0 "$1" 2>/dev/null; then
+            # an already reaped leader can leave its group behind, still writing into the
+            # runner's temp dirs. POSIX keeps a pid unused while a group carries its number,
+            # so a live group here is still the probe's own
+            wait "$1" 2>/dev/null || true
+            kill -KILL -- "-$1" 2>/dev/null || true
+            return 0
+        fi
+        # ps can fail while the pid lives; the kernel's own record still names the parent
+        # and group, so a reused pid is not mistaken for the probe
+        local stat=""
+        IFS= read -r stat 2>/dev/null < "/proc/$1/stat" || true
+        stat=${stat##*) }
+        read -r _ ppid pgid _ <<< "$stat" || true
     fi
-    # a pid that is not this shell's child was reused after the probe exited; signalling
-    # it, let alone its group, would hit a stranger
-    [ "$ppid" = "$$" ] || [ "$ppid" = "$BASHPID" ] || return 0
-    [ "$pgid" = "$1" ] && target="-$1"
+    if [ -n "$ppid" ]; then
+        # a pid that is not this shell's child was reused after the probe exited; signalling
+        # it, let alone its group, would hit a stranger
+        [ "$ppid" = "$$" ] || [ "$ppid" = "$BASHPID" ] || return 0
+        [ "$pgid" = "$1" ] && target="-$1"
+    fi
+    # a live pid neither ps nor /proc can describe has no known parent or group: signal that
+    # one pid, as before the group stop, rather than guess at a group and wait on it forever
     kill -TERM -- "$target" 2>/dev/null || true
     # A broken probe must not wedge the test runner while ignoring TERM. Poll the
     # exact child briefly, then force it down before wait reaps its status.

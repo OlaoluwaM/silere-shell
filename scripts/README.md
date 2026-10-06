@@ -63,6 +63,7 @@ The full check already includes the runners below, directly or through
 | [test-layout-fit.sh](test-layout-fit.sh) | Label fit across the supported text sizes |
 | [test-portability.sh](test-portability.sh) | Shell helper and installation portability regressions |
 | [test-smoke-config.sh](test-smoke-config.sh) | Private startup configuration copying, symlink isolation, failure handling, launcher wiring, and cleanup; included by the portability suite |
+| [test-probe-stop.sh](test-probe-stop.sh) | Probe group stop: helpers die with their leader, a reaped leader's helpers still go, a stop without `ps` ends a TERM-ignoring probe, and foreign, plain-child and malformed pids are left alone; included by the portability suite |
 
 The Bluetooth regression does not pair or disconnect real hardware. Its fixture
 replaces the Bluetooth service while exercising the real menu list. Hardware

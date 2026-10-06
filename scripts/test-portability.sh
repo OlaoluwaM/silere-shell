@@ -572,5 +572,6 @@ else
 fi
 
 bash "$ROOT/scripts/test-smoke-config.sh"
+bash "$ROOT/scripts/test-probe-stop.sh"
 
 printf 'portability regression tests passed\n'
