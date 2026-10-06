@@ -88,7 +88,9 @@ Each commit passed `bash scripts/ci-lint.sh` and
 `nix develop . --command bash scripts/check.sh` with zero failures and the
 four known environmental warnings. Every port first added probe checks that
 failed on the unfixed code; the brightness checks fail there because the
-routing helper they call does not exist yet. An adversarial review of the
+routing helper they call does not exist yet. A later review noted those
+checks call the helper directly, so `test-brightness-write.sh` now drives it
+through the real process exit with a stand-in `brightnessctl`. An adversarial review of the
 notification and persistence ports found no blocking defects; reverting each
 fix with its tests kept fails them.
 

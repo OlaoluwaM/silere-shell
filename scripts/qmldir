@@ -8,3 +8,4 @@ ProbeUpstreamConnectivity 1.0 probe-upstream-connectivity.qml
 ProbeUpstreamConnectivityPaths 1.0 probe-upstream-connectivity-paths.qml
 ProbePanels 1.0 probe-panels.qml
 ProbeNotificationStack 1.0 probe-notification-stack.qml
+ProbeBrightnessWrite 1.0 probe-brightness-write.qml
