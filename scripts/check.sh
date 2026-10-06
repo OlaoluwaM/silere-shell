@@ -7,12 +7,13 @@ export SILERE_SANDBOX=1
 export QT_FORCE_STDERR_LOGGING=1
 # the stack-motion probe draws on the live compositor, which stops giving other surfaces frames
 # once idle locks the session; a run outlasts the idle timeout, so it holds idle off for its
-# length. The probe call keeps a host without logind access running unguarded
+# length. The probe call keeps a host without logind access running unguarded. The re-exec
+# keeps the bash already running the script, not whichever one PATH finds
 if [ "${SILERE_CHECK_IDLE_HELD:-0}" != 1 ] && command -v systemd-inhibit >/dev/null 2>&1 \
     && systemd-inhibit --what=idle --who=silere-check --why=probe true >/dev/null 2>&1; then
   export SILERE_CHECK_IDLE_HELD=1
   exec systemd-inhibit --what=idle --who=silere-check \
-    --why="Silere checks draw on the live display" bash "${BASH_SOURCE[0]}" "$@"
+    --why="Silere checks draw on the live display" "$BASH" "${BASH_SOURCE[0]}" "$@"
 fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
