@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# a disposable shell registers the notification server; on the desktop bus it could claim the
+# live daemon's name should that daemon drop out mid-run
+if [[ "${1:-}" != "--private-bus" ]]; then
+    exec dbus-run-session -- bash "$0" --private-bus
+fi
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 source "$ROOT/scripts/probe-lib.sh"
@@ -25,7 +31,7 @@ trap cleanup EXIT
 trap 'exit 130' INT TERM
 
 QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen \
-    setsid qs -p "$project/probe-fullscreen-state.qml" --no-color >"$log" 2>&1 &
+    QT_NO_XDG_DESKTOP_PORTAL=1 setsid qs -p "$project/probe-fullscreen-state.qml" --no-color >"$log" 2>&1 &
 probe_pid=$!
 
 _probe_wait "$log" "$probe_pid" 'PROBE-FULLSCREEN-STATE' 80 0.25 || true

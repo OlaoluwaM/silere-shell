@@ -33,7 +33,10 @@ hunks for one fix.
   disk cache and unmapped bars; the fork's smoke runner stays sequential. A
   private cache leaves fontconfig cold, and a probe's `fc-list` outlived the
   probe and raced its cleanup, so probes now run in their own process group
-  and stop as one. Upstream's single-pid teardown has the same race.
+  and stop as one. Upstream's single-pid teardown has the same race. A later
+  review found the remaining runners and the smoke shells still on the desktop
+  bus, where a disposable shell could claim the notification daemon's name;
+  every Quickshell the checks start now runs on a private session bus.
 - Brightness: switching display also clears the old display's error, as
   upstream does in the device-switch reset.
 - Malformed history: upstream's per-read write-permission reset is not

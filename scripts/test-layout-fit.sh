@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
+
+# a disposable shell registers the notification server; on the desktop bus it could claim the
+# live daemon's name should that daemon drop out mid-run
+if [[ "${1:-}" != "--private-bus" ]]; then
+    exec dbus-run-session -- bash "$0" --private-bus
+fi
 export LC_ALL=C
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -88,7 +94,7 @@ for scale in 1.0 1.15; do
     FIT_ROOT="$probe_project" FIT_LIST="$list" FIT_W="$CONTENT_WIDTH" \
         XDG_CONFIG_HOME="$conf" XDG_STATE_HOME="$conf" XDG_CACHE_HOME="$conf/cache" XDG_RUNTIME_DIR="$runtime" \
         QT_QPA_PLATFORM=offscreen QT_FORCE_STDERR_LOGGING=1 \
-        setsid qs -p "$probe_project/${PROBE##*/}" --no-color >"$log" 2>&1 &
+        QT_NO_XDG_DESKTOP_PORTAL=1 setsid qs -p "$probe_project/${PROBE##*/}" --no-color >"$log" 2>&1 &
     probe_pid=$!
     _probe_wait "$log" "$probe_pid" 'FIT-DONE' 240 0.5 || true
 

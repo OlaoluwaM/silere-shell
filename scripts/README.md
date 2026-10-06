@@ -20,7 +20,9 @@ behavioral probes, starts disposable shell instances, and checks settings and
 layout. The Nix development environment supplies the matching Quickshell and
 Qt tools and makes missing QML prerequisites fail instead of skip. Run the full
 check from a graphical session for its Wayland coverage. Temporary instances
-can connect to desktop services; this is not an entirely headless suite.
+run on a private session bus, so none can claim the desktop's notification or
+tray names, but they still reach the compositor and system services; this is
+not an entirely headless suite.
 The startup smoke case copies Silere's configuration into a private directory,
 including materializing symlink targets. Copy failures fail that check. This
 protects shell-owned settings and history from probe writes; configured external

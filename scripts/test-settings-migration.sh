@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# a disposable shell registers the notification server; on the desktop bus it could claim the
+# live daemon's name should that daemon drop out mid-run
+if [[ "${1:-}" != "--private-bus" ]]; then
+    exec dbus-run-session -- bash "$0" --private-bus
+fi
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 source scripts/probe-lib.sh

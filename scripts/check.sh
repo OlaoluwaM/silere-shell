@@ -514,11 +514,14 @@ if [ "$qs_usable" = 1 ]; then
     # plumbing must not drift between the smoke, coverage and bad-settings runs.
     # These shells share the live display, so their bars stay unmapped; qt's elapsed-time
     # animation driver stalls the event loop of a window that never maps. Each edit of the
-    # tree makes new compiled units, which would pile up in the qml cache forever
+    # tree makes new compiled units, which would pile up in the qml cache forever. The bus
+    # is private so a disposable shell can never claim the desktop's notification or tray
+    # names; timeout sits inside it so its status still reaches the caller
     _run_shell_probe() { # logfile [ENV=val ...]
       local _log="$1"; shift
-      timeout --kill-after=2s 5s env SILERE_UNMAPPED_BARS=1 QSG_USE_SIMPLE_ANIMATION_DRIVER=0 \
-        QML_DISABLE_DISK_CACHE=1 "$@" qs "${smoke_flags[@]}" -p shell.qml --no-color >"$_log" 2>&1
+      dbus-run-session -- timeout --kill-after=2s 5s env SILERE_UNMAPPED_BARS=1 \
+        QSG_USE_SIMPLE_ANIMATION_DRIVER=0 QML_DISABLE_DISK_CACHE=1 QT_NO_XDG_DESKTOP_PORTAL=1 "$@" \
+        qs "${smoke_flags[@]}" -p shell.qml --no-color >"$_log" 2>&1
     }
 
     _smoke_cleanup() {

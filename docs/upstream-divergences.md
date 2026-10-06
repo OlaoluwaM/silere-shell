@@ -85,11 +85,12 @@ naming them over upstream's CI claim.
   symlinks and fail the check if copying fails; never silently substitute an
   incomplete copy for the real settings. This isolates shell-owned configuration
   writes, not arbitrary configured commands or desktop services. Every smoke
-  shell also gets a private cache directory beside that configuration and
-  unmapped bars, so it neither fills the user's QML cache nor reserves screen
-  space on the live display.
-  Layer-shell construction checks use a private configuration/state directory
-  and session bus while retaining the Wayland runtime directory. Probe windows
+  shell also gets a private cache directory beside that configuration, unmapped
+  bars and a private session bus, so it neither fills the user's QML cache,
+  reserves screen space on the live display, nor can claim the desktop's
+  notification or tray names should their owner drop out mid-run.
+  Every probe runner shares that private bus, and the layer-shell construction
+  checks keep the Wayland runtime directory beside it. Probe windows
   stay off the live display, through the offscreen platform or `visible:
   false`, except the notification-stack and bar-hint probes, which map real
   layer surfaces to measure motion; each probe is stopped as the process

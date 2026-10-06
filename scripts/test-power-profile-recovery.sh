@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# a disposable shell registers the notification server; on the desktop bus it could claim the
+# live daemon's name should that daemon drop out mid-run
+if [[ "${1:-}" != "--private-bus" ]]; then
+    exec dbus-run-session -- bash "$0" --private-bus "$@"
+fi
+shift
+
 if [ "$#" -eq 0 ]; then
-    bash "$0" failure
-    bash "$0" empty-success
+    bash "$0" --private-bus failure
+    bash "$0" --private-bus empty-success
     exit 0
 fi
 case "$1" in
@@ -57,7 +64,7 @@ PATH="$probe_root/bin:$PATH" SILERE_POWER_PROBE_CALLS="$probe_root/list-calls" \
     SILERE_POWER_PROBE_INITIAL_STATUS="$initial_status" \
     XDG_CONFIG_HOME="$probe_root/config" XDG_STATE_HOME="$probe_root/config" XDG_CACHE_HOME="$probe_root/config/cache" \
     XDG_RUNTIME_DIR="$probe_root/runtime" QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen \
-    setsid qs -p "$probe_root/project/probe-power-profile-recovery.qml" --no-color >"$probe_root/probe.log" 2>&1 &
+    QT_NO_XDG_DESKTOP_PORTAL=1 setsid qs -p "$probe_root/project/probe-power-profile-recovery.qml" --no-color >"$probe_root/probe.log" 2>&1 &
 probe_pid=$!
 _probe_wait "$probe_root/probe.log" "$probe_pid" 'PROBE-POWER-RECOVERY' 40 0.25 || true
 
