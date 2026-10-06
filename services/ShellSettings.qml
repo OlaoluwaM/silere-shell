@@ -103,10 +103,10 @@ Singleton {
     property bool   notifPopupEnabled:   true
     property bool   notifFullscreenSilence: true
     property string notifPosition:       "top-right"
-    property int    notifMaxVisible:     3
+    property int    notifMaxVisible:     4
     property bool   notifHistoryPersistent: GeneratedDefaults.notifHistoryPersistent
     property bool   notifCriticalBypass: true
-    property int    notifHistoryLimit:   20
+    property int    notifHistoryLimit:   50
     property string mediaWidgetFormat:   "title"
     property int    tempHotThreshold:    GeneratedDefaults.tempHotThreshold
     property int    cpuHotPercent:       GeneratedDefaults.cpuHotPercent
