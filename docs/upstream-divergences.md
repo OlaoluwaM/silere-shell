@@ -90,22 +90,25 @@ naming them over upstream's CI claim.
   space on the live display.
   Layer-shell construction checks use a private configuration/state directory
   and session bus while retaining the Wayland runtime directory. Probe windows
-  stay unmapped, except the notification-stack probe, which measures motion
-  on the live compositor; each probe is stopped as the process group it was
-  started in (next entry).
+  stay off the live display, through the offscreen platform or `visible:
+  false`, except the notification-stack and bar-hint probes, which map real
+  layer surfaces to measure motion; each probe is stopped as the process
+  group it was started in (next entry).
   The whole run holds idle off through `systemd-inhibit`, since the fork's
   notification-stack probe draws on the live compositor and a session that
   idle-locks mid-run stops giving it frames. Keep the re-exec at the top when
   an import rewrites the script's preamble; a host without logind access runs
-  unguarded, and the stack runner fails by name when this user's session is
-  already locked.
+  unguarded, and the stack runner fails by name while this user's hyprlock
+  is running.
 - `scripts/probe-lib.sh` and the `scripts/test-*.sh` runners: every probe
   starts under `setsid` and `_probe_stop` ends its whole process group, since
   a probe's helpers such as fontconfig's `fc-list` outlive a single-pid stop
-  and race the runner's cleanup. Upstream stops the one pid and hides the
-  same race behind its lazy font scan. On a collision keep the group stop and
-  its guards: a group is only signalled when the pid leads it and was started
-  by the calling shell, and a malformed pid never reaches `kill`.
+  and race the runner's cleanup. Upstream stops the one pid; whether its lazy
+  font scan keeps `fc-list` out of its probes is unverified. On a collision
+  keep the group stop and its guards: a live pid is only signalled when the
+  calling shell started it, its group only when it leads it, a reaped
+  leader's lingering group is the one exception the code justifies, and a
+  malformed pid never reaches `kill`.
 
 ## Feature collisions — standing resolutions
 
@@ -234,8 +237,9 @@ naming them over upstream's CI claim.
   supported-version file whose `history` is not a list. Upstream resets the
   write permission on every read; the fork restores `notifications.json` once
   per engine and every exit from that restore sets the permission, so that
-  per-read reset is not ported. Keep the once-per-engine restore the only
-  path that decides the permission. For newer-format files,
+  per-read reset is not ported. Keep that restore the only place history is
+  restored; `onLoadFailed` is the only other setter of the permission. For
+  newer-format files,
   restore compatible history/state into memory while leaving the file untouched;
   writes stay blocked, including after in-memory edits or persistence changes.
   Disabling persistence clears existing history and queues an empty disk

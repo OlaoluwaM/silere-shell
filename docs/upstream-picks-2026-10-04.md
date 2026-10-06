@@ -33,8 +33,7 @@ hunks for one fix.
   disk cache and unmapped bars; the fork's smoke runner stays sequential. A
   private cache leaves fontconfig cold, and a probe's `fc-list` outlived the
   probe and raced its cleanup, so probes now run in their own process group
-  and stop as one. Upstream's probe teardown has the same race, hidden by its
-  lazy font scan.
+  and stop as one. Upstream's single-pid teardown has the same race.
 - Brightness: switching display also clears the old display's error, as
   upstream does in the device-switch reset.
 - Malformed history: upstream's per-read write-permission reset is not
@@ -67,12 +66,13 @@ hunks for one fix.
   sensor rediscovery and the Bluetooth `wpctl` volume path remain candidates
   for a later review.
 - Untriaged: the remaining hunks of `afe4242`, `066b3c0` and `af8cde3`
-  outside the fixes above. The Hyprland-relevant ones sit in
-  `services/CompositorHyprland.qml`: a restart when the event socket dies,
-  one rebuild for the twin workspace events, and the string workspace
-  address Hyprland 0.57 sends. The rest touch `NightLight`,
-  `PwVolumeControl`, `Network`, `OsdBarState` and the workspace and bar
-  widgets.
+  outside the fixes above. `afe4242` holds the Hyprland-relevant ones in
+  `services/CompositorHyprland.qml`, a restart when the event socket dies,
+  one rebuild for the twin workspace events and the string workspace address
+  Hyprland 0.57 sends, plus service hunks in `NightLight`,
+  `PwVolumeControl`, `Network` and `OsdBarState`. `066b3c0` carries the rest
+  of its menu, settings and calendar polish, and `af8cde3` its bar
+  rendering.
 - Not ported: the rest of `466bec2`'s suite, including the parallel smoke
   runner and checks for absent features.
 
