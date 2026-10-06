@@ -41,7 +41,10 @@ hunks for one fix.
   exit from that restore already sets the permission.
 - Slider: upstream's `QuickSlider` chevron accessibility hunks, its
   `_requestExpand` guard and `GradientSlider`'s minimum and maximum
-  accessibility values are separate changes and were not taken.
+  accessibility values are separate changes and were not taken. Beyond
+  upstream's off-grid bounds fix, the rail ends return the bounds themselves
+  (`1ed508d`): min + 1 × (max − min) can carry a float residue that the snap
+  rounds a whole step down.
 
 ## Declined, deferred and skipped
 

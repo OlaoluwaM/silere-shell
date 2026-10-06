@@ -100,6 +100,10 @@ naming them over upstream's CI claim.
   an import rewrites the script's preamble; a host without logind access runs
   unguarded, and the stack runner fails by name while this user's hyprlock
   is running.
+- `modules/menu/controls/SliderTrack.qml`: `_posToVal` returns `max` and
+  `min` themselves at the ends of the rail, past upstream's off-grid bounds
+  fix, because min + 1 × (max − min) can carry a float residue that the snap
+  rounds a whole step down. Keep that on an import of the rail code.
 - `scripts/probe-lib.sh` and the `scripts/test-*.sh` runners: every probe
   starts under `setsid` and `_probe_stop` ends its whole process group, since
   a probe's helpers such as fontconfig's `fc-list` outlive a single-pid stop
