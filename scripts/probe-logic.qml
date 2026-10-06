@@ -1053,15 +1053,41 @@ ShellRoot {
         Brightness._acceptWriteResult(Brightness._device, 0, false, "")
         root._check(Brightness.lastError === "",
             "a successful write on the current display clears its previous error")
-        const pendingBefore = Brightness.pendingPercent
+        // offscreen no display is read, so controllable is false and setPercent returns
+        // before its input check; stand in a display and a known level so that check is the
+        // one rejecting
+        const brightnessReadyWas = Brightness.ready
+        const brightnessMaxWas = Brightness.maxBrightness
+        const brightnessCurrentWas = Brightness.currentBrightness
+        const brightnessDeviceWas = Brightness._device
+        const brightnessPendingWas = Brightness.pendingPercent
+        Brightness.ready = true
+        Brightness.maxBrightness = 100
+        if (brightnessDeviceWas.length === 0) Brightness._device = "probe"
+        Brightness.pendingPercent = 50
         const errorBefore = Brightness.lastError
         Brightness.setPercent(NaN)
-        root._check(Brightness.pendingPercent === pendingBefore
+        root._check(Brightness.controllable && Brightness.pendingPercent === 50
                 && Brightness.lastError === errorBefore,
             "non-finite input to setPercent is rejected")
         Brightness.setPercent(Infinity)
-        root._check(Brightness.pendingPercent === pendingBefore,
+        root._check(Brightness.pendingPercent === 50,
             "infinite input to setPercent is rejected")
+        Brightness.pendingPercent = brightnessPendingWas
+        Brightness.currentBrightness = brightnessCurrentWas
+        Brightness.maxBrightness = brightnessMaxWas
+        Brightness._device = brightnessDeviceWas
+        Brightness.ready = brightnessReadyWas
+        // the display switch resets the old display's error along with its readings
+        const brightnessDevicesWas = Brightness.devices
+        Brightness.lastError = "Old display error"
+        Brightness.devices = [{ name: brightnessDeviceWas + "-next", type: "raw", max: 100 }]
+        Brightness._selectDevice()
+        root._check(Brightness._device === brightnessDeviceWas + "-next"
+                && Brightness.lastError === "" && !Brightness.ready,
+            "switching display clears the old display's error")
+        Brightness.devices = brightnessDevicesWas
+        Brightness._selectDevice()
         Brightness.lastError = brightnessErrorWas
         Brightness._applyQueued = brightnessQueuedWas
         SystemTools._tools = brightnessToolsWas
