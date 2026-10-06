@@ -129,14 +129,11 @@ PanelWindow {
         // animated here, not on the rail Item: the content pane derives its x and width from this, and easing only the rail leaves the content snapping ahead of it
         property int railW: _railExpanded ? railExpandedW : railCollapsedW
         MotionBehavior on railW {
-            id: _railMotion
             gate: panel._geometryReady && panel.fullyShown
             NumberAnimation {
-                duration: _railMotion.targetValue > panel.railCollapsedW
-                    ? Motion.panelResize : Motion.panelCollapse
+                duration: Motion.menuResize
                 easing.type: Easing.BezierSpline
-                easing.bezierCurve: _railMotion.targetValue > panel.railCollapsedW
-                    ? Motion.emphasizedDecel : Motion.emphasizedAccel
+                easing.bezierCurve: Motion.standard
             }
         }
         // live width, not the target: the page reflows ahead of the outer edge otherwise
@@ -325,20 +322,17 @@ PanelWindow {
         width:  panelW
         height: targetPanelH
 
-        // must match railW's curve, or the panel's outer edge and the rail's inner edge disagree mid-motion.
+        // must match railW's curve and length, or the panel's outer edge and the rail's inner edge
+        // disagree mid-motion. Neither branches on direction, so a power drawer that stays open
+        // across a narrowing tab switch cannot split them.
         // Not before the card is shown: a window warmed by a hover has its geometry armed
         // before the click, and the width would grow out of the rail under the fade.
-        // Only the compact width keeps the rail collapsed, so heading past it is the rail expanding;
-        // growth alone would split the two when power stays open across a narrowing tab switch
         MotionBehavior on width {
-            id: _widthMotion
             gate: panel._geometryReady && panel.fullyShown
             NumberAnimation {
-                duration: _widthMotion.targetValue > panel._compactW
-                    ? Motion.panelResize : Motion.panelCollapse
+                duration: Motion.menuResize
                 easing.type: Easing.BezierSpline
-                easing.bezierCurve: _widthMotion.targetValue > panel._compactW
-                    ? Motion.emphasizedDecel : Motion.emphasizedAccel
+                easing.bezierCurve: Motion.standard
             }
         }
         // duration caps the velocity: without it a tall page swap crawls for ~700ms while the
@@ -431,13 +425,10 @@ PanelWindow {
                         }
                     }
                     MotionBehavior on _slide {
-                        id: _navSlide
                         NumberAnimation {
-                            duration: _navSlide.targetValue >= 0
-                                ? Motion.panelResize : Motion.panelCollapse
+                            duration: Motion.menuResize
                             easing.type: Easing.BezierSpline
-                            easing.bezierCurve: _navSlide.targetValue >= 0
-                                ? Motion.emphasizedDecel : Motion.emphasizedAccel
+                            easing.bezierCurve: Motion.standard
                         }
                     }
 
@@ -471,12 +462,10 @@ PanelWindow {
                     enabled: panel.powerOpen
 
                     MotionBehavior on height {
-                        id: _powerRailHeight
                         NumberAnimation {
-                            duration: _powerRailHeight.targetValue > 0 ? Motion.panelResize : Motion.panelCollapse
+                            duration: Motion.menuResize
                             easing.type: Easing.BezierSpline
-                            easing.bezierCurve: _powerRailHeight.targetValue > 0
-                                ? Motion.emphasizedDecel : Motion.emphasizedAccel
+                            easing.bezierCurve: Motion.standard
                         }
                     }
                     MotionBehavior on opacity {

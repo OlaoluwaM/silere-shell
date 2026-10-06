@@ -313,9 +313,18 @@ naming them over upstream's CI claim.
 - Behavior timings branch on the Behavior's `targetValue`, and `Disclosure`
   takes a `closedValue`. The fork keeps press and hover scale Behaviors inline
   instead of upstream's `PixelScale`; port fixes aimed at `PixelScale` into
-  those inline Behaviors. The menu panel width keys on
-  `targetValue > _compactW`, not upstream's `>= panel.width`, so its outer edge
-  keeps the rail's curve.
+  those inline Behaviors. The menu panel's geometry (width, rail, settings-nav
+  slide, power drawer) runs on `Motion.standard` over the single
+  `Motion.menuResize`, in both directions, not upstream's emphasized pair over
+  `panelResize` and `panelCollapse` with a `>= panel.width` branch, which
+  front-loads half the distance into one frame and reads as a snap. One length
+  keeps the outer edge and the rail landing together; keep the token and curve
+  when an import touches those Behaviors.
+- `Motion.pageIn` no longer promises to outlast the panel's resize. Upstream
+  defines it as `panelResize` so content never lands opaque inside a
+  still-resizing panel, but the menu panel now resizes over `menuResize`, so
+  `SettingsPage._sectionEnterDefer` waits that length itself. Keep the wait on
+  `menuResize` and `pageIn` unlinked from it when an import touches either.
 - `ActionButton` has no hover lift: its surface moves only on press, and hover
   is the fill alone. At a fractional output scale the 1px lift lands between
   device pixels and resamples the label, which reads as the button shifting.

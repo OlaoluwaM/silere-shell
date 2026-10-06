@@ -167,10 +167,11 @@ PageShell {
             }
         }
 
-        // a section that resolves to the component already loaded never changes status
+        // a section that resolves to the component already loaded never changes status; the
+        // wait is the panel's own resize, since that is what the enter must not slide under
         Timer {
             id: _sectionEnterDefer
-            interval: Motion.panelResize
+            interval: Motion.menuResize
             onTriggered: _detail._startSectionEnter()
         }
 

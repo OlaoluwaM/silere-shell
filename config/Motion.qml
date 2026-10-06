@@ -52,13 +52,18 @@ Singleton {
     readonly property real flickDeceleration: 1800
     readonly property real flickVelocity:     2200
 
-    // the largest moving surface in the shell: a pill's duration reads as a snap at this size
+    // the menu panel's own geometry (outer edge, rail, nav slide, power drawer) rides
+    // Motion.standard over one length in both directions, so every edge of the panel lands on the
+    // same frame. The emphasized pair front-loads half the distance into the first frame, which
+    // reads as a snap at the largest moving surface in the shell
+    readonly property int menuResize: _rm ? 0 : 260
+    // the length of the panel's height run, and what pageIn follows; width, rail and drawer use menuResize
     readonly property int panelResize:   _rm ? 0 : 240
-    readonly property int panelCollapse: _rm ? 0 : 150
     // quiet window a viewport must hold before scroll affordances trust it (see ScrollSettle)
     readonly property int panelSettle:   _rm ? 0 : 180
     readonly property real panelVelocity: 1500
-    // never shorter than panelResize, or content lands opaque inside a still-resizing panel
+    // paces the calendar's month paging and the settings section enter. The panel itself resizes over
+    // menuResize, which the section enter waits out on its own
     readonly property int pageIn:      _rm ? 0 : panelResize
     readonly property int pageOut:     _rm ? 0 : 120
     readonly property real pageOffset: 10
