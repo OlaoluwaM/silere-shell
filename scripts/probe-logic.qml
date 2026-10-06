@@ -1652,6 +1652,13 @@ ShellRoot {
             "slider accessibility exposes its live bounds and increment")
         root._check(offGrid._posToVal(100) === 11 && offGrid._posToVal(0) === 2,
             "slider endpoints stay reachable when the step does not divide the range")
+        // 0.2 + 0.7 is 0.8999999999999999, which a snap would round down to 0.8
+        const railEnd = sliderTrackFactory.createObject(root, {
+            width: 100, value: 0.5, min: 0.2, max: 0.9, step: 0.3
+        })
+        root._check(railEnd._posToVal(100) === 0.9 && railEnd._posToVal(0) === 0.2,
+            "the end of the rail reaches a maximum the float residue would miss")
+        railEnd.destroy()
         offGrid._setFromUser(1000)
         root._check(offGrid.shownValue === 11 && offGridChanged === 11,
             "slider reaches a maximum between grid steps")

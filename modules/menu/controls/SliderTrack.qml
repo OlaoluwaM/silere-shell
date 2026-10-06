@@ -84,6 +84,10 @@ Item {
         if (width <= 0) return min
         const ratio = Math.max(0, Math.min(1,
             (px - root._railInset) / root._railWidth))
+        // min + 1 * (max - min) can carry a float residue under max, which the snap would
+        // then round a whole step down from the end of the rail
+        if (ratio >= 1) return max
+        if (ratio <= 0) return min
         return _clamp(_snap(min + ratio * (max - min)))
     }
     function _setFromUser(v: real): void {
