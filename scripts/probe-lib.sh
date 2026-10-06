@@ -72,9 +72,21 @@ _probe_errors() { # $1 = log
 # would take the runner or the user's shell down with it.
 _probe_stop() { # $1 = pid
     [ -n "${1:-}" ] || return 0
-    kill -0 "$1" 2>/dev/null || return 0
-    local target="$1" pgid
-    pgid="$(ps -o pgid= -p "$1" 2>/dev/null | tr -d ' ')"
+    local target="$1" ppid="" pgid=""
+    # ps finds nothing once the probe exits between checks; under errexit that must not
+    # abort the caller's cleanup
+    read -r ppid pgid < <(ps -o ppid=,pgid= -p "$1" 2>/dev/null) || true
+    if [ -z "$ppid" ]; then
+        # an already reaped leader can leave its group behind, still writing into the
+        # runner's temp dirs. POSIX keeps a pid unused while a group carries its number,
+        # so a live group here is still the probe's own
+        wait "$1" 2>/dev/null || true
+        kill -KILL -- "-$1" 2>/dev/null || true
+        return 0
+    fi
+    # a pid that is not this shell's child was reused after the probe exited; signalling
+    # it, let alone its group, would hit a stranger
+    [ "$ppid" = "$$" ] || [ "$ppid" = "$BASHPID" ] || return 0
     [ "$pgid" = "$1" ] && target="-$1"
     kill -TERM -- "$target" 2>/dev/null || true
     # A broken probe must not wedge the test runner while ignoring TERM. Poll the
