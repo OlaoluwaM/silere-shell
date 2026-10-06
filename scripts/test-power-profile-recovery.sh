@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+source "$ROOT/scripts/probe-lib.sh"
 # a disposable shell registers the notification server; on the desktop bus it could claim the
-# live daemon's name should that daemon drop out mid-run
+# live daemon's name should that daemon drop out mid-run. The launcher never returns
 if [[ "${1:-}" != "--private-bus" ]]; then
-    exec dbus-run-session -- bash "$0" --private-bus "$@"
+    _probe_private_bus "$0" "$@"
 fi
 shift
 
@@ -19,9 +22,6 @@ case "$1" in
     *) echo 'expected failure or empty-success' >&2; exit 2 ;;
 esac
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT"
-source "$ROOT/scripts/probe-lib.sh"
 _probe_require_qs
 
 probe_root="$(mktemp -d "${TMPDIR:-/tmp}/silere-power-recovery.XXXXXX")"

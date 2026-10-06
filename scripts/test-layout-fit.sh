@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# a disposable shell registers the notification server; on the desktop bus it could claim the
-# live daemon's name should that daemon drop out mid-run
-if [[ "${1:-}" != "--private-bus" ]]; then
-    exec dbus-run-session -- bash "$0" --private-bus
-fi
 export LC_ALL=C
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 source "$ROOT/scripts/probe-lib.sh"
+# a disposable shell registers the notification server; on the desktop bus it could claim the
+# live daemon's name should that daemon drop out mid-run. The launcher never returns
+if [[ "${1:-}" != "--private-bus" ]]; then
+    _probe_private_bus "$0" "$@"
+fi
+shift
 
 trap 'exit 130' INT TERM
 

@@ -47,6 +47,26 @@ _probe_standalone() { # $1 = directory
         ! -exec grep -qE '^ {0,4}required property' {} \; -print
 }
 
+# dbus-run-session gives a runner a bus of its own but passes no signal on to it, so a TERM
+# aimed at the launcher would end the bus and leave the runner, and its probe, running past
+# their cleanup. The runner goes into a group of its own with its bus, the launcher forwards
+# what it receives to that group, and it waits for the runner's cleanup to finish. A run that
+# ends on its own reports the runner's status; a forwarded signal reports the bus's.
+_probe_private_bus() { # $1 = runner, $@ = its arguments; never returns
+    local runner="$1" bus status=0 forwarded=0
+    shift
+    setsid dbus-run-session -- bash "$runner" --private-bus "$@" &
+    bus=$!
+    trap 'forwarded=1; kill -TERM -- "-$bus" 2>/dev/null || true' INT TERM
+    wait "$bus" || status=$?
+    # a trapped signal returns the first wait before the runner has exited
+    if [ "$forwarded" -eq 1 ]; then
+        status=0
+        wait "$bus" || status=$?
+    fi
+    exit "$status"
+}
+
 # Neither Qt.exit() nor Quickshell.exit() ends a Quickshell process, so a probe
 # cannot quit itself: wait for its sentinel, then kill the pid it started on.
 _probe_wait() { # $1 = log, $2 = pid, $3 = sentinel, $4 = ticks, $5 = seconds per tick

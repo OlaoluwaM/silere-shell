@@ -167,4 +167,49 @@ _owned_case "malformed pids never reach kill" '
     _pid_running "$by" || { echo "a malformed pid reached the group kill"; exit 1; }
 '
 
+# a TERM aimed at the launcher must reach the runner on its private bus, whose cleanup stops the
+# probe; dbus-run-session itself would die and leave both running
+if command -v dbus-run-session >/dev/null 2>&1; then
+    scratch="$(mktemp -d "${TMPDIR:-/tmp}/silere-probe-launcher.XXXXXX")"
+    cat > "$scratch/runner.sh" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+source '$ROOT/scripts/probe-lib.sh'
+if [[ "\${1:-}" != "--private-bus" ]]; then
+    _probe_private_bus "\$0" "\$@"
+fi
+shift
+probe_pid=""
+cleanup() { _probe_stop "\$probe_pid"; }
+trap cleanup EXIT
+trap 'exit 130' INT TERM
+setsid sleep 30 &
+probe_pid=\$!
+echo "\$probe_pid" > '$scratch/probe-pid'
+wait "\$probe_pid"
+EOF
+    bash "$scratch/runner.sh" 2>/dev/null &
+    launcher=$!
+    _wait_for test -s "$scratch/probe-pid" || fail "the launched runner did not start its probe"
+    p="$(cat "$scratch/probe-pid")"
+    kill -TERM "$launcher"
+    status=0
+    _wait_gone "$p" || status=1
+    kill -KILL -- "-$p" "$p" 2>/dev/null || true
+    for ((i = 0; i < 100; i++)); do
+        kill -0 "$launcher" 2>/dev/null || break
+        sleep 0.05
+    done
+    if kill -0 "$launcher" 2>/dev/null; then
+        kill -KILL "$launcher" 2>/dev/null || true
+        rm -rf "$scratch"
+        fail "the launcher did not exit after forwarding a TERM"
+    fi
+    launcher_status=0
+    wait "$launcher" || launcher_status=$?
+    rm -rf "$scratch"
+    [ "$status" -eq 0 ] || fail "a TERM to the launcher left the probe running"
+    [ "$launcher_status" -ne 0 ] || fail "the launcher reported success for a cancelled run"
+fi
+
 printf 'probe stop passed\n'

@@ -113,7 +113,9 @@ naming them over upstream's CI claim.
   keep the group stop and its guards: a live pid is only signalled when the
   calling shell started it, its group only when it leads it, a reaped
   leader's lingering group is the one exception the code justifies, and a
-  malformed pid never reaches `kill`.
+  malformed pid never reaches `kill`. A runner's private bus comes from
+  `_probe_private_bus`, which supervises `dbus-run-session` instead of
+  exec'ing it, since that tool passes no signal on to the runner it starts.
 
 ## Feature collisions — standing resolutions
 
