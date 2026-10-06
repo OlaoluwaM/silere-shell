@@ -46,6 +46,9 @@ one of the three files, so follow the pointers instead of restating.
 
 ## Gates before every commit
 
+A cosmetic or documentation-only change skips the `ci-lint.sh` and
+`check.sh` runs below; the rest still applies.
+
 - New code is cohesive with the codebase around it: it follows the existing
   patterns, style, idioms, and architecture, and reaches for an existing
   abstraction before inventing a bespoke one. Any deviation carries a
