@@ -26,6 +26,14 @@ ShellRoot {
             "last error line falls back for blank output")
         check(SafeText.lastNonEmptyLine("x".repeat(32), "fallback", 8).length === 8,
             "last error line stays bounded")
+        check(SafeText.lastNonEmptyLine("fatal: no route\n‮\u0000\n", "fallback") === "fatal: no route"
+                && SafeText.lastNonEmptyLine("‮\u0000", "fallback") === "fallback",
+            "error summaries skip lines that become empty after sanitizing control characters")
+        check(SafeText.lastNonEmptyLine("old\r\n  failed\r\n\t\r\n", "fallback") === "failed"
+                && SafeText.lastNonEmptyLine("failed", "fallback") === "failed",
+            "error summaries preserve Windows line endings and an unterminated final line")
+        check(SafeText.lastNonEmptyLine("noise\n".repeat(10000) + "final failure\n", "fallback") === "final failure",
+            "a long tool log still reports its final non-empty error")
 
         const scrollKey = "upstream-services-reversal"
         check(Scroll._processDelta(60, scrollKey, 120, 2, 0) === 0
