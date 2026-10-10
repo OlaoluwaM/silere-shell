@@ -2328,6 +2328,12 @@ ShellRoot {
         root._check(rebootEnd[2] === "reboot" && rebootEnd.length === 6
                 && rebootEnd[4] === "systemctl" && rebootEnd[5] === "reboot",
             "a reboot closes apps first and carries its own command through")
+        root._check(HyprDispatch._text("exec", "'a b'") === "exec 'a b'",
+            "a classic config launches through the exec dispatcher")
+        HyprDispatch.useLua = true
+        root._check(HyprDispatch._text("exec", "'q\"x' 'back\\slash'\n")
+                === "hl.dsp.exec_cmd(\"'q\\\"x' 'back\\\\slash'\\n\")",
+            "a Lua launch escapes quotes, backslashes and newlines for the Lua string")
         HyprDispatch.useLua = luaWas
 
         PowerActionState.request("hibernate", null)

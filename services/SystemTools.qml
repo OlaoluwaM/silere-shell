@@ -85,14 +85,14 @@ Singleton {
     function runOrNotify(command, failTitle: string): void {
         if (!command || command.length === 0) return
         if (!root.hasNotifySend) {
-            Quickshell.execDetached(command)
+            Compositor.launch(command)
             return
         }
         const note = "notify-send --urgency=critical --app-name=silere-shell " +
             root._shq(failTitle) + " " + root._shq("It may require authorization or be blocked by a running task.")
         const argv = ["bash", "-c", '"$@" || ' + note, "bash"]
         for (let i = 0; i < command.length; i++) argv.push(String(command[i]))
-        Quickshell.execDetached(argv)
+        Compositor.launch(argv)
     }
 
     readonly property int _minRetryDelayMs: 5000

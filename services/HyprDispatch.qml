@@ -12,7 +12,7 @@ Singleton {
     property bool useLua: false
 
     function _quote(value): string {
-        return "\"" + String(value).replace(/\\/g, "\\\\").replace(/"/g, "\\\"") + "\""
+        return "\"" + String(value).replace(/\\/g, "\\\\").replace(/"/g, "\\\"").replace(/\n/g, "\\n") + "\""
     }
 
     function _value(value): string {
@@ -31,6 +31,8 @@ Singleton {
             return "hl.dsp.focus({ window = " + root._quote(args) + " })"
         if (dispatcher === "exit")
             return "hl.dsp.exit()"
+        if (dispatcher === "exec")
+            return "hl.dsp.exec_cmd(" + root._quote(args) + ")"
         return ""
     }
 
@@ -50,6 +52,19 @@ Singleton {
     function dispatch(dispatcher, args): void {
         if (!SystemTools.ready || !SystemTools.hasHyprctl) return
         Hyprland.dispatch(root._text(dispatcher, args))
+    }
+
+    // hyprland runs exec through sh -c, so every word is quoted for that shell; a refused dispatch starts it here
+    // instead. This goes through hyprctl rather than Hyprland.dispatch because the in-process socket write
+    // reports no refusal to fall back on
+    function launch(argv): void {
+        if (!SystemTools.ready || !SystemTools.hasHyprctl) {
+            Quickshell.execDetached(argv)
+            return
+        }
+        const words = argv.map(w => "'" + String(w).replace(/'/g, "'\\''") + "'")
+        Quickshell.execDetached(["sh", "-c", "hyprctl dispatch \"$1\" >/dev/null 2>&1 || { shift; exec \"$@\"; }",
+            "sh", root._text("exec", words.join(" "))].concat(argv))
     }
 
     // an argv rather than a dispatch: the power rail runs it through SystemTools.runOrNotify so a
