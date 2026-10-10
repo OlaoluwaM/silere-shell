@@ -85,16 +85,17 @@ PopupState {
         const command = root._command(root._kind)
         const title = root.action.failTitle
         root.close()
-        root.run(command, title)
+        // every countdown action may end in hypr-session-end.sh, which has to run in the shell's unit
+        root.run(command, title, true)
     }
 
-    function run(command, failTitle: string): void {
+    function run(command, failTitle: string, inService): void {
         // a test copy must never lock, suspend or end the real session
         if (Quickshell.env("SILERE_SANDBOX") === "1") {
             console.info("silere-shell: sandboxed power action skipped:", command.join(" "))
             return
         }
-        SystemTools.runOrNotify(command, failTitle)
+        SystemTools.runOrNotify(command, failTitle, inService === true)
     }
 
     Connections {

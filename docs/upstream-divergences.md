@@ -377,7 +377,11 @@ naming them over upstream's CI claim.
   hyprshutdown is upgraded.
   Keep the unit, the restart of the session units it stopped, and the failure
   notification. Port upstream's hyprshutdown flag or fallback changes into the
-  script.
+  script. The countdown's actions start from the shell's service
+  (`runOrNotify`'s `inService`), not through upstream's `Compositor.launch`:
+  the script learns which unit to restart from its own cgroup, and a process
+  the compositor starts belongs to no unit. The lock screen and other
+  launches keep upstream's compositor path.
 - Log out, Reboot and Power off open the fork's countdown card
   (`PowerActionState`, `modules/power`) instead of upstream's
   arm-and-press-again rows; every power action runs through

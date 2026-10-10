@@ -82,17 +82,24 @@ Singleton {
         return true
     }
 
-    function runOrNotify(command, failTitle: string): void {
+    // inService keeps the command in this unit: hypr-session-end.sh finds the shell's service from
+    // its own cgroup to start it again after a cancelled hyprshutdown, and a process the compositor
+    // launches belongs to no unit
+    function runOrNotify(command, failTitle: string, inService): void {
         if (!command || command.length === 0) return
         if (!root.hasNotifySend) {
-            Compositor.launch(command)
+            root._launch(command, inService === true)
             return
         }
         const note = "notify-send --urgency=critical --app-name=silere-shell " +
             root._shq(failTitle) + " " + root._shq("It may require authorization or be blocked by a running task.")
         const argv = ["bash", "-c", '"$@" || ' + note, "bash"]
         for (let i = 0; i < command.length; i++) argv.push(String(command[i]))
-        Compositor.launch(argv)
+        root._launch(argv, inService === true)
+    }
+    function _launch(argv, inService: bool): void {
+        if (inService) Quickshell.execDetached(argv)
+        else Compositor.launch(argv)
     }
 
     readonly property int _minRetryDelayMs: 5000
