@@ -311,7 +311,8 @@ naming them over upstream's CI claim.
   slide. Centered pickers use `FloatingPopupCard` with centered placement.
   Keep scaling removed from these surfaces. Resolve the bar edge and initial
   content size before the entrance; calendar month resizing only animates once
-  the card is fully shown.
+  the card is fully shown, as a `MotionBehavior` on the grid wrap's height, so
+  upstream's `SmoothGlide` card height (`91ad70c`) stays out.
 - Behavior timings branch on the Behavior's `targetValue`, and `Disclosure`
   takes a `closedValue`. The fork keeps press and hover scale Behaviors inline
   instead of upstream's `PixelScale`; port fixes aimed at `PixelScale` into

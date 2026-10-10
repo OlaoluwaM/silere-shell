@@ -301,12 +301,12 @@ PanelWindow {
 
             Item {
                 width: parent.width
-                height: 30
+                height: Metrics.rowHeightFor(30)
 
                 IconButton {
                     id: _prevButton
                     enabled: CalendarState.open
-                    buttonSize: 26
+                    buttonSize: Metrics.rowHeightFor(26)
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     glyph: "󰅁"
@@ -319,9 +319,13 @@ PanelWindow {
                     anchors.centerIn: parent
                     // the grid it names starts a week column in, so centring on the row leaves it visibly left of the days
                     anchors.horizontalCenterOffset: Math.round(card.weekCol / 2)
-                    width: _mLabel.implicitWidth + 16; height: 26
+                    // a long month name gives way to the arrows rather than running under them
+                    width: Math.max(0, Math.min(_mLabel.implicitWidth + 16,
+                        parent.width - _prevButton.width - _nextButton.width - card.weekCol - 24))
+                    height: Metrics.rowHeightFor(26)
                     Accessible.role: Accessible.Button
                     Accessible.name: "Return to current month"
+                    Accessible.description: "Showing " + card.monthLabel
                     Accessible.focusable: CalendarState.open
                     Accessible.onPressAction: card._goToday()
                     // distinct from the today pill's: two controls reading "Jump to today" are indistinguishable by voice
@@ -351,6 +355,9 @@ PanelWindow {
                     ShellText {
                         id: _mLabel
                         anchors.centerIn: parent
+                        width: Math.max(0, parent.width - 16)
+                        horizontalAlignment: Text.AlignHCenter
+                        elide: Text.ElideRight
                         text: card.monthLabel
                         color: (_mH.hovered) ? Theme.text : Theme.withAlpha(Theme.text, 0.9)
                         font.pixelSize: Settings.fontSize + 1; font.weight: Font.DemiBold
@@ -361,7 +368,7 @@ PanelWindow {
                 IconButton {
                     id: _nextButton
                     enabled: CalendarState.open
-                    buttonSize: 26
+                    buttonSize: Metrics.rowHeightFor(26)
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     glyph: "󰅂"
@@ -392,11 +399,17 @@ PanelWindow {
                         id: dayHdr
                         required property int index
                         readonly property int weekday: CalendarState.weekdayAt(index)
+                        readonly property bool weekend: CalendarState.isWeekend(dayHdr.weekday)
                         width: card.cell; height: 20
+                        Accessible.role: Accessible.StaticText
+                        Accessible.name: Qt.locale().standaloneDayName(dayHdr.weekday, Locale.LongFormat)
                         ShellText {
                             anchors.centerIn: parent
-                            text: ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"][dayHdr.weekday]
-                            color: Theme.withAlpha(Theme.subtext, dayHdr.weekday === 0 || dayHdr.weekday === 6 ? 0.78 : 0.92)
+                            width: parent.width - 4
+                            horizontalAlignment: Text.AlignHCenter
+                            elide: Text.ElideRight
+                            text: CalendarState.weekdayLabelFor(dayHdr.weekday, Qt.locale())
+                            color: Theme.withAlpha(Theme.subtext, dayHdr.weekend ? 0.78 : 0.92)
                             font.pixelSize: Settings.fontMicro
                             font.weight: Font.Medium; font.capitalization: Font.AllUppercase
                         }
@@ -466,7 +479,7 @@ PanelWindow {
                             readonly property bool cur:   index >= card._lead && index < card._lead + card._daysThis
                             readonly property bool today: index === card._todayCell
                             readonly property int weekday: CalendarState.weekdayAt(index % 7)
-                            readonly property bool weekend: weekday === 0 || weekday === 6
+                            readonly property bool weekend: CalendarState.isWeekend(weekday)
                             readonly property bool marked: cur
                                 && CalendarState.marks[CalendarState.markKey(card.shownYear, card.shownMonth, dayNum)] === true
                             readonly property int  dayNum:

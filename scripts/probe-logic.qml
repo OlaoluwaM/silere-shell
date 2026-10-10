@@ -1332,6 +1332,16 @@ ShellRoot {
                 && CalendarState.weekStartFor("locale", 6) === 6
                 && CalendarState.weekStartFor("locale", 9) === 6,
             "the calendar resolves its first weekday from the setting or the locale")
+        // Qt numbers weekdays with Sunday as 0, and a locale lists its working days in that scheme
+        root._check(CalendarState.weekendFor(0, [1, 2, 3, 4, 5]) && CalendarState.weekendFor(6, [1, 2, 3, 4, 5])
+                && !CalendarState.weekendFor(3, [1, 2, 3, 4, 5])
+                && CalendarState.weekendFor(5, [0, 1, 2, 3, 4]) && !CalendarState.weekendFor(0, [0, 1, 2, 3, 4])
+                && CalendarState.weekendFor(0, []) && CalendarState.weekendFor(6, null)
+                && !CalendarState.weekendFor(3, undefined),
+            "a calendar weekend follows the locale's working days, falling back to saturday and sunday")
+        root._check(CalendarState.weekdayLabelFor(0, Qt.locale("en_US")) === "Sun"
+                && CalendarState.weekdayLabelFor(6, Qt.locale("en_US")) === "Sat",
+            "calendar day headers take their labels from the locale")
         // September 2026 opens on a Tuesday and its first Thursday is the 3rd, ISO week 36
         ShellSettings.calendarWeekStart = "monday"
         root._check(CalendarState.leadingDays(2026, 8) === 1
