@@ -94,6 +94,10 @@ week settings, log out, and motion timing.
 The [October 4 record](docs/upstream-picks-2026-10-04.md) covers test-shell
 isolation and the slider, brightness, scroll, system-reading and notification
 fixes, and records the declined protocol blur.
+The [October 10 record](docs/upstream-picks-2026-10-10.md) covers the 1.3.0
+and 1.4.0 review: the lock screen launch, Hyprland workspace snapshots,
+notification, battery, audio, Wi-Fi and media fixes, slider grabs and the
+calendar's locale labels.
 
 History stays intact because nixos-config pins this branch by commit. Undo a
 landed selective import with a revert, accounting for any dependent follow-ups.
