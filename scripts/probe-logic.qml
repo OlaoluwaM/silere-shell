@@ -1174,6 +1174,19 @@ ShellRoot {
                 Notifications.historyModel.get(i).summary === s),
             "history lists a burst by arrival even when its popups close newest first")
         Notifications.clearHistory()
+        // a captured snapshot decodes once; a second pass would turn the literal "&lt;b&gt;" a sender
+        // escaped into "<b>" and strip it as a tag
+        Notifications._prependHistory(Notifications._notificationHistoryEntry(
+            { appName: "Chat", summary: "&lt;b&gt;", body: "&amp;lt;b&amp;gt;", urgency: 1 }, 300, 40))
+        const capturedRow = Notifications.historyModel.get(0)
+        root._check(capturedRow.summary === "<b>" && capturedRow.body === "&lt;b&gt;",
+            "history decodes a captured notification's text once")
+        const storedRow = Notifications._normalizeEntry(
+            JSON.parse(JSON.stringify({ summary: capturedRow.summary, body: capturedRow.body })), true)
+        root._check(storedRow.summary === "<b>" && storedRow.body === "&lt;b&gt;"
+                && Notifications._normalizeEntry({ body: "a\u202Eb" }, true).body === "ab",
+            "history restored from disk keeps its stored text and only drops control characters")
+        Notifications.clearHistory()
         ShellSettings.notifHistoryLimit = savedLimit
 
         // the caffeine and DND pickers both ride these, so the shapes are contract

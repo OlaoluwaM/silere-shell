@@ -48,8 +48,10 @@ Singleton {
         return SafeText.singleLineText(value, root._maxIdentityChars)
     }
 
-    // roles are fixed by the first insert, so every entry (incl. one revived from JSON) needs the full shape
-    function _normalizeEntry(e): var {
+    // roles are fixed by the first insert, so every entry (incl. one revived from JSON) needs the full shape.
+    // storedText marks rows this process already decoded when it saved them: decoding again would turn a
+    // literal "&lt;b&gt;" into "<b>" and strip it as a tag
+    function _normalizeEntry(e, storedText): var {
         if (!e || typeof e !== "object") return null
         const rawId = Number(e.id ?? -1)
         const rawUrgency = Number(e.urgency ?? 1)
@@ -60,8 +62,10 @@ Singleton {
             appName:      root.identityText(e.appName),
             appIcon:      SafeText.boundedText(e.appIcon, root._maxSourceChars),
             desktopEntry: root.identityText(e.desktopEntry),
-            summary:      root.plainText(e.summary, root._maxSummaryChars),
-            body:         root.plainText(e.body, root._maxBodyChars),
+            summary:      storedText === true ? root._boundedPlainText(e.summary, root._maxSummaryChars)
+                : root.plainText(e.summary, root._maxSummaryChars),
+            body:         storedText === true ? root._boundedPlainText(e.body, root._maxBodyChars)
+                : root.plainText(e.body, root._maxBodyChars),
             urgency:      isFinite(rawUrgency)
                 ? Math.max(0, Math.min(2, Math.round(rawUrgency))) : 1,
             time:         isFinite(rawTime) && rawTime >= 0 && rawTime <= 8.64e15
@@ -255,7 +259,7 @@ Singleton {
         _history.clear()
         if (Array.isArray(savedHistory)) {
             for (let i = 0; i < savedHistory.length && i < root._historyCapacity; i++) {
-                const e = root._normalizeEntry(savedHistory[i])
+                const e = root._normalizeEntry(savedHistory[i], true)
                 if (e) _history.append(e)
             }
         }
@@ -475,7 +479,7 @@ Singleton {
                 const limit = _history.count + root._historyCapacity
                 const scanLimit = Math.min(parsed.history.length, root._historyCapacity)
                 for (let i = 0; i < scanLimit && _history.count < limit; i++) {
-                    const entry = root._normalizeEntry(parsed.history[i])
+                    const entry = root._normalizeEntry(parsed.history[i], true)
                     if (!entry) continue
                     const key = root._historyIdentity(entry)
                     if (present[key]) continue
@@ -614,11 +618,12 @@ Singleton {
         if (!notification || notification.transient) return null
         return {
             id:      id,
-            appName: root.identityText(notification.appName),
-            appIcon: SafeText.boundedText(notification.appIcon, root._maxSourceChars),
-            desktopEntry: root.identityText(notification.desktopEntry),
-            summary: root.plainText(notification.summary, root._maxSummaryChars),
-            body:    root.plainText(notification.body),
+            // _prependHistory bounds and normalizes this snapshot once
+            appName: notification.appName,
+            appIcon: notification.appIcon,
+            desktopEntry: notification.desktopEntry,
+            summary: notification.summary,
+            body:    notification.body,
             urgency: notification.urgency,
             time:    time,
             sessionCurrent: true
@@ -717,6 +722,11 @@ Singleton {
         if (list.length === 0 && lastCritical) lastCritical = false
     }
 
+    function _boundedPlainText(value, limit: int): string {
+        return SafeText.boundedText(SafeText.boundedText(value, limit * 2)
+            .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u061C\u200B\u200E\u200F\u202A-\u202E\u2066-\u206F]/g, ""), limit)
+    }
+
     function plainText(s, maxChars): string {
         if (!s) return ""
         const requested = Number(maxChars)
@@ -734,8 +744,7 @@ Singleton {
             })
             .replace(/&nbsp;/g, " ").replace(/&hellip;/g, "…")
             .replace(/&amp;/g, "&")
-            .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u061C\u200B\u200E\u200F\u202A-\u202E\u2066-\u206F]/g, "")
-        return SafeText.boundedText(plain, limit)
+        return root._boundedPlainText(plain, limit)
     }
 
     function notificationImageSource(raw): string {
