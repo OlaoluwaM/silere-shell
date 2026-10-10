@@ -1948,6 +1948,25 @@ ShellRoot {
         root._check(nmEmpty.length === 3 && nmEmpty[1] === "",
             "an empty nmcli field is kept in place")
 
+        const netDev = "Inter-|   Receive |  Transmit\n face |bytes    packets\n"
+            + "  wlo1: 1 2 3\n    lo: 4 5 6\n  tun0: 7 8 9\n"
+        root._check(Network.interfaceNames(netDev) === "lo tun0 wlo1"
+                && Network.interfaceNames(netDev.replace("  tun0: 7 8 9\n", "")) === "lo wlo1"
+                && Network.interfaceNames("") === "",
+            "the interface list names every interface and skips the header")
+        const interfacesWas = Network._interfaceNames
+        Network._vpnSettleTimer.stop()
+        Network._interfaceNames = "lo wlo1"
+        Network._applyInterfaceNames("  wlo1: 1\n  lo: 2\n")
+        const unchangedArmed = Network._vpnSettleTimer.running
+        Network._applyInterfaceNames("  wlo1: 1\n  lo: 2\n  wg0: 3\n")
+        const tunnelArmed = Network._vpnSettleTimer.running
+        const tunnelNames = Network._interfaceNames
+        Network._vpnSettleTimer.stop()
+        Network._interfaceNames = interfacesWas
+        root._check(!unchangedArmed && tunnelArmed && tunnelNames === "lo wg0 wlo1",
+            "a tunnel interface appearing rechecks the VPN, an unchanged list does not")
+
         const vpnStateWas = Network._vpnState
         Network._vpnState = ({ active: true, name: "stale probe VPN" })
         Network._vpnCandidateActive = true
