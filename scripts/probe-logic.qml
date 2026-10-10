@@ -1666,6 +1666,16 @@ ShellRoot {
                 && Media.pickPlayer([radio, video], "video", {}) === video
                 && Media.pickPlayer([null, music], "", {}) === music,
             "the media card follows the most recently active player, like the media keys, unless one is pinned")
+        // a rescan can swap the access point object, so a linked network of the same name settles the
+        // connect, unless one of that name was already linked when it began
+        const linkedCafe = { name: "Cafe", connected: true }
+        Network.wifiConnecting = "Cafe"
+        Network._wifiNameWasLinked = true
+        const settledOnOldLink = Network._acceptWifiLink(linkedCafe)
+        Network._wifiNameWasLinked = false
+        root._check(!settledOnOldLink && Network.wifiConnecting === "Cafe"
+                && Network._acceptWifiLink(linkedCafe) && Network.wifiConnecting === "",
+            "a wifi connect settles from the live list only when its name was not already linked")
         root._check(Media.finiteNonnegative(NaN) === 0
                 && Media.finiteNonnegative(Infinity) === 0
                 && Media.finiteNonnegative(12.5) === 12.5,

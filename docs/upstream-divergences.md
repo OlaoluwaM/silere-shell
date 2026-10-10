@@ -114,6 +114,10 @@ naming them over upstream's CI claim.
   upstream does, but stops at rows dated after the current time, so rows from
   a clock that went back neither bury nor trim a new arrival. Keep the stop
   on an import of the history insert.
+- `services/Network.qml`: upstream's rescan fallback, `_acceptWifiLink`,
+  stays out while `_wifiNameWasLinked`: a network of the target's name already
+  linked when the connect began proves nothing about the new link. Keep the
+  flag on an import of the Wi-Fi connect.
 - `scripts/probe-lib.sh` and the `scripts/test-*.sh` runners: every probe
   starts under `setsid` and `_probe_stop` ends its whole process group, since
   a probe's helpers such as fontconfig's `fc-list` outlive a single-pid stop
