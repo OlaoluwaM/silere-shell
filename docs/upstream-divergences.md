@@ -294,7 +294,9 @@ naming them over upstream's CI claim.
 - Tray context menus keep adaptive lane-fit placement, drill-in navigation,
   and root-lane overlays so nested menus fit without overlapping their ancestors.
   Apply hover/lifecycle fixes around that geometry; upstream's simpler
-  `Metrics.flyoutX` placement is not a replacement for it.
+  `Metrics.flyoutX` placement is not a replacement for it. Checkbox entries
+  draw an outlined box that fills with the accent; keep it over upstream's
+  bare check mark, which leaves an unchecked row looking stray-indented.
 - Control popups keep one exclusive `OverlayCoordinator` claim: menu,
   calendar, tray menu/list, quick actions, keybinds, wallpapers, media, and
   the power countdown all close their peers and reject late opens while idle
