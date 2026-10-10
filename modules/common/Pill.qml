@@ -56,6 +56,7 @@ Item {
     // every hover consequence (cap, reveal, hint, cursor) reads this gate instead of the handler
     readonly property bool hoverEnabled: root.enabled && root.visible && root.barActive
         && !root.collapsed && !Idle.isIdle
+    readonly property bool canActivate: root.interactive && root.hoverEnabled
     readonly property bool hovered: root.hoverEnabled && _pillHover.hovered
     readonly property bool expanded: root.hoverEnabled && hoverActive
     property var    hintScreen: null
@@ -76,8 +77,8 @@ Item {
 
     Accessible.role: root.interactive ? Accessible.Button : Accessible.StaticText
     Accessible.name: root.accessibleName
-    Accessible.focusable: root.interactive
-    Accessible.onPressAction: if (root.interactive) root.activated()
+    Accessible.focusable: root.canActivate
+    Accessible.onPressAction: if (root.canActivate) root.activated()
 
     implicitWidth:  collapsed ? 0 : Math.max(rowWidth, _minW) + horizontalPadding * 2
 
@@ -338,7 +339,9 @@ Item {
                         root._settleAnimatedContent()
                         return
                     }
-                    _textSwap.restart()
+                    // restarting on every change would keep the fade at zero while the text
+                    // changes faster than it, so the swap takes whatever text is current
+                    if (!_textSwap.running) _textSwap.start()
                 }
             }
 
@@ -347,6 +350,7 @@ Item {
                 NumberAnimation { target: _textEl; property: "opacity"; to: 0;   duration: Motion.instant; easing.type: Easing.InCubic  }
                 ScriptAction    { script: _textEl._shown = root.text }
                 NumberAnimation { target: _textEl; property: "opacity"; to: 1.0; duration: Motion.fast;    easing.type: Easing.OutCubic }
+                onFinished: if (root.motionActive && _textEl._shown !== root.text) _textSwap.start()
             }
         }
     }
