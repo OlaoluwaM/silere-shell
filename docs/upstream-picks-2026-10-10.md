@@ -37,6 +37,10 @@ unrelated work, so each fork commit takes only the hunks for one fix.
 | `6ab33fd` | fix(media): rank players already playing when the shell starts | follow-up to c7e0b9d |
 | `1b75cfc` | fix(notifications): keep a new arrival above history rows dated in the future | follow-up to 5dca77b |
 | `8a69a51` | fix(network): settle a wifi connect from the live list only for a new link | follow-up to 9d3b66a |
+| `32acbcc` | fix(calendar): read the locale's working days as an array | follow-up to 91ad70c |
+| `3ce292e` | fix(osd): take the first battery reading as a quiet baseline | follow-up to 9d3b66a |
+| `4b96d37` | perf(hyprland): filter closed windows by address, not the ipc snapshot | follow-up to 4541db8 |
+| `bfb0438` | docs(history): say where an older arrival lands against the run tail | follow-up to 5dca77b |
 
 ## Material adaptations
 
@@ -171,6 +175,34 @@ Two findings stay open:
   English locales are unaffected.
 - The prev and next arrows take the disabled look while the calendar fades
   out, as upstream's do.
+
+## QML review
+
+The repository's `qt-qml-review` ran over the changed QML. Its linter's 11
+hits on changed lines were false positives or the files' existing patterns,
+and `qmllint` reported nothing on changed lines. All six review missions
+returned. Fixed from them:
+
+- `32acbcc`: `Locale.weekDays` is a sequence, so the `Array.isArray` gate
+  upstream ported always fell back to Saturday and Sunday; reproduced with a
+  headless `ar_SA` locale, and the probe now feeds a real locale.
+- `3ce292e`: the full-charge latch stayed quiet at login only when UPower
+  answered before the OSD armed; the first reading is now a silent baseline.
+- `4b96d37`: the closed-window filter rebuilt each window's IPC map on every
+  layout tick; it reads the address property instead.
+- `bfb0438`: `HistoryGrouping`'s run-key comment still assumed arrivals at
+  index zero.
+
+Open:
+
+- The calendar's prev and next arrows take the disabled look while the card
+  fades out and fade up from it on open. The window's input mask and `_go`'s
+  guard already block input while closed.
+- An older notification that history slots in below a run's tail changes the
+  run's key, so a run the user opened during that burst folds again.
+- `SystemTools` now calls the `Compositor` facade, which reaches back into
+  `SystemTools` through `HyprDispatch`. Every reference sits in a function
+  body, as upstream's does, so construction order is unaffected.
 
 ## Not yet verified live
 
