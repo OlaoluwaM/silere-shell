@@ -1661,6 +1661,20 @@ ShellRoot {
             "non-interactive slider ignores scroll steps")
         track.destroy()
 
+        // animate off so the drawn handle sits on the value the moment it is set
+        const grabTrack = sliderTrackFactory.createObject(root, {
+            width: 100, value: 0, min: 0, max: 1, step: 0.1, animate: false
+        })
+        grabTrack.nudge(1, 5)
+        grabTrack._press(grabTrack._thumbCenter + 5)
+        const heldOnGrab = grabTrack.shownValue === 0.5
+        grabTrack._drag(grabTrack._thumbCenter + 5 + 8.6)
+        const draggedFromGrab = grabTrack.shownValue === 0.6
+        grabTrack._press(95)
+        root._check(heldOnGrab && draggedFromGrab && grabTrack.shownValue === 1,
+            "pressing the slider handle off centre holds its value, and a press on the rail still jumps")
+        grabTrack.destroy()
+
         // a step that does not divide the range must still reach both bounds
         const offGrid = sliderTrackFactory.createObject(root, {
             width: 100, value: 4, min: 2, max: 11, step: 4

@@ -23,6 +23,8 @@ Item {
         : Math.round(_clamped(position) * displayScale)
     readonly property real stepSize: 1
     property real _hoveredSince: 0
+    // where on the handle the press landed, so grabbing it off centre does not jump the hue
+    property real _grab: 0
     // the motion lives on the position, not on the thumb's x: x also moves when the
     // track is laid out or resized, and a section opening around the slider would
     // sweep the thumb in from the left
@@ -128,8 +130,10 @@ Item {
         }
 
         onPressed: mouse => {
-            _set(mouse.x)
+            const off = mouse.x - (_track.x + root._shownPosition * _track.width)
+            root._grab = Math.abs(off) <= _thumb.width / 2 + 2 ? off : 0
+            _set(mouse.x - root._grab)
         }
-        onPositionChanged: mouse => { if (pressed) _set(mouse.x) }
+        onPositionChanged: mouse => { if (pressed) _set(mouse.x - root._grab) }
     }
 }

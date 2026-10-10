@@ -41,6 +41,11 @@ Item {
 
     implicitHeight: Math.max(root.railHeight, root.thumbHeight)
 
+    // where the handle is actually drawn, which trails the value while the ratio animates
+    readonly property real _thumbCenter: root._railInset + root._railWidth * root._shownRatio
+    // where on the handle the press landed, so grabbing it off centre does not jump the value
+    property real _grab: 0
+
     readonly property real shownValue: _shownValue
     readonly property bool dragging: _ma.pressed
     property real _shownValue: value
@@ -89,6 +94,14 @@ Item {
         if (ratio >= 1) return max
         if (ratio <= 0) return min
         return _clamp(_snap(min + ratio * (max - min)))
+    }
+    function _press(px: real): void {
+        const off = px - root._thumbCenter
+        root._grab = root.showThumb && Math.abs(off) <= root.thumbWidth / 2 + 2 ? off : 0
+        root._setFromUser(root._posToVal(px - root._grab))
+    }
+    function _drag(px: real): void {
+        root._setFromUser(root._posToVal(px - root._grab))
     }
     function _setFromUser(v: real): void {
         const next = _clamp(_snap(v))
@@ -153,8 +166,8 @@ Item {
         cursorShape: Qt.PointingHandCursor
         // hold the grab or the Flickable steals a quick press and snaps the value to the edge
         preventStealing: true
-        onPressed: (mouse) => root._setFromUser(root._posToVal(mouse.x))
-        onPositionChanged: (mouse) => { if (pressed) root._setFromUser(root._posToVal(mouse.x)) }
+        onPressed: (mouse) => root._press(mouse.x)
+        onPositionChanged: (mouse) => { if (pressed) root._drag(mouse.x) }
         onReleased:        if (root.commitOnRelease) root.changed(root._shownValue)
         onCanceled:        root._shownValue = root.value
         onContainsMouseChanged: if (containsMouse) root._hoveredSince = Date.now()
