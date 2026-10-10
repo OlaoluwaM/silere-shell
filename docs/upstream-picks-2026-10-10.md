@@ -193,11 +193,13 @@ returned. Fixed from them:
 - `bfb0438`: `HistoryGrouping`'s run-key comment still assumed arrivals at
   index zero.
 
+Kept as upstream by the maintainer's call: the calendar's prev and next
+arrows take the disabled look while the card fades out and fade up from it on
+open. The window's input mask and `_go`'s guard already block input while
+closed, so the gate is redundant but harmless.
+
 Open:
 
-- The calendar's prev and next arrows take the disabled look while the card
-  fades out and fade up from it on open. The window's input mask and `_go`'s
-  guard already block input while closed.
 - An older notification that history slots in below a run's tail changes the
   run's key, so a run the user opened during that burst folds again.
 - `SystemTools` now calls the `Compositor` facade, which reaches back into
