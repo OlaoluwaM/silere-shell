@@ -372,9 +372,17 @@ Singleton {
             + (Battery.timeLabel ? "  " + Battery.timeLabel : "")
         root.showAlert("battery", Battery.icon, Battery.pct / 100, label, Theme.error)
     }
+    // once per charge: pct wobbling around 99 would otherwise repeat the alert, and a
+    // full battery already seen before the OSD arms counts, so login stays quiet. Only
+    // leaving AC or dropping well below full starts the next charge.
+    property bool _fullAnnounced: false
     function _alertBatteryFull(): void {
-        if (!Battery.full || !Battery.charging || !ShellSettings.osdChargedNotify) return
-        root.showAlert("battery", Battery.icon, 1.0, "Fully charged · 100%", Theme.success)
+        if (!Battery.available) return
+        if (!Battery.charging || Battery.pct < 97) root._fullAnnounced = false
+        if (!Battery.full || !Battery.charging || !ShellSettings.osdChargedNotify
+                || root._fullAnnounced) return
+        root._fullAnnounced = true
+        root.showAlert("battery", Battery.icon, 1.0, "Fully charged · " + Battery.label, Theme.success)
     }
     function _alertTempHot(): void {
         if (!CpuTemp.hot || !ShellSettings.osdTempWarn) return
@@ -402,6 +410,9 @@ Singleton {
         function onLowChanged() { root._alertBatteryLow() }
         function onCriticalChanged() { root._alertBatteryCritical() }
         function onFullChanged() { root._alertBatteryFull() }
+        // a full battery pulled off AC never flips full, so the latch needs these to re-arm
+        function onChargingChanged() { root._alertBatteryFull() }
+        function onPctChanged() { root._alertBatteryFull() }
     }
 
     Connections {
