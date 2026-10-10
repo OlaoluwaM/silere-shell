@@ -2363,6 +2363,27 @@ ShellRoot {
                 && Compositor.windowTitle("⠹build") === "⠹build"
                 && Compositor.windowTitle("plain title") === "plain title",
             "a leading terminal spinner glyph is stripped from a window title and nothing else")
+        const hypr = Compositor.isHyprland ? Compositor._be : null
+        if (hypr) {
+            root._check(hypr._missingWorkspaceId([{ id: 1 }, { id: 2 }],
+                        [{ lastIpcObject: { workspace: { id: 2 } } },
+                         { lastIpcObject: { workspace: { id: 4 } } }]) === 4
+                    && hypr._missingWorkspaceId([{ id: 1 }, { id: 4 }],
+                        [{ lastIpcObject: { workspace: { id: 4 } } },
+                         { lastIpcObject: { workspace: { id: -98, name: "special:magic" } } }, null]) === -1,
+                "a window on a numbered workspace the model lacks is found; known and special ones are not")
+            const refreshKeyWas = hypr._workspaceRefreshKey
+            const refreshTriesWas = hypr._workspaceRefreshTries
+            hypr._workspaceRefreshKey = ""
+            hypr._eventConn.onRawEvent({ name: "changeworkspaceid", data: "3,5" })
+            const idChangeRefreshes = hypr._workspaceRefreshKey === "id:3,5"
+                && hypr._workspaceRefreshTries === 1
+            for (let i = 0; i < 4; i++) hypr._requestWorkspaceRefresh("id:3,5")
+            root._check(idChangeRefreshes && hypr._workspaceRefreshTries === 3,
+                "a workspace id change asks for a fresh workspace list, at most three times for one gap")
+            hypr._workspaceRefreshKey = refreshKeyWas
+            hypr._workspaceRefreshTries = refreshTriesWas
+        }
         root._check(WindowActions._hasBrowserToken("org.mozilla.firefox", "firefox")
                 && WindowActions._hasBrowserToken("google-chrome", "chrome")
                 && !WindowActions._hasBrowserToken("operator", "opera")
