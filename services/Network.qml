@@ -347,6 +347,19 @@ Singleton {
         _pendingNetwork = null
     }
 
+    function _acceptWifiLink(network): bool {
+        if (root.wifiConnecting.length === 0 || !network || !network.connected
+                || network.name !== root.wifiConnecting) return false
+        root._finishWifi(true, ConnectionFailReason.Unknown)
+        return true
+    }
+
+    // a rescan can replace the access point object mid-connect, so success is also read from the live list
+    function _settleWifiLink(): bool {
+        if (root.wifiConnecting.length === 0) return false
+        return root._acceptWifiLink(root._findWifiNetwork(root.wifiConnecting))
+    }
+
     // Disabling Wi-Fi tears down the backend-side request. Clear our local
     // request too, otherwise its timeout reports a stale failure after Wi-Fi
     // has already been turned off.
@@ -404,7 +417,9 @@ Singleton {
             if (root._pendingNetwork && root._pendingNetwork.connected)
                 root._finishWifi(true, ConnectionFailReason.Unknown)
         }
-        function onConnectionFailed(reason) { root._finishWifi(false, reason) }
+        function onConnectionFailed(reason) {
+            if (!root._settleWifiLink()) root._finishWifi(false, reason)
+        }
     }
 
     Connections {
@@ -430,7 +445,8 @@ Singleton {
     Timer {
         id: _connectTimeout
         interval: 20000
-        onTriggered: root._finishWifi(false, ConnectionFailReason.Unknown)
+        onTriggered: if (!root._settleWifiLink())
+            root._finishWifi(false, ConnectionFailReason.Unknown)
     }
 
     function _splitNmcliLine(line: string): var {
@@ -485,6 +501,7 @@ Singleton {
 
     on_LinkSignatureChanged: {
         root._queueVpnRefresh()
+        Qt.callLater(root._settleWifiLink)
         if (root.wifiError.length === 0) return
         const network = root._findWifiNetwork(root.wifiError)
         if (network && network.connected) root.clearWifiError()
