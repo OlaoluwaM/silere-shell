@@ -1166,6 +1166,14 @@ ShellRoot {
         root._check(Notifications.historyCount === 7,
             "lowering the limit trims history that is already stored")
         Notifications.clearHistory()
+        Notifications._prependHistory({ id: 251, appName: "Chat", summary: "third", time: 30 })
+        Notifications._prependHistory({ id: 250, appName: "Chat", summary: "second", time: 20 })
+        Notifications._prependHistory({ id: 249, appName: "Chat", summary: "first", time: 10 })
+        Notifications._prependHistory({ id: 252, appName: "Chat", summary: "fourth", time: 30 })
+        root._check(["fourth", "third", "second", "first"].every((s, i) =>
+                Notifications.historyModel.get(i).summary === s),
+            "history lists a burst by arrival even when its popups close newest first")
+        Notifications.clearHistory()
         ShellSettings.notifHistoryLimit = savedLimit
 
         // the caffeine and DND pickers both ride these, so the shapes are contract

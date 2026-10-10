@@ -106,7 +106,7 @@ ShellRoot {
                 Notifications._seen = { "1": true }
                 Notifications._times = { "1": 1001 }
                 for (let i = 2; i <= 8; i++) root.archive("Seed", "row " + i, i, 1000 + i)
-                root.archive("Seed", "recycled id", 1, 1001)
+                root.archive("Seed", "recycled id", 1, 1009)
                 root.archive("Alpha", "same text", 41, 4100)
                 root.archive("Beta", "same text", 42, 4100)
                 Notifications.removeFromHistory({ id: 41, time: 4100,
