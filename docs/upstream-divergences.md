@@ -110,6 +110,10 @@ naming them over upstream's CI claim.
   handler, so players already playing when the shell starts are not ranked as
   new beside the next one to start. Keep both on an import of the player
   pick.
+- `services/Notifications.qml`: `_prependHistory` orders by arrival as
+  upstream does, but stops at rows dated after the current time, so rows from
+  a clock that went back neither bury nor trim a new arrival. Keep the stop
+  on an import of the history insert.
 - `scripts/probe-lib.sh` and the `scripts/test-*.sh` runners: every probe
   starts under `setsid` and `_probe_stop` ends its whole process group, since
   a probe's helpers such as fontconfig's `fc-list` outlive a single-pid stop

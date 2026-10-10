@@ -1175,6 +1175,16 @@ ShellRoot {
                 Notifications.historyModel.get(i).summary === s),
             "history lists a burst by arrival even when its popups close newest first")
         Notifications.clearHistory()
+        // rows a clock that later went back dated in the future must not bury, or trim, a new arrival
+        ShellSettings.notifHistoryLimit = 5
+        const aheadOfClock = Date.now() + 86400000
+        for (let i = 0; i < 5; i++)
+            Notifications._prependHistory({ id: 260 + i, appName: "Chat", summary: "ahead" + i, time: aheadOfClock + i })
+        Notifications._prependHistory({ id: 270, appName: "Chat", summary: "arrived", time: Date.now() })
+        root._check(Notifications.historyCount === 5 && Notifications.historyModel.get(0).summary === "arrived",
+            "a new arrival tops history rows dated after the current time")
+        ShellSettings.notifHistoryLimit = 7
+        Notifications.clearHistory()
         // a captured snapshot decodes once; a second pass would turn the literal "&lt;b&gt;" a sender
         // escaped into "<b>" and strip it as a tag
         Notifications._prependHistory(Notifications._notificationHistoryEntry(

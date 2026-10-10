@@ -136,9 +136,12 @@ Singleton {
     function _prependHistory(entry): void {
         const e = root._normalizeEntry(entry)
         if (!e) return
-        // by arrival, not by close: the popup stack shows the newest first, so a burst closes newest first
+        // by arrival, not by close: the popup stack shows the newest first, so a burst closes newest first.
+        // A row dated after now came from a clock that has since gone back; walking past it would bury
+        // the new arrival and, with history full, trim it
+        const now = Date.now()
         let at = 0
-        while (at < _history.count && _history.get(at).time > e.time) at++
+        while (at < _history.count && _history.get(at).time > e.time && _history.get(at).time <= now) at++
         _history.insert(at, e)
         root._trimHistory()
     }
