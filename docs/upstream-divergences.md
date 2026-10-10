@@ -105,6 +105,11 @@ naming them over upstream's CI claim.
   `min` themselves at the ends of the rail, past upstream's off-grid bounds
   fix, because min + 1 × (max − min) can carry a float residue that the snap
   rounds a whole step down. Keep that on an import of the rail code.
+- `services/Media.qml`: `_trackActivity` runs at startup as well as on
+  playing changes, and ranks only listed players, past upstream's change
+  handler, so players already playing when the shell starts are not ranked as
+  new beside the next one to start. Keep both on an import of the player
+  pick.
 - `scripts/probe-lib.sh` and the `scripts/test-*.sh` runners: every probe
   starts under `setsid` and `_probe_stop` ends its whole process group, since
   a probe's helpers such as fontconfig's `fc-list` outlive a single-pid stop
