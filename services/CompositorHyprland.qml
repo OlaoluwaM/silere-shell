@@ -221,11 +221,10 @@ QtObject {
         }
         root._closedAddrs = next
     }
+    // the address property, not lastIpcObject: every read of that map builds a fresh JS object,
+    // and this filter runs for each window on every layout tick
     function _withoutClosed(tops, closed): var {
-        return tops.filter(t => {
-            const c = t ? t.lastIpcObject : null
-            return !(c && closed[c.address] === true)
-        })
+        return tops.filter(t => !(t && t.address && closed["0x" + t.address] === true))
     }
     function _liveToplevels(): var {
         return root._withoutClosed(Hyprland.toplevels ? (Hyprland.toplevels.values ?? []) : [], root._closedAddrs)
