@@ -1067,6 +1067,16 @@ ShellRoot {
         // offscreen no display is read, so controllable is false and setPercent returns
         // before its input check; stand in a display and a known level so that check is the
         // one rejecting
+        root._check(Brightness.notchLevel(13, 2, 15, 5) === 3
+                && Brightness.notchLevel(20, 3, 15, -5) === 2
+                && Brightness.notchLevel(13, 2, 15, -5) === 1,
+            "a brightness notch on a 15-level backlight always moves one level")
+        root._check(Brightness.notchLevel(45, 29491, 65535, 5) === 32768
+                && Brightness.notchLevel(47, 30801, 65535, -5) === 29491,
+            "a brightness notch on a fine backlight lands on the 5% grid")
+        root._check(Brightness.notchLevel(100, 15, 15, 5) === 15
+                && Brightness.notchLevel(7, 1, 15, -5) === 1,
+            "a brightness notch stops at full and never turns the backlight off")
         const brightnessReadyWas = Brightness.ready
         const brightnessMaxWas = Brightness.maxBrightness
         const brightnessCurrentWas = Brightness.currentBrightness
