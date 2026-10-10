@@ -338,9 +338,10 @@ Item {
                 // expired, not dismissed: the pause at isQuiet holds the timer, so this is the only exit
                 // for a card that arrived while away, and it must still reach history. A card already
                 // leaving has nothing left to start, so complete its dismissal directly
+                // a card that never auto-closes (persistent, or critical without a timeout) waits for the user
                 // this can remove the delegate synchronously: keep it last
-                if (card.enabled) card.dismiss(true)
-                else card._completeDismiss()
+                if (!card.enabled) card._completeDismiss()
+                else if (_autoClose.shouldRun) card.dismiss(true)
                 return
             }
             card._updateTime()
