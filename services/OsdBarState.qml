@@ -372,12 +372,18 @@ Singleton {
             + (Battery.timeLabel ? "  " + Battery.timeLabel : "")
         root.showAlert("battery", Battery.icon, Battery.pct / 100, label, Theme.error)
     }
-    // once per charge: pct wobbling around 99 would otherwise repeat the alert, and a
-    // full battery already seen before the OSD arms counts, so login stays quiet. Only
-    // leaving AC or dropping well below full starts the next charge.
+    // once per charge: pct wobbling around 99 would otherwise repeat the alert. The first
+    // reading is a quiet baseline, since UPower can answer after the OSD arms and a battery
+    // full at login is no news. Only leaving AC or dropping well below full starts the next charge.
     property bool _fullAnnounced: false
+    property bool _fullBaselined: false
     function _alertBatteryFull(): void {
         if (!Battery.available) return
+        if (!root._fullBaselined) {
+            root._fullBaselined = true
+            root._fullAnnounced = Battery.full && Battery.charging
+            return
+        }
         if (!Battery.charging || Battery.pct < 97) root._fullAnnounced = false
         if (!Battery.full || !Battery.charging || !ShellSettings.osdChargedNotify
                 || root._fullAnnounced) return
