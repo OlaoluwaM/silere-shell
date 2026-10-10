@@ -30,14 +30,15 @@ Singleton {
     // binding it, and the mic write paths below must not write through that window
     readonly property bool sourceReady: Pipewire.ready && source !== null && source.ready
         && sourceAudio !== null
-    readonly property real sourceVolume: root._clampVolume(sourceReady ? sourceAudio.volume : 0)
+    readonly property real sourceVolume: root._clampVolume(sourceReady && sourceAudio ? sourceAudio.volume : 0)
 
-    property real targetVolume: ready ? root._clampVolume(audio.volume) : 0
+    // audio can notify null before ready re-evaluates, so guard it directly
+    property real targetVolume: ready && audio ? root._clampVolume(audio.volume) : 0
     property bool pendingApply: false
     property bool _componentReady: false
 
     readonly property real effectiveVolume: root._clampVolume(
-        pendingApply ? targetVolume : (ready ? audio.volume : 0))
+        pendingApply ? targetVolume : (ready && audio ? audio.volume : 0))
     property bool _pendingMuted: false
     property bool _desiredMuted: false
     property bool _muteWritePending: false
