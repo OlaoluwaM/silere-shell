@@ -1369,7 +1369,9 @@ ShellRoot {
                 && !CalendarState.weekendFor(3, [1, 2, 3, 4, 5])
                 && CalendarState.weekendFor(5, [0, 1, 2, 3, 4]) && !CalendarState.weekendFor(0, [0, 1, 2, 3, 4])
                 && CalendarState.weekendFor(0, []) && CalendarState.weekendFor(6, null)
-                && !CalendarState.weekendFor(3, undefined),
+                && !CalendarState.weekendFor(3, undefined)
+                && CalendarState.weekendFor(5, Qt.locale("ar_SA").weekDays)
+                && !CalendarState.weekendFor(0, Qt.locale("ar_SA").weekDays),
             "a calendar weekend follows the locale's working days, falling back to saturday and sunday")
         root._check(CalendarState.weekdayLabelFor(0, Qt.locale("en_US")) === "Sun"
                 && CalendarState.weekdayLabelFor(6, Qt.locale("en_US")) === "Sat",

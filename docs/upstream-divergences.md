@@ -118,6 +118,10 @@ naming them over upstream's CI claim.
   stays out while `_wifiNameWasLinked`: a network of the target's name already
   linked when the connect began proves nothing about the new link. Keep the
   flag on an import of the Wi-Fi connect.
+- `services/CalendarState.qml`: `weekendFor` copies the working days with
+  `Array.from`, because `Locale.weekDays` is a sequence that upstream's
+  `Array.isArray` gate rejects, so every locale fell back to Saturday and
+  Sunday. Keep the copy on an import of the calendar weekend.
 - `scripts/probe-lib.sh` and the `scripts/test-*.sh` runners: every probe
   starts under `setsid` and `_probe_stop` ends its whole process group, since
   a probe's helpers such as fontconfig's `fc-list` outlive a single-pid stop
