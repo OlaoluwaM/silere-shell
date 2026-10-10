@@ -105,10 +105,19 @@ PanelWindow {
             _gridSwap.stop(); _grid.opacity = 1; _grid.xOff = 0
         }
         function _go(y: int, m: int, dir: int): void {
+            // the card lingers while it fades out, so a wheel tick or press in that window would swap months under a closing popup
+            if (!CalendarState.open) return
             navDir = dir
             dispYear = y; dispMonth = m
-            if (ShellSettings.reduceMotion) { _gridSwap.stop(); shownYear = y; shownMonth = m; _grid.opacity = 1; _grid.xOff = 0; return }
+            if (ShellSettings.reduceMotion) { card._settleMonth(); return }
             _gridSwap.restart()
+        }
+        function _settleMonth(): void {
+            _gridSwap.stop()
+            shownYear = dispYear
+            shownMonth = dispMonth
+            _grid.opacity = 1
+            _grid.xOff = 0
         }
         function _step(delta: int): void {
             let m = dispMonth + delta, y = dispYear
@@ -130,6 +139,13 @@ PanelWindow {
                     card._snapToday()
                     card.forceActiveFocus()
                 } else _gridSwap.stop()
+            }
+        }
+        Connections {
+            target: ShellSettings
+            // a swap already running when Reduce motion turns on would otherwise play out its fade
+            function onReduceMotionChanged() {
+                if (ShellSettings.reduceMotion) card._settleMonth()
             }
         }
         Connections {
@@ -167,6 +183,7 @@ PanelWindow {
 
 
         WheelHandler {
+            enabled: CalendarState.open
             acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
             onWheel: (e) => {
                 const n = Scroll.processControlWheel(e, "calendar")
@@ -193,7 +210,7 @@ PanelWindow {
 
                     Accessible.role: Accessible.Button
                     Accessible.name: "Today"
-                    Accessible.focusable: true
+                    Accessible.focusable: CalendarState.open
                     Accessible.onPressAction: card._goToday()
 
                     HoverHandler { id: _todayH; cursorShape: Qt.PointingHandCursor }
@@ -288,6 +305,7 @@ PanelWindow {
 
                 IconButton {
                     id: _prevButton
+                    enabled: CalendarState.open
                     buttonSize: 26
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
@@ -304,7 +322,7 @@ PanelWindow {
                     width: _mLabel.implicitWidth + 16; height: 26
                     Accessible.role: Accessible.Button
                     Accessible.name: "Return to current month"
-                    Accessible.focusable: true
+                    Accessible.focusable: CalendarState.open
                     Accessible.onPressAction: card._goToday()
                     // distinct from the today pill's: two controls reading "Jump to today" are indistinguishable by voice
                     HoverHandler { id: _mH; cursorShape: Qt.PointingHandCursor }
@@ -342,6 +360,7 @@ PanelWindow {
 
                 IconButton {
                     id: _nextButton
+                    enabled: CalendarState.open
                     buttonSize: 26
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
