@@ -143,6 +143,11 @@ PanelWindow {
         }
         return false
     }
+    function _overTrayList(p: point): bool {
+        const r = TrayPopupState.cardRect
+        return p.x >= r.x && p.x <= r.x + r.width &&
+               p.y >= r.y && p.y <= r.y + r.height
+    }
 
     TapHandler {
         id: _dismiss
@@ -153,8 +158,13 @@ PanelWindow {
             const p = _dismiss.point.position
             if (win._overFlyout(p)) return
             if (p.x < card.x || p.x > card.x + card.width ||
-                p.y < card.y || p.y > card.y + card.height)
+                p.y < card.y || p.y > card.y + card.height) {
+                // a tap on the tray list only dismisses this menu, so another row can be picked;
+                // anywhere else leaves both. Read before close(): closing clears popupSourced.
+                const leavesList = TrayMenuState.popupSourced && !win._overTrayList(p)
                 TrayMenuState.close()
+                if (leavesList) TrayPopupState.close()
+            }
         }
     }
 

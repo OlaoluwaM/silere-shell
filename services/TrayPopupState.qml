@@ -10,6 +10,10 @@ AnchoredPopupState {
     id: root
 
     anchorRecoveryMs: 0
+    // TrayPopupWindow's card, in coordinates a tray menu opened from one of its rows shares
+    // (both windows cover the same output edge to edge). That menu's window sits over this
+    // one and takes every tap, so it needs the card to tell a tap on the list from one outside both.
+    property rect cardRect: Qt.rect(0, 0, 0, 0)
     // the pill's own slot stays loaded across an empty tray (its BarZone visibility
     // gate has no setting to disable, so `wanted` never flips) -- it only fades out,
     // so anchorSource never nulls on its own. Watch the tray directly instead.

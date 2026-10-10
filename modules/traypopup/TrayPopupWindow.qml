@@ -109,6 +109,12 @@ PanelWindow {
 
         onXChanged: win._syncRowAnchors()
 
+        Binding {
+            target: TrayPopupState
+            property: "cardRect"
+            value: Qt.rect(card.x, card.y, card.width, card.height)
+        }
+
         Connections {
             target: TrayPopupState
             function onOpenChanged() { if (TrayPopupState.open) card.forceActiveFocus() }
