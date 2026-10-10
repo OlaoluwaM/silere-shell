@@ -44,7 +44,7 @@ Item {
     readonly property var _defaultAction: {
         const acts = notification.actions ?? []
         for (let i = 0; i < acts.length && i < 64; i++)
-            if (acts[i] && Notifications.identityText(acts[i].identifier).toLowerCase() === "default") return acts[i]
+            if (acts[i] && acts[i].identifier === "default") return acts[i]
         return null
     }
     readonly property var actionList: {
@@ -53,7 +53,7 @@ Item {
         for (let i = 0; i < acts.length && i < 64 && out.length < 4; i++) {
             const a = acts[i]
             if (!a) continue
-            if (Notifications.identityText(a.identifier).toLowerCase() === "default") continue
+            if (a.identifier === "default") continue
             if (card._actionText(a).length === 0) continue
             out.push(a)
         }
