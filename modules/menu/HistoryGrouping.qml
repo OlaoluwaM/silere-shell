@@ -18,8 +18,10 @@ QtObject {
         return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate()
     }
 
-    // The run tail survives new arrivals at index zero. It identifies the
-    // retained group without confusing equal timestamps or reused server ids.
+    // The run tail survives arrivals newer than it. It identifies the retained
+    // group without confusing equal timestamps or reused server ids; an older
+    // arrival that history slots in below the tail starts a new key, and an
+    // open run folds again.
     function runKey(app: string, day: string, tail): string {
         return JSON.stringify([app, day, tail.id, tail.time])
     }
