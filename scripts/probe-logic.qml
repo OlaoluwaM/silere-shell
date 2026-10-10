@@ -605,6 +605,16 @@ ShellRoot {
                 && OsdBarState._kindAllowedByFilter("volume", "volume")
                 && !OsdBarState._kindAllowedByFilter("brightness", "volume"),
             "OSD input filtering admits only the selected feedback kind")
+        const stepNow = Date.now()
+        const steppedAhead = stepNow + 3 * 3600 * 1000
+        root._check(OsdBarState._due(stepNow, stepNow) && !OsdBarState._due(stepNow + 500, stepNow)
+                && OsdBarState._due(steppedAhead, stepNow),
+            "an OSD deadline set before the wall clock stepped back is due rather than hours away")
+        const steppedCard = notificationCardFactory.createObject(root)
+        steppedCard.timeoutStartedAt = steppedAhead
+        root._check(steppedCard._shownMs() === 0,
+            "a notification stamped before the wall clock stepped back keeps its own timeout")
+        steppedCard.destroy()
 
         root._check(!OverlayCoordinator._environmentBlocksControls(false, false)
                 && OverlayCoordinator._environmentBlocksControls(true, false)
@@ -2672,6 +2682,9 @@ ShellRoot {
             if (Hooks._budgetAllows()) hookRunsAllowed++
         root._check(hookRunsAllowed === Hooks.maxRunsPerSecond,
             "an event storm stops at " + Hooks.maxRunsPerSecond + " hook runs a second")
+        Hooks._runTimes = Array(Hooks.maxRunsPerSecond).fill(Date.now() + 3 * 3600 * 1000)
+        root._check(Hooks._budgetAllows(),
+            "hook runs stamped before the wall clock stepped back do not hold the budget")
         Hooks._runTimes = []
 
         const supervised = supervisedProcessFactory.createObject(root, {
