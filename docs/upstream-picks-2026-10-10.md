@@ -169,12 +169,10 @@ upstream shares, are fixed as well:
   fallback could report a failed connect as a success.
 
 The new history and Wi-Fi probe cases fail on the code before their fixes.
-Two findings stay open:
-
-- `Qt.locale().weekDays` is assumed to number Sunday 0, as upstream does;
-  English locales are unaffected.
-- The prev and next arrows take the disabled look while the calendar fades
-  out, as upstream's do.
+`Qt.locale().weekDays` numbers Sunday 0, as the code assumes: Qt 6.11
+documents it, and a headless `ar_SA` locale returns `[1,2,3,4,0]`. The
+arrows' disabled look during the fade-out is kept as upstream (QML review,
+below).
 
 ## QML review
 
@@ -206,6 +204,21 @@ Open:
 - `SystemTools` now calls the `Compositor` facade, which reaches back into
   `SystemTools` through `HyprDispatch`. Every reference sits in a function
   body, as upstream's does, so construction order is unaffected.
+
+## Second adversarial review
+
+A review of `3b28761..d37651a` found three defects, all reproduced here:
+
+- `e328129`: the full-charge alert read `Battery.label`, whose binding can
+  still hold the previous percentage on the full edge, so a charge reaching
+  99 % announced 98 %.
+- `96b0db1`: the full-charge latch stopped listening during idle, so a charge
+  that ended and began again while idle was never announced on wake.
+- The ledger lacked the battery latch and the history tail carry; `96b0db1`
+  and `8342535` add them.
+
+An extracted copy of the alert, checked against the real function, passes
+nine idle, wobble and replug cases and fails the idle ones before the fix.
 
 ## Not yet verified live
 
