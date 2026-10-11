@@ -3,10 +3,14 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "../../config"
 
-// The menu's pages have different memory costs, but they all follow the same
-// rule: keep a page through its exit, then release it unless the user comes
-// back before that grace period ends. Keeping that policy beside its timers
-// makes the loaders below MenuWindow declarative consumers of one owner.
+// The menu's pages have different memory costs, but they mostly follow the
+// same rule: keep a page through its exit, then release it unless the user
+// comes back before that grace period ends. Notifications is the exception and
+// stays built while the menu is open: its loader builds in the background, and
+// at a high refresh rate that gets about a millisecond a frame, so a page built
+// on the tab change sat behind the loading overlay on every visit. Keeping that
+// policy beside its timers makes the loaders below MenuWindow declarative
+// consumers of one owner.
 QtObject {
     id: root
 
@@ -51,7 +55,6 @@ QtObject {
 
         if (!root.loadedDeferred) {
             root._settingsRelease.stop()
-            root._recentRelease.stop()
             root._systemRelease.stop()
             root.settingsRetained = false
             root.recentRetained = false
@@ -67,12 +70,7 @@ QtObject {
             root._settingsRelease.restart()
         }
 
-        if (root.activeTab === 2) {
-            root._recentRelease.stop()
-            root.recentRetained = true
-        } else if (root.recentRetained) {
-            root._recentRelease.restart()
-        }
+        if (root.menuOpen || root.activeTab === 2) root.recentRetained = true
 
         if (root.activeTab === 3) {
             root._systemRelease.stop()
@@ -119,11 +117,6 @@ QtObject {
         }
     }
 
-    readonly property Timer _recentRelease: Timer {
-        interval: root.pageReleaseDelay
-        onTriggered: if (root.activeTab !== 2) root.recentRetained = false
-    }
-
     readonly property Timer _systemRelease: Timer {
         interval: root.pageReleaseDelay
         onTriggered: if (root.activeTab !== 3) root.systemRetained = false
@@ -135,7 +128,6 @@ QtObject {
             if (root.menuOpen) return
             root._settingsWarmRelease.stop()
             root._settingsRelease.stop()
-            root._recentRelease.stop()
             root._systemRelease.stop()
             root.settingsRetained = false
             root.recentRetained = false

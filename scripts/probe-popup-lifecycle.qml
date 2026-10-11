@@ -113,6 +113,8 @@ QtObject {
                 && root.lifecycle.settingsRetained
                 && root.lifecycle.settingsNavRetained,
             "warming settings retains its page and navigation")
+        root.check(root.lifecycle.recentRetained,
+            "notifications builds once deferred pages load in an open menu")
 
         root.lifecycle.activeTab = 1
         root.check(root.lifecycle.settingsRetained
@@ -137,10 +139,11 @@ QtObject {
     function _afterRapidSwitch(): void {
         root.check(root.lifecycle.systemRetained
                 && !root.lifecycle.homeRetained
-                && !root.lifecycle.recentRetained
                 && !root.lifecycle.settingsRetained
                 && !root.lifecycle.settingsNavRetained,
             "each outgoing page releases after its own delay")
+        root.check(root.lifecycle.recentRetained,
+            "notifications stays built after its tab while the menu is open")
 
         root.lifecycle.activeTab = 1
         root.check(root.lifecycle.settingsRetained
@@ -177,6 +180,8 @@ QtObject {
         root.check(root.lifecycle.settingsRetained
                 && root.lifecycle.settingsNavRetained,
             "reopening the same deferred tab rebuilds pages after close release")
+        root.check(root.lifecycle.recentRetained,
+            "reopening rebuilds notifications on any tab")
 
         root.warmLifecycle = lifecycleFactory.createObject(root, {
             activeTab: 0,

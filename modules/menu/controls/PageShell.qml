@@ -23,6 +23,9 @@ Item {
 
     width: parent ? parent.width : 0
     enabled: root.active && !root.powerOpen
+    // a page built in the background is in the scene, drawing, before its completion handler sets
+    // this; the pages share one spot, so a part-built page would show through the one on screen
+    opacity: 0
     visible: opacity > 0.001
     property real _pageShift: 0
     property real _exitShift: 0

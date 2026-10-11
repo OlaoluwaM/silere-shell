@@ -359,6 +359,13 @@ naming them over upstream's CI claim.
   and the two tokens, plus `Motion.frameAllowance`, the measurement slack that
   reduce-motion deliberately does not scale, when an import touches
   `PageShell` or the page Loaders.
+- The notifications page stays built for as long as the menu is open
+  (`MenuPageLifecycle`), not only while its tab shows, and `PageShell` starts
+  at zero opacity. Upstream builds the page on the tab change and releases it
+  after the exit; its loader builds in the background, which gets about a
+  millisecond a frame at a high refresh rate, so every visit sat behind the
+  loading overlay while the part-built page drew through it. Keep both when
+  an import touches the page retention or `PageShell`.
 - Menu pages are laid out at the destination geometry, not at the live width:
   `MenuWindow.contentPad` and `innerW` key on `panelW` (`contentW` stays live
   only as the clip box), and a page on its way out keeps its own geometry in a
