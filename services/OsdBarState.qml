@@ -380,6 +380,9 @@ Singleton {
     // still read as announced.
     property bool _fullAnnounced: false
     property bool _fullBaselined: false
+    // the OSD is built when first wanted, which can be long after UPower answered; a reading
+    // that is already there sends no change, and the first real full edge would become the baseline
+    Component.onCompleted: root._alertBatteryFull()
     function _alertBatteryFull(): void {
         if (!Battery.available) return
         if (!root._fullBaselined) {

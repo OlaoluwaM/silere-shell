@@ -120,8 +120,9 @@ naming them over upstream's CI claim.
   flag on an import of the Wi-Fi connect.
 - `services/OsdBarState.qml`: the full-charge alert keeps a latch of its own
   in place of upstream's charge cycle in `Battery.qml` (`chargeComplete`,
-  `chargeRevision`). The first reading is a quiet baseline, and leaving AC or
-  falling below 97 % re-arms it. The latch's Battery connection stays live
+  `chargeRevision`). The first reading is a quiet baseline, taken when the
+  OSD is built if UPower has already answered, and leaving AC or falling
+  below 97 % re-arms it. The latch's Battery connection stays live
   while the session is idle or the OSD is off, and the alert checks the
   presentation gate before it latches, so a charge that ends and starts again
   out of sight is still announced on wake. The alert formats `Battery.pct`,

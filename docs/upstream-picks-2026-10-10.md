@@ -220,6 +220,12 @@ A review of `3b28761..d37651a` found three defects, all reproduced here:
 An extracted copy of the alert, checked against the real function, passes
 nine idle, wobble and replug cases and fails the idle ones before the fix.
 
+A second pass over `3b28761..193229b` found that the OSD, built only when
+first wanted, could be created after UPower answered; with no change to take
+the baseline from, the first real full edge became it and was never
+announced. The OSD now takes the baseline when it is built; its fixture
+announces that edge and stays quiet for a battery already full at creation.
+
 ## Not yet verified live
 
 - The calendar at 1.6×: `SUN MON …` headers, the 32 px nav row, and the
