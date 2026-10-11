@@ -43,6 +43,16 @@ ShellRoot {
         check(WindowActions._appMatches({ cls: "firefox", initialClass: "" }, "firefox")
                 && !WindowActions._appMatches({ cls: "firefox", initialClass: "" }, "ox"),
             "short app names require an exact window-class match")
+        const kittyGuess = { pid: 1638, cls: "kitty", ref: "c" }
+        check(WindowActions.focusIsSourceApp(kittyGuess, [
+                    { pid: 1638, cls: "kitty", ref: "a", focused: false },
+                    { pid: 1638, cls: "kitty", ref: "b", focused: true }])
+                && !WindowActions.focusIsSourceApp(kittyGuess, [
+                    { pid: 1638, cls: "kitty", ref: "a", focused: false },
+                    { pid: 900, cls: "zen", ref: "z", focused: true }])
+                && !WindowActions.focusIsSourceApp(kittyGuess, [])
+                && !WindowActions.focusIsSourceApp(null, [{ pid: 1, cls: "x", focused: true }]),
+            "a notification click keeps the window the app raised itself instead of guessing another")
 
         check(Media.extrapolatedPosition(10, 5000, false, 2, 30) === 10
                 && Media.extrapolatedPosition(10, 5000, true, 0.5, 30) === 12.5
