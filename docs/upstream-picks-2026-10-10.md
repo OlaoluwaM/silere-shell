@@ -192,6 +192,9 @@ returned. Fixed from them:
   layout tick; it reads the address property instead.
 - `bfb0438`: `HistoryGrouping`'s run-key comment still assumed arrivals at
   index zero.
+- An older notification that history slots in below a run's tail changed the
+  run's key, so a run the user had opened folded again. `HistoryGrouping`
+  now carries the open state to the new tail.
 
 Kept as upstream by the maintainer's call: the calendar's prev and next
 arrows take the disabled look while the card fades out and fade up from it on
@@ -200,8 +203,6 @@ closed, so the gate is redundant but harmless.
 
 Open:
 
-- An older notification that history slots in below a run's tail changes the
-  run's key, so a run the user opened during that burst folds again.
 - `SystemTools` now calls the `Compositor` facade, which reaches back into
   `SystemTools` through `HyprDispatch`. Every reference sits in a function
   body, as upstream's does, so construction order is unaffected.

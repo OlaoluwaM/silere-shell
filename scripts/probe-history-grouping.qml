@@ -188,6 +188,37 @@ ShellRoot {
             "page refold clears transient expansion state")
     }
 
+    function checkOlderArrivalBelowTail(): void {
+        root.resetCase()
+        root.append("Late", 403, root.day + 403)
+        root.append("Late", 402, root.day + 402)
+        root.append("Late", 401, root.day + 401)
+        root.append("separator", 300, root.day + 300)
+        root.grouping.setOpen(root.shape(0).key, true)
+        history.insert(3, root.entry("Late", 400, root.day + 400))
+        root.check(root.shape(0).length === 4 && root.shape(0).open,
+            "an older same-app arrival below the tail keeps the run open")
+        root.check(root.shape(4).header && !root.shape(4).open,
+            "the run below an older arrival keeps its own state")
+
+        root.resetCase()
+        root.append("Late", 403, root.day + 403)
+        root.append("Late", 402, root.day + 402)
+        root.append("Late", 401, root.day + 401)
+        root.grouping.setOpen(root.shape(0).key, true)
+        history.insert(3, root.entry("Other", 400, root.day + 400))
+        root.check(root.shape(0).open && root.shape(3).header && !root.shape(3).open,
+            "an older arrival from another app leaves the open run and starts its own")
+
+        root.resetCase()
+        root.append("Late", 403, root.day + 403)
+        root.append("Late", 402, root.day + 402)
+        root.append("Late", 401, root.day + 401)
+        history.insert(3, root.entry("Late", 400, root.day + 400))
+        root.check(!root.shape(0).open,
+            "an older arrival below a folded run leaves it folded")
+    }
+
     function checkMergeSemantics(): void {
         root.resetCase()
         root.append("Merge", 302, root.day + 302)
@@ -260,6 +291,7 @@ ShellRoot {
         root.checkTailDeletionAndReuse()
         root.checkSameTimestampAndDelimiters()
         root.checkConcurrentArrivalsAndRefold()
+        root.checkOlderArrivalBelowTail()
         root.checkMergeSemantics()
         root.checkDayBoundaryAndBoundShape()
         root.check(root.modelTransitions > 0,

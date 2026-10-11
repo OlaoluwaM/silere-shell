@@ -20,8 +20,8 @@ QtObject {
 
     // The run tail survives arrivals newer than it. It identifies the retained
     // group without confusing equal timestamps or reused server ids; an older
-    // arrival that history slots in below the tail starts a new key, and an
-    // open run folds again.
+    // arrival that history slots in below the tail becomes the new tail, and
+    // _carryOpenTail moves the open state over to it.
     function runKey(app: string, day: string, tail): string {
         return JSON.stringify([app, day, tail.id, tail.time])
     }
@@ -81,6 +81,23 @@ QtObject {
         root._openRuns = ({})
     }
 
+    // History files a notification by arrival when it closes, so one that
+    // outlived newer ones from its app lands under the run the user opened.
+    function _carryOpenTail(first: int, last: int): void {
+        if (first <= 0) return
+        const rows = root.model
+        const above = rows.get(first - 1)
+        const app = String(above.appName)
+        const day = root.dayKey(above.time)
+        // the row above was its run's tail only when nothing of that run follows the insert
+        const below = last + 1 < rows.count ? rows.get(last + 1) : null
+        if (below && String(below.appName) === app && root.dayKey(below.time) === day) return
+        const was = root.runKey(app, day, above)
+        if (root._openRuns[was] !== true) return
+        const now = root.runBounds(first - 1).key
+        if (now !== was) root.setOpen(now, true)
+    }
+
     // A removed or shortened tail must not leave its key behind for a later
     // group that happens to carry the same app, id, time, and day.
     function _pruneOpenRuns(): void {
@@ -120,6 +137,8 @@ QtObject {
     property Connections _modelChanges: Connections {
         target: root.model
         function onRowsAboutToBeInserted() { root.modelAboutToChange() }
+        // before onCountChanged, whose prune drops the old tail's key
+        function onRowsInserted(parent, first: int, last: int) { root._carryOpenTail(first, last) }
         function onRowsAboutToBeRemoved() { root.modelAboutToChange() }
         function onModelAboutToBeReset() { root.modelAboutToChange() }
         function onCountChanged() { root._pruneOpenRuns() }
