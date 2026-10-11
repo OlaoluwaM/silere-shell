@@ -375,6 +375,9 @@ Singleton {
     // once per charge: pct wobbling around 99 would otherwise repeat the alert. The first
     // reading is a quiet baseline, since UPower can answer after the OSD arms and a battery
     // full at login is no news. Only leaving AC or dropping well below full starts the next charge.
+    // The latch follows the battery even while the alert is gated off, since a wake replay sees
+    // only where the battery ended up: a charge that ended and began again during idle would
+    // still read as announced.
     property bool _fullAnnounced: false
     property bool _fullBaselined: false
     function _alertBatteryFull(): void {
@@ -385,6 +388,8 @@ Singleton {
             return
         }
         if (!Battery.charging || Battery.pct < 97) root._fullAnnounced = false
+        // showAlert's own gate, ahead of the latch, so an alert it would drop stays owed to the wake replay
+        if (!root._armed || !root._presentationAllowed(Idle.isIdle, ShellSettings.osdEnabled)) return
         if (!Battery.full || !Battery.charging || !ShellSettings.osdChargedNotify
                 || root._fullAnnounced) return
         root._fullAnnounced = true
@@ -417,6 +422,11 @@ Singleton {
         target: root._batteryWatcherWanted ? Battery : null
         function onLowChanged() { root._alertBatteryLow() }
         function onCriticalChanged() { root._alertBatteryCritical() }
+    }
+
+    // ungated, for the full-charge latch; the alert checks the presentation gate itself
+    Connections {
+        target: Battery
         function onFullChanged() { root._alertBatteryFull() }
         // a full battery pulled off AC never flips full, so the latch needs these to re-arm
         function onChargingChanged() { root._alertBatteryFull() }

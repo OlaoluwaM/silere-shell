@@ -118,6 +118,15 @@ naming them over upstream's CI claim.
   stays out while `_wifiNameWasLinked`: a network of the target's name already
   linked when the connect began proves nothing about the new link. Keep the
   flag on an import of the Wi-Fi connect.
+- `services/OsdBarState.qml`: the full-charge alert keeps a latch of its own
+  in place of upstream's charge cycle in `Battery.qml` (`chargeComplete`,
+  `chargeRevision`). The first reading is a quiet baseline, and leaving AC or
+  falling below 97 % re-arms it. The latch's Battery connection stays live
+  while the session is idle or the OSD is off, and the alert checks the
+  presentation gate before it latches, so a charge that ends and starts again
+  out of sight is still announced on wake. The alert formats `Battery.pct`,
+  not `Battery.label`, whose binding can lag the full edge. Keep all of it on
+  an import of the battery alerts or the charge cycle.
 - `services/CalendarState.qml`: `weekendFor` copies the working days with
   `Array.from`, because `Locale.weekDays` is a sequence that upstream's
   `Array.isArray` gate rejects, so every locale fell back to Saturday and
