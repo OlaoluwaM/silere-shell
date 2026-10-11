@@ -388,7 +388,9 @@ Singleton {
         if (!Battery.full || !Battery.charging || !ShellSettings.osdChargedNotify
                 || root._fullAnnounced) return
         root._fullAnnounced = true
-        root.showAlert("battery", Battery.icon, 1.0, "Fully charged · " + Battery.label, Theme.success)
+        // from pct, not Battery.label: the full edge can arrive before label's binding has caught up
+        root.showAlert("battery", Battery.icon, 1.0,
+            "Fully charged · " + Math.round(Battery.pct) + "%", Theme.success)
     }
     function _alertTempHot(): void {
         if (!CpuTemp.hot || !ShellSettings.osdTempWarn) return
