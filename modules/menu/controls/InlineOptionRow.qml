@@ -40,11 +40,12 @@ Item {
     Timer { id: _settle; interval: 0; onTriggered: root.motionReady = true }
     Component.onDestruction: _settle.stop()
     readonly property bool _hot: _hover.hovered || _tap.pressed
+    readonly property bool _canActivate: root.enabled && root.visible && root.interactive
     readonly property bool  _attentive: root.warning || root.failed
     readonly property color _attention: root.failed ? Theme.error : Theme.warning
 
     function trigger(): void {
-        if (root.enabled && root.interactive) root.triggered()
+        if (root._canActivate) root.triggered()
     }
 
     function _insideChevron(pos): bool {
@@ -63,7 +64,7 @@ Item {
     Accessible.name: root.accessiblePrefix.length > 0
         ? root.accessiblePrefix + ": " + root.label : root.label
     Accessible.description: root.status
-    Accessible.focusable: root.enabled && root.interactive
+    Accessible.focusable: root._canActivate
     Accessible.checkable: root.accessiblePrefix.length > 0
     Accessible.checked: root.accessiblePrefix.length > 0 && root.selected
     Accessible.selected: root.selected
@@ -71,12 +72,12 @@ Item {
 
     HoverHandler {
         id: _hover
-        enabled: root.enabled && root.interactive
+        enabled: root._canActivate
         cursorShape: Qt.PointingHandCursor
     }
     TapHandler {
         id: _tap
-        enabled: root.enabled && root.interactive
+        enabled: root._canActivate
         onTapped: (eventPoint) => {
             if (root._insideChevron(eventPoint.position)) root.expandToggled()
             else root.trigger()

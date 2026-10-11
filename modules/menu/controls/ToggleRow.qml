@@ -27,7 +27,7 @@ MenuRow {
         }
     }
 
-    readonly property bool _canToggle: root.enabled && (root.available || root.checked)
+    readonly property bool _canToggle: root.enabled && root.visible && (root.available || root.checked)
     readonly property bool _showDependsNote: root.dependsNote.length > 0
                                             && (!root.enabled || !root.available)
     readonly property bool _hasDetail: root.description.length > 0
@@ -55,7 +55,7 @@ MenuRow {
         NumberAnimation { duration: Motion.normal; easing.type: Easing.OutCubic }
     }
 
-    opacity: root.enabled && root.available ? 1.0 : (_canToggle ? 0.72 : Theme.disabledOpacity)
+    opacity: root.enabled && root.available ? 1.0 : (root.enabled && root.checked ? 0.72 : Theme.disabledOpacity)
     MotionBehavior on opacity {NumberAnimation { duration: Motion.medium } }
 
     Accessible.role: Accessible.CheckBox

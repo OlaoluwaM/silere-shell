@@ -158,6 +158,10 @@ MenuRow {
                     required property int index
 
                     readonly property bool active: index === root._activeIndex
+                    readonly property bool _canChoose: root.enabled && root.visible && _option.visible
+                    function _choose(): void {
+                        if (_option._canChoose) root.chosen(_option.modelData.value)
+                    }
                     readonly property string optionLabel:
                         String(modelData.label ?? "")
                     readonly property string optionGlyph:
@@ -172,23 +176,22 @@ MenuRow {
                     Accessible.name: root.label.length > 0
                         ? root.label + ": " + _option.optionLabel
                         : _option.optionLabel
-                    Accessible.focusable: root.enabled
+                    Accessible.focusable: _option._canChoose
                     Accessible.checkable: true
                     Accessible.checked: _option.active
-                    Accessible.onPressAction: if (root.enabled)
-                        root.chosen(_option.modelData.value)
+                    Accessible.onPressAction: _option._choose()
 
                     HoverHandler {
                         id: _hover
-                        enabled: root.enabled
+                        enabled: _option._canChoose
                         cursorShape: root.enabled
                             ? Qt.PointingHandCursor : Qt.ArrowCursor
                     }
                     TapHandler {
                         id: _tap
-                        enabled: root.enabled
+                        enabled: _option._canChoose
                         onTapped: {
-                            root.chosen(_option.modelData.value)
+                            _option._choose()
                         }
                     }
 

@@ -15,6 +15,8 @@ Item {
     property int edgePadding: 4
     property color ringColor: "transparent"
     property int hoveredIndex: -1
+    onVisibleChanged: if (!visible) root.hoveredIndex = -1
+    onEnabledChanged: if (!enabled) root.hoveredIndex = -1
     property string accessiblePrefix: ""
 
     signal picked(int index)

@@ -146,7 +146,10 @@ ShellRoot {
             RowDividers { id: _dividers; column: _col }
         }
     }
+    Component { id: actionButtonFactory; ActionButton { label: "Probe action" } }
+    Component { id: iconButtonFactory; IconButton { accessibleName: "Probe icon" } }
     Component { id: workspaceButtonFactory; WorkspaceButton {} }
+    Component { id: workspaceUrgentTickFactory; WorkspaceUrgentTick {} }
     Component { id: pillFactory; Pill { visible: true; glyph: "a" } }
     Component { id: rollingTextFactory; RollingText { visible: true; text: "one" } }
     Component {
@@ -704,6 +707,63 @@ ShellRoot {
             firstSelect._setOpen(false)
         }
         if (firstSelect) firstSelect.destroy()
+        // a parentless item cannot be shown again once hidden, so the toggled host sits in a fixed one
+        const pickerRoot = Qt.createQmlObject("import QtQuick; Item {}", root)
+        const pickerHost = Qt.createQmlObject("import QtQuick; Item {}", pickerRoot)
+        const visibilitySelect = selectRowFactory.createObject(pickerHost)
+        visibilitySelect._setOpen(true)
+        root._check(visibilitySelect._open && MenuState._settingsSelectOwner === visibilitySelect,
+            "a visible dropdown claims the shared settings-picker state")
+        visibilitySelect.visible = false
+        root._check(!visibilitySelect._open && MenuState._settingsSelectOwner === null
+                && !visibilitySelect.Accessible.focusable,
+            "hiding a dropdown folds it and releases its settings-picker state")
+        visibilitySelect.Accessible.pressAction()
+        visibilitySelect._setOpen(true)
+        root._check(!visibilitySelect._open && MenuState._settingsSelectOwner === null,
+            "a hidden dropdown rejects both accessible and direct open requests")
+        visibilitySelect.visible = true
+        visibilitySelect._setOpen(true)
+        pickerHost.visible = false
+        root._check(!visibilitySelect._open && MenuState._settingsSelectOwner === null,
+            "hiding a dropdown's parent also releases its open-picker ownership")
+        pickerHost.visible = true
+        visibilitySelect.Accessible.pressAction()
+        root._check(visibilitySelect._open && visibilitySelect.Accessible.focusable
+                && MenuState._settingsSelectOwner === visibilitySelect,
+            "a restored dropdown can open and claim ownership again")
+        visibilitySelect._setOpen(false)
+        pickerRoot.destroy()
+
+        for (const factory of [actionButtonFactory, iconButtonFactory]) {
+            const visibilityRoot = Qt.createQmlObject("import QtQuick; Item {}", root)
+            const visibilityHost = Qt.createQmlObject("import QtQuick; Item {}", visibilityRoot)
+            const button = factory.createObject(visibilityHost)
+            let buttonActions = 0
+            button.triggered.connect(() => buttonActions++)
+            button.Accessible.pressAction()
+            root._check(buttonActions === 1 && button.Accessible.focusable,
+                "a visible " + button.accessibleName + " accepts its accessible action")
+            button.visible = false
+            button.activate()
+            button.Accessible.pressAction()
+            root._check(buttonActions === 1 && !button.Accessible.focusable,
+                "a hidden " + button.accessibleName + " rejects direct and accessible activation")
+            button.visible = true
+            visibilityHost.visible = false
+            button.Accessible.pressAction()
+            root._check(buttonActions === 1 && !button.Accessible.focusable,
+                "hiding a parent also disables its " + button.accessibleName)
+            visibilityHost.visible = true
+            button.enabled = false
+            button.Accessible.pressAction()
+            root._check(buttonActions === 1, "a disabled " + button.accessibleName + " rejects activation")
+            button.enabled = true
+            button.Accessible.pressAction()
+            root._check(buttonActions === 2 && button.Accessible.focusable,
+                "a restored " + button.accessibleName + " becomes available again")
+            visibilityRoot.destroy()
+        }
         if (secondSelect) secondSelect.destroy()
 
         // reduce-motion makes the fade land at once, so a line's _fade is its settled outcome
@@ -904,6 +964,27 @@ ShellRoot {
                 && crossingCell._dotFade === 1,
             "a sleeping workspace cell retires transient motion at its bound state")
         crossingCell.destroy()
+        const urgentTick = workspaceUrgentTickFactory.createObject(root, {
+            liveId: 7, rowHeight: 24, barActive: true
+        })
+        let urgentJumps = 0
+        urgentTick.jumpRequested.connect(() => urgentJumps++)
+        urgentTick.Accessible.pressAction()
+        root._check(urgentJumps === 1 && urgentTick.Accessible.focusable,
+            "an awake urgent-workspace indicator accepts its jump action")
+        urgentTick.barActive = false
+        urgentTick.Accessible.pressAction()
+        root._check(urgentJumps === 1 && !urgentTick.Accessible.focusable,
+            "a concealed urgent-workspace indicator rejects activation")
+        urgentTick.barActive = true
+        urgentTick.enabled = false
+        urgentTick._jump()
+        root._check(urgentJumps === 1, "a disabled urgent-workspace indicator cannot switch workspaces")
+        urgentTick.enabled = true
+        urgentTick.liveId = 0
+        urgentTick._jump()
+        root._check(urgentJumps === 1, "a fading urgent-workspace indicator cannot jump to its stale target")
+        urgentTick.destroy()
         ShellSettings.workspaceShift = shiftWas
         ShellSettings.reduceMotion = reduceMotionWas
 
