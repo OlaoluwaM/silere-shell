@@ -20,6 +20,14 @@ ShellRoot {
     property int nextId: 1
     property real expandedBefore: 0
     property var fullWhileHidden: []
+    property real headerY: -1
+    property int handoffFrames: 0
+    property int handoffStrays: 0
+    property string handoffFirstStray: ""
+    property real takerTop: -1
+    property int takerFrames: 0
+    property int cardStrays: 0
+    property string cardFirstStray: ""
     readonly property string longBody: "The body wraps over more than two lines at this width so the "
         + "collapsed card truncates it and the disclosure pill has something to reveal when tapped."
 
@@ -90,6 +98,72 @@ ShellRoot {
         }
         out.sort((a, b) => a.y - b.y)
         return out
+    }
+
+    // every drawn day header under the list, wherever it sits, with the opacity it is drawn at
+    function headers(): var {
+        const list = root.findList(page)
+        const out = []
+        if (!list) return out
+        const label = page.sectionLabel(Date.now())
+        const visit = item => {
+            if (!item || !item.visible) return
+            if (item.text === label && item.font !== undefined) {
+                let alpha = 1
+                for (let p = item; p && p !== list; p = p.parent) alpha *= p.opacity
+                if (alpha > 0.01) out.push({ y: item.mapToItem(list, 0, 0).y, alpha: alpha })
+                return
+            }
+            for (let i = 0; i < item.children.length; i++) visit(item.children[i])
+        }
+        visit(list.contentItem)
+        return out
+    }
+
+    // removing the first row under a day hands its header to the next row of that day, so on
+    // every frame of the removal exactly one header is drawn, and it never leaves its place
+    FrameAnimation {
+        id: _handoffWatch
+        running: false
+        onTriggered: {
+            const drawn = root.headers()
+            root.handoffFrames++
+            root.cardsFollow()
+            const ok = drawn.length === 1 && Math.abs(drawn[0].y - root.headerY) < 0.5
+            if (ok) return
+            root.handoffStrays++
+            if (root.handoffFirstStray.length === 0)
+                root.handoffFirstStray = "frame " + root.handoffFrames + ": "
+                    + JSON.stringify(drawn) + " against y " + root.headerY
+        }
+    }
+
+    // and the next card rises under the header without a jump and without running into the
+    // card that is leaving
+    function cardsFollow(): void {
+        const list = root.findList(page)
+        if (!list) return
+        let leaving = null
+        let taker = null
+        const kids = list.contentItem.children
+        for (let i = 0; i < kids.length; i++) {
+            if (kids[i]._keepsSection === true) leaving = kids[i]
+            if (kids[i]._takesSection === true) taker = kids[i]
+        }
+        if (!taker) return
+        root.takerFrames++
+        const top = taker.y + taker._gapAbove + taker._sectionHeight - taker._takeLift
+        let stray = ""
+        if (root.takerTop >= 0 && top > root.takerTop + 0.5)
+            stray = "the next card moved down from " + root.takerTop + " to " + top
+        else if (leaving && top < leaving.y + leaving.height - 0.5)
+            stray = "the next card at " + top + " ran into the leaving card ending at "
+                + (leaving.y + leaving.height)
+        root.takerTop = top
+        if (stray.length === 0) return
+        root.cardStrays++
+        if (root.cardFirstStray.length === 0)
+            root.cardFirstStray = "frame " + root.handoffFrames + ": " + stray
     }
 
     // the size a row aims for is its own sum, which a reveal must not change: a row sized
@@ -196,11 +270,41 @@ ShellRoot {
             case 33:
                 root.settled("revealed under reduced motion", 6)
                 root.sizedWhileHidden("revealed under reduced motion")
+                ShellSettings.reduceMotion = false
+                break
+            case 35: {
+                const before = root.headers()
+                root.check(before.length === 1, "one day header before the removal, saw "
+                    + JSON.stringify(before))
+                root.headerY = before.length > 0 ? before[0].y : -1
+                const live = root.rows()
+                if (live.length > 0) {
+                    _handoffWatch.start()
+                    live[0].removeSelf()
+                }
+                break
+            }
+            case 39: {
+                _handoffWatch.stop()
+                root.check(root.handoffFrames >= 5, "the removal was sampled over "
+                    + root.handoffFrames + " frames")
+                root.check(root.takerFrames >= 5, "the next row was seen taking the header over on "
+                    + root.takerFrames + " frames")
+                root.check(root.cardStrays === 0, "the next card follows the leaving one up ("
+                    + root.cardStrays + " stray frames; " + root.cardFirstStray + ")")
+                root.check(root.handoffStrays === 0, "the day header holds still while the "
+                    + "next row takes it over (" + root.handoffStrays + " stray frames; "
+                    + root.handoffFirstStray + ")")
+                root.settled("after the header handoff", 5)
+                const after = root.headers()
+                root.check(after.length === 1 && Math.abs(after[0].y - root.headerY) < 0.5,
+                    "the next row draws the header where it was")
                 console.log("PROBE-RECENT-GEOMETRY " + (root.failures ? "failed" : "passed")
                     + " " + root.checks + " checks")
                 console.log("PROBE-RECENT-DONE")
                 stop()
                 break
+            }
             }
         }
     }

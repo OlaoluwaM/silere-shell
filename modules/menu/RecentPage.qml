@@ -93,6 +93,16 @@ PageShell {
     // the list gets to lay out
     property bool _settling: false
 
+    // The day header belongs to the first row under it. When the user removes that row and the
+    // next one is from the same day, the leaving row keeps drawing the header where it stands,
+    // and the next row, named here, keeps its own copy hidden until the leaving row is gone.
+    // Otherwise one header fades out in place while a second rides up with the next row
+    property string _sectionHandoff: ""
+
+    function _rowIdentity(id, time): string {
+        return String(id) + "\u0001" + String(time)
+    }
+
     function _holdHeights(): void {
         root._settling = true
         Qt.callLater(() => root._settling = false)
@@ -285,11 +295,12 @@ PageShell {
             // the row collapses as it fades, on the same curve the rows below use to close,
             // so their edge follows its edge and nothing is ever drawn across leaving text.
             // _leaveK scales the height binding rather than the transition writing height,
-            // which would sever the binding for the row's next life
+            // which would sever the binding for the row's next life. _leaveFade rather than
+            // opacity, so a row handing its day header on can keep that header drawn
             remove: Transition {
                 enabled: !root._clearing
                 ParallelAnimation {
-                    NumberAnimation { property: "opacity"; to: 0; duration: Motion.normal; easing.type: Easing.OutCubic }
+                    NumberAnimation { property: "_leaveFade"; to: 0; duration: Motion.normal; easing.type: Easing.OutCubic }
                     NumberAnimation { property: "_leaveK"; to: 0; duration: Motion.normal; easing.type: Easing.OutCubic }
                 }
             }
@@ -349,7 +360,8 @@ PageShell {
                     readonly property int _rightGutter: _rightSlot.width + 10
                     readonly property int _firstLineHeight: _showHeader ? _metaRow.height : _summary.height
                     readonly property int _sectionHeight: _showSection ? 24 : 0
-                    readonly property int _gapAbove: _shape.first ? 0 : _showSection ? 14 : 8
+                    readonly property int _runGap: 8
+                    readonly property int _gapAbove: _shape.first ? 0 : _showSection ? 14 : _runGap
                     // summed from the parts rather than read off the Column: a positioner
                     // reports its new implicitHeight a frame late, after the list has already
                     // aimed the rows below at the old height, and they snap when the slide ends.
@@ -363,9 +375,26 @@ PageShell {
                     property bool _removing: false
 
                     property real _leaveK: 1
+                    property real _leaveFade: 1
+                    // set when this row leaves and the next row takes over its day header: the
+                    // header stays put and drawn, and only the card below it fades and collapses
+                    property bool _keepsSection: false
+                    property string _handedTo: ""
+                    readonly property int _keptTop: _keepsSection ? _gapAbove + _sectionHeight : 0
+                    readonly property string _identity: root._rowIdentity(modelData.id, modelData.time)
+                    readonly property bool _takesSection: root._sectionHandoff.length > 0
+                        && root._sectionHandoff === _entry._identity
+                    // the list sets this row's new height at once, header included, and slides the
+                    // row up into the leaving row's place. The card eases down from where it was
+                    // into the header's room on the slide's own curve, so it moves exactly as far
+                    // as the rows below it and follows the leaving card's edge
+                    property real _takeK: 1
+                    readonly property int _takeLift: _takeK < 1
+                        ? Math.max(0, _gapAbove + _sectionHeight - _runGap) * (1 - _takeK) : 0
                     width: _historyList.width
                     // the peeks live below the card, so the row grows to keep the next one clear
-                    height: (_folded ? 0 : _fullHeight + _peekStep * _peeks) * _leaveK
+                    height: _folded ? 0
+                        : _keptTop + (_fullHeight + _peekStep * _peeks - _keptTop) * _leaveK
                     clip: true
                     // a folded follower still has a card's worth of handlers behind zero height
                     enabled: !_folded
@@ -374,21 +403,68 @@ PageShell {
                     property bool _heightReady: false
                     Timer { id: _heightArm; interval: 0; onTriggered: _entry._heightReady = true }
                     Component.onCompleted: _heightArm.start()
-                    Component.onDestruction: _heightArm.stop()
+                    Component.onDestruction: {
+                        _heightArm.stop()
+                        _entry._releaseSection()
+                    }
                     ListView.onPooled: {
                         _heightArm.stop()
                         _entry._heightReady = false
                         _body.expanded = false
                         _entry._removing = false
+                        _entry._releaseSection()
                     }
                     ListView.onReused: {
-                        // the remove transition pools the row faded out and collapsed
+                        // the remove transition pools the row faded out and collapsed, and a row
+                        // removed while its add transition ran keeps that partial opacity
                         _entry.opacity = 1
                         _entry._leaveK = 1
+                        _entry._leaveFade = 1
+                        _entry._keepsSection = false
+                        _takeAnim.stop()
+                        _entry._takeK = 1
                         _body.expanded = false
                         _entry._removing = false
                         _entry._heightReady = false
                         _heightArm.restart()
+                    }
+
+                    NumberAnimation {
+                        id: _takeAnim
+                        target: _entry
+                        property: "_takeK"
+                        from: 0
+                        to: 1
+                        duration: Motion.normal
+                        easing.type: Easing.OutCubic
+                    }
+                    on_TakesSectionChanged: {
+                        if (!_entry._takesSection || !_entry._heightReady) return
+                        _entry._takeK = 0
+                        _takeAnim.restart()
+                    }
+
+                    // the next row inherits the header only when it is from the same day; a
+                    // lone row's header leaves with it
+                    function _handOffSection(count: int): void {
+                        const rows = Notifications.historyModel
+                        const next = _entry.index + count
+                        if (!_entry._showSection || next >= rows.count) return
+                        const after = rows.get(next)
+                        if (_historyGrouping.dayKey(after.time)
+                                !== _historyGrouping.dayKey(_entry.modelData.time)) return
+                        _entry._keepsSection = true
+                        _entry._handedTo = root._rowIdentity(after.id, after.time)
+                        root._sectionHandoff = _entry._handedTo
+                    }
+
+                    // a second removal during the first one names its own successor, which this
+                    // row must not clear when it finishes
+                    function _releaseSection(): void {
+                        if (!_entry._keepsSection) return
+                        _entry._keepsSection = false
+                        if (root._sectionHandoff === _entry._handedTo) root._sectionHandoff = ""
+                        _entry._handedTo = ""
                     }
                     // a leaving row's height is driven by its transition; the behaviour would
                     // only chase it a frame behind
@@ -414,10 +490,13 @@ PageShell {
                         // persist immediately. A delegate-owned delay is lost if the user changes pages before its timer fires
                         _removing = true
                         // a folded stack is one card on screen; its × takes the run it stands for
-                        if (_entry._stacked)
+                        if (_entry._stacked) {
+                            _entry._handOffSection(_entry._runLength)
                             Notifications.removeRunFromHistory(rowIndex, _entry._runLength)
-                        else
+                        } else {
+                            _entry._handOffSection(1)
                             Notifications.removeFromHistory(rowIndex)
+                        }
                     }
 
                     // an open run's header is a plain row, so Clear all cannot come off the
@@ -425,6 +504,7 @@ PageShell {
                     function removeRun(): void {
                         if (_removing || root._clearing) return
                         _removing = true
+                        _entry._handOffSection(_entry._runLength)
                         Notifications.removeRunFromHistory(_entry.index, _entry._runLength)
                     }
 
@@ -434,6 +514,7 @@ PageShell {
                         anchors.right: parent.right
                         y: _entry._gapAbove
                         height: _entry._sectionHeight
+                        opacity: _entry._takesSection ? 0 : _entry._keepsSection ? 1 : _entry._leaveFade
 
                         ShellText {
                             id: _secText
@@ -463,6 +544,7 @@ PageShell {
                     // Shapes it never paints; kept loaded while the run is open so they can fade
                     Loader {
                         anchors.fill: parent
+                        opacity: _entry._leaveFade
                         active: _entry._showHeader && _entry._stackable
                         sourceComponent: Item {
                             Rectangle {
@@ -523,7 +605,8 @@ PageShell {
                     Rectangle {
                         id: _card
                         x: 0
-                        y: _entry._gapAbove + _entry._sectionHeight
+                        y: _entry._gapAbove + _entry._sectionHeight - _entry._takeLift
+                        opacity: _entry._leaveFade
                         width: parent.width
                         height: _entry._cardHeight
                         radius: Theme.radiusControl

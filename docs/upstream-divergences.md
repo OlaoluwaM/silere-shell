@@ -366,6 +366,14 @@ naming them over upstream's CI claim.
   millisecond a frame at a high refresh rate, so every visit sat behind the
   loading overlay while the part-built page drew through it. Keep both when
   an import touches the page retention or `PageShell`.
+- Removing the first history row under a day hands its header to the next
+  row of that day (`RecentPage`'s `_sectionHandoff`): the leaving row keeps
+  the header drawn in place and fades only its card, the next row keeps its
+  copy hidden until then, and its card eases into the header's room on the
+  slide's curve. The remove transition fades `_leaveFade`, not the row's
+  opacity, for that reason. Upstream fades the whole row while the next one
+  draws a second header and slides it up. Keep the handoff when an import
+  touches the history delegate or its transitions.
 - Menu pages are laid out at the destination geometry, not at the live width:
   `MenuWindow.contentPad` and `innerW` key on `panelW` (`contentW` stays live
   only as the clip box), and a page on its way out keeps its own geometry in a
