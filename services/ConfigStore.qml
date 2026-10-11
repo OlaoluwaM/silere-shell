@@ -97,7 +97,7 @@ Singleton {
             "bash", root.directory, root.settingsPath, root.calendarMarksPath,
             root.notificationsPath]
         onExited: code => {
-            if (code === 0) {
+            if (_mkdir.completedSuccessfully(code)) {
                 _mkdirRetry.stop()
                 root._directoryFailures = 0
                 root.ready = true

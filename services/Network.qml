@@ -587,7 +587,7 @@ Singleton {
         }
         onExited: (code) => {
             // hold the last known state through transient nmcli failures and publish one coherent update
-            if (code === 0 && (root.hasVpn !== root._vpnCandidateActive
+            if (_vpnProc.completedSuccessfully(code) && (root.hasVpn !== root._vpnCandidateActive
                     || root.vpnName !== root._vpnCandidateName
                     || root._vpnState.uuid !== root._vpnCandidateUuid)) {
                 root._vpnState = {
@@ -595,7 +595,7 @@ Singleton {
                     name: root._vpnCandidateName,
                     uuid: root._vpnCandidateUuid
                 }
-            } else if (code === 0 && root._vpnWanted && root.hasVpn
+            } else if (_vpnProc.completedSuccessfully(code) && root._vpnWanted && root.hasVpn
                     && (root.vpnAddress.length === 0 || root._vpnAddressStale)) {
                 // a tunnel listed while still activating has no address yet, and finishing changes nothing above;
                 // a killed or failed listing proves nothing, and going idle kills it
@@ -604,7 +604,7 @@ Singleton {
             const refreshAgain = root._vpnRefreshPending && root._vpnWanted
             root._vpnRefreshPending = false
             // the settle run still rereads, for an address handed out after the rebuild was seen
-            if (code === 0 && !refreshAgain && !_vpnSettle.running) root._vpnAddressStale = false
+            if (_vpnProc.completedSuccessfully(code) && !refreshAgain && !_vpnSettle.running) root._vpnAddressStale = false
             if (refreshAgain) _vpnRefresh.restart()
         }
     }
@@ -620,7 +620,7 @@ Singleton {
                 Qt.callLater(root.refreshVpnAddress)
                 return
             }
-            if (code === 0)
+            if (_vpnAddressProc.completedSuccessfully(code))
                 root.vpnAddress = root.vpnAddressFrom(_vpnAddressOut.text)
         }
     }

@@ -180,7 +180,7 @@ Singleton {
             "  [ -n \"$c\" ] && { printf '%s\\n' \"$c\"; break; }; " +
             "done"]
         stdout: StdioCollector { id: _geoOut }
-        onExited: root._parseCoord(_geoOut.text)
+        onExited: code => { if (_geoProc.completedSuccessfully(code)) root._parseCoord(_geoOut.text) }
     }
 
     Timer {

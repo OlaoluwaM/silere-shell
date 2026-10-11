@@ -226,7 +226,7 @@ Singleton {
                 return
             }
             if (!root._wanted) return
-            const path = code === 0 ? (_detectOut.text || "").trim() : ""
+            const path = _detectProc.completedSuccessfully(code) ? (_detectOut.text || "").trim() : ""
             root._applyDetection(path)
         }
         Component.onDestruction: running = false
