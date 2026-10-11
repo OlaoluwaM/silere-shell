@@ -1213,6 +1213,15 @@ ShellRoot {
             "history text drops markup and decodes entities")
         root._check(Notifications._normalizeEntry({ body: "a\u202Eb" }).body === "ab",
             "history text drops a bidi override a sender embedded")
+        root._check(Notifications.plainText("**Done.** Two **files** changed", 64)
+                === "Done. Two files changed",
+            "markdown bold markers from a terminal agent are dropped")
+        root._check(Notifications.plainText("2**3 and 4**5, f(**kw) **open", 64)
+                === "2**3 and 4**5, f(**kw) **open",
+            "unpaired or mid-word asterisks stay as the sender wrote them")
+        root._check(Notifications.plainText("** spaced ** and ****", 64)
+                === "** spaced ** and ****",
+            "asterisks that do not hug a word are not treated as bold")
         root._check(Notifications._normalizeEntry({ body: "a&#65;&#x42;&#55357;<em>c</em>&#39;" }).body
                 === "aAB&#55357;c'",
             "history text decodes numeric entities and leaves a surrogate escape alone")
