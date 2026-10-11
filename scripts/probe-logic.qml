@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Bluetooth as Bt
+import Quickshell.Networking as Net
 import Quickshell.Services.Mpris as Mp
 import "config"
 import "services"
@@ -1779,6 +1780,38 @@ ShellRoot {
         root._check(!settledOnOldLink && Network.wifiConnecting === "Cafe"
                 && Network._acceptWifiLink(linkedCafe) && Network.wifiConnecting === "",
             "a wifi connect settles from the live list only when its name was not already linked")
+        let scannerWrites = 0
+        const adapter = () => {
+            let scanning = false
+            return {
+                type: Net.DeviceType.Wifi,
+                get scannerEnabled() { return scanning },
+                set scannerEnabled(value) { scanning = value; scannerWrites++ }
+            }
+        }
+        const firstAdapter = adapter()
+        const wiredAdapter = { type: Net.DeviceType.Wired, scannerEnabled: false }
+        Network._applyScannerState([null, firstAdapter, wiredAdapter], true)
+        root._check(firstAdapter.scannerEnabled && !wiredAdapter.scannerEnabled && scannerWrites === 1,
+            "Wi-Fi discovery enables only Wi-Fi adapters")
+        Network._applyScannerState([firstAdapter, wiredAdapter], true)
+        root._check(scannerWrites === 1,
+            "re-enumerating an unchanged adapter avoids a repeated scanner write")
+        const secondAdapter = adapter()
+        Network._applyScannerState([firstAdapter, secondAdapter, wiredAdapter], true)
+        root._check(firstAdapter.scannerEnabled && secondAdapter.scannerEnabled && scannerWrites === 2,
+            "a second Wi-Fi adapter joins ongoing discovery without restarting the first")
+        const replacementAdapter = adapter()
+        Network._applyScannerState([replacementAdapter, secondAdapter], true)
+        root._check(replacementAdapter.scannerEnabled && secondAdapter.scannerEnabled && scannerWrites === 3,
+            "a replacement Wi-Fi adapter inherits ongoing discovery")
+        Network._applyScannerState([replacementAdapter, secondAdapter, wiredAdapter], false)
+        root._check(!replacementAdapter.scannerEnabled && !secondAdapter.scannerEnabled && scannerWrites === 5,
+            "closing discovery stops every current Wi-Fi adapter")
+        const closedWifiAdapter = adapter()
+        Network._applyScannerState([replacementAdapter, secondAdapter, closedWifiAdapter], false)
+        root._check(scannerWrites === 5 && !closedWifiAdapter.scannerEnabled,
+            "enumeration with discovery closed leaves scanners stopped without writes")
         root._check(Media.finiteNonnegative(NaN) === 0
                 && Media.finiteNonnegative(Infinity) === 0
                 && Media.finiteNonnegative(12.5) === 12.5,
