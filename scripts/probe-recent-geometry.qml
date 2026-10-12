@@ -28,6 +28,13 @@ ShellRoot {
     property int takerFrames: 0
     property int cardStrays: 0
     property string cardFirstStray: ""
+    property var tailLeaving: null
+    property var tailAbove: null
+    property real tailAboveTop: -1
+    property int tailFrames: 0
+    property int tailClosing: 0
+    property int tailStrays: 0
+    property string tailFirstStray: ""
     readonly property string longBody: "The body wraps over more than two lines at this width so the "
         + "collapsed card truncates it and the disclosure pill has something to reveal when tapped."
 
@@ -166,6 +173,34 @@ ShellRoot {
             root.cardFirstStray = "frame " + root.handoffFrames + ": " + stray
     }
 
+    // a list scrolled to its end that loses its last row keeps that row in view while it
+    // closes, rather than snapping up to the new end and closing it below the view, and the
+    // rows above only ever move down to fill its room
+    FrameAnimation {
+        id: _tailWatch
+        running: false
+        onTriggered: {
+            const list = root.findList(page)
+            const leaving = root.tailLeaving
+            const above = root.tailAbove
+            root.tailFrames++
+            if (leaving.height > 0.5 && leaving.height < leaving._fullHeight - 0.5) root.tailClosing++
+            const top = leaving.y - list.contentY
+            const aboveTop = above.y - list.contentY
+            let stray = ""
+            if (leaving.height > 0.5 && (top < -0.5 || top + leaving.height > list.height + 0.5))
+                stray = "the leaving row spans " + top + " to " + (top + leaving.height)
+                    + " outside a view of " + list.height
+            else if (root.tailAboveTop >= 0 && aboveTop < root.tailAboveTop - 0.5)
+                stray = "the row above moved up from " + root.tailAboveTop + " to " + aboveTop
+            root.tailAboveTop = aboveTop
+            if (stray.length === 0) return
+            root.tailStrays++
+            if (root.tailFirstStray.length === 0)
+                root.tailFirstStray = "frame " + root.tailFrames + ": " + stray
+        }
+    }
+
     // the size a row aims for is its own sum, which a reveal must not change: a row sized
     // smaller while hidden animates up to its real height every time the page is shown
     function recordHidden(): void {
@@ -299,6 +334,37 @@ ShellRoot {
                 const after = root.headers()
                 root.check(after.length === 1 && Math.abs(after[0].y - root.headerY) < 0.5,
                     "the next row draws the header where it was")
+                for (const app of ["Eta", "Theta", "Iota", "Kappa", "Lambda", "Mu", "Nu", "Xi"])
+                    root.insert(app, root.longBody)
+                break
+            }
+            case 45:
+                root.findList(page).positionViewAtEnd()
+                break
+            case 47: {
+                const list = root.findList(page)
+                const last = Notifications.historyCount - 1
+                root.check(list.contentHeight > list.height && list.atYEnd,
+                    "the list overflows and sits at its end before its last row leaves")
+                root.tailLeaving = list.itemAtIndex(last)
+                root.tailAbove = list.itemAtIndex(last - 1)
+                if (root.tailLeaving && root.tailAbove) {
+                    _tailWatch.start()
+                    root.tailLeaving.removeSelf()
+                }
+                break
+            }
+            case 52: {
+                _tailWatch.stop()
+                const list = root.findList(page)
+                root.check(root.tailClosing >= 5, "the last row was seen closing on "
+                    + root.tailClosing + " frames")
+                root.check(root.tailStrays === 0, "the last row closes in view while the rows "
+                    + "above follow it down (" + root.tailStrays + " stray frames; "
+                    + root.tailFirstStray + ")")
+                root.check(list.atYEnd, "the list rests at its new end")
+                // a scrolled list builds only the rows near the view, so the rows it has are the set
+                root.settled("after the last row leaves at the end", root.rows().length)
                 console.log("PROBE-RECENT-GEOMETRY " + (root.failures ? "failed" : "passed")
                     + " " + root.checks + " checks")
                 console.log("PROBE-RECENT-DONE")
