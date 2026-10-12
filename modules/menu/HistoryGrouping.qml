@@ -56,8 +56,13 @@ QtObject {
             key: root.runKey(app, day, tail) }
     }
 
+    // A pooled row keeps its last index, and a Binding's value still evaluates while
+    // its when is false, so a shortened history is asked for rows it no longer has
     function shapeAt(index: int): var {
         const rows = root.model
+        if (index < 0 || index >= rows.count)
+            return { first: index === 0, section: true, header: true,
+                length: 1, critical: false, key: "", open: false }
         const row = rows.get(index)
         const previous = index > 0 ? rows.get(index - 1) : null
         const section = !previous || root.dayKey(row.time) !== root.dayKey(previous.time)

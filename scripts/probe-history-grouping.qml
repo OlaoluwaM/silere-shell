@@ -311,6 +311,13 @@ ShellRoot {
         root.check(observer.observedShape.open && observer.changes > afterInsert
                 && afterInsert > before,
             "a QML binding observes expansion state changes")
+
+        // a pooled delegate holds its last index while history shortens under it
+        observer.index = 2
+        history.remove(2)
+        root.check(observer.observedShape.length === 1 && !observer.observedShape.open,
+            "a binding left on a removed index reads a lone row rather than past the end")
+        observer.index = 0
     }
 
     Component.onCompleted: {
