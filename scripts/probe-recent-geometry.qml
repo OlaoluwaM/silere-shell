@@ -72,6 +72,28 @@ ShellRoot {
         }))
     }
 
+    // history files older rows below newer ones, so a row dated days back joins the end
+    function appendOld(app: string, daysAgo: int): void {
+        const now = new Date()
+        Notifications.historyModel.append(Notifications._normalizeEntry({
+            id: root.nextId++, appName: app, appIcon: "", desktopEntry: "",
+            summary: "Summary from " + app, body: root.longBody, urgency: 1,
+            time: new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo, 12).getTime(),
+            sessionCurrent: true
+        }))
+    }
+
+    // the list rests at its end with its last row's bottom on the view's bottom edge
+    function atEnd(label: string): void {
+        const list = root.findList(page)
+        const last = list.itemAtIndex(Notifications.historyCount - 1)
+        root.check(list.atYEnd && last !== null
+                && Math.abs(last.y + last.height - list.contentY - list.height) < 0.5,
+            label + ": the list rests at its end (contentY " + list.contentY + ", last row ends "
+                + (last ? last.y + last.height - list.contentY : "unbuilt") + " in a view of "
+                + list.height + ")")
+    }
+
     function findList(item): var {
         if (!item) return null
         if (item.contentItem !== undefined && item.delegate !== undefined && item.model !== undefined) return item
@@ -362,9 +384,48 @@ ShellRoot {
                 root.check(root.tailStrays === 0, "the last row closes in view while the rows "
                     + "above follow it down (" + root.tailStrays + " stray frames; "
                     + root.tailFirstStray + ")")
-                root.check(list.atYEnd, "the list rests at its new end")
+                root.atEnd("after the last row leaves at the end")
                 // a scrolled list builds only the rows near the view, so the rows it has are the set
                 root.settled("after the last row leaves at the end", root.rows().length)
+                root.appendOld("Omicron", 1)
+                root.appendOld("Pi", 1)
+                break
+            }
+            case 54:
+                root.findList(page).positionViewAtEnd()
+                break
+            case 56: {
+                // the first row under the last day hands its header to the row after it, so the
+                // list gives up less room than the leaving row's height
+                const list = root.findList(page)
+                const first = list.itemAtIndex(Notifications.historyCount - 2)
+                root.check(first !== null && first._showSection,
+                    "the last day's first row carries its header before it leaves")
+                if (first) first.removeSelf()
+                break
+            }
+            case 61: {
+                root.atEnd("after the last day's first row leaves")
+                // history replaces a row in place when its sender updates it, a removal and an
+                // insert in one pass that leave the content as it was
+                const list = root.findList(page)
+                root.tailAboveTop = list.contentY
+                const last = Notifications.historyCount - 1
+                const entry = Notifications.historyModel.get(last)
+                const copy = {}
+                for (const role of ["id", "appName", "appIcon", "desktopEntry", "summary", "body",
+                        "urgency", "time", "sessionCurrent"])
+                    copy[role] = entry[role]
+                Notifications.historyModel.remove(last)
+                Notifications._prependHistory(copy)
+                break
+            }
+            case 66: {
+                const list = root.findList(page)
+                root.check(Math.abs(list.contentY - root.tailAboveTop) < 0.5,
+                    "a row replaced in place leaves the view where it was (contentY "
+                        + root.tailAboveTop + " to " + list.contentY + ")")
+                root.atEnd("after a row is replaced in place")
                 console.log("PROBE-RECENT-GEOMETRY " + (root.failures ? "failed" : "passed")
                     + " " + root.checks + " checks")
                 console.log("PROBE-RECENT-DONE")

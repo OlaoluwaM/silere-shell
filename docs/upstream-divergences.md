@@ -387,14 +387,17 @@ naming them over upstream's CI claim.
   opacity, for that reason. Upstream fades the whole row while the next one
   draws a second header and slides it up. Keep the handoff when an import
   touches the history delegate or its transitions.
-- Rows leaving the history keep their room as the list's footer until their
-  remove transition ends (`RecentPage`'s `_tailHold`), and a list scrolled to
-  its end scrolls to the new end on the transition's curve. Without it the
-  content shrinks at once, the list snaps up a row, and the last row leaves
-  below the view. The footer stays fixed while rows leave: resizing it lays
-  the list out again and drops the running remove transitions. Upstream has
-  no remove transition here. Keep the hold when an import touches the history
-  list or its transitions.
+- Rows the user clears from the history keep their room as the list's footer
+  until their remove transition ends (`RecentPage`'s `_tailHold`), and a list
+  scrolled to its end scrolls to the new end on the transition's curve.
+  Without it the content shrinks at once, the list snaps up a row, and the
+  last row leaves below the view. The room is measured from the built rows
+  once the change settles, since a row inheriting a day header takes some
+  back. History's own trims and replacements are left alone: they arrive with
+  an insert the list has not built. The footer stays fixed while rows leave:
+  resizing it lays the list out again and drops the running remove
+  transitions. Upstream has no remove transition here. Keep the hold when an
+  import touches the history list or its transitions.
 - Menu pages are laid out at the destination geometry, not at the live width:
   `MenuWindow.contentPad` and `innerW` key on `panelW` (`contentW` stays live
   only as the clip box), and a page on its way out keeps its own geometry in a

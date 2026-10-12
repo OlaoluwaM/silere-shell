@@ -121,13 +121,32 @@ PageShell {
     // already running, where scrolling does not
     property real _tailHold: 0
 
+    // Only rows the user cleared: history's own trims and replacements land together with
+    // an insert the list has not built yet, so their new end cannot be read here. The room
+    // held is what the rows already built lose once the change settles, not the leaving
+    // rows' height: a row that inherits a day header takes some of it back, and a run that
+    // folds up on a merge gives up more
     function _holdTail(first: int, last: int): void {
-        if (root._clearing) return
-        let freed = 0
-        for (let i = first; i <= last; i++) {
+        const lead = _historyList.itemAtIndex(first)
+        if (root._clearing || !lead || !lead._removing) return
+        const rows = []
+        let before = 0
+        for (let i = 0; i < _historyList.count; i++) {
             const row = _historyList.itemAtIndex(i)
-            if (row) freed += row.height
+            if (!row) continue
+            rows.push(row)
+            before += row.height
         }
+        Qt.callLater(() => root._settleTail(rows, before))
+    }
+
+    // runs after the synchronous pass, when the rows have their new shapes and heights,
+    // and before the list lays out and would snap to the shorter end
+    function _settleTail(rows, before: real): void {
+        let after = 0
+        for (let i = 0; i < rows.length; i++)
+            if (rows[i].index >= 0) after += rows[i].height
+        const freed = before - after
         if (freed <= 0) return
         const list = _historyList
         const end = list.originY + list.contentHeight - root._tailHold - freed - list.height
