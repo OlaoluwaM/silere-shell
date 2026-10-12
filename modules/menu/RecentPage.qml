@@ -113,6 +113,52 @@ PageShell {
         function onModelAboutToChange() { root._holdHeights() }
     }
 
+    // Rows leaving take their room out of the content at once, so a list scrolled to its
+    // end snaps up to the new end and the leaving row closes out of view. The footer keeps
+    // that room until the rows are gone while the view scrolls to the new end on the
+    // leaving row's own curve, so the rows above follow it down. The footer cannot shrink
+    // as it goes: resizing it lays the list out again, which drops the remove transitions
+    // already running, where scrolling does not
+    property real _tailHold: 0
+
+    function _holdTail(first: int, last: int): void {
+        if (root._clearing) return
+        let freed = 0
+        for (let i = first; i <= last; i++) {
+            const row = _historyList.itemAtIndex(i)
+            if (row) freed += row.height
+        }
+        if (freed <= 0) return
+        const list = _historyList
+        const end = list.originY + list.contentHeight - root._tailHold - freed - list.height
+        const aim = _tailScroll.running ? _tailScroll.to : list.contentY
+        root._tailHold += freed
+        _tailRelease.restart()
+        const to = Math.max(list.originY, Math.min(aim, end))
+        if (to >= aim) return
+        _tailScroll.to = to
+        _tailScroll.restart()
+    }
+
+    SequentialAnimation {
+        id: _tailRelease
+        PauseAnimation { duration: Motion.normal }
+        PropertyAction { target: root; property: "_tailHold"; value: 0 }
+    }
+
+    NumberAnimation {
+        id: _tailScroll
+        target: _historyList
+        property: "contentY"
+        duration: Motion.normal
+        easing.type: Easing.OutCubic
+    }
+
+    Connections {
+        target: Notifications.historyModel
+        function onRowsAboutToBeRemoved(parent, first: int, last: int) { root._holdTail(first, last) }
+    }
+
     function sectionLabel(ms): string {
         const nowMs = root._nowMs > 0 ? root._nowMs : Date.now()
         const value = Number(ms || nowMs)
@@ -308,6 +354,7 @@ PageShell {
                 enabled: !root._clearing
                 NumberAnimation { property: "y"; duration: Motion.normal; easing.type: Easing.OutCubic }
             }
+            footer: Item { height: root._tailHold }
 
             delegate: Item {
                     id: _entry
