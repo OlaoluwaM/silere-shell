@@ -219,6 +219,45 @@ ShellRoot {
             "an older arrival below a folded run leaves it folded")
     }
 
+    function checkClearedTail(): void {
+        root.resetCase()
+        root.append("Clear", 404, root.day + 404)
+        root.append("Clear", 403, root.day + 403)
+        root.append("Clear", 402, root.day + 402)
+        root.append("Clear", 401, root.day + 401)
+        root.append("separator", 300, root.day + 300)
+        root.grouping.setOpen(root.shape(0).key, true)
+        history.remove(3)
+        root.check(root.shape(0).length === 3 && root.shape(0).open,
+            "clearing an open run's tail keeps the rest of the run open")
+        root.check(root.shape(3).header && !root.shape(3).open,
+            "the run below a cleared tail keeps its own state")
+
+        // the cleared tail sits on a day boundary with the same app on both sides
+        root.resetCase()
+        root.append("Clear", 304, root.day + 304)
+        root.append("Clear", 303, root.day + 303)
+        root.append("Clear", 302, root.day + 302)
+        root.append("Clear", 204, root.day - 86400000 + 204)
+        root.append("Clear", 203, root.day - 86400000 + 203)
+        root.append("Clear", 202, root.day - 86400000 + 202)
+        root.append("Clear", 201, root.day - 86400000 + 201)
+        root.append("Clear", 104, root.day - 2 * 86400000 + 104)
+        root.append("Clear", 103, root.day - 2 * 86400000 + 103)
+        root.append("Clear", 102, root.day - 2 * 86400000 + 102)
+        root.grouping.setOpen(root.shape(3).key, true)
+        history.remove(6)
+        root.check(root.shape(3).length === 3 && root.shape(3).open,
+            "clearing the tail of an open run in a middle day keeps it open")
+        root.check(!root.shape(0).open && !root.shape(6).open,
+            "the runs on the neighbouring days keep their own state")
+
+        // a whole cleared run never hands its state to the same app's run on the day above
+        history.remove(3, 3)
+        root.check(!root.shape(0).open && !root.shape(3).open,
+            "clearing an open run leaves the same app's run on the day above folded")
+    }
+
     function checkMergeSemantics(): void {
         root.resetCase()
         root.append("Merge", 302, root.day + 302)
@@ -292,6 +331,7 @@ ShellRoot {
         root.checkSameTimestampAndDelimiters()
         root.checkConcurrentArrivalsAndRefold()
         root.checkOlderArrivalBelowTail()
+        root.checkClearedTail()
         root.checkMergeSemantics()
         root.checkDayBoundaryAndBoundShape()
         root.check(root.modelTransitions > 0,

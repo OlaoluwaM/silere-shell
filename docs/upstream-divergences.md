@@ -252,7 +252,8 @@ naming them over upstream's CI claim.
   rather than its ordinal among the day's runs. Removing an older run must not
   transfer expansion to another run; a merged run keeps its oldest entry's state.
   An older row that history files below an open run's tail becomes its oldest
-  entry, and `HistoryGrouping` carries the open state to it.
+  entry, and `HistoryGrouping` carries the open state to it. Clearing that
+  oldest entry hands the state to the row above it when that row stays in the run.
   The fork's duration-picker DND replaces
   upstream's scheduled quiet hours; keep `dndSchedule`, `dndFrom`, `dndTo`,
   their settings rows, and their service logic removed. The `quickActions dnd`

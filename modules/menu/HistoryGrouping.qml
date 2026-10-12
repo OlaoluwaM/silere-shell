@@ -98,6 +98,33 @@ QtObject {
         if (now !== was) root.setOpen(now, true)
     }
 
+    // the row that becomes an open run's tail once a removal lands
+    property int _tailHeir: -1
+
+    // Clearing the tail of an open run must not refold the rows still in it. The
+    // row above takes the open state only when it stays in that run: a cleared
+    // run never hands its state to the run above
+    function _noteRemovedTail(first: int, last: int): void {
+        root._tailHeir = -1
+        if (first <= 0) return
+        const rows = root.model
+        const tail = rows.get(last)
+        const app = String(tail.appName)
+        const day = root.dayKey(tail.time)
+        const below = last + 1 < rows.count ? rows.get(last + 1) : null
+        if (below && String(below.appName) === app && root.dayKey(below.time) === day) return
+        const above = rows.get(first - 1)
+        if (String(above.appName) !== app || root.dayKey(above.time) !== day) return
+        if (root._openRuns[root.runKey(app, day, tail)] === true) root._tailHeir = first - 1
+    }
+
+    function _carryRemovedTail(): void {
+        const heir = root._tailHeir
+        if (heir < 0) return
+        root._tailHeir = -1
+        root.setOpen(root.runBounds(heir).key, true)
+    }
+
     // A removed or shortened tail must not leave its key behind for a later
     // group that happens to carry the same app, id, time, and day.
     function _pruneOpenRuns(): void {
@@ -139,8 +166,16 @@ QtObject {
         function onRowsAboutToBeInserted() { root.modelAboutToChange() }
         // before onCountChanged, whose prune drops the old tail's key
         function onRowsInserted(parent, first: int, last: int) { root._carryOpenTail(first, last) }
-        function onRowsAboutToBeRemoved() { root.modelAboutToChange() }
+        function onRowsAboutToBeRemoved(parent, first: int, last: int) {
+            root.modelAboutToChange()
+            root._noteRemovedTail(first, last)
+        }
         function onModelAboutToBeReset() { root.modelAboutToChange() }
-        function onCountChanged() { root._pruneOpenRuns() }
+        // not on rowsRemoved: a carry there can reach the list's rows before they are
+        // renumbered, and the last one reads past the shortened model
+        function onCountChanged() {
+            root._carryRemovedTail()
+            root._pruneOpenRuns()
+        }
     }
 }
