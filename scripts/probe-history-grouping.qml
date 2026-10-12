@@ -256,6 +256,20 @@ ShellRoot {
         history.remove(3, 3)
         root.check(!root.shape(0).open && !root.shape(3).open,
             "clearing an open run leaves the same app's run on the day above folded")
+
+        // nor does a removal that takes a whole run along with rows of another app above it
+        root.resetCase()
+        root.append("Span", 503, root.day + 503)
+        root.append("Span", 502, root.day + 502)
+        root.append("Span", 501, root.day + 501)
+        root.append("other", 400, root.day + 400)
+        root.append("Span", 303, root.day + 303)
+        root.append("Span", 302, root.day + 302)
+        root.append("Span", 301, root.day + 301)
+        root.grouping.setOpen(root.shape(4).key, true)
+        history.remove(3, 4)
+        root.check(!root.shape(0).open,
+            "a removal spanning more than the open run hands its state to no run above")
     }
 
     function checkMergeSemantics(): void {

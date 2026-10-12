@@ -117,6 +117,8 @@ QtObject {
         const day = root.dayKey(tail.time)
         const below = last + 1 < rows.count ? rows.get(last + 1) : null
         if (below && String(below.appName) === app && root.dayKey(below.time) === day) return
+        // a removal reaching past the run's head takes the whole run with it
+        if (root.runBounds(last).start > first) return
         const above = rows.get(first - 1)
         if (String(above.appName) !== app || root.dayKey(above.time) !== day) return
         if (root._openRuns[root.runKey(app, day, tail)] === true) root._tailHeir = first - 1
