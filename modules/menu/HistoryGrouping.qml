@@ -10,6 +10,8 @@ QtObject {
     required property var model
     property int foldAt: 3
     property var _openRuns: ({})
+    // the row that becomes an open run's tail once a removal lands
+    property int _tailHeir: -1
 
     signal modelAboutToChange()
 
@@ -102,9 +104,6 @@ QtObject {
         const now = root.runBounds(first - 1).key
         if (now !== was) root.setOpen(now, true)
     }
-
-    // the row that becomes an open run's tail once a removal lands
-    property int _tailHeir: -1
 
     // Clearing the tail of an open run must not refold the rows still in it. The
     // row above takes the open state only when it stays in that run: a cleared
