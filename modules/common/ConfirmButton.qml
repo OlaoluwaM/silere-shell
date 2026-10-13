@@ -97,9 +97,13 @@ Rectangle {
     // the same ink-centering doctrine as Pill, but onto the label's capitals rather than the
     // box: the symbols fallback lends the glyph a taller line with a lower baseline, so
     // centering the two line boxes leaves the icon sitting under the word beside it.
+    // The current glyph is its own reference: it is fixed per button and never trades
+    // places with a sibling glyph, so there is no shared baseline to hold.
     // The ink is measured at 100px, as Settings measures the face: tightBoundingRect rounds
     // out to whole pixels, which at caption size is the size of the correction itself.
-    // Unrounded, since QtRendering text has no pixel grid to land on
+    // Unrounded, since QtRendering text has no pixel grid to land on. The glyph takes its y
+    // from where the label actually sits rather than centering beside it: centering snaps
+    // both to whole pixels, half a pixel apart whenever the row and a line differ in parity
     TextMetrics { id: _glyphInk; font.family: _glyphText.font.family; font.pixelSize: 100; text: root.glyph }
     TextMetrics {
         id: _capInk
@@ -108,9 +112,8 @@ Rectangle {
         font.pixelSize: 100
         text: "H"
     }
-    readonly property real _glyphInkShift: root.glyph.length > 0
-        ? (_glyphText.implicitHeight - _labelText.implicitHeight) / 2
-          + _labelText.baselineOffset
+    readonly property real _glyphInkY: root.glyph.length > 0
+        ? _labelText.y + _labelText.baselineOffset
           + (_capInk.tightBoundingRect.y + _capInk.tightBoundingRect.height / 2) * _labelText.font.pixelSize / 100
           - _glyphText.baselineOffset
           - (_glyphInk.tightBoundingRect.y + _glyphInk.tightBoundingRect.height / 2) * _glyphText.font.pixelSize / 100
@@ -123,8 +126,7 @@ Rectangle {
 
         ShellText {
             id: _glyphText
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.verticalCenterOffset: root._glyphInkShift
+            y: root._glyphInkY
             visible: root.glyph.length > 0
             text: root.glyph
             color: root._armed ? root.tint
