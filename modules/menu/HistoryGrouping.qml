@@ -13,8 +13,6 @@ QtObject {
     // the row that becomes an open run's tail once a removal lands
     property int _tailHeir: -1
 
-    signal modelAboutToChange()
-
     function dayKey(ms): string {
         const d = new Date(Number(ms || Date.now()))
         return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate()
@@ -169,14 +167,9 @@ QtObject {
 
     property Connections _modelChanges: Connections {
         target: root.model
-        function onRowsAboutToBeInserted() { root.modelAboutToChange() }
         // before onCountChanged, whose prune drops the old tail's key
         function onRowsInserted(parent, first: int, last: int) { root._carryOpenTail(first, last) }
-        function onRowsAboutToBeRemoved(parent, first: int, last: int) {
-            root.modelAboutToChange()
-            root._noteRemovedTail(first, last)
-        }
-        function onModelAboutToBeReset() { root.modelAboutToChange() }
+        function onRowsAboutToBeRemoved(parent, first: int, last: int) { root._noteRemovedTail(first, last) }
         // not on rowsRemoved: a carry there can reach the list's rows before they are
         // renumbered, and the last one reads past the shortened model
         function onCountChanged() {

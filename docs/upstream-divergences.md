@@ -379,25 +379,28 @@ naming them over upstream's CI claim.
   millisecond a frame at a high refresh rate, so every visit sat behind the
   loading overlay while the part-built page drew through it. Keep both when
   an import touches the page retention or `PageShell`.
+- History rows leave on their own clock (`ListView.delayRemove` from
+  `RecentPage`'s `_noteLeaving`), not through a remove transition: Qt drops a
+  running remove transition on any later layout of the list, so a second
+  clear, a history trim, or a run folding as it merges cut the first row's exit
+  short. A leaving row keeps its place until it has closed, so the list lays
+  out from live heights on every frame: the rows below close up, a list at its
+  end follows the row down, and removals animate other rows' heights (they no
+  longer raise `_settling`; inserts still do). The list never repositions a
+  row it has let go of, so each leaving row follows the row above it
+  (`_leavingRows`, `_after`). Upstream has no remove transition here. Keep the
+  row-owned exit when an import touches the history list, its transitions, or
+  the delegate's height.
 - Removing the first history row under a day hands its header to the next
-  row of that day (`RecentPage`'s `_sectionHandoff`): the leaving row keeps
-  the header drawn in place and fades only its card, the next row keeps its
-  copy hidden until then, and its card eases into the header's room on the
-  slide's curve. The remove transition fades `_leaveFade`, not the row's
-  opacity, for that reason. Upstream fades the whole row while the next one
-  draws a second header and slides it up. Keep the handoff when an import
-  touches the history delegate or its transitions.
-- Rows the user clears from the history keep their room as the list's footer
-  until their remove transition ends (`RecentPage`'s `_tailHold`), and a list
-  scrolled to its end scrolls to the new end on the transition's curve.
-  Without it the content shrinks at once, the list snaps up a row, and the
-  last row leaves below the view. The room is measured from the built rows
-  once the change settles, since a row inheriting a day header takes some
-  back. History's own trims and replacements are left alone: they arrive with
-  an insert the list has not built. The footer stays fixed while rows leave:
-  resizing it lays the list out again and drops the running remove
-  transitions. Upstream has no remove transition here. Keep the hold when an
-  import touches the history list or its transitions.
+  row of that day (the delegate's `_handoff`, `_handedTo`, `_headerFrom`):
+  the next row takes the header over at once and draws it where the first
+  leaving row drew it, however many rows are still closing above it, while
+  its card rises into the header's room as they close. Each handoff rides on
+  its leaving row, so clears under two days run side by side.
+  The leaving row fades `_leaveFade`, not its opacity, and hides its own
+  header. Upstream fades the whole row while the next one draws a second
+  header and slides it up. Keep the handoff when an import touches the
+  history delegate or its transitions.
 - Menu pages are laid out at the destination geometry, not at the live width:
   `MenuWindow.contentPad` and `innerW` key on `panelW` (`contentW` stays live
   only as the clip box), and a page on its way out keeps its own geometry in a

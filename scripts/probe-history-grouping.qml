@@ -12,7 +12,6 @@ ShellRoot {
     property var grouping: null
     property int checks: 0
     property int failures: 0
-    property int modelTransitions: 0
     readonly property double day: new Date(2026, 8, 5, 12, 0, 0).getTime()
 
     ListModel { id: history }
@@ -27,10 +26,6 @@ ShellRoot {
         onObservedShapeChanged: changes++
     }
 
-    Connections {
-        target: root.grouping
-        function onModelAboutToChange() { root.modelTransitions++ }
-    }
 
     function check(ok: bool, label: string): void {
         root.checks++
@@ -355,8 +350,6 @@ ShellRoot {
         root.checkClearedTail()
         root.checkMergeSemantics()
         root.checkDayBoundaryAndBoundShape()
-        root.check(root.modelTransitions > 0,
-            "model changes notify the page before layout can settle")
         if (root.failures === 0)
             console.warn("PROBE-HISTORY passed " + root.checks + " checks")
         console.warn("PROBE-HISTORY-DONE")

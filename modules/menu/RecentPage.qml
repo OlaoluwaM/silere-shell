@@ -84,20 +84,13 @@ PageShell {
         return Qt.formatDateTime(d, ShellSettings.clock12h ? "h:mm ap" : "HH:mm")
     }
 
-    // a row's height must not animate on a model change: the list lays the rows below
-    // out from the height it sees at that moment and its displaced transition carries
-    // them there, so a height still in flight leaves them overlapping or adrift once it
-    // lands. Only the user's own fold and unfold animate. Raised on the about-to signals
-    // because delegate indexes, and everything derived from them, update inside the
-    // change itself, before the count moves; dropped after the synchronous pass, before
-    // the list gets to lay out
+    // a row's height must not animate on an insert: the list lays the rows below out from
+    // the height it sees at that moment and its displaced transition carries them there, so
+    // a height still in flight leaves them overlapping or adrift once it lands. Raised on the
+    // about-to signals because delegate indexes, and everything derived from them, update
+    // inside the change itself, before the count moves; dropped after the synchronous pass,
+    // before the list gets to lay out. A removal animates instead: see _leavingRows
     property bool _settling: false
-
-    // The day header belongs to the first row under it. When the user removes that row and the
-    // next one is from the same day, the leaving row keeps drawing the header where it stands,
-    // and the next row, named here, keeps its own copy hidden until the leaving row is gone.
-    // Otherwise one header fades out in place while a second rides up with the next row
-    property string _sectionHandoff: ""
 
     function _rowIdentity(id, time): string {
         return String(id) + "\u0001" + String(time)
@@ -108,74 +101,82 @@ PageShell {
         Qt.callLater(() => root._settling = false)
     }
 
-    Connections {
-        target: _historyGrouping
-        function onModelAboutToChange() { root._holdHeights() }
-    }
+    // Rows leave on their own clock (ListView.delayRemove), not through the list's remove
+    // transition: any later layout of the list drops a remove transition already running,
+    // so a second clear, a history trim or a run folding as it merges cut the first one
+    // short. A leaving row keeps its place until it has closed, so the list lays everything
+    // out from live heights on every frame: the rows below close up, a run that folds or
+    // a row that takes a day header changes height on the same curve, and a list at its
+    // end follows the leaving row down. The list never positions a row it has let go of,
+    // so each leaving row follows the row that was above it, kept here until it is gone
+    property var _leavingRows: []
 
-    // Rows leaving take their room out of the content at once, so a list scrolled to its
-    // end snaps up to the new end and the leaving row closes out of view. The footer keeps
-    // that room until the rows are gone while the view scrolls to the new end on the
-    // leaving row's own curve, so the rows above follow it down. The footer cannot shrink
-    // as it goes: resizing it lays the list out again, which drops the remove transitions
-    // already running, where scrolling does not
-    property real _tailHold: 0
-
-    // Only rows the user cleared: history's own trims and replacements land together with
-    // an insert the list has not built yet, so their new end cannot be read here. The room
-    // held is what the rows already built lose once the change settles, not the leaving
-    // rows' height: a row that inherits a day header takes some of it back, and a run that
-    // folds up on a merge gives up more
-    function _holdTail(first: int, last: int): void {
-        const lead = _historyList.itemAtIndex(first)
-        if (root._clearing || !lead || !lead._removing) return
-        const rows = []
-        let before = 0
-        for (let i = 0; i < _historyList.count; i++) {
-            const row = _historyList.itemAtIndex(i)
-            if (!row) continue
-            rows.push(row)
-            before += row.height
+    // the row the delegates hold at a model index; pooled rows keep a stale one
+    function _rowAt(index: int): var {
+        const rows = _historyList.contentItem.children
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i]
+            if (row.index === index && row._pooled === false && !row._leaving) return row
         }
-        Qt.callLater(() => root._settleTail(rows, before))
+        return null
     }
 
-    // runs after the synchronous pass, when the rows have their new shapes and heights,
-    // and before the list lays out and would snap to the shorter end
-    function _settleTail(rows, before: real): void {
-        let after = 0
-        for (let i = 0; i < rows.length; i++)
-            if (rows[i].index >= 0) after += rows[i].height
-        const freed = before - after
-        if (freed <= 0) return
-        const list = _historyList
-        const end = list.originY + list.contentHeight - root._tailHold - freed - list.height
-        const aim = _tailScroll.running ? _tailScroll.to : list.contentY
-        root._tailHold += freed
-        _tailRelease.restart()
-        const to = Math.max(list.originY, Math.min(aim, end))
-        if (to >= aim) return
-        _tailScroll.to = to
-        _tailScroll.restart()
+    function _noteLeaving(first: int, last: int): void {
+        if (root._clearing) return
+        // a row still closing above sits between these and the row the model names
+        let above = root._closingUnder(root._rowAt(first - 1))
+        const leaving = []
+        for (let i = first; i <= last; i++) {
+            const row = root._rowAt(i)
+            if (row) leaving.push(row)
+        }
+        // and one may still be closing between two of these, as a row cleared from a run
+        // before the run's Clear all
+        for (let i = 0; i < leaving.length; i++) {
+            leaving[i]._after = above
+            above = root._closingUnder(leaving[i])
+        }
+        // reduced motion closes a row inside _leave, so the chain is in place before any starts
+        root._leavingRows = root._leavingRows.concat(leaving)
+        for (let i = 0; i < leaving.length; i++) leaving[i]._leave()
     }
 
-    SequentialAnimation {
-        id: _tailRelease
-        PauseAnimation { duration: Motion.normal }
-        PropertyAction { target: root; property: "_tailHold"; value: 0 }
+    // the last of the rows still closing right under this one, where the next row now starts
+    function _closingUnder(row): var {
+        for (let i = 0; i < root._leavingRows.length; i++) {
+            if (root._leavingRows[i]._after !== row) continue
+            row = root._leavingRows[i]
+            i = -1
+        }
+        return row
     }
 
-    NumberAnimation {
-        id: _tailScroll
-        target: _historyList
-        property: "contentY"
-        duration: Motion.normal
-        easing.type: Easing.OutCubic
+    // a row gone from where it was, by closing or by the list taking it back: whatever
+    // followed it follows what it followed, or stays put
+    function _leftRow(row): void {
+        if (root._leavingRows.length === 0) return
+        let under = null
+        const rest = []
+        for (let i = 0; i < root._leavingRows.length; i++) {
+            const other = root._leavingRows[i]
+            if (other === row) continue
+            if (other._after === row) {
+                other._after = row._after
+                under = other
+            }
+            rest.push(other)
+        }
+        // a header held at this row's place is held by the row under it, which starts there now
+        for (let i = 0; i < rest.length; i++)
+            if (rest[i]._headerFrom === row) rest[i]._headerFrom = under
+        root._leavingRows = rest
     }
 
     Connections {
         target: Notifications.historyModel
-        function onRowsAboutToBeRemoved(parent, first: int, last: int) { root._holdTail(first, last) }
+        function onRowsAboutToBeInserted() { root._holdHeights() }
+        function onModelAboutToBeReset() { root._holdHeights() }
+        function onRowsAboutToBeRemoved(parent, first: int, last: int) { root._noteLeaving(first, last) }
     }
 
     function sectionLabel(ms): string {
@@ -348,8 +349,9 @@ PageShell {
             model: Notifications.historyModel
 
             // clearAll runs its own fade over the whole list, so per-row motion there
-            // would animate every delegate at once behind an already-invisible list
-            displaced: Transition {
+            // would animate every delegate at once behind an already-invisible list.
+            // Inserts only: a removal lays the rows below out on every frame as it closes
+            addDisplaced: Transition {
                 enabled: !root._clearing
                 NumberAnimation { property: "y"; duration: Motion.normal; easing.type: Easing.OutCubic }
             }
@@ -357,24 +359,6 @@ PageShell {
                 enabled: !root._clearing
                 NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Motion.fast }
             }
-            // the row collapses as it fades, on the same curve the rows below use to close,
-            // so their edge follows its edge and nothing is ever drawn across leaving text.
-            // _leaveK scales the height binding rather than the transition writing height,
-            // which would sever the binding for the row's next life. _leaveFade rather than
-            // opacity, so a row handing its day header on can keep that header drawn
-            remove: Transition {
-                enabled: !root._clearing
-                ParallelAnimation {
-                    NumberAnimation { property: "_leaveFade"; to: 0; duration: Motion.normal; easing.type: Easing.OutCubic }
-                    NumberAnimation { property: "_leaveK"; to: 0; duration: Motion.normal; easing.type: Easing.OutCubic }
-                }
-            }
-            removeDisplaced: Transition {
-                enabled: !root._clearing
-                NumberAnimation { property: "y"; duration: Motion.normal; easing.type: Easing.OutCubic }
-            }
-            footer: Item { height: root._tailHold }
-
             delegate: Item {
                     id: _entry
                     // a ListModel delegate gets roles, not modelData; alias so the rest of the entry reads the same
@@ -384,7 +368,7 @@ PageShell {
 
                     readonly property bool _critical: Number(modelData.urgency) === 2
 
-                    // a row in its remove transition has index -1 and no neighbours, so anything
+                    // a leaving row has index -1 and no neighbours, so anything
                     // read from the model would snap to a lone header mid-fade: a folded follower
                     // popping open, a stack dropping its peeks. The shape holds its last live frame
                     property var _shape: ({ first: true, section: true, header: true, length: 1, critical: false, open: false, key: "" })
@@ -437,31 +421,61 @@ PageShell {
                         + (_entry._showHeader ? _metaRow.height + _entryContent.spacing : 0)
                         + _summary.implicitHeight
                         + (_body.bodyText.length > 0 ? _entryContent.spacing + _body.contentHeight : 0))
-                    readonly property int _fullHeight: _gapAbove + _sectionHeight + _cardHeight
+                    readonly property string _identity: root._rowIdentity(modelData.id, modelData.time)
+                    // The day header belongs to the first row under it. When the user removes that
+                    // row and the next one is from the same day, the next row takes the header over
+                    // at once and draws it where it stood while its card rises into the header's
+                    // room. Otherwise one header fades out in place while a second rides up with the
+                    // next row. Each handoff rides on its leaving row, so clears under two days at
+                    // once hand their headers over side by side. A row can be handed one header
+                    // twice, by a head that arrived and left while the old head still closed; the
+                    // header's room shuts with the later one
+                    readonly property var _handoff: {
+                        const rows = root._leavingRows
+                        for (let i = rows.length - 1; i >= 0; i--)
+                            if (rows[i]._handingOff && rows[i]._handedTo === _entry._identity) return rows[i]
+                        return null
+                    }
+                    readonly property bool _takesSection: _handoff !== null
+                    // the room above the card. A row taking a day header over sits right under the
+                    // leaving row, so it opens the header's room as that row closes: its card
+                    // starts where it stood and rises into place, exactly as far as the rows below
+                    readonly property real _topRoom: _handoff
+                        ? _runGap + (_gapAbove + _sectionHeight - _runGap) * (1 - _handoff._leaveK)
+                        : _gapAbove + _sectionHeight
+                    readonly property real _fullHeight: _topRoom + _cardHeight
                     property bool _removing: false
 
+                    property bool _pooled: false
+                    property bool _leaving: false
+                    // the row above when this one left, which it follows until it is gone
+                    property var _after: null
                     property real _leaveK: 1
                     property real _leaveFade: 1
-                    // set when this row leaves and the next row takes over its day header: the
-                    // header stays put and drawn, and only the card below it fades and collapses
-                    property bool _keepsSection: false
+                    // set when this row leaves and the next row takes its day header over
+                    property bool _handingOff: false
                     property string _handedTo: ""
-                    readonly property int _keptTop: _keepsSection ? _gapAbove + _sectionHeight : 0
-                    readonly property string _identity: root._rowIdentity(modelData.id, modelData.time)
-                    readonly property bool _takesSection: root._sectionHandoff.length > 0
-                        && root._sectionHandoff === _entry._identity
-                    // the list sets this row's new height at once, header included, and slides the
-                    // row up into the leaving row's place. The card eases down from where it was
-                    // into the header's room on the slide's own curve, so it moves exactly as far
-                    // as the rows below it and follows the leaving card's edge
-                    property real _takeK: 1
-                    readonly property int _takeLift: _takeK < 1
-                        ? Math.max(0, _gapAbove + _sectionHeight - _runGap) * (1 - _takeK) : 0
+                    // the leaving row whose place that header holds. A second clear under the
+                    // header, or a whole open run going at once, leaves several rows closing above
+                    // the taker, so it draws the header from where it started
+                    property var _headerFrom: null
+                    // followed by hand rather than through a Binding on y: with a whole history
+                    // leaving at once that Binding reports a loop on every frame, though nothing
+                    // written here ever comes back to the row writing it
+                    function _follow(): void {
+                        if (_entry._leaving && _entry._after) _entry.y = _entry._after.y + _entry._after.height
+                    }
+                    on_AfterChanged: _entry._follow()
+                    Connections {
+                        target: _entry._after
+                        function onYChanged() { _entry._follow() }
+                        function onHeightChanged() { _entry._follow() }
+                    }
                     width: _historyList.width
                     // the peeks live below the card, so the row grows to keep the next one clear
-                    height: _folded ? 0
-                        : _keptTop + (_fullHeight + _peekStep * _peeks - _keptTop) * _leaveK
-                    clip: true
+                    height: _folded ? 0 : (_fullHeight + _peekStep * _peeks) * _leaveK
+                    // a row taking a header over draws it above its own top, where the leaving row was
+                    clip: !_takesSection
                     // a folded follower still has a card's worth of handlers behind zero height
                     enabled: !_folded
 
@@ -471,9 +485,15 @@ PageShell {
                     Component.onCompleted: _heightArm.start()
                     Component.onDestruction: {
                         _heightArm.stop()
+                        root._leftRow(_entry)
                         _entry._releaseSection()
                     }
                     ListView.onPooled: {
+                        // a row closing below follows this one, which the list now puts elsewhere
+                        root._leftRow(_entry)
+                        _entry._pooled = true
+                        _entry._leaving = false
+                        _entry._after = null
                         _heightArm.stop()
                         _entry._heightReady = false
                         _body.expanded = false
@@ -481,33 +501,44 @@ PageShell {
                         _entry._releaseSection()
                     }
                     ListView.onReused: {
-                        // the remove transition pools the row faded out and collapsed, and a row
-                        // removed while its add transition ran keeps that partial opacity
+                        _entry._pooled = false
+                        // a row leaves faded out and closed, and a row removed while its add
+                        // transition ran keeps that partial opacity
                         _entry.opacity = 1
                         _entry._leaveK = 1
                         _entry._leaveFade = 1
-                        _entry._keepsSection = false
-                        _takeAnim.stop()
-                        _entry._takeK = 1
+                        _entry._handingOff = false
                         _body.expanded = false
                         _entry._removing = false
                         _entry._heightReady = false
                         _heightArm.restart()
                     }
 
-                    NumberAnimation {
-                        id: _takeAnim
-                        target: _entry
-                        property: "_takeK"
-                        from: 0
-                        to: 1
-                        duration: Motion.normal
-                        easing.type: Easing.OutCubic
+                    // the row collapses as it fades and the rows below close up behind it, so
+                    // their edge follows its edge and nothing is drawn across leaving text.
+                    // _leaveK scales the height binding rather than the animation writing height,
+                    // which would sever the binding for the row's next life. _leaveFade rather
+                    // than opacity, which the add transition owns on a row that leaves early
+                    SequentialAnimation {
+                        id: _leaveAnim
+                        ParallelAnimation {
+                            NumberAnimation { target: _entry; property: "_leaveFade"; to: 0; duration: Motion.normal; easing.type: Easing.OutCubic }
+                            NumberAnimation { target: _entry; property: "_leaveK"; to: 0; duration: Motion.normal; easing.type: Easing.OutCubic }
+                        }
+                        ScriptAction { script: _entry._left() }
                     }
-                    on_TakesSectionChanged: {
-                        if (!_entry._takesSection || !_entry._heightReady) return
-                        _entry._takeK = 0
-                        _takeAnim.restart()
+
+                    function _leave(): void {
+                        _entry._leaving = true
+                        _entry._follow()
+                        _entry.ListView.delayRemove = true
+                        _leaveAnim.start()
+                    }
+
+                    function _left(): void {
+                        root._leftRow(_entry)
+                        _entry._releaseSection()
+                        _entry.ListView.delayRemove = false
                     }
 
                     // the next row inherits the header only when it is from the same day; a
@@ -519,23 +550,21 @@ PageShell {
                         const after = rows.get(next)
                         if (_historyGrouping.dayKey(after.time)
                                 !== _historyGrouping.dayKey(_entry.modelData.time)) return
-                        _entry._keepsSection = true
+                        _entry._headerFrom = (_entry._handoff && _entry._handoff._headerFrom) || _entry
+                        _entry._handingOff = true
                         _entry._handedTo = root._rowIdentity(after.id, after.time)
-                        root._sectionHandoff = _entry._handedTo
                     }
 
-                    // a second removal during the first one names its own successor, which this
-                    // row must not clear when it finishes
                     function _releaseSection(): void {
-                        if (!_entry._keepsSection) return
-                        _entry._keepsSection = false
-                        if (root._sectionHandoff === _entry._handedTo) root._sectionHandoff = ""
+                        _entry._handingOff = false
                         _entry._handedTo = ""
+                        _entry._headerFrom = null
                     }
-                    // a leaving row's height is driven by its transition; the behaviour would
-                    // only chase it a frame behind
+                    // a leaving row's height, and a header taker's, follow the leaving row's own
+                    // clock; the behaviour would only chase them a frame behind
                     MotionBehavior on height {
                         gate: _entry._heightReady && !root._settling && _entry.index >= 0
+                            && !_entry._takesSection
                         NumberAnimation { duration: Motion.normal; easing.type: Easing.OutCubic }
                     }
                     // a third message folding the run would otherwise strand an expanded body
@@ -578,9 +607,12 @@ PageShell {
                         visible: _entry._showSection
                         anchors.left:  parent.left
                         anchors.right: parent.right
-                        y: _entry._gapAbove
+                        // a taker draws the header where the leaving rows drew it, however far
+                        // they have closed
+                        readonly property var _from: _entry._handoff ? _entry._handoff._headerFrom : null
+                        y: _from ? _from.y + _from._gapAbove - _entry.y : _entry._gapAbove
                         height: _entry._sectionHeight
-                        opacity: _entry._takesSection ? 0 : _entry._keepsSection ? 1 : _entry._leaveFade
+                        opacity: _entry._handingOff ? 0 : _entry._leaveFade
 
                         ShellText {
                             id: _secText
@@ -671,7 +703,7 @@ PageShell {
                     Rectangle {
                         id: _card
                         x: 0
-                        y: _entry._gapAbove + _entry._sectionHeight - _entry._takeLift
+                        y: _entry._topRoom
                         opacity: _entry._leaveFade
                         width: parent.width
                         height: _entry._cardHeight
