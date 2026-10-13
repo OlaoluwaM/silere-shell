@@ -248,6 +248,8 @@ naming them over upstream's CI claim.
   fork's own: an upstream history grouping lands under that fold or not at all.
   Popup and history dismiss icons center their measured ink horizontally,
   with fractional positioning retained for fonts such as Berkeley Mono.
+  The shared `ConfirmButton` centers its glyph's ink on the label's capitals,
+  measured at 100px and left unrounded, 6px from the label.
   Expansion belongs to a run's retained oldest entry, including its timestamp,
   rather than its ordinal among the day's runs. Removing an older run must not
   transfer expansion to another run; a merged run keeps its oldest entry's state.

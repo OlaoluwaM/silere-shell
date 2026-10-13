@@ -94,13 +94,37 @@ Rectangle {
     }
     TapHandler { id: _tap; enabled: root._interactive; onTapped: root.request() }
 
+    // the same ink-centering doctrine as Pill, but onto the label's capitals rather than the
+    // box: the symbols fallback lends the glyph a taller line with a lower baseline, so
+    // centering the two line boxes leaves the icon sitting under the word beside it.
+    // The ink is measured at 100px, as Settings measures the face: tightBoundingRect rounds
+    // out to whole pixels, which at caption size is the size of the correction itself.
+    // Unrounded, since QtRendering text has no pixel grid to land on
+    TextMetrics { id: _glyphInk; font.family: _glyphText.font.family; font.pixelSize: 100; text: root.glyph }
+    TextMetrics {
+        id: _capInk
+        font.family: _labelText.font.family
+        font.weight: _labelText.font.weight
+        font.pixelSize: 100
+        text: "H"
+    }
+    readonly property real _glyphInkShift: root.glyph.length > 0
+        ? (_glyphText.implicitHeight - _labelText.implicitHeight) / 2
+          + _labelText.baselineOffset
+          + (_capInk.tightBoundingRect.y + _capInk.tightBoundingRect.height / 2) * _labelText.font.pixelSize / 100
+          - _glyphText.baselineOffset
+          - (_glyphInk.tightBoundingRect.y + _glyphInk.tightBoundingRect.height / 2) * _glyphText.font.pixelSize / 100
+        : 0
+
     Row {
         id: _row
         anchors.centerIn: parent
-        spacing: 4
+        spacing: 6
 
         ShellText {
+            id: _glyphText
             anchors.verticalCenter: parent.verticalCenter
+            anchors.verticalCenterOffset: root._glyphInkShift
             visible: root.glyph.length > 0
             text: root.glyph
             color: root._armed ? root.tint
@@ -110,6 +134,7 @@ Rectangle {
         }
 
         ShellText {
+            id: _labelText
             anchors.verticalCenter: parent.verticalCenter
             text: root._armed ? root.armedLabel : root.label
             color: root._armed ? root.tint
