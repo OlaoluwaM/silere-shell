@@ -388,9 +388,12 @@ naming them over upstream's CI claim.
   end follows the row down, and removals animate other rows' heights (they no
   longer raise `_settling`; inserts still do). The list never repositions a
   row it has let go of, so each leaving row follows the row above it
-  (`_leavingRows`, `_after`). Upstream has no remove transition here. Keep the
-  row-owned exit when an import touches the history list, its transitions, or
-  the delegate's height.
+  (`_leavingRows`, `_after`). A jump past a page hands every built row back to
+  the pool, leaving ones included, and Qt never resets `delayRemove`, so
+  `onPooled` stops the row's close and clears the flag; otherwise the close
+  shuts whichever entry the row is reused for. Upstream has no remove
+  transition here. Keep the row-owned exit when an import touches the history
+  list, its transitions, or the delegate's height.
 - Removing the first history row under a day hands its header to the next
   row of that day (the delegate's `_handoff`, `_handedTo`, `_headerFrom`):
   the next row takes the header over at once and draws it where the first

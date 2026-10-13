@@ -285,6 +285,20 @@ ShellRoot {
         }
     }
 
+    // back and forth past a page on each frame of the exit, so every row the list has
+    // handed back is built again before the leaving ones could close
+    FrameAnimation {
+        id: _jumpWatch
+        property int frames: 0
+        running: false
+        onTriggered: {
+            const list = root.findList(page)
+            if (++frames % 2) list.positionViewAtBeginning()
+            else list.positionViewAtEnd()
+            if (frames >= 3) stop()
+        }
+    }
+
     // every row drawn, leaving or not, starts at or below the end of the one above
     FrameAnimation {
         id: _overlapWatch
@@ -409,6 +423,26 @@ ShellRoot {
                 label + ": row " + i + " at y " + r.y + " starts past the row above ending at "
                     + (above.y + above.height))
         }
+    }
+
+    // the list hands a row it took back mid-exit to another entry, which must stand fully
+    // open and free to leave; a row that closed on its old exit has no height, so rows()
+    // would pass it by
+    function allOpen(label: string): void {
+        const kids = root.findList(page).contentItem.children
+        let live = 0
+        for (let i = 0; i < kids.length; i++) {
+            const c = kids[i]
+            if (c._leaving === undefined || c._pooled || c._leaving || c.index < 0) continue
+            live++
+            root.check(c._leaveK === 1 && c._leaveFade === 1,
+                label + ": row " + c.index + " stands open (closed to " + c._leaveK
+                    + ", faded to " + c._leaveFade + ")")
+            // the list keeps a row whose delayRemove is set, once its entry is removed, for good
+            root.check(!c.ListView.delayRemove, label + ": row " + c.index + " is not held back "
+                + "from a later removal")
+        }
+        root.check(live > 0, label + ": rows are live")
     }
 
     Timer {
@@ -814,6 +848,27 @@ ShellRoot {
                 root.check(root.dayStrays === 0, "a row handed one header twice opens its room "
                     + "on one clock (" + root.dayStrays + " stray frames; " + root.dayFirstStray + ")")
                 root.settled("after two heads leave around an arrival", 4)
+                for (let i = 0; i < 8; i++) root.insert("Fold", "")
+                for (let i = 0; i < 30; i++) root.insert("Row " + i, root.longBody)
+                break
+            case 142:
+                root.findList(page).positionViewAtEnd()
+                break
+            case 144: {
+                // a jump past a page hands every built row back, the leaving ones too, and the
+                // rows at the other end are built from them while they would still be closing
+                const list = root.findList(page)
+                const stack = list.itemAtIndex(30)
+                root.check(stack !== null && stack._stacked && stack._runLength === 8,
+                    "a folded run of eight stands in view before it is cleared")
+                if (!stack) break
+                stack.removeSelf()
+                list.positionViewAtEnd()
+                _jumpWatch.start()
+                break
+            }
+            case 148:
+                root.allOpen("after jumps take a cleared run back mid-exit")
                 console.log("PROBE-RECENT-GEOMETRY " + (root.failures ? "failed" : "passed")
                     + " " + root.checks + " checks")
                 console.log("PROBE-RECENT-DONE")

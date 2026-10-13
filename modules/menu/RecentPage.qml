@@ -491,6 +491,12 @@ PageShell {
                     ListView.onPooled: {
                         // a row closing below follows this one, which the list now puts elsewhere
                         root._leftRow(_entry)
+                        // a jump past a page hands back every built row, leaving ones too, and
+                        // the list builds the next entries from them. A close left running would
+                        // shut whichever entry the row comes back as, and the list never resets
+                        // delayRemove, which would hold that entry once it is removed in turn
+                        _leaveAnim.stop()
+                        _entry.ListView.delayRemove = false
                         _entry._pooled = true
                         _entry._leaving = false
                         _entry._after = null
