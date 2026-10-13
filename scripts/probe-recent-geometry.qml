@@ -285,7 +285,7 @@ ShellRoot {
         }
     }
 
-    // back and forth past a page on each frame of the exit, so every row the list has
+    // back and forth past a page on the first frames of the exit, so every row the list has
     // handed back is built again before the leaving ones could close
     FrameAnimation {
         id: _jumpWatch
