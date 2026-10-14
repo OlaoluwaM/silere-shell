@@ -123,6 +123,11 @@ naming them over upstream's CI claim.
   handler on `_vpnState` can run before the `hasVpn` binding catches up, so a
   tunnel coming up asked for no address until the next poll or menu open.
   Keep the direct read on an import of the VPN address.
+- `modules/menu/HomePage.qml`: a click on the VPN row arms a disconnect and a
+  second click runs `Network.disconnectVpn()`, the Wi-Fi list's idiom for the
+  connected network. Right- or middle-click copies the address, which is what
+  upstream's left click does. Keep the fork's buttons on an import of the
+  VPN row.
 - `services/OsdBarState.qml`: the full-charge alert keeps a latch of its own
   in place of upstream's charge cycle in `Battery.qml` (`chargeComplete`,
   `chargeRevision`). The first reading is a quiet baseline, taken when the
