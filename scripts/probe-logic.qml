@@ -1988,6 +1988,14 @@ ShellRoot {
                 && Network.vpnAddressFrom("") === ""
                 && Network.vpnAddressFrom("fe80::1/64") === "",
             "the VPN row shows the tunnel's first IPv4 address without its prefix")
+        const upStateWas = Network._vpnState
+        const upForWas = Network._vpnAddressFor
+        Network._vpnState = ({ active: true, name: "probe VPN", uuid: "probe-up-uuid" })
+        const upPicked = Network._vpnAddressFor
+        Network._vpnState = upStateWas
+        Network._vpnAddressFor = upForWas
+        root._check(upPicked === "probe-up-uuid",
+            "a VPN coming up asks for its own address straight away")
 
         root._check(Network.formatRate(99.97 * 1024).startsWith(" 100 ")
                 && Network.formatRate(99.4 * 1024).startsWith("99.4"),

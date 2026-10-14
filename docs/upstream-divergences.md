@@ -118,6 +118,11 @@ naming them over upstream's CI claim.
   stays out while `_wifiNameWasLinked`: a network of the target's name already
   linked when the connect began proves nothing about the new link. Keep the
   flag on an import of the Wi-Fi connect.
+- `services/Network.qml`: `refreshVpnAddress` and the address reader's
+  staleness check read `_vpnState.active`, not upstream's `hasVpn`. The
+  handler on `_vpnState` can run before the `hasVpn` binding catches up, so a
+  tunnel coming up asked for no address until the next poll or menu open.
+  Keep the direct read on an import of the VPN address.
 - `services/OsdBarState.qml`: the full-charge alert keeps a latch of its own
   in place of upstream's charge cycle in `Battery.qml` (`chargeComplete`,
   `chargeRevision`). The first reading is a quiet baseline, taken when the
