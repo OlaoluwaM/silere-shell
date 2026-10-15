@@ -37,6 +37,9 @@ PageShell {
     readonly property int _itemGap: 8
     readonly property bool _wifiAvailable: Network.toolAvailable && Network.hasWifiDevice
     readonly property bool _btAvailable: Bluetooth.available
+    // height, not visible: a child's visible reads false while the card hides, which would
+    // keep a VPN-only card from ever coming back; height also carries the row's collapse
+    readonly property bool _vpnShown: Network.hasVpn || _vpnSection.height > 0.5
     readonly property bool _brightnessAvailable: Brightness.controllable
     readonly property bool _wifiPickerOpen: _picker === "wifi"
     readonly property bool _btPickerOpen: _picker === "bt"
@@ -233,10 +236,10 @@ PageShell {
         }
         SectionLabel {
             label: "Connectivity"
-            visible: root._wifiAvailable || root._btAvailable || Network.hasVpn
+            visible: root._wifiAvailable || root._btAvailable || root._vpnShown
         }
         SettingsCard {
-            visible: root._wifiAvailable || root._btAvailable || Network.hasVpn
+            visible: root._wifiAvailable || root._btAvailable || root._vpnShown
 
             ControlRow {
                 id: _wifiRow
@@ -280,6 +283,7 @@ PageShell {
             }
 
             CollapsibleSection {
+                id: _vpnSection
                 expanded: Network.hasVpn
                 ControlRow {
                     id: _vpnRow
