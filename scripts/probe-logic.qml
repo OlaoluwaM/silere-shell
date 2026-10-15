@@ -1996,12 +1996,6 @@ ShellRoot {
         Network._vpnAddressFor = upForWas
         root._check(upPicked === "probe-up-uuid",
             "a VPN coming up asks for its own address straight away")
-        const downStateWas = Network._vpnState
-        Network._vpnState = ({ active: false, name: "", uuid: "" })
-        Network.disconnectVpn()
-        const downIdle = !Network.vpnDisconnecting
-        Network._vpnState = downStateWas
-        root._check(downIdle, "disconnecting with no VPN up does nothing")
 
         root._check(Network.formatRate(99.97 * 1024).startsWith(" 100 ")
                 && Network.formatRate(99.4 * 1024).startsWith("99.4"),

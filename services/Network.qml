@@ -101,7 +101,6 @@ Singleton {
     property string _vpnCandidateName: ""
     property string _vpnCandidateUuid: ""
     property string vpnAddress: ""
-    property bool vpnDisconnecting: false
     property string _vpnAddressFor: ""
     property bool _vpnRefreshPending: false
     readonly property bool _vpnWanted: !Idle.isIdle && available
@@ -506,15 +505,6 @@ Singleton {
 
     on_VpnStateChanged: root.refreshVpnAddress()
 
-    // by uuid, so a second tunnel that came up since the menu last looked is left alone
-    function disconnectVpn(): void {
-        const uuid = root._vpnState.active === true ? String(root._vpnState.uuid || "") : ""
-        if (uuid.length === 0 || _vpnDownProc.running || !SystemTools.hasNmcli) return
-        root.vpnDisconnecting = true
-        _vpnDownProc.command = ["nmcli", "connection", "down", "uuid", uuid]
-        _vpnDownProc.running = true
-    }
-
     readonly property string _linkSignature: {
         const devices = root._devices
         const parts = [String(Networking.wifiEnabled)]
@@ -546,7 +536,6 @@ Singleton {
             _vpnRefresh.stop()
             _vpnRefreshPending = false
             _vpnProc.running = false
-            root.vpnDisconnecting = false
             // idle only pauses and keeps the last answer; a lost nmcli has no source of truth left
             if (!SystemTools.hasNmcli) root._clearVpnState()
         }
@@ -606,19 +595,7 @@ Singleton {
             }
             const refreshAgain = root._vpnRefreshPending && root._vpnWanted
             root._vpnRefreshPending = false
-            // only a reading taken after the down finished can say whether the tunnel left
-            if (!refreshAgain && !_vpnDownProc.running) root.vpnDisconnecting = false
             if (refreshAgain) _vpnRefresh.restart()
-        }
-    }
-
-    BoundedProcess {
-        id: _vpnDownProc
-        timeoutMs: 15000
-        environment: ({ "LC_ALL": "C" })
-        onExited: (code) => {
-            if (code !== 0 || !root._vpnWanted) root.vpnDisconnecting = false
-            root._queueVpnRefresh()
         }
     }
 

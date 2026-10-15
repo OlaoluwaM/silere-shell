@@ -19,7 +19,6 @@ PageShell {
     }
     onPageHidden: {
         _vpnRow.copied = false
-        _vpnConfirm.disarm()
         _picker = ""
         _volumeRow.open = false
         _brightnessRow.open = false
@@ -34,7 +33,6 @@ PageShell {
     }
 
     property string _picker: ""
-    ArmConfirm { id: _vpnConfirm }
     readonly property int _sectionGap: 12
     readonly property int _itemGap: 8
     readonly property bool _wifiAvailable: Network.toolAvailable && Network.hasWifiDevice
@@ -286,33 +284,19 @@ PageShell {
                 ControlRow {
                     id: _vpnRow
                     property bool copied: false
-                    // keyed by name, like the Wi-Fi list's ssid, so a different tunnel never inherits the arm
-                    readonly property string _armKey: "disconnect:" + Network.vpnName
-                    readonly property bool _armed: _vpnConfirm.key === _armKey
                     active: true
                     glyph: "󰦝"
                     title: "VPN"
                     // the name is gone by the time the row collapses, so the exit reads as the outcome
                     status: !Network.hasVpn ? "Disconnected"
-                        : Network.vpnDisconnecting ? "Disconnecting…"
-                        : _armed ? "Disconnect?"
                         : copied ? "Address copied"
                         : Network.vpnName.length > 0 ? Network.vpnName : "Connected"
-                    statusColor: _armed && !Network.vpnDisconnecting ? Theme.warning : "transparent"
                     valueText: Network.vpnAddress
-                    passive: Network.vpnDisconnecting
-                    // the body tap disconnects, the Wi-Fi list's idiom for the connected
-                    // network, so copying moves to its secondary buttons
-                    onActivated: if (_vpnConfirm.tryConfirm(_armKey)) Network.disconnectVpn()
-                    TapHandler {
-                        enabled: !Network.vpnDisconnecting && Network.vpnAddress.length > 0
-                        acceptedButtons: Qt.RightButton | Qt.MiddleButton
-                        onTapped: {
-                            Quickshell.clipboardText = Network.vpnAddress
-                            _vpnConfirm.disarm()
-                            _vpnRow.copied = true
-                            _copiedHold.restart()
-                        }
+                    passive: Network.vpnAddress.length === 0
+                    onActivated: {
+                        Quickshell.clipboardText = Network.vpnAddress
+                        copied = true
+                        _copiedHold.restart()
                     }
                     Timer { id: _copiedHold; interval: 1600; onTriggered: _vpnRow.copied = false }
                 }
