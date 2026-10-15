@@ -1958,6 +1958,7 @@ ShellRoot {
         const rxWas = Network._interfaceRx
         Network._vpnSettleTimer.stop()
         Network._interfaceNames = "lo wlo1"
+        Network._interfaceRx = ({})
         Network._applyInterfaceNames("  wlo1: 1\n  lo: 2\n")
         const unchangedArmed = Network._vpnSettleTimer.running
         Network._applyInterfaceNames("  wlo1: 1\n  lo: 2\n  wg0: 3\n")
