@@ -615,8 +615,8 @@ Singleton {
                 Qt.callLater(root.refreshVpnAddress)
                 return
             }
-            if (code === 0)
-                root.vpnAddress = root.vpnAddressFrom(_vpnAddressOut.text)
+            // a failed read for the live tunnel means its profile is gone; the old address must not stand in
+            root.vpnAddress = code === 0 ? root.vpnAddressFrom(_vpnAddressOut.text) : ""
         }
     }
 
@@ -630,6 +630,7 @@ Singleton {
 
     // quickshell models only wifi and wired devices, so a tunnel coming or going never moves the link signature
     property string _interfaceNames: ""
+    property var _interfaceRx: ({})
 
     function interfaceNames(raw: string): string {
         const names = []
@@ -641,9 +642,35 @@ Singleton {
         return names.sort().join(" ")
     }
 
+    function interfaceRx(raw: string): var {
+        const counts = {}
+        const lines = String(raw || "").split("\n")
+        for (let i = 0; i < lines.length; i++) {
+            const sep = lines[i].indexOf(":")
+            if (sep <= 0) continue
+            const rx = Number(lines[i].slice(sep + 1).trim().split(/\s+/)[0])
+            if (Number.isFinite(rx)) counts[lines[i].slice(0, sep).trim()] = rx
+        }
+        return counts
+    }
+
+    // a tunnel rebuilt under the same name between two reads (a server switch) leaves the
+    // name list alone, but its counters start again from zero
+    function _countersRestarted(next: var): bool {
+        const prev = root._interfaceRx
+        for (const name in next) {
+            if (prev[name] !== undefined && next[name] < prev[name]) return true
+        }
+        return false
+    }
+
     function _applyInterfaceNames(raw: string): void {
         const next = root.interfaceNames(raw)
-        if (next.length === 0 || next === root._interfaceNames) return
+        if (next.length === 0) return
+        const rx = root.interfaceRx(raw)
+        const restarted = root._countersRestarted(rx)
+        root._interfaceRx = rx
+        if (next === root._interfaceNames && !restarted) return
         const first = root._interfaceNames.length === 0
         root._interfaceNames = next
         if (first) return

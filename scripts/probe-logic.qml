@@ -1955,6 +1955,7 @@ ShellRoot {
                 && Network.interfaceNames("") === "",
             "the interface list names every interface and skips the header")
         const interfacesWas = Network._interfaceNames
+        const rxWas = Network._interfaceRx
         Network._vpnSettleTimer.stop()
         Network._interfaceNames = "lo wlo1"
         Network._applyInterfaceNames("  wlo1: 1\n  lo: 2\n")
@@ -1966,6 +1967,17 @@ ShellRoot {
         Network._interfaceNames = interfacesWas
         root._check(!unchangedArmed && tunnelArmed && tunnelNames === "lo wg0 wlo1",
             "a tunnel interface appearing rechecks the VPN, an unchanged list does not")
+        Network._interfaceNames = "lo wg0 wlo1"
+        Network._interfaceRx = ({ lo: 2, wg0: 900000, wlo1: 1 })
+        Network._applyInterfaceNames("  wlo1: 5\n  lo: 6\n  wg0: 900400\n")
+        const growingArmed = Network._vpnSettleTimer.running
+        Network._applyInterfaceNames("  wlo1: 7\n  lo: 8\n  wg0: 12\n")
+        const rebuiltArmed = Network._vpnSettleTimer.running
+        Network._vpnSettleTimer.stop()
+        Network._interfaceNames = interfacesWas
+        Network._interfaceRx = rxWas
+        root._check(!growingArmed && rebuiltArmed,
+            "a tunnel rebuilt under the same name rechecks the VPN, growing counters do not")
 
         const vpnStateWas = Network._vpnState
         Network._vpnState = ({ active: true, name: "stale probe VPN" })

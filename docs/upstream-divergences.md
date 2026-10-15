@@ -124,6 +124,12 @@ naming them over upstream's CI claim.
   run before the `hasVpn` binding catches up, so a tunnel coming up asked for
   no address until the next poll or menu open. Keep the direct read on an
   import of the VPN address.
+- `services/Network.qml`: the interface watcher also rechecks the VPN when an
+  interface's receive counter goes backwards, since a tunnel rebuilt under the
+  same name between two reads (a Proton server switch on `proton0`) leaves
+  upstream's name list unchanged. A failed address read for the live tunnel
+  clears the address rather than keeping the old one. Keep both on an import
+  of the interface watch or the VPN address.
 - `services/Network.qml`: the VPN reader retries a missing address only after
   a listing that succeeded while detection is wanted. Upstream retries after
   any exit, so going idle, which kills the listing, spawns nmcli on an idle
