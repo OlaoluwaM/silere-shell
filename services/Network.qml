@@ -615,8 +615,8 @@ Singleton {
                 Qt.callLater(root.refreshVpnAddress)
                 return
             }
-            // a failed read for the live tunnel means its profile is gone; the old address must not stand in
-            root.vpnAddress = code === 0 ? root.vpnAddressFrom(_vpnAddressOut.text) : ""
+            if (code === 0)
+                root.vpnAddress = root.vpnAddressFrom(_vpnAddressOut.text)
         }
     }
 
