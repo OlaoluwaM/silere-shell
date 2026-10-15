@@ -119,10 +119,11 @@ naming them over upstream's CI claim.
   linked when the connect began proves nothing about the new link. Keep the
   flag on an import of the Wi-Fi connect.
 - `services/Network.qml`: `refreshVpnAddress` and the address reader's
-  staleness check read `_vpnState.active`, not upstream's `hasVpn`. The
-  handler on `_vpnState` can run before the `hasVpn` binding catches up, so a
-  tunnel coming up asked for no address until the next poll or menu open.
-  Keep the direct read on an import of the VPN address.
+  staleness check find the tunnel through `_activeVpnUuid()`, which reads
+  `_vpnState.active`, not upstream's `hasVpn`. The handler on `_vpnState` can
+  run before the `hasVpn` binding catches up, so a tunnel coming up asked for
+  no address until the next poll or menu open. Keep the direct read on an
+  import of the VPN address.
 - `modules/menu/HomePage.qml`: the VPN row sits in a `CollapsibleSection`, so
   it grows and collapses with the tunnel where upstream's row pops, and it
   reads "Disconnected" on the way out. Keep the section on an import of the
