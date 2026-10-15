@@ -124,6 +124,10 @@ naming them over upstream's CI claim.
   run before the `hasVpn` binding catches up, so a tunnel coming up asked for
   no address until the next poll or menu open. Keep the direct read on an
   import of the VPN address.
+- `services/Network.qml`: the VPN reader retries a missing address only after
+  a listing that succeeded while detection is wanted. Upstream retries after
+  any exit, so going idle, which kills the listing, spawns nmcli on an idle
+  screen. Keep the gate on an import of the VPN reader.
 - `modules/menu/HomePage.qml`: the VPN row sits in a `CollapsibleSection`, so
   it grows and collapses with the tunnel where upstream's row pops, and it
   reads "Disconnected" on the way out. The Connectivity label and card follow

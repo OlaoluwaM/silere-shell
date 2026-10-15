@@ -593,8 +593,9 @@ Singleton {
                     name: root._vpnCandidateName,
                     uuid: root._vpnCandidateUuid
                 }
-            } else if (root.hasVpn && root.vpnAddress.length === 0) {
-                // a tunnel listed while still activating has no address yet, and finishing changes nothing above
+            } else if (code === 0 && root._vpnWanted && root.hasVpn && root.vpnAddress.length === 0) {
+                // a tunnel listed while still activating has no address yet, and finishing changes nothing above;
+                // a killed or failed listing proves nothing, and going idle kills it
                 root.refreshVpnAddress()
             }
             const refreshAgain = root._vpnRefreshPending && root._vpnWanted
