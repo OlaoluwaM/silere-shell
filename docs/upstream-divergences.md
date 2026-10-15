@@ -127,8 +127,9 @@ naming them over upstream's CI claim.
 - `services/Network.qml`: the interface watcher also rechecks the VPN when an
   interface's receive counter goes backwards, since a tunnel rebuilt under the
   same name between two reads (a Proton server switch on `proton0`) leaves
-  upstream's name list unchanged. Keep the counter check on an import of the
-  interface watch.
+  upstream's name list unchanged. The rebuild also marks the address stale,
+  so the next listing rereads it even when the uuid and name stayed the same.
+  Keep both on an import of the interface watch or the VPN reader.
 - `services/Network.qml`: the VPN reader retries a missing address only after
   a listing that succeeded while detection is wanted. Upstream retries after
   any exit, so going idle, which kills the listing, spawns nmcli on an idle

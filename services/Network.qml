@@ -102,6 +102,8 @@ Singleton {
     property string _vpnCandidateUuid: ""
     property string vpnAddress: ""
     property string _vpnAddressFor: ""
+    // a rebuilt interface can keep its profile's uuid and name yet hand out a new address
+    property bool _vpnAddressStale: false
     property bool _vpnRefreshPending: false
     readonly property bool _vpnWanted: !Idle.isIdle && available
         && ShellSettings.barShowNetwork && SystemTools.hasNmcli
@@ -593,13 +595,16 @@ Singleton {
                     name: root._vpnCandidateName,
                     uuid: root._vpnCandidateUuid
                 }
-            } else if (code === 0 && root._vpnWanted && root.hasVpn && root.vpnAddress.length === 0) {
+            } else if (code === 0 && root._vpnWanted && root.hasVpn
+                    && (root.vpnAddress.length === 0 || root._vpnAddressStale)) {
                 // a tunnel listed while still activating has no address yet, and finishing changes nothing above;
                 // a killed or failed listing proves nothing, and going idle kills it
                 root.refreshVpnAddress()
             }
             const refreshAgain = root._vpnRefreshPending && root._vpnWanted
             root._vpnRefreshPending = false
+            // the settle run still rereads, for an address handed out after the rebuild was seen
+            if (code === 0 && !refreshAgain && !_vpnSettle.running) root._vpnAddressStale = false
             if (refreshAgain) _vpnRefresh.restart()
         }
     }
@@ -670,6 +675,7 @@ Singleton {
         const rx = root.interfaceRx(raw)
         const restarted = root._countersRestarted(rx)
         root._interfaceRx = rx
+        if (restarted) root._vpnAddressStale = true
         if (next === root._interfaceNames && !restarted) return
         const first = root._interfaceNames.length === 0
         root._interfaceNames = next

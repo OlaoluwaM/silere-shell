@@ -1970,15 +1970,20 @@ ShellRoot {
             "a tunnel interface appearing rechecks the VPN, an unchanged list does not")
         Network._interfaceNames = "lo wg0 wlo1"
         Network._interfaceRx = ({ lo: 2, wg0: 900000, wlo1: 1 })
+        const staleWas = Network._vpnAddressStale
+        Network._vpnAddressStale = false
         Network._applyInterfaceNames("  wlo1: 5\n  lo: 6\n  wg0: 900400\n")
         const growingArmed = Network._vpnSettleTimer.running
+        const growingStale = Network._vpnAddressStale
         Network._applyInterfaceNames("  wlo1: 7\n  lo: 8\n  wg0: 12\n")
         const rebuiltArmed = Network._vpnSettleTimer.running
+        const rebuiltStale = Network._vpnAddressStale
         Network._vpnSettleTimer.stop()
         Network._interfaceNames = interfacesWas
         Network._interfaceRx = rxWas
-        root._check(!growingArmed && rebuiltArmed,
-            "a tunnel rebuilt under the same name rechecks the VPN, growing counters do not")
+        Network._vpnAddressStale = staleWas
+        root._check(!growingArmed && !growingStale && rebuiltArmed && rebuiltStale,
+            "a tunnel rebuilt under the same name rechecks the VPN and its address, growing counters do not")
 
         const vpnStateWas = Network._vpnState
         Network._vpnState = ({ active: true, name: "stale probe VPN" })
