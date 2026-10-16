@@ -1,6 +1,7 @@
 # Selective upstream integration: the October 16 fixes
 
-Status: implemented and gated; reviews in progress. Base:
+Status: implemented, gated and reviewed on `upstream-oct-16`; awaiting the
+maintainer's approval and live checks. Base:
 `dcb8e708167fb5f86cee6e160b8fffba65c5d422`.
 
 ## Review range
@@ -33,6 +34,17 @@ mirror, so every fork commit ports its checks by hand.
 | `1442514` | fix(notifications): let an app raise its own window from a click | 1252569 |
 | `ccc1b0e` | fix(notifications): drop markdown bold markers from notification text | 3569ed1 |
 | `a35a022` | test(text): write the error-summary bidi override as an escape | follow-up to 96e63e1 |
+
+Review follow-ups, fork-only fixes made after the picks:
+
+| Commit | Subject | Cause |
+| --- | --- | --- |
+| `76ff87f` | fix(network): reread a vpn's address after a failed read | `d8192e7` kept the old address after a timed-out read and never retried |
+| `792f5b2` | fix(nightlight): retry a location lookup that failed | the port of `3c43bd2` left out upstream's `_geoStarted` reset |
+| `c5dfc58` | fix(nightlight): push the target temperature when the shell starts the unit | the push after a start never fired, since `1728384b`; `e702bde`'s identity could not reach a start |
+| `55300cf` | fix(nightlight): confirm a start only with a check that follows it | `c5dfc58` let a stale check drop the push and a failed start arm a later one |
+| `b654b2e` | fix(nightlight): keep the temperature push for a start that timed out | `55300cf` dropped the push when systemctl's waiter hit its deadline |
+| `f438e4b` | fix(nightlight): retry the start's temperature push until hyprsunset answers | the simple unit is active before hyprsunset listens, so the push could be lost |
 
 Taken earlier, with the October 14 and 15 VPN work: `d1b3154` (tunnel changes
 within seconds) and `6adfca3` (the VPN address in Connectivity and the network
@@ -108,9 +120,29 @@ ported cases. The Niri checks feed the backend mock events; no live Niri
 session was involved. The hyprsunset `identity` request was not sent to the
 live desktop.
 
+Codex reviewed the range adversarially in four passes. Passes 1 to 3 found
+seven defects, fixed by the follow-ups above; pass 3's two were already lost
+before `c5dfc58` and are not regressions. Pass 4 covered `b654b2e` and
+`f438e4b` only and found the other side of `b654b2e`'s trade, which stays open
+for the maintainer: when systemctl's waiter and the check after it both time
+out and the start then fails, a later start from outside the shell receives
+the shell's temperature, because a toggle generation cannot tell which
+activation made the unit active. Reverting `b654b2e` instead loses the push
+for a slow start that succeeded. Telling the two apart would mean tracking the
+unit's activation. The probes cannot reach the night-light and VPN process
+handlers, so those fixes rest on Codex's replays of the extracted handlers
+against mocked processes, plus reading; systemd and socket timing come from
+their sources, not a live run. A consistency check found no fixes needed. One
+style question stays open for the maintainer: comments imported verbatim from
+upstream are capitalized sentences in files that otherwise write lowercase.
+The `qt-qml-review` pass reported nothing at or above its threshold.
+
 ## Not yet verified live
 
 - Night light in auto mode at full daylight sends `identity` and the screen
   shows no tint.
 - Clicking a kitty notification with several kitty windows keeps the window
   kitty raised.
+- Turning night light on from the menu moves the screen to the shell's
+  temperature rather than the unit's schedule. This is new behavior: before
+  `c5dfc58` the push never went out.
