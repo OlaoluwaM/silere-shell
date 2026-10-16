@@ -235,6 +235,7 @@ Singleton {
         // _checkProc.onExited gates on this flag so it never clobbers the unit's
         // own staircase when it merely observes an externally-started unit
         root._pushTempOnConfirm = goingOn
+        root._toggleGeneration++
         // optimistic: the row flips the moment it's tapped, and _checkActive
         // (run from onExited below) reconciles it with the unit if the call failed
         root.enabled = goingOn
@@ -248,10 +249,14 @@ Singleton {
     // set only by toggle()'s own start, so the confirmed-active branch below
     // pushes the target temp for shell-initiated starts only
     property bool _pushTempOnConfirm: false
+    // a check begun before the latest toggle's systemctl call returned cannot
+    // speak for that start, so only one stamped with the current generation confirms it
+    property int _toggleGeneration: 0
 
     function _checkActive(): void {
         if (!root.toolAvailable) return
         if (_checkProc.running) { root._recheckPending = true; return }
+        _checkProc._generation = _toggleProc.running ? -1 : root._toggleGeneration
         _checkProc.exec(["systemctl", "--user", "is-active", "--quiet", root._unit])
     }
 
@@ -294,6 +299,7 @@ Singleton {
 
     BoundedProcess {
         id: _checkProc
+        property int _generation: -1
         timeoutMs: 5000
         onExited: (code) => {
             const rerun = root._recheckPending
@@ -306,14 +312,15 @@ Singleton {
                 // staircase, so merely observing it active (e.g. first menu open)
                 // must not clobber that — only push once confirmed active for a
                 // start this shell itself initiated via toggle(). toggle() already
-                // flipped enabled, so the flag alone marks that start
-                if (root.enabled && root._pushTempOnConfirm) {
+                // flipped enabled, so the flag and the generation mark that start
+                const confirms = _checkProc._generation === root._toggleGeneration
+                if (confirms && root.enabled && root._pushTempOnConfirm) {
                     Quickshell.execDetached(root.temperatureArgv(root.temperature))
                     root._pushTempOnConfirm = false
                 }
                 // a failed start must not leave a stale flag that fires on some
                 // later external activation
-                if (!root.enabled)
+                if (confirms && !root.enabled)
                     root._pushTempOnConfirm = false
             }
             if (rerun) root._checkActive()
@@ -325,8 +332,11 @@ Singleton {
         timeoutMs: 5000
         stderr: StdioCollector { id: _toggleErr }
         onExited: (code) => {
-            if (_toggleProc.timedOut || code !== 0)
+            if (_toggleProc.timedOut || code !== 0) {
                 root.lastError = _toggleErr.text.trim().split("\n").pop() || "hyprsunset.service did not respond"
+                // the start this flag waits on never happened
+                root._pushTempOnConfirm = false
+            }
             root._checkActive()
         }
     }
