@@ -26,15 +26,19 @@ Rectangle {
 
     function request(): void {
         if (!root._interactive) return
+        const now = Date.now()
+        const age = now - root._armedAtMs
+        // Input can reach a busy event loop before the expiry timer does.
+        if (root._armed && (age < 0 || age >= _armTimer.interval)) root.disarm()
         if (root._armed) {
             // TapHandler fires once per tap, so a double-click would arm and confirm in one gesture
-            if (Date.now() - root._armedAtMs < Metrics.confirmGuardMs) return
+            if (age < Metrics.confirmGuardMs) return
             root.disarm()
             root.confirmed()
             return
         }
         root._armed = true
-        root._armedAtMs = Date.now()
+        root._armedAtMs = now
         _armTimer.restart()
     }
 

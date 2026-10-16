@@ -78,6 +78,16 @@ ShellRoot {
             root.check(!button.armed, "hiding disarms a pending confirmation")
             button.visible = true
             button.request()
+            button._armedAtMs = Date.now() - 3001
+            button.request()
+            root.check(button.armed && root.confirmed === 0
+                    && Date.now() - button._armedAtMs < Metrics.confirmGuardMs,
+                "an expired confirmation rearms when its cleanup timer has not fired yet")
+            button._armedAtMs = Date.now() + 1000
+            button.request()
+            root.check(button.armed && root.confirmed === 0
+                    && button._armedAtMs <= Date.now(),
+                "a backwards clock change restarts the confirmation window")
             button._armedAtMs = Date.now() - Metrics.confirmGuardMs - 1
             button.request()
             root.check(root.confirmed === 1,
