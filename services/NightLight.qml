@@ -301,13 +301,13 @@ Singleton {
             if (_checkProc.timedOut) {
                 root.lastError = "could not check hyprsunset.service"
             } else {
-                const wasEnabled = root.enabled
                 root.enabled = (code === 0)
                 // the unit autostarts with the session and runs its own scheduled
                 // staircase, so merely observing it active (e.g. first menu open)
                 // must not clobber that — only push once confirmed active for a
-                // start this shell itself initiated via toggle()
-                if (root.enabled && !wasEnabled && root._pushTempOnConfirm) {
+                // start this shell itself initiated via toggle(). toggle() already
+                // flipped enabled, so the flag alone marks that start
+                if (root.enabled && root._pushTempOnConfirm) {
                     Quickshell.execDetached(root.temperatureArgv(root.temperature))
                     root._pushTempOnConfirm = false
                 }
