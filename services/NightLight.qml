@@ -66,6 +66,12 @@ Singleton {
         return Math.asin(Math.sin(phi) * Math.sin(decl) +
                          Math.cos(phi) * Math.cos(decl) * Math.cos(h)) * 180 / Math.PI
     }
+    // hyprsunset's kelvin curve still cuts blue about 2% at 6500; only its identity matrix is neutral
+    function temperatureArgv(temp: int): var {
+        return Math.round(temp) >= 6500
+            ? ["hyprctl", "hyprsunset", "identity"]
+            : ["hyprctl", "hyprsunset", "temperature", String(Math.round(temp))]
+    }
     readonly property int suggestedTemp: {
         const elev = root._elevation
         if (elev >= 6)  return 6500
@@ -208,7 +214,7 @@ Singleton {
     // a plain IPC call rather than anything that touches the unit's lifecycle.
     onTemperatureChanged: {
         if (!root.enabled || !root.toolAvailable) return
-        Quickshell.execDetached(["hyprctl", "hyprsunset", "temperature", String(root.temperature)])
+        Quickshell.execDetached(root.temperatureArgv(root.temperature))
     }
 
     function toggle(): void {
@@ -298,7 +304,7 @@ Singleton {
                 // must not clobber that — only push once confirmed active for a
                 // start this shell itself initiated via toggle()
                 if (root.enabled && !wasEnabled && root._pushTempOnConfirm) {
-                    Quickshell.execDetached(["hyprctl", "hyprsunset", "temperature", String(root.temperature)])
+                    Quickshell.execDetached(root.temperatureArgv(root.temperature))
                     root._pushTempOnConfirm = false
                 }
                 // a failed start must not leave a stale flag that fires on some

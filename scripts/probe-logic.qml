@@ -2344,6 +2344,12 @@ ShellRoot {
         ShellSettings.nightLightAuto = autoWas
 
         const geoResolvedWas = NightLight._geoResolved
+        const hsDay = NightLight.temperatureArgv(6500)
+        const hsWarm = NightLight.temperatureArgv(6499)
+        root._check(hsDay.length === 3 && hsDay[2] === "identity"
+                && NightLight.temperatureArgv(99999)[2] === "identity"
+                && hsWarm.length === 4 && hsWarm[2] === "temperature" && hsWarm[3] === "6499",
+            "daylight runs hyprsunset's identity matrix, every warmer step a temperature")
         const winterLon = -new Date(2026, 0, 1).getTimezoneOffset() / 4
         const summerLon = -new Date(2026, 6, 1).getTimezoneOffset() / 4
         root._check(NightLight.standardOffsetLon(2026) === Math.min(winterLon, summerLon),
