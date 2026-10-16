@@ -47,8 +47,9 @@ hover text).
   `hyprctl` and has no provider argv, so the daylight identity matrix is
   chosen in `NightLight.temperatureArgv`, which both temperature pushes use.
 - Helper deadlines: the fork has no unit or blur probe in
-  `CompositorHyprland`. Its location reader has no retry flag, so a timed-out
-  read is ignored. The VPN readers move from `code === 0` to
+  `CompositorHyprland`. Its location reader never took upstream's retry, so
+  a follow-up clears `_geoStarted` after a failed or empty lookup, as
+  upstream's does. The VPN readers move from `code === 0` to
   `completedSuccessfully`, as upstream's do; they used the exit code only
   because this helper was missing.
 - Hidden controls: the fork's chip and swatch rows have no gliding selection
