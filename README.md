@@ -98,6 +98,9 @@ The [October 10 record](docs/upstream-picks-2026-10-10.md) covers the 1.3.0
 and 1.4.0 review: the lock screen launch, Hyprland workspace snapshots,
 notification, battery, audio, Wi-Fi and media fixes, slider grabs and the
 calendar's locale labels.
+The [October 16 record](docs/upstream-picks-2026-10-16.md) covers the 1.4.1
+and 1.4.2 review: clock-step deadlines, helper timeouts, hidden controls,
+night light, brightness, Wi-Fi, Niri and notification fixes.
 
 History stays intact because nixos-config pins this branch by commit. Undo a
 landed selective import with a revert, accounting for any dependent follow-ups.
