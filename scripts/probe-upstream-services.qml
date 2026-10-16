@@ -26,8 +26,8 @@ ShellRoot {
             "last error line falls back for blank output")
         check(SafeText.lastNonEmptyLine("x".repeat(32), "fallback", 8).length === 8,
             "last error line stays bounded")
-        check(SafeText.lastNonEmptyLine("fatal: no route\n‮\u0000\n", "fallback") === "fatal: no route"
-                && SafeText.lastNonEmptyLine("‮\u0000", "fallback") === "fallback",
+        check(SafeText.lastNonEmptyLine("fatal: no route\n\u202E\u0000\n", "fallback") === "fatal: no route"
+                && SafeText.lastNonEmptyLine("\u202E\u0000", "fallback") === "fallback",
             "error summaries skip lines that become empty after sanitizing control characters")
         check(SafeText.lastNonEmptyLine("old\r\n  failed\r\n\t\r\n", "fallback") === "failed"
                 && SafeText.lastNonEmptyLine("failed", "fallback") === "failed",
