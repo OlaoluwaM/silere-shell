@@ -633,6 +633,8 @@ Singleton {
             }
             if (_vpnAddressProc.completedSuccessfully(code))
                 root.vpnAddress = root.vpnAddressFrom(_vpnAddressOut.text)
+            // a failed read keeps an address that may predate a rebuild; the next listing rereads it
+            else root._vpnAddressStale = true
         }
     }
 

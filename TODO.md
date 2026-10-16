@@ -42,10 +42,10 @@ fix to the reread had turned up a smaller edge in its own new state. The gaps:
   next has no earlier counter to compare, so `_countersRestarted` never sees
   it and the address is never marked stale. Marking it stale on any change
   to the interface list would cover it;
-- the mark clears after the settle listing even when the reread did not run,
-  because a read was still in flight, or failed and kept the old address.
-  Marking it again on a failed read for the live uuid, and clearing it only
-  while no read is running, would cover it.
+- the mark clears after the settle listing even when a read was still in
+  flight, so a read that started before the rebuild can settle on the old
+  address. A failed read marks it again. Clearing it only while no read is
+  running would cover the rest.
 
 The probe checks only that a rebuild sets the mark. The reread itself runs in
 `_vpnProc`'s exit handler, which the probe cannot reach without test-only
