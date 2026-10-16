@@ -315,8 +315,10 @@ Singleton {
                 // flipped enabled, so the flag and the generation mark that start
                 const confirms = _checkProc._generation === root._toggleGeneration
                 if (confirms && root.enabled && root._pushTempOnConfirm) {
-                    Quickshell.execDetached(root.temperatureArgv(root.temperature))
                     root._pushTempOnConfirm = false
+                    root._confirmPushGeneration = root._toggleGeneration
+                    root._confirmPushAttempts = 0
+                    root._pushConfirmedTemp()
                 }
                 // a failed start must not leave a stale flag that fires on some
                 // later external activation
@@ -325,6 +327,45 @@ Singleton {
             }
             if (rerun) root._checkActive()
         }
+    }
+
+    // the unit is a simple service, so systemd calls it active once it forks,
+    // before hyprsunset listens on its socket; the push that confirms a start
+    // retries until the daemon answers ok, and any later toggle retires it
+    property int _confirmPushGeneration: -1
+    property int _confirmPushAttempts: 0
+
+    function _pushConfirmedTemp(): void {
+        if (_confirmPushProc.running || !root.enabled
+                || root._confirmPushGeneration !== root._toggleGeneration) return
+        root._confirmPushAttempts++
+        _confirmPushProc._generation = root._confirmPushGeneration
+        _confirmPushProc.exec(root.temperatureArgv(root.temperature))
+    }
+
+    BoundedProcess {
+        id: _confirmPushProc
+        property int _generation: -1
+        timeoutMs: 3000
+        stdout: StdioCollector { id: _confirmPushOut }
+        onExited: (code) => {
+            const current = _confirmPushProc._generation === root._confirmPushGeneration
+            if (current && _confirmPushProc.completedSuccessfully(code)
+                    && _confirmPushOut.text.trim().toLowerCase() === "ok") {
+                root._confirmPushGeneration = -1
+                return
+            }
+            // a newer start skipped its push while this run held the process
+            if (!current) root._pushConfirmedTemp()
+            else if (root._confirmPushAttempts < 5) _confirmPushRetry.restart()
+            else root._confirmPushGeneration = -1
+        }
+    }
+
+    Timer {
+        id: _confirmPushRetry
+        interval: 500
+        onTriggered: root._pushConfirmedTemp()
     }
 
     BoundedProcess {
