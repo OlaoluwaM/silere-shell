@@ -334,8 +334,9 @@ Singleton {
         onExited: (code) => {
             if (_toggleProc.timedOut || code !== 0) {
                 root.lastError = _toggleErr.text.trim().split("\n").pop() || "hyprsunset.service did not respond"
-                // the start this flag waits on never happened
-                root._pushTempOnConfirm = false
+                // a refused start never happens, but one cut off at the deadline may
+                // still be queued in systemd; the check that follows settles that
+                if (!_toggleProc.timedOut) root._pushTempOnConfirm = false
             }
             root._checkActive()
         }
