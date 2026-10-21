@@ -13,6 +13,7 @@ Column {
         id: _section
         width: root.width
         expanded: root.open
+        list: true
 
         Loader {
             width: parent.width

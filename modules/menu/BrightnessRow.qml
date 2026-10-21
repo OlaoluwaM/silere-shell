@@ -62,6 +62,7 @@ Item {
         y: _slider.height
         width: parent.width
         expanded: root.open
+        list: true
 
         Column {
             id: _optionColumn

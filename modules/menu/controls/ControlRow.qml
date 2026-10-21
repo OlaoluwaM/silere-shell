@@ -194,7 +194,7 @@ MenuRow {
                 font.pixelSize: Settings.fontSize
                 rotation: root.expanded ? 180 : 0
                 transformOrigin: Item.Center
-                MotionBehavior on rotation {NumberAnimation { duration: Motion.medium; easing.type: Easing.OutCubic } }
+                Disclosure on rotation { list: true }
                 ColorFade on color {}
             }
 

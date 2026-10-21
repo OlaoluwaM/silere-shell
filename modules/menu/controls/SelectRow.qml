@@ -293,7 +293,7 @@ Item {
             color: root._open ? root.accentColor
                 : Theme.withAlpha(Theme.subtext, _hov.hovered ? 0.86 : 0.66)
             font.pixelSize: Settings.fontSize
-            MotionBehavior on rotation {NumberAnimation { duration: Motion.normal; easing.type: Easing.OutCubic } }
+            Disclosure on rotation { list: true }
             ColorFade on color {}
         }
     }
@@ -312,7 +312,7 @@ Item {
         interactive: contentHeight > height + 1
         visible: height > 0.5
 
-        Disclosure on height {}
+        Disclosure on height { list: true }
 
         Column {
             id: _optCol
@@ -331,7 +331,8 @@ Item {
             MotionBehavior on opacity {
                 id: _optFade
                 NumberAnimation {
-                    duration: Motion.fast
+                    // the options last as long as the list's height, so it never closes empty
+                    duration: _optFade.targetValue > 0.5 ? Motion.listOpen : Motion.listClose
                     easing.type: _optFade.targetValue > 0.5 ? Easing.OutCubic : Easing.InCubic
                 }
             }

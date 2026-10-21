@@ -6,8 +6,11 @@ MotionBehavior {
     property real closedValue: 0
     property int enterEasing: Easing.BezierSpline
     property int exitEasing: Easing.BezierSpline
-    property var enterCurve: Motion.emphasizedDecel
-    property var exitCurve: Motion.emphasizedAccel
+    // a list opening from a chevron eases on the standard curve and Motion's list clock; the
+    // emphasized pair front-loads its travel, which reads as a snap on a short list
+    property bool list: false
+    property var enterCurve: root.list ? Motion.standard : Motion.emphasizedDecel
+    property var exitCurve: root.list ? Motion.standardAccel : Motion.emphasizedAccel
     // a mutually-exclusive pair must share one curve in both directions, or the
     // expanding sibling outruns the collapsing one and their summed height bulges
     property bool symmetric: false
@@ -24,7 +27,8 @@ MotionBehavior {
     Component.onDestruction: root._geometrySettle?.stop()
 
     NumberAnimation {
-        duration: root._enter ? Motion.medium : Motion.fast
+        duration: root._enter ? (root.list ? Motion.listOpen : Motion.medium)
+            : (root.list ? Motion.listClose : Motion.fast)
         easing.type: root._enter ? root.enterEasing : root.exitEasing
         easing.bezierCurve: root._enter ? root.enterCurve : root.exitCurve
     }

@@ -57,6 +57,10 @@ Singleton {
     // same frame. The emphasized pair front-loads half the distance into the first frame, which
     // reads as a snap at the largest moving surface in the shell
     readonly property int menuResize: _rm ? 0 : 260
+    // a list opening from a chevron (Settings dropdowns, the home page's pickers and device
+    // lists); the panel follows its growth frame by frame, so it needs no shared clock
+    readonly property int listOpen:  _rm ? 0 : 320
+    readonly property int listClose: _rm ? 0 : 220
     // quiet window a viewport must hold before scroll affordances trust it (see ScrollSettle)
     readonly property int panelSettle:   _rm ? 0 : 180
     // paces the calendar's month paging and the settings section enter. The panel itself resizes over

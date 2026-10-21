@@ -7,6 +7,8 @@ Item {
     property bool expanded: true
     // set on both halves of a mode swap so the card height stays monotonic
     property bool symmetric: false
+    // a list opened from a chevron, on Motion's list clock (see Disclosure.list)
+    property bool list: false
     default property alias rows: _content.data
     // semantic presence changes once per toggle. Divider/corner discovery can depend on this instead of rereading animated height every frame
     readonly property bool layoutPresent: expanded
@@ -28,7 +30,7 @@ Item {
     enabled: expanded
     visible: expanded || height > 0.5
 
-    Disclosure on height { symmetric: root.symmetric }
+    Disclosure on height { symmetric: root.symmetric; list: root.list }
 
     Column {
         id: _content
@@ -41,7 +43,9 @@ Item {
         MotionBehavior on opacity {
             id: _contentFade
             NumberAnimation {
-                duration: root.symmetric ? Motion.medium : Motion.fast
+                // a list's contents last as long as its height, so it never closes empty
+                duration: root.list ? (_contentFade.targetValue > 0.5 ? Motion.listOpen : Motion.listClose)
+                    : root.symmetric ? Motion.medium : Motion.fast
                 easing.type: root.symmetric || _contentFade.targetValue > 0.5
                     ? Easing.OutCubic : Easing.InCubic
             }

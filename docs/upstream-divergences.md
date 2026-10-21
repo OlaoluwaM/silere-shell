@@ -151,6 +151,15 @@ naming them over upstream's CI claim.
   out of sight is still announced on wake. The alert formats `Battery.pct`,
   not `Battery.label`, whose binding can lag the full edge. Keep all of it on
   an import of the battery alerts or the charge cycle.
+- `config/Motion.qml` and `config/Disclosure.qml`: a `Disclosure` with
+  `list: true` runs on `Motion.listOpen`/`listClose` and the standard curves
+  in place of upstream's medium/fast emphasized pair,
+  which snapped short lists open, and the list's contents fade over the
+  same two durations so it never closes empty. `CollapsibleSection` forwards `list`;
+  `SelectRow`, `InlinePicker` and the `VolumeRow`/`BrightnessRow` option lists
+  set it, and the chevrons that open them (`SelectRow`, `QuickSlider`,
+  `ControlRow`) rotate through `Disclosure on rotation { list: true }`. Keep
+  the flag and its sites on an import of any of these.
 - `services/CalendarState.qml`: `weekendFor` copies the working days with
   `Array.from`, because `Locale.weekDays` is a sequence that upstream's
   `Array.isArray` gate rejects, so every locale fell back to Saturday and
