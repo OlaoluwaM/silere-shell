@@ -160,6 +160,27 @@ naming them over upstream's CI claim.
   set it, and the chevrons that open them (`SelectRow`, `QuickSlider`,
   `ControlRow`) rotate through `Disclosure on rotation { list: true }`. Keep
   the flag and its sites on an import of any of these.
+- `services/Audio.qml`, `services/SystemTools.qml` and `shell.qml`:
+  `setSourceVolume` writes every mic level through
+  `wpctl set-volume` (under `LC_ALL=C`, one run at a time a frame apart, the
+  queued level tied to its mic serial) and `sourceVolume` shows the asked-for level
+  until PipeWire reports it. Quickshell 0.3.1 skips a device-route write whose
+  route reports no volume step (a Bluetooth headset's call-mode mic) while
+  keeping the value, so the slider snapped back on the next route update. The
+  in-process path stays for a system without wpctl. `SystemTools` scans
+  `wpctl` and `pw-dump`, and `shell.qml` arms `AudioMode` at start. Keep all of
+  it on an import of the mic path, the tool scan or the startup arming.
+- `services/Audio.qml`, `services/OsdBarState.qml` and
+  `modules/menu/VolumeRow.qml`: Bluetooth profile switches hold one shared
+  presentation snapshot in Audio, so Sound, Home, the bar and OSD show the same
+  readiness, name, volume and mute state. Audio queues user edits, guards device
+  selection, and keeps live node readiness and microphone privacy separate.
+  `AudioMode` releases the hold after observing another default device followed
+  by a ready replacement serial on the requested headset/profile and a successful
+  command exit. A two-second backstop covers missing transitions. Input edits
+  replay only onto the original mic serial. The OSD ignores backend reconciliation
+  signals during the hold, and Home closes its live-node picker. Keep this contract
+  on an import of the audio service, OSD or volume row.
 - `modules/menu/controls/RowDividers.qml`, `SelectRow.qml` and
   `InlineOptionRow.qml`: a line beside an open dropdown option's band fades
   the way it does beside a hovered card row. `RowDividers` reads an optional
@@ -167,6 +188,10 @@ naming them over upstream's CI claim.
   open, non-scrolling list ends on a band and fades its list hairline when the
   first option shows one, and `InlineOptionRow` reports that as
   `fillShowing`. Keep all three on an import of the dividers or the dropdown.
+- `services/OsdBarState.qml`: `show` also drops volume while the fork's
+  Sound settings page is showing (`MenuState.soundSectionActive`), since
+  that page carries its own volume slider, as the home page does in
+  upstream's gate. Keep the check on an import of the OSD gate.
 - `services/CalendarState.qml`: `weekendFor` copies the working days with
   `Array.from`, because `Locale.weekDays` is a sequence that upstream's
   `Array.isArray` gate rejects, so every locale fell back to Saturday and

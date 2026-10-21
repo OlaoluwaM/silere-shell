@@ -42,6 +42,8 @@ Singleton {
     readonly property bool hasDbusMonitor:   _tools["dbus-monitor"] ?? false
     readonly property bool hasPwvucontrol:   _tools.pwvucontrol ?? false
     readonly property bool hasTimeout:       _tools.timeout ?? false
+    readonly property bool hasWpctl:         _tools.wpctl ?? false
+    readonly property bool hasPwDump:        _tools["pw-dump"] ?? false
 
     // "" | working | done | failed
     property string matugenRepairState: ""
@@ -143,7 +145,7 @@ Singleton {
         lastError = ""
         _checkProc.exec(["bash", "-c",
             "for t in brightnessctl inotifywait nmcli matugen hyprsunset hyprlock systemctl loginctl hyprctl notify-send " +
-            "busctl powerprofilesctl asusctl fc-list dbus-monitor pwvucontrol timeout; do " +
+            "busctl powerprofilesctl asusctl fc-list dbus-monitor pwvucontrol timeout wpctl pw-dump; do " +
             "  command -v \"$t\" >/dev/null 2>&1 && echo \"$t\"; " +
             // the last lookup is optional; do not inherit its `command -v` status and discard every tool found before it
             "done; exit 0"])

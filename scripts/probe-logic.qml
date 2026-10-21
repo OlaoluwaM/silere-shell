@@ -1433,6 +1433,33 @@ ShellRoot {
                 && PowerProfiles.cycleBlocker(true, false, "quiet", profileOrder) === "unlisted"
                 && PowerProfiles.cycleBlocker(true, false, "balanced", profileOrder) === "",
             "a power mode cycle names why it cannot start")
+
+        root._check(AudioMode.kindOf("a2dp-sink") === "listening"
+                && AudioMode.kindOf("a2dp-sink-aac") === "listening"
+                && AudioMode.kindOf("bap-sink") === "listening"
+                && AudioMode.kindOf("headset-head-unit-cvsd") === "calls"
+                && AudioMode.kindOf("a2dp-duplex-faststream") === "calls"
+                && AudioMode.kindOf("off") === ""
+                && AudioMode.kindOf("") === "",
+            "a Bluetooth profile reads as listening or calls by its family")
+        const btDump = [{ id: 71, type: "PipeWire:Interface:Device", info: { params: { EnumProfile: [
+            { index: 0, name: "off", priority: 0 },
+            { index: 131073, name: "a2dp-sink-sbc", priority: 132, available: "yes" },
+            { index: 131080, name: "a2dp-sink", priority: 134, available: "yes" },
+            { index: 131076, name: "a2dp-sink-aac", priority: 133, available: "yes" },
+            { index: 196864, name: "headset-head-unit-cvsd", priority: 6, available: "yes" },
+            { index: 196865, name: "headset-head-unit", priority: 7, available: "no" },
+            { index: null, name: "headset-head-unit-lc3", priority: 9 },
+            { index: -1, name: "headset-head-unit-x", priority: 9 }
+        ] } } }]
+        const btBest = AudioMode.bestProfiles(btDump, "71")
+        root._check(btBest.listening === 131080 && btBest.calls === 196864,
+            "the best-ranked available profile of each kind stands for it")
+        const btNone = AudioMode.bestProfiles(btDump, "72")
+        root._check(btNone.listening === -1 && btNone.calls === -1
+                && AudioMode.bestProfiles(null, "71").calls === -1
+                && AudioMode.bestProfiles([{ id: 71, type: "PipeWire:Interface:Device" }], "71").listening === -1,
+            "a dump without the device or its profiles offers no Bluetooth mode")
         const settledWas = QuickActionsState._settled
         QuickActionsState._settled = false
         if (!QuickActionsState.wifiControllable && !Network.wifiHardBlocked)

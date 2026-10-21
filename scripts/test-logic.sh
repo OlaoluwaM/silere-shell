@@ -77,6 +77,7 @@ bash scripts/test-bluetooth-details.sh
 bash scripts/test-upstream-services.sh
 bash scripts/test-power-profile-recovery.sh
 bash scripts/test-brightness-write.sh
+bash scripts/test-audio-switch.sh
 bash scripts/test-notification-disk.sh
 bash scripts/test-upstream-connectivity.sh
 bash scripts/test-upstream-connectivity-paths.sh

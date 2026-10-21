@@ -149,6 +149,9 @@ AnchoredPopupState {
     // rename cannot silently strand the readout in a service file
     readonly property bool tempSectionActive: settingsActive
         && (settingsSection === "warnings" || settingsSection === "underline")
+    // the Sound page carries its own volume slider (OsdBarState holds the volume card
+    // back) and the only Bluetooth mode row (AudioMode re-reads the profiles for it)
+    readonly property bool soundSectionActive: settingsActive && settingsSection === "sound"
 
     signal tabRequested(int index)
     // emitted before activeTab moves, so the window can still read the outgoing page's geometry and

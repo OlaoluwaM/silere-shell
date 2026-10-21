@@ -215,8 +215,10 @@ Singleton {
     function show(kind: string, icon: string, value: real, label: string, muted: bool, deliberate: bool): void {
         if (!_armed) return
         if (!root._presentationAllowed(Idle.isIdle, ShellSettings.osdEnabled)) return
-        // only the home page carries the volume/brightness rows; elsewhere the menu replaces nothing
+        // the home page carries the volume/brightness rows and the Sound settings page a volume
+        // slider of its own; elsewhere the menu replaces nothing
         if (MenuState.homeActive) return
+        if (kind === "volume" && MenuState.soundSectionActive) return
         if (!root._kindAllowedByFilter(kind, ShellSettings.osdKindFilter)) return
 
         if (deliberate) {
@@ -324,8 +326,8 @@ Singleton {
     Connections {
         target: Audio
         function onUiVolumeChanged() { root._queueVolumeUpdate() }
-        function onTargetVolumeChanged() { root._queueVolumeUpdate() }
-        function onPendingApplyChanged() { if (Audio.pendingApply) root._queueVolumeUpdate() }
+        function onTargetVolumeChanged() { if (!Audio.switching) root._queueVolumeUpdate() }
+        function onPendingApplyChanged() { if (Audio.pendingApply && !Audio.switching) root._queueVolumeUpdate() }
         function onMutedChanged() { root._queueVolumeUpdate() }
         // a clamped keypress at 0%/100% moves nothing else, so this is the only
         // signal that fires -- without it the OSD would stay silent at the rails

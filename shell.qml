@@ -46,6 +46,8 @@ ShellRoot {
         void NotifWatch.armed
         // PowerProfiles reads when a panel opens: created lazily it misses the first open and the row sits on "Unavailable"
         void PowerProfiles.available
+        // created lazily by the Sound page, AudioMode would start its profile read late and its Mode row push the page down on the first visit
+        void AudioMode.available
         // documented as always callable (`ipc call screenshot flash`), so it can't wait on the underline
         void Screenshot.armed
         void OverlayCoordinator.armed

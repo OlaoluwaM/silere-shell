@@ -33,6 +33,7 @@ Item {
 
     Connections {
         target: Audio
+        function onSwitchingChanged() { if (Audio.switching) root.closeInline() }
         function onSinkCountChanged() {
             if (Audio.sinkCount <= 1) root.closeInline()
         }
@@ -56,7 +57,7 @@ Item {
         expanded: root.open
         reserveExpandSlot: root.reserveExpandSlot
         onGlyphClicked: Audio.toggleMute()
-        onExpandToggled: root.open = !root.open
+        onExpandToggled: if (!Audio.switching) root.open = !root.open
         onMoved: (v) => Audio.setVolume(v)
     }
 
@@ -81,7 +82,7 @@ Item {
 
             Repeater {
                 id: _sinkRepeater
-                model: root._optionsShown ? Audio.sinkModel : []
+                model: root._optionsShown && !Audio.switching ? Audio.sinkModel : []
                 delegate: InlineOptionRow {
                     id: _opt
                     required property var modelData
