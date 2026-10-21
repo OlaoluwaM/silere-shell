@@ -42,6 +42,10 @@ Item {
     readonly property bool _hot: _hover.hovered || _tap.pressed
     readonly property bool _canActivate: root.enabled && root.visible && root.interactive
     readonly property bool  _attentive: root.warning || root.failed
+    // every state that paints the row's band, for the lines beside it to fade the way
+    // RowDividers fades them beside a hovered card row
+    readonly property bool fillShowing: root._attentive || root.selected || root.highlighted
+        || root._hot
     readonly property color _attention: root.failed ? Theme.error : Theme.warning
 
     function trigger(): void {

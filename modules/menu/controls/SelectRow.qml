@@ -23,10 +23,21 @@ Item {
     property real   cardInset:    1
     property real   cardLeftBleed: 0
     // RowDividers reads these to fade the lines around the header's fill; an open list pushes the
-    // next line away from the header, so it holds its lines until it closes
+    // next line away from the header, so the header stops counting until it closes
     readonly property bool rowHovered:     _hov.hovered && !_open
     readonly property bool rowPressed:     _headerTap.pressed && !_open
     readonly property bool rowInteractive: enabled
+    // an open list ends on its last option's band, which sits on the next line instead of the
+    // header, so that line answers to the band (RowDividers' bottom-edge contract); a list
+    // that scrolls has no fixed last row against the line. It asks whether the full list
+    // fits the cap, not the flickable: that reads as scrollable all through the opening
+    readonly property bool rowBottomEngaged: root.rowHovered || root.rowPressed
+        || (root._open && _optCol.implicitHeight <= root._optionsCapH
+            && root._optionFilled(_optRepeater.count - 1))
+    function _optionFilled(index: int): bool {
+        const item = index >= 0 && index < _optRepeater.count ? _optRepeater.itemAt(index) : null
+        return item ? item.fillShowing === true : false
+    }
     readonly property bool _hasDesc: description.length > 0
     readonly property bool _hasLead: glyph.length > 0 || optionPreview !== null
     readonly property int _controlH: Metrics.rowHeightFor(28)
@@ -325,6 +336,15 @@ Item {
                 x: 14
                 width: parent.width - 28
                 color: Theme.menuDivider
+                // the fade RowDividers gives a card line beside a filled row
+                opacity: root._optionFilled(0) ? 0 : 1
+                MotionBehavior on opacity {
+                    id: _hairlineFade
+                    NumberAnimation {
+                        duration: _hairlineFade.targetValue < 0.5 ? Motion.hoverIn : Motion.hoverOut
+                        easing.type: Easing.OutCubic
+                    }
+                }
             }
             Item { width: parent.width; height: 1 }
 

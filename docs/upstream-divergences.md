@@ -160,6 +160,13 @@ naming them over upstream's CI claim.
   set it, and the chevrons that open them (`SelectRow`, `QuickSlider`,
   `ControlRow`) rotate through `Disclosure on rotation { list: true }`. Keep
   the flag and its sites on an import of any of these.
+- `modules/menu/controls/RowDividers.qml`, `SelectRow.qml` and
+  `InlineOptionRow.qml`: a line beside an open dropdown option's band fades
+  the way it does beside a hovered card row. `RowDividers` reads an optional
+  `rowBottomEngaged` for the line under a row, `SelectRow` raises it while its
+  open, non-scrolling list ends on a band and fades its list hairline when the
+  first option shows one, and `InlineOptionRow` reports that as
+  `fillShowing`. Keep all three on an import of the dividers or the dropdown.
 - `services/CalendarState.qml`: `weekendFor` copies the working days with
   `Array.from`, because `Locale.weekDays` is a sequence that upstream's
   `Array.isArray` gate rejects, so every locale fell back to Saturday and

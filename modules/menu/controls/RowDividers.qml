@@ -28,6 +28,12 @@ Repeater {
         return (item.rowInteractive ?? true) === true
             && ((item.rowHovered ?? false) === true || (item.rowPressed ?? false) === true)
     }
+    // the line under a row answers to its bottom edge, which a row may report apart from its own
+    // fill: an open SelectRow ends on an option band while its header stays plain
+    function engagedBelow(item): bool {
+        if (!item || item.rowBottomEngaged === undefined) return root.engaged(item)
+        return (item.rowInteractive ?? true) === true && item.rowBottomEngaged === true
+    }
 
     // a radius group (CollapsibleSection) has no hover of its own: the line beside it answers to the
     // group's edge row, first when the group sits below the line and last when it sits above.
@@ -69,7 +75,7 @@ Repeater {
         // a hovered row's fill runs to the card edge past the inset line and covers only the line at
         // its own top, so both lines beside it fade and the fill reads as one clean band
         readonly property bool _engaged: root.engaged(root.edgeRow(row, true))
-            || root.engaged(root.edgeRow(rowAbove, false))
+            || root.engagedBelow(root.edgeRow(rowAbove, false))
         // a separate factor: the row-driven opacity below must follow a collapsing row frame for frame
         property real _fade: _engaged ? 0 : 1
         MotionBehavior on _fade {
