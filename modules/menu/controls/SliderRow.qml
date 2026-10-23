@@ -62,16 +62,12 @@ MenuRow {
         height: 20
         clip: true
 
-        ShellText {
+        RowGlyph {
             id: _glyph
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.glyph.length > 0
-            width: visible ? 18 : 0
-            horizontalAlignment: Text.AlignHCenter
-            text:           root.glyph
-            color:          root.glyphColor
-            font.pixelSize: Settings.iconSize + 2
+            text:  root.glyph
+            color: root.glyphColor
         }
         ShellText {
             id: _label

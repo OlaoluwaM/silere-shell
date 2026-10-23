@@ -43,17 +43,12 @@ Item {
     readonly property string _shownName: _shownIdx >= 0 && _shownIdx < _sr.options.length
         ? (_sr.options[_shownIdx].name ?? "") : ""
 
-    ShellText {
+    RowGlyph {
         id: _glyph
         anchors.left: parent.left
         anchors.leftMargin: 14
         y: Math.round((root._headerH - height) / 2)
-        visible: root.glyph.length > 0
-        width: visible ? 18 : 0
-        horizontalAlignment: Text.AlignHCenter
-        text:           root.glyph
-        color:          Theme.withAlpha(Theme.subtext, 0.85)
-        font.pixelSize: Settings.iconSize + 2
+        text: root.glyph
     }
     ShellText {
         id: _label

@@ -163,8 +163,8 @@ outside issues or pull requests.
   in place of upstream's medium/fast emphasized pair,
   which snapped short lists open, and the list's contents fade over the
   same two durations so it never closes empty. `CollapsibleSection` forwards `list`;
-  `SelectRow`, `InlinePicker` and the `VolumeRow`/`BrightnessRow` option lists
-  set it, and the chevrons that open them (`SelectRow`, `QuickSlider`,
+  `SelectRow`, `InlinePicker` and `LevelRow`, the option list under
+  `VolumeRow`/`BrightnessRow`, set it, and the chevrons that open them (`SelectRow`, `QuickSlider`,
   `ControlRow`) rotate through `Disclosure on rotation { list: true }`. Keep
   the flag and its sites on an import of any of these.
 - `services/Audio.qml`, `services/SystemTools.qml` and `shell.qml`:
@@ -498,6 +498,13 @@ outside issues or pull requests.
   the disabled fade. An import that changes that shell in either button ports
   into the base; one that changes a button's surface or content lands in the
   thin file.
+- `VolumeRow` and `BrightnessRow` are thin derivations of `LevelRow`, which
+  owns the slider, the collapsible option list and the row-hover forwards;
+  each row supplies only its service bindings and `optionGlyph`. Port an
+  import of the shared wrapper into `LevelRow` and one of a row's bindings
+  into that row. `ChoiceChipRow`, `SliderRow`, `SwatchPickerRow` and
+  `DescribedChipRow` lead with `RowGlyph`, the 18px icon cell; an import of
+  that cell ports there.
 - `Theme.barHoverCap` and `Theme.barPressCap` name the capsule behind a bar
   widget, read by `Pill` and the tray's per-icon caps. Keep the tokens and
   their two readers on an import of either hover treatment.

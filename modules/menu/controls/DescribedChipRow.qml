@@ -50,17 +50,13 @@ MenuRow {
 
     HoverHandler { id: _hover; enabled: root.enabled }
 
-    ShellText {
+    RowGlyph {
         id: _glyph
         anchors.left: parent.left
         anchors.leftMargin: 14
         anchors.verticalCenter: parent.verticalCenter
-        visible: root.glyph.length > 0
-        width: visible ? 18 : 0
-        horizontalAlignment: Text.AlignHCenter
         text: root.glyph
         color: Theme.withAlpha(Theme.subtext, 0.82)
-        font.pixelSize: Settings.iconSize + 2
         opacity: root.enabled ? 1.0 : Theme.disabledOpacity
     }
 

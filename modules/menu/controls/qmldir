@@ -16,7 +16,9 @@ ControlRow      1.0 ControlRow.qml
 DetailRow       1.0 DetailRow.qml
 DurationPickerColumn 1.0 DurationPickerColumn.qml
 InlineOptionRow 1.0 InlineOptionRow.qml
+LevelRow        1.0 LevelRow.qml
 MenuRow         1.0 MenuRow.qml
+RowGlyph        1.0 RowGlyph.qml
 QuickSlider     1.0 QuickSlider.qml
 SelectRow       1.0 SelectRow.qml
 SliderRow       1.0 SliderRow.qml

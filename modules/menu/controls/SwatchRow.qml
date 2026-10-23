@@ -83,21 +83,19 @@ Item {
                         Rectangle { width: 4; height: 4; radius: 2; color: Qt.rgba(0, 0, 0, 0.35) }
                     }
                 }
-                Rectangle {
+                // only the stroke is visible, so the ring needs no fill node of its own
+                Item {
                     id: _ring
                     anchors.centerIn: parent
                     width: _sw.active ? 28 : 22
                     height: width
-                    radius: width / 2
-                    antialiasing: true
-                    color: "transparent"
 
                     MotionBehavior on width {
                         NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic }
                     }
 
                     OutlineBorder {
-                        radius: _ring.radius
+                        radius: _ring.width / 2
                         outlineWidth: _sw.active ? 2 : 1
                         outlineColor: _sw.active
                             ? (root.ringColor.a > 0
