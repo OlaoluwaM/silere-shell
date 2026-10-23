@@ -469,6 +469,9 @@ Singleton {
             root._finishWifi(false, ConnectionFailReason.Unknown)
     }
 
+    // colon-delimited nmcli terse output escapes both the field separator and
+    // its own escape character with a leading backslash. WifiProfile parses the
+    // same terse format and calls this rather than carrying its own copy.
     function _splitNmcliLine(line: string): var {
         const fields = []
         let cur = ""

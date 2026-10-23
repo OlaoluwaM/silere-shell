@@ -508,6 +508,10 @@ outside issues or pull requests.
 - `Theme.barHoverCap` and `Theme.barPressCap` name the capsule behind a bar
   widget, read by `Pill` and the tray's per-icon caps. Keep the tokens and
   their two readers on an import of either hover treatment.
+- `services/Network.qml`: `_splitNmcliLine` is also the terse-output parser
+  for the fork's `WifiProfile`, which carries no copy of its own. An import
+  that renames, moves or inlines the splitter keeps a callable of that name
+  on `Network`, or repoints WifiProfile's three call sites in the same commit.
 - Every full-screen popup but the tray menu derives from
   `modules/common/OverlayPopupWindow.qml`: the layer-shell setup, the
   workspace-switch close, the Escape shortcut, the outside-tap dismiss with

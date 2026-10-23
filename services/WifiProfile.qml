@@ -67,24 +67,6 @@ Singleton {
         _modifyProc.exec(["nmcli", "connection", "modify", root._pendingUuid, "wifi.band", value])
     }
 
-    // colon-delimited nmcli terse output escapes both the field separator and
-    // its own escape character with a leading backslash
-    function _splitLine(line: string): var {
-        const fields = []
-        let cur = ""
-        let escaped = false
-        for (let i = 0; i < line.length; i++) {
-            const ch = line[i]
-            if (escaped) { cur += ch; escaped = false }
-            else if (ch === "\\") { escaped = true }
-            else if (ch === ":") { fields.push(cur); cur = "" }
-            else { cur += ch }
-        }
-        if (escaped) cur += "\\"
-        fields.push(cur)
-        return fields
-    }
-
     // a tick that lands mid-request just waits for the next one rather than queuing —
     // these are cheap, frequent reads, not a one-shot action worth requeuing
     function _refreshNow(): void {
@@ -136,7 +118,7 @@ Singleton {
         stdout: SplitParser {
             onRead: line => {
                 if (_freqProc._candidateFound) return
-                const fields = root._splitLine(line)
+                const fields = Network._splitNmcliLine(line)
                 if (fields.length < 3 || fields[0] !== "yes") return
                 const m = /^(\d+)/.exec(fields[1].trim())
                 if (!m) return
@@ -168,7 +150,7 @@ Singleton {
         }
         stdout: SplitParser {
             onRead: line => {
-                const fields = root._splitLine(line)
+                const fields = Network._splitNmcliLine(line)
                 if (fields.length < 2) return
                 const key = fields[0]
                 const value = fields.slice(1).join(":")
@@ -222,7 +204,7 @@ Singleton {
         stdout: SplitParser {
             onRead: line => {
                 if (_bandProc._found) return
-                const fields = root._splitLine(line)
+                const fields = Network._splitNmcliLine(line)
                 if (fields.length < 1 || fields[0] !== "802-11-wireless.band") return
                 _bandProc._value = fields.slice(1).join(":").trim()
                 _bandProc._found = true
