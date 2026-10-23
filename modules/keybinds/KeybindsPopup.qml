@@ -2,65 +2,20 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import Quickshell.Wayland
 import "../../config"
 import "../../services"
 import "../common"
 
 // IPC opens a reference card without a bar anchor, so keep it centered.
-PanelWindow {
+OverlayPopupWindow {
     id: win
 
     required property ShellScreen targetScreen
 
-    readonly property string _output: Compositor.monitorName(win.screen)
-
-    Connections {
-        target: Compositor
-        function onWorkspaceActivated(output) {
-            if (output === win._output && KeybindsPopupState.open) KeybindsPopupState.close()
-        }
-    }
-
-    screen:        targetScreen
-    color:         "transparent"
-    exclusiveZone: -1
-    WlrLayershell.namespace: "silere-keybinds"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: KeybindsPopupState.open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-
-    visible: KeybindsPopupState.open || card.opacity > 0.001
-
-    anchors { top: true; left: true; right: true; bottom: true }
-
-    Shortcut {
-        sequence: "Escape"
-        context: Qt.ApplicationShortcut
-        enabled: KeybindsPopupState.open
-        onActivated: KeybindsPopupState.close()
-    }
-
-    OutsideTapGuard {
-        id: _tapGuard
-        open: KeybindsPopupState.open
-    }
-
-    Item { id: _fillArea; anchors.fill: parent }
-    mask: Region { item: KeybindsPopupState.open ? _fillArea : null }
-
-    TapHandler {
-        id: _dismiss
-        enabled: KeybindsPopupState.open
-        onTapped: {
-            if (_tapGuard.ignoring) return
-            const p = _dismiss.point.position
-            if (p.x < card.x || p.x > card.x + card.width ||
-                p.y < card.y || p.y > card.y + card.height)
-                KeybindsPopupState.close()
-        }
-    }
-
-    PopupShadow { card: card }
+    screen: targetScreen
+    popupState: KeybindsPopupState
+    layerNamespace: "silere-keybinds"
+    popupCard: card
 
     component GroupHeader: Item {
         id: _hdr
@@ -209,7 +164,7 @@ PanelWindow {
                     renderType: Text.NativeRendering
                     clip: true
                     // first Escape clears an active filter; a second (now-empty) press
-                    // falls through unaccepted to the window's own Escape Shortcut above
+                    // falls through unaccepted to the window base's Escape Shortcut
                     Keys.onEscapePressed: (event) => {
                         if (_search.text.length > 0) { _search.text = ""; event.accepted = true }
                     }

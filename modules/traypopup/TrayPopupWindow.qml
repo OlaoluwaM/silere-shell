@@ -3,60 +3,23 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Services.SystemTray
-import Quickshell.Wayland
 import Quickshell.Widgets
 import "../../config"
 import "../../services"
 import "../common"
 
-PanelWindow {
+OverlayPopupWindow {
     id: win
 
     required property ShellScreen targetScreen
 
-    readonly property string _output: Compositor.monitorName(win.screen)
     readonly property int rowWidth: 260
     readonly property int iconSize: Settings.iconSize + 2
 
-    Connections {
-        target: Compositor
-        function onWorkspaceActivated(output) {
-            if (output === win._output && TrayPopupState.open) TrayPopupState.close()
-        }
-    }
-
-    screen:        targetScreen
-    color:         "transparent"
-    exclusiveZone: -1
-    WlrLayershell.namespace: "silere-traypopup"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: TrayPopupState.open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-
-    visible: TrayPopupState.open || card.opacity > 0.001
-
-    anchors { top: true; left: true; right: true; bottom: true }
-
-    Shortcut { sequence: "Escape"; context: Qt.ApplicationShortcut; enabled: TrayPopupState.open; onActivated: TrayPopupState.close() }
-
-    OutsideTapGuard {
-        id: _tapGuard
-        open: TrayPopupState.open
-    }
-
-    Item { id: _fillArea; anchors.fill: parent }
-    mask: Region { item: TrayPopupState.open ? _fillArea : null }
-
-    TapHandler {
-        id: _dismiss
-        enabled: TrayPopupState.open
-        onTapped: {
-            if (_tapGuard.ignoring) return
-            const p = _dismiss.point.position
-            if (p.x < card.x || p.x > card.x + card.width ||
-                p.y < card.y || p.y > card.y + card.height)
-                TrayPopupState.close()
-        }
-    }
+    screen: targetScreen
+    popupState: TrayPopupState
+    layerNamespace: "silere-traypopup"
+    popupCard: card
 
     // right-click (or the item's own onlyMenu fallback) hands the item's menu to
     // the same TrayMenuState/TrayMenuPopup plumbing TrayWidget's bar row uses --
@@ -91,8 +54,6 @@ PanelWindow {
             if (row) row.syncMenuAnchor()
         }
     }
-
-    PopupShadow { card: card }
 
     FloatingPopupCard {
         id: card

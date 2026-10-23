@@ -2,65 +2,25 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import Quickshell.Wayland
 import "../../config"
 import "../../services"
 import "../common"
 import "../menu/controls"
 
 // GNOME media-controller style: left-clicking the bar's media widget hangs this small
-// panel off the tile instead of opening the full menu. Structure mirrors
-// modules/traypopup/TrayPopupWindow.qml (own layer surface, FloatingPopupCard chrome,
-// OutsideTapGuard/Escape dismissal) since both are single-window popups toggled from
-// one bar tile -- the only real difference is the payload, MediaCard instead of a row list.
-PanelWindow {
+// panel off the tile instead of opening the full menu. Built like
+// modules/traypopup/TrayPopupWindow.qml (an OverlayPopupWindow around FloatingPopupCard
+// chrome) since both are single-window popups toggled from one bar tile -- the only real
+// difference is the payload, MediaCard instead of a row list.
+OverlayPopupWindow {
     id: win
 
     required property ShellScreen targetScreen
 
-    readonly property string _output: Compositor.monitorName(win.screen)
-
-    Connections {
-        target: Compositor
-        function onWorkspaceActivated(output) {
-            if (output === win._output && MediaPopupState.open) MediaPopupState.close()
-        }
-    }
-
-    screen:        targetScreen
-    color:         "transparent"
-    exclusiveZone: -1
-    WlrLayershell.namespace: "silere-mediapopup"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: MediaPopupState.open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-
-    visible: MediaPopupState.open || card.opacity > 0.001
-
-    anchors { top: true; left: true; right: true; bottom: true }
-
-    Shortcut { sequence: "Escape"; context: Qt.ApplicationShortcut; enabled: MediaPopupState.open; onActivated: MediaPopupState.close() }
-
-    OutsideTapGuard {
-        id: _tapGuard
-        open: MediaPopupState.open
-    }
-
-    Item { id: _fillArea; anchors.fill: parent }
-    mask: Region { item: MediaPopupState.open ? _fillArea : null }
-
-    TapHandler {
-        id: _dismiss
-        enabled: MediaPopupState.open
-        onTapped: {
-            if (_tapGuard.ignoring) return
-            const p = _dismiss.point.position
-            if (p.x < card.x || p.x > card.x + card.width ||
-                p.y < card.y || p.y > card.y + card.height)
-                MediaPopupState.close()
-        }
-    }
-
-    PopupShadow { card: card }
+    screen: targetScreen
+    popupState: MediaPopupState
+    layerNamespace: "silere-mediapopup"
+    popupCard: card
 
     FloatingPopupCard {
         id: card

@@ -2,59 +2,19 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import Quickshell.Wayland
 import "../../config"
 import "../../services"
 import "../common"
 
-PanelWindow {
+OverlayPopupWindow {
     id: win
 
     required property ShellScreen targetScreen
 
-    readonly property string _output: Compositor.monitorName(win.screen)
-
-    Connections {
-        target: Compositor
-        function onWorkspaceActivated(output) {
-            if (output === win._output && CalendarState.open) CalendarState.close()
-        }
-    }
-
-    screen:        targetScreen
-    color:         "transparent"
-    exclusiveZone: -1
-    WlrLayershell.namespace: "silere-calendar"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: CalendarState.open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-
-    visible: CalendarState.open || card.opacity > 0.001
-
-    anchors { top: true; left: true; right: true; bottom: true }
-
-    Shortcut { sequence: "Escape"; context: Qt.ApplicationShortcut; enabled: CalendarState.open; onActivated: CalendarState.close() }
-
-    OutsideTapGuard {
-        id: _tapGuard
-        open: CalendarState.open
-    }
-
-    Item { id: _fillArea; anchors.fill: parent }
-    mask: Region { item: CalendarState.open ? _fillArea : null }
-
-    TapHandler {
-        id: _dismiss
-        enabled: CalendarState.open
-        onTapped: {
-            if (_tapGuard.ignoring) return
-            const p = _dismiss.point.position
-            if (p.x < card.x || p.x > card.x + card.width ||
-                p.y < card.y || p.y > card.y + card.height)
-                CalendarState.close()
-        }
-    }
-
-    PopupShadow { card: card }
+    screen: targetScreen
+    popupState: CalendarState
+    layerNamespace: "silere-calendar"
+    popupCard: card
 
     FloatingPopupCard {
         id: card

@@ -20,3 +20,4 @@ ShellText 1.0 ShellText.qml
 ShellFlickable 1.0 ShellFlickable.qml
 ShellListView 1.0 ShellListView.qml
 ShellGridView 1.0 ShellGridView.qml
+OverlayPopupWindow 1.0 OverlayPopupWindow.qml

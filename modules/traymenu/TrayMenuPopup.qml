@@ -8,6 +8,8 @@ import "../../config"
 import "../../services"
 import "../common"
 
+// Not an OverlayPopupWindow: a tap outside the card may land on a submenu flyout or on the
+// tray list beneath, and each of those dismisses differently.
 PanelWindow {
     id: win
 

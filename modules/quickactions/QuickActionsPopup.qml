@@ -2,37 +2,20 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import Quickshell.Wayland
 import "../../config"
 import "../../services"
 import "../common"
 
-PanelWindow {
+OverlayPopupWindow {
     id: win
 
     required property ShellScreen targetScreen
 
-    readonly property string _output: Compositor.monitorName(win.screen)
+    screen: targetScreen
+    popupState: QuickActionsState
+    layerNamespace: "silere-quickactions"
+    popupCard: card
 
-    screen:        targetScreen
-    color:         "transparent"
-    exclusiveZone: -1
-    WlrLayershell.namespace: "silere-quickactions"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: QuickActionsState.open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-
-    visible: QuickActionsState.open || card.opacity > 0.001
-
-    anchors { top: true; left: true; right: true; bottom: true }
-
-    Shortcut { sequence: "Escape"; context: Qt.ApplicationShortcut; enabled: QuickActionsState.open; onActivated: QuickActionsState.close() }
-
-    Connections {
-        target: Compositor
-        function onWorkspaceActivated(output) {
-            if (output === win._output && QuickActionsState.open) QuickActionsState.close()
-        }
-    }
     Connections {
         target: ShellSettings
         function onBarPositionChanged() { if (QuickActionsState.open) QuickActionsState.close() }
@@ -43,22 +26,6 @@ PanelWindow {
             if (QuickActionsState.open) card.forceActiveFocus()
         }
     }
-
-    Item { id: _fillArea; anchors.fill: parent }
-    mask: Region { item: QuickActionsState.open ? _fillArea : null }
-
-    TapHandler {
-        id: _dismiss
-        enabled: QuickActionsState.open
-        onTapped: {
-            const p = _dismiss.point.position
-            if (p.x < card.x || p.x > card.x + card.width ||
-                p.y < card.y || p.y > card.y + card.height)
-                QuickActionsState.close()
-        }
-    }
-
-    PopupShadow { card: card }
 
     component QuickActionRow: Item {
         id: _row

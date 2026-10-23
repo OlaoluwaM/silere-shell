@@ -493,6 +493,17 @@ outside issues or pull requests.
   is the fill alone. At a fractional output scale the 1px lift lands between
   device pixels and resamples the label, which reads as the button shifting.
   Keep the lift out when an import touches the button's motion.
+- Every full-screen popup but the tray menu derives from
+  `modules/common/OverlayPopupWindow.qml`: the layer-shell setup, the
+  workspace-switch close, the Escape shortcut, the outside-tap dismiss with
+  its guard, the mask and the shadow live there, and each popup declares its
+  `targetScreen`, state, `silere-*` namespace and card, overriding
+  `handleEscape()` when Escape first backs out of something inside the card.
+  Upstream moved the same popups onto its two-window `FittedPopupWindow`,
+  which the fork declined. An upstream change to a popup's window code ports
+  into the base; a change to its card lands in the popup's file.
+  `TrayMenuPopup` keeps its own window because its outside tap must spare an
+  open flyout and may also close the tray list.
 - `ConfirmButton` paints its rest, hover, press and armed fills with
   `Theme.controlFill`, not upstream's mix into `Theme.menuControl`. Under
   glass `menuControl` is a text-coloured wash, and a mix into it drops the

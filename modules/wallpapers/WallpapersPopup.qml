@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import Quickshell.Wayland
 import "../../config"
 import "../../services"
 import "../common"
@@ -10,39 +9,19 @@ import "../common"
 // A grid picker over Wallpapers.entries, dormant unless Wallpapers.available. Same
 // centered-overlay shape as KeybindsPopup for the same reason: this is IPC-triggered with
 // no bar pill to anchor off, and a picker reads better as a dialog than pinned to an edge.
-PanelWindow {
+OverlayPopupWindow {
     id: win
 
     required property ShellScreen targetScreen
 
-    readonly property string _output: Compositor.monitorName(win.screen)
+    screen: targetScreen
+    popupState: WallpapersPopupState
+    layerNamespace: "silere-wallpapers"
+    popupCard: card
 
-    Connections {
-        target: Compositor
-        function onWorkspaceActivated(output) {
-            if (output === win._output && WallpapersPopupState.open) WallpapersPopupState.close()
-        }
-    }
-
-    screen:        targetScreen
-    color:         "transparent"
-    exclusiveZone: -1
-    WlrLayershell.namespace: "silere-wallpapers"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WallpapersPopupState.open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-
-    visible: WallpapersPopupState.open || card.opacity > 0.001
-
-    anchors { top: true; left: true; right: true; bottom: true }
-
-    Shortcut {
-        sequence: "Escape"
-        context: Qt.ApplicationShortcut
-        enabled: WallpapersPopupState.open
-        onActivated: {
-            if (card.filterVisible) card.hideFilter()
-            else WallpapersPopupState.close()
-        }
+    function handleEscape(): void {
+        if (card.filterVisible) card.hideFilter()
+        else WallpapersPopupState.close()
     }
 
     Shortcut {
@@ -51,28 +30,6 @@ PanelWindow {
         enabled: WallpapersPopupState.open
         onActivated: card.showFilter()
     }
-
-    OutsideTapGuard {
-        id: _tapGuard
-        open: WallpapersPopupState.open
-    }
-
-    Item { id: _fillArea; anchors.fill: parent }
-    mask: Region { item: WallpapersPopupState.open ? _fillArea : null }
-
-    TapHandler {
-        id: _dismiss
-        enabled: WallpapersPopupState.open
-        onTapped: {
-            if (_tapGuard.ignoring) return
-            const p = _dismiss.point.position
-            if (p.x < card.x || p.x > card.x + card.width ||
-                p.y < card.y || p.y > card.y + card.height)
-                WallpapersPopupState.close()
-        }
-    }
-
-    PopupShadow { card: card }
 
     // quiet text action: invisible at rest, a hover step reveals fill + a hairline
     // border per Theme.controlFill's solid-on-glass doctrine

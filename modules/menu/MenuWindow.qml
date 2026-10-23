@@ -2,76 +2,29 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import Quickshell.Wayland
 import "../../config"
 import "../../services"
 import "../common"
 import "controls"
 import "settings"
 
-PanelWindow {
+OverlayPopupWindow {
     id: win
 
     required property ShellScreen targetScreen
 
-    readonly property string _output: Compositor.monitorName(win.screen)
+    screen: targetScreen
+    popupState: MenuState
+    layerNamespace: "silere-menu"
+    popupCard: panel
 
-    Connections {
-        target: Compositor
-        function onWorkspaceActivated(output) {
-            if (output === win._output && MenuState.open) MenuState.close()
-        }
-    }
-
-    screen:        targetScreen
-    color:         "transparent"
-    exclusiveZone: -1
-    WlrLayershell.namespace: "silere-menu"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: MenuState.open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-
-    visible: MenuState.open || panel.opacity > 0.001
-
-    anchors {
-        top:    true
-        left:   true
-        right:  true
-        bottom: true
-    }
-
-    Shortcut {
-        sequence: "Escape"
-        context:  Qt.ApplicationShortcut
-        enabled:  MenuState.open
-        onActivated: {
-            if (panel.powerOpen) {
-                panel._setPowerOpen(false)
-            } else if (panel.activeTab === 0 && homeLoader.item && homeLoader.item.dismissInline()) {
-            } else if (panel.activeTab === 1 && settingsLoader.item && settingsLoader.item.dismissInline()) {
-            } else {
-                MenuState.close()
-            }
-        }
-    }
-
-    OutsideTapGuard {
-        id: _tapGuard
-        open: MenuState.open
-    }
-
-    Item { id: _fillArea; anchors.fill: parent }
-    mask: Region { item: MenuState.open ? _fillArea : null }
-
-    TapHandler {
-        id: _dismiss
-        enabled: MenuState.open
-        onTapped: {
-            if (_tapGuard.ignoring) return
-            const p = _dismiss.point.position
-            if (p.x < panel.x || p.x > panel.x + panel.width ||
-                p.y < panel.y || p.y > panel.y + panel.height) {
-                MenuState.close()
-            }
+    function handleEscape(): void {
+        if (panel.powerOpen) {
+            panel._setPowerOpen(false)
+        } else if (panel.activeTab === 0 && homeLoader.item && homeLoader.item.dismissInline()) {
+        } else if (panel.activeTab === 1 && settingsLoader.item && settingsLoader.item.dismissInline()) {
+        } else {
+            MenuState.close()
         }
     }
 
@@ -107,8 +60,6 @@ PanelWindow {
             onTriggered: pin.held = false
         }
     }
-
-    PopupShadow { card: panel }
 
     FloatingPopupCard {
         id: panel

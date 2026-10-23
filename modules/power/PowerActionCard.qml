@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import Quickshell.Wayland
 import "../../config"
 import "../../services"
 import "../common"
@@ -10,70 +9,24 @@ import "../common"
 // The power rail's countdown before Log out, Reboot or Power off. Centered like the
 // keybinds card: Escape, a tap outside or Cancel all cancel, and since nothing has run
 // yet there is nothing to undo.
-PanelWindow {
+OverlayPopupWindow {
     id: win
 
     required property ShellScreen targetScreen
 
-    readonly property string _output: Compositor.monitorName(win.screen)
+    screen: targetScreen
+    // leaving the workspace is a way out like any other: closing this state on a switch
+    // cancels, as it closes the other centered cards
+    popupState: PowerActionState
+    layerNamespace: "silere-power"
+    popupCard: card
 
-    // leaving the workspace is a way out like any other, so it cancels as the other
-    // centered cards close. On Hyprland this signal also fires for monitor focus
-    // (focusedmon, activemon), so with several outputs, moving the pointer to another
-    // monitor and back cancels too. It fails safe, and splitting real workspace switches
-    // out would mean a new signal on the shared Compositor boundary.
-    Connections {
-        target: Compositor
-        function onWorkspaceActivated(output) {
-            if (output === win._output && PowerActionState.open) PowerActionState.close()
-        }
-    }
-
-    screen:        targetScreen
-    color:         "transparent"
-    exclusiveZone: -1
-    WlrLayershell.namespace: "silere-power"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: PowerActionState.open ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-
-    visible: PowerActionState.open || card.opacity > 0.001
-
-    anchors { top: true; left: true; right: true; bottom: true }
-
-    Shortcut {
-        sequence: "Escape"
-        context: Qt.ApplicationShortcut
-        enabled: PowerActionState.open
-        onActivated: PowerActionState.close()
-    }
     Shortcut {
         sequences: ["Return", "Enter"]
         context: Qt.ApplicationShortcut
         enabled: PowerActionState.open
         onActivated: PowerActionState.confirm()
     }
-
-    OutsideTapGuard {
-        id: _tapGuard
-        open: PowerActionState.open
-    }
-
-    Item { id: _fillArea; anchors.fill: parent }
-    mask: Region { item: PowerActionState.open ? _fillArea : null }
-
-    TapHandler {
-        id: _dismiss
-        enabled: PowerActionState.open
-        onTapped: {
-            if (_tapGuard.ignoring) return
-            const p = _dismiss.point.position
-            if (p.x < card.x || p.x > card.x + card.width ||
-                p.y < card.y || p.y > card.y + card.height)
-                PowerActionState.close()
-        }
-    }
-
-    PopupShadow { card: card }
 
     FloatingPopupCard {
         id: card
