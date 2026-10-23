@@ -45,31 +45,6 @@ Singleton {
     readonly property bool hasWpctl:         _tools.wpctl ?? false
     readonly property bool hasPwDump:        _tools["pw-dump"] ?? false
 
-    // "" | working | done | failed
-    property string matugenRepairState: ""
-
-    function _repairOutcome(code: int, timedOut: bool): string {
-        return !timedOut && code === 0 ? "done" : "failed"
-    }
-
-    // the repair outlives the settings section that starts it; a page unload must not orphan the process or drop its result
-    function repairMatugen(): void {
-        if (root.matugenRepairState === "working") return
-        root.matugenRepairState = "working"
-        _matugenRepair.running = true
-    }
-
-    BoundedProcess {
-        id: _matugenRepair
-        timeoutMs: 15000
-        command: ["bash", Quickshell.shellDir + "/scripts/install.sh", "--repair-matugen"]
-        // a killed process still emits exited, sometimes with a successful-looking status
-        onExited: code => root.matugenRepairState = root._repairOutcome(
-            code, _matugenRepair.timedOut)
-        onTimeoutReached: root.matugenRepairState = "failed"
-        Component.onDestruction: running = false
-    }
-
     function _shq(s: string): string {
         return "'" + String(s).replace(/'/g, "'\\''") + "'"
     }

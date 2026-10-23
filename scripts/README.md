@@ -13,7 +13,7 @@ nix develop . --command bash scripts/check.sh
 
 `ci-lint.sh` checks source structure, shell syntax, module registrations,
 settings coverage, and repository conventions. It also runs ShellCheck when
-available and the portability regressions.
+available and the portability regressions (shell helpers, probe isolation, and lint tools).
 
 `check.sh` includes that lint pass, checks dependencies, compiles QML, runs
 behavioral probes, starts disposable shell instances, and checks settings and
@@ -67,9 +67,9 @@ The full check already includes the runners below, directly or through
 | [test-panels.sh](test-panels.sh) | Hidden layer-shell panel construction on a private session bus; requires Wayland and skips otherwise |
 | [test-mutate.sh](test-mutate.sh) | Changing settings on already-created surfaces |
 | [test-layout-fit.sh](test-layout-fit.sh) | Label fit across the supported text sizes |
-| [test-portability.sh](test-portability.sh) | Shell helper and installation portability regressions |
-| [test-smoke-config.sh](test-smoke-config.sh) | Private startup configuration copying, symlink isolation, failure handling, launcher wiring, and cleanup; included by the portability suite |
-| [test-probe-stop.sh](test-probe-stop.sh) | Probe group stop: helpers die with their leader, a reaped leader's helpers still go, a stop without `ps` ends a TERM-ignoring probe, and foreign, plain-child and malformed pids are left alone; included by the portability suite |
+| [test-tooling.sh](test-tooling.sh) | XDG path fallbacks, QML import-root and Quickshell version lookup, headless QML tools receiving every import root, hook timeout containment, and the internal-type lint |
+| [test-smoke-config.sh](test-smoke-config.sh) | Private startup configuration copying, symlink isolation, failure handling, launcher wiring, and cleanup; run by `ci-lint.sh` with the other portability regressions |
+| [test-probe-stop.sh](test-probe-stop.sh) | Probe group stop: helpers die with their leader, a reaped leader's helpers still go, a stop without `ps` ends a TERM-ignoring probe, and foreign, plain-child and malformed pids are left alone; run by `ci-lint.sh` with the other portability regressions |
 
 The Bluetooth regression does not pair or disconnect real hardware. Its fixture
 replaces the Bluetooth service while exercising the real menu list. Hardware
@@ -87,26 +87,6 @@ The runner prints the retained directory at exit and still stops its child
 process. Without `SILERE_PROBE_KEEP=1`, it removes the temporary directory.
 This option applies only to `test-notification-stack.sh`.
 
-## Benchmarks
-
-Start a disposable checkout instance in a graphical session:
-
-```sh
-nix develop . --command qs -p shell.qml
-```
-
-Then, from another terminal at the repository root:
-
-```sh
-nix develop . --command bash scripts/bench.sh 10 --json --label baseline
-```
-
-[bench.sh](bench.sh) locates the instance whose config path is this checkout's
-`shell.qml` and samples Linux process metrics for it and its helper processes.
-Use `--help` for options. `--warm` opens and closes that instance's menu before
-sampling; without it, the report describes the state it found. It does not
-measure frame timing or prove interactive responsiveness.
-
 ## How the probes fit together
 
 - `test-*.sh` files prepare temporary project/configuration directories, launch
@@ -119,7 +99,7 @@ measure frame timing or prove interactive responsiveness.
   is insufficient because QML can report binding errors without exiting.
 - `fixtures/` supplies synthetic inputs and replacement services for isolated
   tests. Production services remain intact.
-- `lib/` contains shared shell UI, XDG-path, and QML-module helpers.
+- `lib/` contains shared shell XDG-path, QML-module, and smoke-configuration helpers.
 - [check-connections.py](check-connections.py) and
   [check-text-scale.py](check-text-scale.py), plus
   [check-internal-types.py](check-internal-types.py), are standalone source diagnostics.
@@ -130,13 +110,3 @@ For a new probe, follow a nearby runner, reuse `probe-lib.sh`, check both its
 sentinel and runtime errors, and register new QML files in their folder's
 `qmldir`. Add the runner to the appropriate suite so the full check reaches it.
 Keep generated logs and temporary instrumentation out of the committed source.
-
-## Manual installation and repair
-
-[install.sh](install.sh) and [uninstall.sh](uninstall.sh) manage a non-Nix
-installation. They edit user configuration and installation files. This fork's
-Nix deployment is managed by nixos-config; do not use those scripts there.
-
-[repair.sh](repair.sh) previews checkout changes by default. `--apply` saves
-local changes in a repair stash and restores shipped files; `--undo` restores
-the latest repair stash. These are maintenance actions, not validation steps.

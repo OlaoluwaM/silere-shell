@@ -18,14 +18,18 @@ case. Settle that decision before importing the conflicting implementation.
 
 ## Removed outright — keep deleted
 
-The fork is distributed by nixos-config and never publishes releases, so
-the release and distribution machinery is gone whole, and the package-
-updates/self-update stack went the same way (upstream still ships and
-iterates it). Imports must preserve those removals. The stack's
-consumers are pruned wherever upstream grows new ones: Hooks.qml carries
-no "update-available" event, probe-logic has no updater suite, SystemTools
-has no packageFamily, DateTime has no agoText, and the EntryList control
-only the updates section used is gone. Resolve delete/modify conflicts under
+The fork is distributed by nixos-config and never publishes releases or
+installs by hand, so the release and distribution machinery is gone whole,
+the manual installer with its uninstall, repair and bench tooling went
+with it, and the package-updates/self-update stack went the same way
+(upstream still ships and iterates all of it). Imports must preserve those
+removals. The stacks' consumers are pruned wherever upstream grows new
+ones: Hooks.qml carries no "update-available" event, probe-logic has no
+updater suite and no repair-outcome check, SystemTools has no packageFamily
+and no repairMatugen, the Maintenance section offers no Matugen repair (the
+deployment wires Matugen to the wallpaper command, so a missing palette is
+fixed by setting a wallpaper), DateTime has no agoText, and the EntryList
+control only the updates section used is gone. Resolve delete/modify conflicts under
 these paths as ours, re-delete anything a merge brings back under them,
 and re-prune any new consumer a merge wires up:
 
@@ -58,6 +62,11 @@ release.json
 scripts/silere
 scripts/doctor.sh
 scripts/test-update.sh
+scripts/install.sh
+scripts/uninstall.sh
+scripts/repair.sh
+scripts/bench.sh
+scripts/lib/ui.sh
 <!-- keep-deleted:end -->
 
 ci-lint enforces the list: a path here that exists again fails the gate,

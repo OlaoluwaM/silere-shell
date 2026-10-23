@@ -71,14 +71,10 @@ Column {
                 v: "matugen", p: true })
         else if (MatugenTheme.paletteStale)
             out.push({ g: "󰉦", n: "Wallpaper palette", s: "Unreadable; showing the last colors that loaded", v: "template" })
+        // the deployment wires matugen to the wallpaper command, so a missing palette is
+        // fixed by setting a wallpaper, not by a repair the shell could run itself
         else if (MatugenTheme.usingFallback)
-            out.push({ g: "󰉦", n: "Wallpaper palette",
-                s: SystemTools.matugenRepairState === "working" ? "Rewiring Matugen…"
-                    : SystemTools.matugenRepairState === "done" ? "Rewired — colors follow your next wallpaper change"
-                    : SystemTools.matugenRepairState === "failed" ? "Could not rewire; run scripts/install.sh"
-                    : "Matugen has not written one yet",
-                v: SystemTools.matugenRepairState === "working" ? "" : "Repair",
-                a: SystemTools.matugenRepairState === "working" ? "" : "matugen" })
+            out.push({ g: "󰉦", n: "Wallpaper palette", s: "Not written yet; set a wallpaper", v: "palette" })
 
         const tool = (g, n, v) => out.push({ g: g, n: n, s: "Hidden until this is installed", v: v, p: true })
         if (!SystemTools.hasBrightnessctl)     tool("󰃟", "Brightness control", "brightnessctl")
@@ -122,9 +118,7 @@ Column {
                 title: modelData.n
                 status: modelData.s
                 valueText: modelData.v
-                passive: !modelData.a
-                valueIsAction: !!modelData.a
-                onActivated: if (modelData.a === "matugen") SystemTools.repairMatugen()
+                passive: true
             }
         }
         HintText {

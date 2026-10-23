@@ -10,7 +10,7 @@
 #   - non-portable Keys attached handlers rejected by the live QML engine
 #   - ShellSettings properties and schema drifting apart
 #   - settings navigation entries and detail components drifting apart
-#   - installer portability regressions
+#   - shell helper, probe-isolation, and lint-tool regressions
 set -u
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT" || exit 1
@@ -257,9 +257,11 @@ for f in "${script_files[@]}"; do
 done
 
 section "locale-stable parsers"
-for f in scripts/check.sh scripts/install.sh scripts/uninstall.sh; do
-  if grep -q '^export LC_ALL=C$' "$f"; then ok "$f"; else fail "$f must set LC_ALL=C"; fi
-done
+if grep -q '^export LC_ALL=C$' scripts/check.sh; then
+  ok "scripts/check.sh"
+else
+  fail "scripts/check.sh must set LC_ALL=C"
+fi
 if grep -qF '_silere_xdg_home "${XDG_DATA_HOME:-}" .local/share' scripts/check.sh \
     && ! grep -qF '${XDG_DATA_HOME:-$HOME' scripts/check.sh; then
   ok "scripts/check.sh" "XDG data path uses the shared absolute-path fallback"
@@ -842,14 +844,6 @@ if command -v python3 >/dev/null 2>&1 && [ -f scripts/check-connections.py ]; th
   fi
 else
   skip "handlers" "python3 or scripts/check-connections.py missing; Connections check skipped"
-fi
-
-section "installer environment defaults"
-if grep -qF '${MALLOC_CONF-' scripts/install.sh \
-    && grep -qF '${QSG_TRANSIENT_IMAGES-' scripts/install.sh; then
-  ok "launcher" "inherited overrides are preserved"
-else
-  fail "installer launcher must preserve MALLOC_CONF and QSG_TRANSIENT_IMAGES overrides"
 fi
 
 section "terminal detection"
@@ -1826,7 +1820,9 @@ fi
 
 section "portability regressions"
 portability_log="$(mktemp "${TMPDIR:-/tmp}/silere-portability.XXXXXX.log")"
-if bash scripts/test-portability.sh 2>&1 | tee "$portability_log"; [ "${PIPESTATUS[0]}" -eq 0 ]; then
+if { bash scripts/test-tooling.sh \
+    && bash scripts/test-smoke-config.sh \
+    && bash scripts/test-probe-stop.sh; } 2>&1 | tee "$portability_log"; [ "${PIPESTATUS[0]}" -eq 0 ]; then
   if grep -q '^SKIP' "$portability_log"; then
     skip "portability" "$(sed -n 's/^SKIP: //p' "$portability_log" | head -1)"
   else

@@ -74,7 +74,7 @@ find_qmllint() {
         /usr/local/lib/qt6/bin/qmllint
 }
 
-# Shared with install.sh/check.sh/CI: same QML2_IMPORT_PATH/qtpaths6-aware root
+# Shared with check.sh/CI: same QML2_IMPORT_PATH/qtpaths6-aware root
 # list, instead of a fourth hardcoded copy of just the distro fallback paths.
 source "$ROOT/scripts/lib/qml-modules.sh"
 

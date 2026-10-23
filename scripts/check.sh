@@ -262,7 +262,7 @@ for _cdir in "$_cfg_home/hypr" "$_cfg_home/niri"; do
     "$_cdir" 2>/dev/null | head -n 1 || true)"
   [ -n "$_autostart_hit" ] && break
 done
-# A compositor directive is what install.sh writes, but a session can just as well
+# A compositor directive is the usual way to start the shell, but a session can just as well
 # start the shell from a systemd user unit. Without this the whole supported-but-
 # unwritten path reports as "it will not start on login" on a working install.
 _autostart_unit=""
@@ -307,7 +307,7 @@ fi
 
 # These modules are imported unconditionally, so their packaging is required
 # even when the corresponding service/agent is not active in this session.
-# Shared with install.sh and CI so the module list and the import-root lookup
+# Shared with CI so the module list and the import-root lookup
 # only exist in one place.
 source "$ROOT/scripts/lib/qml-modules.sh"
 
@@ -387,7 +387,19 @@ if command -v matugen >/dev/null 2>&1; then
   [ -f config/MatugenPalette.qml ] \
     && ok "theme" "bundled fallback + live palette loader" \
     || fail "theme" "config/MatugenPalette.qml missing"
-  _tmpl="$_cfg_home/matugen/templates/silere-shell/Theme.json"
+  # The deployment declares the shell's template as [templates.silere-shell] in
+  # matugen's config, so the entry is the source of truth for where the template
+  # lives and where the palette lands; a hand-copied template is the fallback.
+  _matugen_cfg="$_cfg_home/matugen/config.toml"
+  _tmpl=""
+  if [ -f "$_matugen_cfg" ]; then
+    _tmpl="$(awk -F'"' '
+      /^\[templates\.silere-shell\]/ { inside = 1; next }
+      /^\[/ { inside = 0 }
+      inside && /^[[:space:]]*input_path[[:space:]]*=/ { print $2; exit }
+    ' "$_matugen_cfg")"
+  fi
+  [ -n "$_tmpl" ] || _tmpl="$_cfg_home/matugen/templates/silere-shell/Theme.json"
   if [ -f "$_tmpl" ]; then
     ok "matugen tmpl" "$_tmpl"
     # An installed template predating a new palette role can regenerate incomplete JSON,
@@ -399,27 +411,22 @@ if command -v matugen >/dev/null 2>&1; then
         || _missing="$_missing $_role"
     done
     if [ -n "$_missing" ]; then
-      warn "matugen roles" "template lacks:$_missing — reinstall or: cp matugen/matugen-theme.json $_tmpl"
+      warn "matugen roles" "template lacks:$_missing — rebuild with the current matugen/matugen-theme.json"
     else
       ok "matugen roles" "template provides every palette role the shell reads"
     fi
   else
-    warn "matugen tmpl" "template missing — run installer or: cp matugen/matugen-theme.json $_tmpl"
+    warn "matugen tmpl" "no silere-shell template at $_tmpl — declare [templates.silere-shell] in $_matugen_cfg or: cp matugen/matugen-theme.json $_tmpl"
   fi
-  _matugen_cfg="$_cfg_home/matugen/config.toml"
-  if [ -f "$_matugen_cfg" ] && grep -q '# silere-shell begin' "$_matugen_cfg"; then
-    _managed_block="$(awk '
-      $0 == "# silere-shell begin" { inside = 1 }
-      inside { print }
-      $0 == "# silere-shell end" { inside = 0 }
-    ' "$_matugen_cfg")"
-    if printf '%s\n' "$_managed_block" | grep -qF 'silere-shell.json'; then
-      ok "matugen cfg" "writes the live per-user palette"
-    else
-      warn "matugen cfg" "Silere entry uses the legacy checkout output — rerun installer"
-    fi
+  if [ -f "$_matugen_cfg" ] && awk '
+      /^\[templates\.silere-shell\]/ { inside = 1; next }
+      /^\[/ { inside = 0 }
+      inside && /output_path.*silere-shell\.json/ { found = 1 }
+      END { exit !found }
+    ' "$_matugen_cfg"; then
+    ok "matugen cfg" "writes the live per-user palette"
   else
-    warn "matugen cfg" "silere-shell block missing from $_matugen_cfg — run installer"
+    warn "matugen cfg" "no [templates.silere-shell] entry writing silere-shell.json in $_matugen_cfg"
   fi
   _palette="$_cfg_home/matugen/silere-shell.json"
   if [ -f "$_palette" ]; then

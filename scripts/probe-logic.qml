@@ -273,10 +273,6 @@ ShellRoot {
                 && ConfigStore.directoryRetryDelay(2) === 2000
                 && ConfigStore.directoryRetryDelay(20) === 8000,
             "configuration directory retries back off and remain bounded")
-        root._check(SystemTools._repairOutcome(0, false) === "done"
-                && SystemTools._repairOutcome(1, false) === "failed"
-                && SystemTools._repairOutcome(0, true) === "failed",
-            "a successful-looking exit cannot overwrite a repair timeout")
         root._check(Battery.normalizedPercent(0.64) === 64
                 && Battery.normalizedPercent(1) === 100
                 && Battery.normalizedPercent(1.4) === 100

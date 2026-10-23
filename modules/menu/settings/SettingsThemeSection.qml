@@ -16,7 +16,7 @@ Column {
                 ? "Wallpaper theming needs matugen installed. These are Silere's bundled colors."
                 : "Matugen is not installed. The last palette stays loaded, but it cannot follow wallpaper changes."
             : MatugenTheme.usingFallback
-                ? "Matugen has not written a palette yet, so these are Silere's bundled colors. Re-run the installer, then set a wallpaper."
+                ? "Matugen has not written a palette yet, so these are Silere's bundled colors. Set a wallpaper to generate one."
                 : MatugenTheme.paletteStale
                     ? "The palette file could not be read, so these are the last colors that loaded. Check your matugen template."
                     : Theme.accentColorless
