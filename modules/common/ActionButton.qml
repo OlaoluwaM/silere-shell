@@ -1,56 +1,23 @@
 import QtQuick
 import "../../config"
 
-Item {
+ButtonBase {
     id: root
 
     property string label: ""
-    property string glyph: ""
-    property string accessibleName: label
     property bool emphasis: false
-    property color accentColor: Theme.accent
     property real radius: Theme.radiusField
 
-    signal triggered()
-
-    readonly property bool pressed: _tap.pressed
-    readonly property bool _canActivate: root.enabled && root.visible
+    accessibleName: label
 
     // ceil: a fractional width lands the outline stroke off-pixel under fractional scaling
     implicitWidth: Math.ceil(_row.implicitWidth) + 20
     implicitHeight: Metrics.rowHeightFor(32)
-    width: implicitWidth
-    height: implicitHeight
+
     // no scale anywhere: scaling text resamples every glyph for as long as it lasts. Hover
     // doesn't lift the surface either: at a fractional output scale a logical pixel lands
     // between device pixels, so an animated lift resamples the label the same way, and the
     // fill already marks hover. Only a press nudges the surface, for as long as it's held
-    opacity: root.enabled ? 1.0 : Theme.disabledOpacity
-    MotionBehavior on opacity {
-        NumberAnimation { duration: Motion.fast }
-    }
-    function activate(): void {
-        if (root._canActivate) root.triggered()
-    }
-
-    Accessible.role: Accessible.Button
-    Accessible.name: root.accessibleName
-    Accessible.focusable: root._canActivate
-    Accessible.onPressAction: root.activate()
-
-    HoverHandler {
-        id: _hover
-        enabled: root._canActivate
-        cursorShape: Qt.PointingHandCursor
-    }
-    TapHandler {
-        id: _tap
-        enabled: root._canActivate
-        onTapped: {
-            root.activate()
-        }
-    }
-
     Rectangle {
         id: _surface
         anchors.left: parent.left
@@ -67,8 +34,8 @@ Item {
         radius: root.radius
         antialiasing: true
         color: root.emphasis
-            ? Theme.emphasisButtonFill(root.accentColor, _hover.hovered, root.pressed)
-            : Theme.buttonFill(root.accentColor, _hover.hovered, root.pressed)
+            ? Theme.emphasisButtonFill(root.accentColor, root.hovered, root.pressed)
+            : Theme.buttonFill(root.accentColor, root.hovered, root.pressed)
 
         ColorFade on color {}
 
@@ -76,7 +43,7 @@ Item {
             radius: _surface.radius
             outlineWidth: 1
             outlineColor: root.emphasis ? "transparent"
-                    : Theme.buttonLine(root.accentColor, _hover.hovered, root.pressed)
+                    : Theme.buttonLine(root.accentColor, root.hovered, root.pressed)
 
             ColorFade on outlineColor {}
         }
@@ -91,7 +58,7 @@ Item {
                 text: root.glyph
                 color: root.emphasis
                     ? Theme.mix(Theme.text, root.accentColor, 0.10)
-                    : _hover.hovered
+                    : root.hovered
                         ? Theme.mix(Theme.subtext, root.accentColor, 0.22)
                         : Theme.withAlpha(Theme.subtext, 0.82)
                 font.pixelSize: Settings.fontSize
@@ -102,7 +69,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.label
                 color: root.emphasis ? Theme.text
-                    : _hover.hovered
+                    : root.hovered
                         ? Theme.mix(Theme.text, root.accentColor, 0.07)
                         : Theme.withAlpha(Theme.text, 0.80)
                 font.pixelSize: Settings.fontLabel

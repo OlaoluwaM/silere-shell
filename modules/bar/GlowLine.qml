@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import "../../config"
 
 Rectangle {
     id: root
@@ -17,7 +18,7 @@ Rectangle {
     readonly property real _c:  Math.max(_lo, Math.min(center, _hi))
     readonly property real _l:  Math.max(_lo, Math.min(_c, _c - Math.max(0, spread)))
     readonly property real _r:  Math.min(_hi, Math.max(_c, _c + Math.max(0, spread)))
-    readonly property color _transparentEdge: Qt.rgba(edge.r, edge.g, edge.b, 0)
+    readonly property color _transparentEdge: Theme.withAlpha(edge, 0)
 
     // qt can report an integer dpr while the surface is downscaled again; 1/dpr goes sub-pixel there
     height: 1

@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Shapes
+import "../../config"
 
 Shape {
     id: root
@@ -23,12 +24,12 @@ Shape {
             x2: 0; y2: root.height
             GradientStop {
                 position: 0.0
-                color: Qt.rgba(root.rimColor.r, root.rimColor.g, root.rimColor.b,
+                color: Theme.withAlpha(root.rimColor,
                     root.uniform ? root.rimColor.a : 0)
             }
             GradientStop {
                 position: 0.6
-                color: Qt.rgba(root.rimColor.r, root.rimColor.g, root.rimColor.b,
+                color: Theme.withAlpha(root.rimColor,
                     root.rimColor.a * (root.uniform ? 1.0 : 0.4))
             }
             GradientStop { position: 1.0; color: root.rimColor }

@@ -80,16 +80,12 @@ Item {
             ColorAnimation { duration: Motion.ms(350) }
         }
 
-        property color _stopColor: Qt.rgba(
-            _effectColorTarget.r, _effectColorTarget.g, _effectColorTarget.b, 0.9
-        )
+        property color _stopColor: Theme.withAlpha(_effectColorTarget, 0.9)
         MotionBehavior on _stopColor {
             gate: !Idle.isIdle
             ColorAnimation { duration: Motion.ms(350) }
         }
-        property color _stopColorMid: Qt.rgba(
-            _effectColorTarget.r, _effectColorTarget.g, _effectColorTarget.b, 0.45
-        )
+        property color _stopColorMid: Theme.withAlpha(_effectColorTarget, 0.45)
         MotionBehavior on _stopColorMid {
             gate: !Idle.isIdle
             ColorAnimation { duration: Motion.ms(350) }

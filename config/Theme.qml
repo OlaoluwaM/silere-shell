@@ -104,6 +104,10 @@ Singleton {
     // signature, not structure: keeps its accent in neutral where the panel lines drop theirs
     readonly property color barLine: mix(_lineBase, accent, 0.30)
 
+    // the hover capsule behind a bar widget, shared by Pill and the tray's per-icon caps
+    readonly property color barHoverCap: withAlpha(mix(text, accent, 0.30), 0.07)
+    readonly property color barPressCap: withAlpha(accent, 0.18)
+
     // high contrast floors this, so the readout has to report the effective value, not the setting
     readonly property real panelOpacity: _hc ? Math.max(0.90, ShellSettings.barOpacity)
                                              : ShellSettings.barOpacity

@@ -209,8 +209,7 @@ Item {
         radius: Metrics.hoverRadiusFor(height)
         readonly property bool _hover: root.hovered
             && ShellSettings.barHoverHighlight
-        color: root.visualPressed ? Theme.withAlpha(Theme.accent, 0.18)
-             : Theme.withAlpha(Theme.mix(Theme.text, Theme.accent, 0.30), 0.07)
+        color: root.visualPressed ? Theme.barPressCap : Theme.barHoverCap
         opacity: (_hover || root.visualPressed) ? 1.0 : 0.0
         scale: root.visualPressed ? 0.985
              : _hover ? 1.0 : 0.96

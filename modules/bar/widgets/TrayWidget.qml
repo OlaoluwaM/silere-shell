@@ -141,8 +141,8 @@ Item {
                     height: Metrics.barRowHeight
                     radius: Metrics.hoverRadiusFor(height)
                     color: _tile.needsAttention ? Theme.withAlpha(Theme.accent, 0.20)
-                         : _ma.pressed           ? Theme.withAlpha(Theme.accent, 0.18)
-                         : Theme.withAlpha(Theme.mix(Theme.text, Theme.accent, 0.30), 0.07)
+                         : _ma.pressed           ? Theme.barPressCap
+                         : Theme.barHoverCap
                     opacity: _tile.needsAttention ? _tile.attnPulse
                            : _ma.pressed          ? 1.0
                            : (_iconHover.hovered && ShellSettings.barHoverHighlight) ? 1.0

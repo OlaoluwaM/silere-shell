@@ -493,6 +493,14 @@ outside issues or pull requests.
   is the fill alone. At a fractional output scale the 1px lift lands between
   device pixels and resamples the label, which reads as the button shifting.
   Keep the lift out when an import touches the button's motion.
+- `ActionButton` and `IconButton` are thin surfaces over `ButtonBase`, which
+  holds the activation gate, hover and press state, the accessible role and
+  the disabled fade. An import that changes that shell in either button ports
+  into the base; one that changes a button's surface or content lands in the
+  thin file.
+- `Theme.barHoverCap` and `Theme.barPressCap` name the capsule behind a bar
+  widget, read by `Pill` and the tray's per-icon caps. Keep the tokens and
+  their two readers on an import of either hover treatment.
 - Every full-screen popup but the tray menu derives from
   `modules/common/OverlayPopupWindow.qml`: the layer-shell setup, the
   workspace-switch close, the Escape shortcut, the outside-tap dismiss with
