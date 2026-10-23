@@ -314,7 +314,10 @@ naming them over upstream's CI claim.
   with fractional positioning retained for fonts such as Berkeley Mono.
   Expansion belongs to a run's retained oldest entry, including its timestamp,
   rather than its ordinal among the day's runs. Removing an older run must not
-  transfer expansion to another run; a merged run keeps its oldest entry's state.
+  transfer expansion to another run. A run joined by clearing the row between
+  two runs of one app keeps its oldest entry's state when that was open; otherwise
+  it opens when the upper run was open or neither side was tall enough to stack,
+  and a standing stack takes a short side in.
   An older row that history files below an open run's tail becomes its oldest
   entry, and `HistoryGrouping` carries the open state to it. Clearing that
   oldest entry hands the state to the row above it when that row stays in the run.

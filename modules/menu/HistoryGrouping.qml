@@ -9,8 +9,11 @@ QtObject {
 
     required property var model
     property int foldAt: 3
+    // whether the page is in view: a run joined behind a hidden page stays folded, as
+    // a menu opening would show it
+    property bool shown: false
     property var _openRuns: ({})
-    // the row that becomes an open run's tail once a removal lands
+    // a row of the run that opens once a removal lands
     property int _tailHeir: -1
 
     function dayKey(ms): string {
@@ -122,6 +125,32 @@ QtObject {
         if (root._openRuns[root.runKey(app, day, tail)] === true) root._tailHeir = first - 1
     }
 
+    // Clearing the row between two runs of one app joins them into one, keyed by the
+    // lower run's tail, so the upper run's state would be lost and its rows folded. The
+    // joined run shows what was in view: it opens when either side was open, or when
+    // neither side was tall enough to stack. A standing stack takes a short side in
+    function _noteJoinedRuns(first: int, last: int): void {
+        if (!root.shown || first <= 0) return
+        const rows = root.model
+        if (last + 1 >= rows.count) return
+        const above = rows.get(first - 1)
+        const below = rows.get(last + 1)
+        const app = String(above.appName)
+        const day = root.dayKey(above.time)
+        if (String(below.appName) !== app || root.dayKey(below.time) !== day) return
+        // rows of that run leaving from inside it join nothing
+        for (let i = first; i <= last; i++) {
+            const row = rows.get(i)
+            if (String(row.appName) === app && root.dayKey(row.time) === day) return
+        }
+        const upper = root.runBounds(first - 1)
+        const lower = root.runBounds(last + 1)
+        if (root._openRuns[lower.key] === true) return
+        if (root._openRuns[upper.key] === true
+                || (upper.length < root.foldAt && lower.length < root.foldAt))
+            root._tailHeir = first - 1
+    }
+
     function _carryRemovedTail(): void {
         const heir = root._tailHeir
         if (heir < 0) return
@@ -169,7 +198,10 @@ QtObject {
         target: root.model
         // before onCountChanged, whose prune drops the old tail's key
         function onRowsInserted(parent, first: int, last: int) { root._carryOpenTail(first, last) }
-        function onRowsAboutToBeRemoved(parent, first: int, last: int) { root._noteRemovedTail(first, last) }
+        function onRowsAboutToBeRemoved(parent, first: int, last: int) {
+            root._noteRemovedTail(first, last)
+            root._noteJoinedRuns(first, last)
+        }
         // not on rowsRemoved: a carry there can reach the list's rows before they are
         // renumbered, and the last one reads past the shortened model
         function onCountChanged() {

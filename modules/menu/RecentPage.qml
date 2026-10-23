@@ -27,6 +27,7 @@ PageShell {
         id: _historyGrouping
         model: Notifications.historyModel
         foldAt: root.foldAt
+        shown: root._announcedActive
     }
 
     function _touchNow(): void {
