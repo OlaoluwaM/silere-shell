@@ -8,7 +8,8 @@ import "../../../services"
 // own. Each chip is its own StatusActionPill, so a click lands on that chip's view in
 // the system monitor (SystemMonitor's escape-hatch template, same PATH-probe gating
 // as the wifi/bluetooth pills). TEMP rides CpuTemp's existing hot/critical
-// state (same tempHotThreshold, already debounced and clearing at threshold-5) rather
+// state (same tempHotThreshold, on a reading already averaged and debounced, clearing
+// at threshold-5) rather
 // than re-deriving it; CPU/MEM have no such state anywhere else, so it's tracked here
 // against ShellSettings.cpuHotPercent/memHotPercent with the same threshold-5 clear.
 Item {

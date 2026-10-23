@@ -56,8 +56,14 @@ Singleton {
         active:         root.hot && MenuState.homeActive && !Idle.isQuiet
     }
 
+    // the package sensor reports its hottest core at the instant of the read, so one
+    // boost burst the poll happens to catch would show and threshold as a spike. The
+    // value follows the reads as a running average instead: a lone spike moves it a
+    // third of the way, a sustained rise reaches it within four reads
+    readonly property real _settleWeight: 0.35
+
     function _sample(t: real): void {
-        temp = t
+        temp = temp > 0 ? temp + root._settleWeight * (t - temp) : t
         const hotEnter      = ShellSettings.tempHotThreshold
         const hotExit       = hotEnter - 5
         const criticalEnter = hotEnter + 8

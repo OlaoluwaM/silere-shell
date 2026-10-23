@@ -110,6 +110,11 @@ naming them over upstream's CI claim.
   handler, so players already playing when the shell starts are not ranked as
   new beside the next one to start. Keep both on an import of the player
   pick.
+- `services/CpuTemp.qml`: `_sample` keeps a running average of the reads
+  (`_settleWeight`) where upstream keeps the last read. The package sensor
+  reports its hottest core at the instant of the poll, so a lone boost burst
+  lit the TEMP chip and the alerts with a value the chip never held. Keep the
+  average on an import of the sampler.
 - `services/Notifications.qml`: `_prependHistory` orders by arrival as
   upstream does, but stops at rows dated after the current time, so rows from
   a clock that went back neither bury nor trim a new arrival. Keep the stop

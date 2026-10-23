@@ -906,6 +906,20 @@ ShellRoot {
         CpuTemp._sensorPath = tempPathWas
         CpuTemp._probeComplete = tempProbeWas
 
+        // the package sensor spikes with its hottest core; the reading averages the reads
+        const readingWas = CpuTemp.temp
+        CpuTemp._clearSampleState()
+        CpuTemp._sample(60)
+        root._check(CpuTemp.temp === 60, "the first read after a reset lands as it is")
+        CpuTemp._sample(92)
+        root._check(CpuTemp.temp > 70 && CpuTemp.temp < 72,
+            "a lone spike moves the reading about a third of the way")
+        CpuTemp._sample(92); CpuTemp._sample(92); CpuTemp._sample(92)
+        root._check(CpuTemp.temp > 85, "a sustained rise reaches the reading within four reads")
+        CpuTemp._clearSampleState()
+        root._check(CpuTemp.temp === 0, "a reset drops the average with the reading")
+        CpuTemp.temp = readingWas
+
         const shiftWas = ShellSettings.workspaceShift
         const reduceMotionWas = ShellSettings.reduceMotion
         ShellSettings.workspaceShift = true
