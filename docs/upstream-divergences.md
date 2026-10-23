@@ -23,8 +23,9 @@ the release and distribution machinery is gone whole, and the package-
 updates/self-update stack went the same way (upstream still ships and
 iterates it). Imports must preserve those removals. The stack's
 consumers are pruned wherever upstream grows new ones: Hooks.qml carries
-no "update-available" event, probe-logic has no updater suite, and
-SystemTools has no packageFamily. Resolve delete/modify conflicts under
+no "update-available" event, probe-logic has no updater suite, SystemTools
+has no packageFamily, DateTime has no agoText, and the EntryList control
+only the updates section used is gone. Resolve delete/modify conflicts under
 these paths as ours, re-delete anything a merge brings back under them,
 and re-prune any new consumer a merge wires up:
 
@@ -42,13 +43,14 @@ docs/performance.md
 docs/perf-history.md
 docs/scripting.md
 docs/troubleshooting.md
-.github/workflows
+.github
 CHANGELOG.md
 CONTRIBUTING.md
 modules/bar/widgets/ShellUpdateWidget.qml
 modules/bar/widgets/UpdatesWidget.qml
 modules/menu/controls/UpdateStatusCard.qml
 modules/menu/settings/SettingsUpdatesSection.qml
+modules/menu/controls/EntryList.qml
 services/ShellUpdate.qml
 services/Updates.qml
 modules/bar/widgets/MediaVisualizer.qml
@@ -60,9 +62,9 @@ scripts/test-update.sh
 
 ci-lint enforces the list: a path here that exists again fails the gate,
 so resurrecting one on purpose means removing its line in the same commit.
-`.github/workflows` covers all Actions — the gates run locally only, so
-`.github/pull_request_template.md` keeps the fork's Verification line
-naming them over upstream's CI claim.
+`.github` covers the Actions, Dependabot, and the issue and pull request
+templates together: the gates run locally only, and the fork takes no
+outside issues or pull requests.
 
 ## Shared files — union, with contracts
 

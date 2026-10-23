@@ -137,9 +137,6 @@ under the previous release-tag policy. Their historical approvals do not
 authorize new imports. Upstream's `v1.0.0` and the older fork tag with that
 name identify different commits; the v1.0.0 record gives the exact source.
 
-The [Cava removal plan](docs/cava-removal-plan.md) records the completed
-removal of the Cava-backed audio visualizer, validated September 10, 2026.
-
 ## Pinning from nixos-config
 
 `nixos-config` pins this fork by commit in its `flake.lock`. Re-locking

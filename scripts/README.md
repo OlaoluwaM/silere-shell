@@ -56,6 +56,8 @@ The full check already includes the runners below, directly or through
 | [test-bluetooth-details.sh](test-bluetooth-details.sh) | Details selection and disconnect cleanup using synthetic devices |
 | [test-upstream-services.sh](test-upstream-services.sh) | Selected upstream service regressions with controlled inputs |
 | [test-brightness-write.sh](test-brightness-write.sh) | Brightness write results routed by display through the real process exit, with a stand-in `brightnessctl` failing slowly enough for the display to switch underneath it |
+| [test-power-profile-recovery.sh](test-power-profile-recovery.sh) | Power profile list recovery on panel open after a failed or empty initial read, using a stand-in profile tool |
+| [test-audio-switch.sh](test-audio-switch.sh) | Bluetooth Listening/Calls mode switches against a stand-in PipeWire module: readiness, volume and mute carry-over, fallback handling, and completion on a successful process exit |
 | [test-notification-disk.sh](test-notification-disk.sh) | Private-bus process restart, settings order, deletes before disk restoration, immediate reload after clear, read-only future-format restoration, file protection, and failed-write recovery |
 | [test-upstream-connectivity.sh](test-upstream-connectivity.sh) | Wi-Fi security classification and Bluetooth state helpers |
 | [test-upstream-connectivity-paths.sh](test-upstream-connectivity-paths.sh) | Actual service and row paths with synthetic backend inputs; pairing guard, guarded forget, and identity during synchronous row replacement |
@@ -127,9 +129,7 @@ measure frame timing or prove interactive responsiveness.
 For a new probe, follow a nearby runner, reuse `probe-lib.sh`, check both its
 sentinel and runtime errors, and register new QML files in their folder's
 `qmldir`. Add the runner to the appropriate suite so the full check reaches it.
-Keep routine generated logs and temporary instrumentation out of the committed
-source. Deliberately retained investigation evidence belongs in
-[.debug/](../.debug/README.md), with a report explaining its scope and results.
+Keep generated logs and temporary instrumentation out of the committed source.
 
 ## Manual installation and repair
 

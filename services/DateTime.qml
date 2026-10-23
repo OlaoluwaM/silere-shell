@@ -41,19 +41,6 @@ Singleton {
 
     Component.onCompleted: _update(new Date())
 
-    // relative "ago" text for surfaces that report when something last ran; the caller
-    // owns its own now, so nothing here ticks for a readout that is not on screen
-    function agoText(thenMs: real, nowMs: real): string {
-        if (thenMs <= 0) return ""
-        const secs = Math.max(0, Math.round((nowMs - thenMs) / 1000))
-        if (secs < 90) return "just now"
-        // floor, not round: 90 min is "1 h ago", never "2 h ago"
-        if (secs < 3600) return Math.floor(secs / 60) + " min ago"
-        if (secs < 86400) return Math.floor(secs / 3600) + " h ago"
-        const days = Math.floor(secs / 86400)
-        return days <= 1 ? "yesterday" : days + " days ago"
-    }
-
     // qt only counts 12-hour when AP shares the format string; "h" alone still reads 0-23
     function clockHour(d): string {
         if (!ShellSettings.clock12h) return Qt.formatDateTime(d, "HH")
