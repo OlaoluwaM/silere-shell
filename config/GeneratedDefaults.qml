@@ -61,6 +61,7 @@ Singleton {
     readonly property bool   mediaRemoteArt:      false
     readonly property bool   glassSurfaces:       false
     readonly property real   glassOpacity:        0.85
+    readonly property bool   glassAdaptive:       false
     readonly property real   barOpacity:          0.88
     readonly property bool   popupMatchBarOpacity: false
     readonly property bool   wsDynamic:           false

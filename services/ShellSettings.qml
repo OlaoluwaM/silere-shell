@@ -86,6 +86,7 @@ Singleton {
     property int    osdTimeout:     GeneratedDefaults.osdTimeout
     property bool   glassSurfaces:  GeneratedDefaults.glassSurfaces
     property real   glassOpacity:   GeneratedDefaults.glassOpacity
+    property bool   glassAdaptive:  GeneratedDefaults.glassAdaptive
     property string osdKindFilter:  "both"
     property bool   osdBatteryWarn: false
     property bool   osdTempWarn:    false
@@ -470,6 +471,7 @@ Singleton {
         { k: "barOpacity",          t: "real", min: 0.4,  max: 1.0, sec: "surface" },
         { k: "glassSurfaces",       t: "bool", sec: "surface" },
         { k: "glassOpacity",        t: "real", min: 0.5,  max: 0.95, sec: "surface" },
+        { k: "glassAdaptive",       t: "bool", sec: "surface" },
         { k: "popupMatchBarOpacity", t: "bool", sec: "surface" },
         { k: "barDisabledMonitors", t: "re",   re: /^[A-Za-z0-9._,-]*$/, sec: "interface" },
         { k: "overlayMonitor",      t: "re",   re: /^[A-Za-z0-9._-]*$/, sec: "interface" },

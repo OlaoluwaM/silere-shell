@@ -66,6 +66,15 @@ Column {
             enabled: ShellSettings.glassSurfaces
             displayValue: Math.round(ShellSettings.glassOpacity * 100) + "%"
         }
+        // the sample comes from the wallpaper command, so a stock install has nothing to follow
+        ToggleRow {
+            glyph: "󰉦"; label: "Adaptive thickness"
+            description: "Thin on dark, thick on bright"
+            key: "glassAdaptive"
+            enabled: ShellSettings.glassSurfaces
+            available: !GlassSample.usingFallback
+            dependsNote: "No sample"
+        }
     }
 
     SectionLabel { label: "FLOATING" }
