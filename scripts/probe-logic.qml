@@ -343,6 +343,36 @@ ShellRoot {
         MatugenTheme._everLoaded = paletteEverWas
         MatugenTheme.paletteStale = paletteStaleWas
 
+        const region = "{\"luminance\":0.17,\"noise\":0.05,\"tone\":\"#1f2e23\"}"
+        const sample = GlassSample._parseSample("{\"version\":1,\"top\":" + region
+            + ",\"bottom\":" + region + ",\"field\":" + region + "}")
+        root._check(sample !== null && sample.top.luminance === 0.17
+                && GlassSample._parseSample("{\"version\":2,\"top\":" + region
+                    + ",\"bottom\":" + region + ",\"field\":" + region + "}") === null
+                && GlassSample._parseSample("{\"version\":1,\"top\":" + region
+                    + ",\"bottom\":" + region + "}") === null
+                && GlassSample._parseSample("{\"version\":1,\"top\":" + region
+                    + ",\"bottom\":" + region + ",\"field\":"
+                    + region.replace("0.17", "1.5") + "}") === null
+                && GlassSample._parseSample("{\"version\":1,\"top\":" + region
+                    + ",\"bottom\":" + region + ",\"field\":"
+                    + region.replace("#1f2e23", "green") + "}") === null,
+            "glass sample accepts only version 1 with three complete unit-range regions")
+        const sampleEverWas = GlassSample._everLoaded
+        const sampleStaleWas = GlassSample.sampleStale
+        GlassSample._everLoaded = true
+        GlassSample.sampleStale = false
+        GlassSample._markUnreadable()
+        root._check(GlassSample.sampleStale && !GlassSample.usingFallback,
+            "a glass sample that disappears after loading is reported as retained")
+        GlassSample._everLoaded = false
+        GlassSample.sampleStale = false
+        GlassSample._markUnreadable()
+        root._check(!GlassSample.sampleStale && GlassSample.usingFallback,
+            "a missing first glass sample remains the stock fallback")
+        GlassSample._everLoaded = sampleEverWas
+        GlassSample.sampleStale = sampleStaleWas
+
         root._check(XdgPaths.resolveHome("/tmp/config ", "/home/probe", ".config")
                 === "/tmp/config ",
             "an absolute XDG path keeps significant trailing whitespace")
@@ -3466,6 +3496,24 @@ ShellRoot {
             "a changed palette arms the gate and interpolates instead of snapping")
     }
 
+    // same caveat as the palette: a changed sample leaves its source animation in flight
+    function _runGlassSampleTransitionChecks(): void {
+        const region = "{\"luminance\":0.17,\"noise\":0.05,\"tone\":\"#1f2e23\"}"
+        const sampleA = "{\"version\":1,\"top\":" + region + ",\"bottom\":" + region
+            + ",\"field\":" + region + "}"
+        root._check(!GlassSample._everLoaded && !GlassSample.transitioning,
+            "glass sample probe starts from the fallback state")
+        GlassSample._load(sampleA)
+        root._check(!GlassSample.transitioning && GlassSample.stripLuminance === 0.17,
+            "the first glass sample load snaps without arming the leaf-fade gate")
+        GlassSample._load(sampleA)
+        root._check(!GlassSample.transitioning,
+            "a byte-identical glass sample rewrite leaves the leaf-fade gate idle")
+        GlassSample._load(sampleA.replace(/0\.17/g, "0.91"))
+        root._check(GlassSample.transitioning && GlassSample.stripLuminance !== 0.91,
+            "a changed glass sample arms the gate and interpolates instead of snapping")
+    }
+
     // Process has no signal() and running = false is only a SIGTERM, so a child that traps it
     // outlives its own timeout and holds a runner slot for good unless the pid is killed
     function _runKillEscalationCheck(): void {
@@ -3557,6 +3605,7 @@ ShellRoot {
         ShellSettings.dndPreset = presetWas
         ShellSettings.showSeconds = secondsWas
         root._runPaletteTransitionChecks()
+        root._runGlassSampleTransitionChecks()
         ShellSettings.notifHistoryPersistent = true
         Notifications.clearHistory()
         Notifications._archiveNotification({ summary: "Before engine reload" }, 71, 3500)

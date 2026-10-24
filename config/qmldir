@@ -1,5 +1,6 @@
 # theme
 singleton MatugenTheme  1.0 MatugenPalette.qml
+singleton GlassSample   1.0 GlassSample.qml
 singleton Theme         1.0 Theme.qml
 
 # settings
