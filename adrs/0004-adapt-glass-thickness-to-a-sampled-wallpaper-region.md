@@ -46,7 +46,7 @@ The wallpaper command samples the wallpaper and the shell derives the glass
 from that sample.
 
 `wallpaper-set` (owned by the deploying nixos-config) cover-fits the chosen
-image to the primary monitor, measures the top strip, the bottom strip and the
+image to the focused monitor, measures the top strip, the bottom strip and the
 whole picture, and writes mean luminance, standard deviation and a one-pixel
 tone for each to `~/.config/silere-shell/glass.json`, version 1, after the
 matugen retint and guarded so a sampling failure cannot abort the retint.
@@ -110,7 +110,7 @@ deployment turns it on. High contrast already disables glass and is untouched.
 - The sample lands a beat after the palette, since the script writes it last.
   Two 400 ms source animations overlap inside awww's 2 s grow. Judged
   invisible, but it is two easings where there was one.
-- The strip is measured once at the primary monitor's mode. A second display
+- The strip is measured once at the focused monitor's mode. A second display
   with a different aspect gets an approximation of its own edge.
 - Small transient surfaces that paint opaque by doctrine (the bar hint, the
   rail tooltips) take the adaptive tint but not the alpha, so they may read
@@ -134,5 +134,4 @@ deployment turns it on. High contrast already disables glass and is untouched.
 
 ## Related
 
-- ADR 0001 — the central source animation and leaf-fade gate this reuses for
-  the sample's six values.
+- [ADR 0001](0001-animate-wallpaper-driven-palette-changes-centrally-with-a-leaf-fade-gate.md): the central source animation and leaf-fade gate this reuses for the sample's nine values.
