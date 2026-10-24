@@ -73,7 +73,8 @@ Column {
             key: "glassAdaptive"
             enabled: ShellSettings.glassSurfaces
             available: !GlassSample.usingFallback
-            dependsNote: "No sample"
+            // the note names the sample, so it must not appear when glass alone is off
+            dependsNote: GlassSample.usingFallback ? "No sample" : ""
         }
     }
 

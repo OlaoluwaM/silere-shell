@@ -75,6 +75,14 @@ Column {
         // fixed by setting a wallpaper, not by a repair the shell could run itself
         else if (MatugenTheme.usingFallback)
             out.push({ g: "󰉦", n: "Wallpaper palette", s: "Not written yet; set a wallpaper", v: "palette" })
+        // the glass sample comes from the same wallpaper command, so it shares the palette's
+        // remedy; only worth naming while something would follow it
+        if (ShellSettings.glassSurfaces && ShellSettings.glassAdaptive) {
+            if (GlassSample.sampleStale)
+                out.push({ g: "󰉦", n: "Glass sample", s: "Unreadable; keeping the last sample that loaded", v: "sample" })
+            else if (GlassSample.usingFallback)
+                out.push({ g: "󰉦", n: "Glass sample", s: "Not written yet; set a wallpaper", v: "sample" })
+        }
 
         const tool = (g, n, v) => out.push({ g: g, n: n, s: "Hidden until this is installed", v: v, p: true })
         if (!SystemTools.hasBrightnessctl)     tool("󰃟", "Brightness control", "brightnessctl")
