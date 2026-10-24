@@ -20,6 +20,7 @@ On top of upstream, the fork carries its own features:
 - a redesigned media surface
 - a screen-recording indicator
 - a wallpaper picker
+- adaptive frosted glass that follows a sample of the wallpaper
 - a sound settings section
 - packaging hooks that allow for some declarative configuration
 
