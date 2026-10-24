@@ -31,10 +31,37 @@ Singleton {
     // surface sinks slower than background, or the elevation separation flattens out
     readonly property color _matuBg:      mix(MatugenTheme.background, depthSink, _depthK)
     readonly property color _matuSurface: mix(MatugenTheme.surface,    depthSink, _depthK * 0.6)
+    // adaptive glass follows the wallpaper sample the wallpaper command leaves behind
+    // (GlassSample); a missing sample keeps the fixed look below, so a stock install never
+    // moves. High contrast already wins over glass through _glass
+    readonly property bool _adaptive: _glass && ShellSettings.glassAdaptive && !GlassSample.usingFallback
+    // one continuous thickness ladder for every glass surface: t runs from a black region to
+    // a bright one, alpha climbs with it and a noisy region adds a step, because a thin pane
+    // over busy detail is where text stops reading. The base is the surface's own opacity
+    // setting, so the packaged defaults still move the whole ladder and the bar keeps its
+    // usual step above the popups
+    function _glassT(L: real): real { return Math.max(0, Math.min(1, (L - 0.10) / 0.50)) }
+    function _ladder(base: real, L: real, sd: real): real {
+        const n = Math.max(0, Math.min(1, (sd - 0.12) / 0.20))
+        return Math.max(0.30, Math.min(0.95, base - 0.18 + 0.26 * _glassT(L) + 0.08 * n))
+    }
+    // real frosted glass is lighter than what sits behind it. Over a dark region the sunk tint
+    // can only darken further and the frost vanishes, so the tint lifts toward text as the
+    // region darkens and the depth sink steps aside; brightening the blur cannot lift near-black
+    function _adaptiveTint(L: real, tone: color): color {
+        const lifted = mix(_n ? _pal.background : MatugenTheme.background,
+                           _textBase, 0.10 * (1 - _glassT(L)))
+        // the neutral theme chose no wallpaper hue on purpose, so only the matugen theme leans
+        return _n ? lifted : mix(lifted, tone, 0.10)
+    }
     // the point of glass is the wallpaper hue showing through the blur: sink it half as hard
-    // as the opaque background does, or "deeper" depth leaves the frost reading nearly black
-    readonly property color _glassTint: _n ? _pal.background
+    // as the opaque background does, or "deeper" depth leaves the frost reading nearly black.
+    // Everything hanging below the bar reads the whole picture; the bar reads the edge it sits on
+    readonly property color _glassTint: _adaptive ? _adaptiveTint(GlassSample.fieldLuminance, GlassSample.fieldTone)
+                                      : _n ? _pal.background
                                            : mix(MatugenTheme.background, depthSink, _depthK * 0.5)
+    readonly property color _barTint:   _adaptive ? _adaptiveTint(GlassSample.stripLuminance, GlassSample.stripTone)
+                                                  : background
 
     readonly property color _surfaceBase: _n ? _pal.surface   : _matuSurface
     readonly property color _textBase:    _n ? "#e9eaf0"      : MatugenTheme.text
@@ -108,15 +135,21 @@ Singleton {
     readonly property color barHoverCap: withAlpha(mix(text, accent, 0.30), 0.07)
     readonly property color barPressCap: withAlpha(accent, 0.18)
 
-    // high contrast floors this, so the readout has to report the effective value, not the setting
+    // high contrast floors this and adaptive glass moves it, so the readouts have to report
+    // the effective value, not the setting
     readonly property real panelOpacity: _hc ? Math.max(0.90, ShellSettings.barOpacity)
-                                             : ShellSettings.barOpacity
-    readonly property color panel: withAlpha(background, panelOpacity)
+                                       : _adaptive ? _ladder(ShellSettings.barOpacity,
+                                                             GlassSample.stripLuminance, GlassSample.stripNoise)
+                                                   : ShellSettings.barOpacity
+    readonly property real popupOpacity: _adaptive ? _ladder(ShellSettings.glassOpacity,
+                                                             GlassSample.fieldLuminance, GlassSample.fieldNoise)
+                                                   : ShellSettings.glassOpacity
+    readonly property color panel: withAlpha(_barTint, panelOpacity)
     // glass mirrors the bar's own trick (background tinted, then cut with alpha) so popups
     // read as the same pane of glass, not a different material stacked on top of it; outside
     // glass mode the popup layers carry no compositor blur, so opacity-matching the bar stays
     // opt-in and off by default
-    readonly property color popup: _glass ? withAlpha(_glassTint, ShellSettings.glassOpacity)
+    readonly property color popup: _glass ? withAlpha(_glassTint, popupOpacity)
                                         : ShellSettings.popupMatchBarOpacity ? panel : background
     // hover step for popup-based fills that sit straight on the blur (notification cards):
     // mix() always returns alpha 1.0, so the inline `mix(popup, subtext, 0.06)` views used to
@@ -124,10 +157,10 @@ Singleton {
     // whether from glass or from matching the bar's opacity. Same 0.06 step, aimed at text instead
     // of subtext so it still reads once translucent, then cut back down to popup's own alpha.
     readonly property color popupHover: _glass
-        ? withAlpha(mix(_glassTint, text, 0.06), ShellSettings.glassOpacity)
+        ? withAlpha(mix(_glassTint, text, 0.06), popupOpacity)
         : withAlpha(mix(popup, subtext, 0.06), popup.a)
 
-    readonly property color menuPane:        _glass ? withAlpha(_glassTint, ShellSettings.glassOpacity)
+    readonly property color menuPane:        _glass ? withAlpha(_glassTint, popupOpacity)
                                                 : _n ? mix(background, text, _elevK * (_hc ? 0.050 : 0.030))
                                                 : mix(background, _hc ? text : surface, _elevK * (_hc ? 0.055 : 0.18))
     // opaque mixes toward background/text would paint over the frost; a light text-alpha

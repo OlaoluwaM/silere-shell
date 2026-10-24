@@ -64,7 +64,7 @@ Column {
             key: "glassOpacity"
             step: 0.02
             enabled: ShellSettings.glassSurfaces
-            displayValue: Math.round(ShellSettings.glassOpacity * 100) + "%"
+            displayValue: Math.round(Theme.popupOpacity * 100) + "%"
         }
         // the sample comes from the wallpaper command, so a stock install has nothing to follow
         ToggleRow {

@@ -258,6 +258,13 @@ outside issues or pull requests.
   `BarHintPopup`, the popup host, and every widget's hint bindings together.
   The retained popup must also take compatible upstream idle-settle fixes,
   including cancellation of its pending startup frame.
+- Glass thickness is adaptive: `GlassSample` reads the wallpaper sample the
+  deployment's wallpaper command writes to `~/.config/silere-shell/glass.json`,
+  and `Theme` derives `panelOpacity`, `popupOpacity`, `_glassTint` and
+  `_barTint` from it under the `glassAdaptive` key (ADR 0004). Upstream paints
+  fixed alphas. Keep the sample-driven derivations, the key, and
+  `ColorFade`'s second gate on `GlassSample.transitioning` when an import
+  touches Theme's glass tokens or the leaf-fade gate.
 - Palette changes keep the fork's central `MatugenTheme` transition and its
   leaf-fade gate. Do not introduce upstream's parallel `PaletteFade` mechanism
   or replace the fork's glass and control tokens with upstream's palette.
