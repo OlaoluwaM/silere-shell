@@ -23,36 +23,53 @@ Singleton {
     property bool sampleStale: false
 
     readonly property var _regions: ["top", "bottom", "field"]
-    // mid-grey, quiet: whatever reads these while nothing is loaded sees the stock ladder
-    // position, and Theme never paints from them until a real sample lands
+    // quiet mid-grey so every binding below is defined before a sample lands; Theme never
+    // paints from it, since its adaptive branch waits on usingFallback
     readonly property var _fallbackRegion: ({ luminance: 0.30, noise: 0.10, tone: "" })
 
-    // the bar reads the edge it sits on; everything hanging below it reads the whole picture
-    readonly property var _strip: root._sample[ShellSettings.barPosition === "bottom" ? "bottom" : "top"]
-                                  ?? root._fallbackRegion
-    readonly property var _field: root._sample.field ?? root._fallbackRegion
+    // both edges are exposed and Theme picks the one the bar sits on: selecting here would
+    // route a bar-position flip through the Behaviors below, and a settings flip must snap
+    // (ADR 0001) while only a wallpaper change eases
+    readonly property var _top:    root._sample.top    ?? root._fallbackRegion
+    readonly property var _bottom: root._sample.bottom ?? root._fallbackRegion
+    readonly property var _field:  root._sample.field  ?? root._fallbackRegion
 
     // Plain properties, not readonly: the Behaviors below ease a wallpaper-driven sample
     // swap at the source (ADR 0001), so every Theme color derived from these fades once.
     // Nothing may assign these imperatively -- that would destroy the bindings for good.
-    property real  stripLuminance: root._strip.luminance
-    property real  stripNoise:     root._strip.noise
-    property color stripTone:      root._strip.tone || MatugenTheme.background
-    property real  fieldLuminance: root._field.luminance
-    property real  fieldNoise:     root._field.noise
-    property color fieldTone:      root._field.tone || MatugenTheme.background
+    property real  topLuminance:    root._top.luminance
+    property real  topNoise:        root._top.noise
+    property color topTone:         root._top.tone    || MatugenTheme.background
+    property real  bottomLuminance: root._bottom.luminance
+    property real  bottomNoise:     root._bottom.noise
+    property color bottomTone:      root._bottom.tone || MatugenTheme.background
+    property real  fieldLuminance:  root._field.luminance
+    property real  fieldNoise:      root._field.noise
+    property color fieldTone:       root._field.tone  || MatugenTheme.background
 
     // gated on _everLoaded for the same reason as the palette: launch must snap, not
     // cross-fade from the fallback to the on-disk sample
-    MotionBehavior on stripLuminance {
+    MotionBehavior on topLuminance {
         gate: root._everLoaded
         NumberAnimation { duration: Motion.palette; easing.type: Easing.OutCubic }
     }
-    MotionBehavior on stripNoise {
+    MotionBehavior on topNoise {
         gate: root._everLoaded
         NumberAnimation { duration: Motion.palette; easing.type: Easing.OutCubic }
     }
-    MotionBehavior on stripTone {
+    MotionBehavior on topTone {
+        gate: root._everLoaded
+        ColorAnimation { duration: Motion.palette; easing.type: Easing.OutCubic }
+    }
+    MotionBehavior on bottomLuminance {
+        gate: root._everLoaded
+        NumberAnimation { duration: Motion.palette; easing.type: Easing.OutCubic }
+    }
+    MotionBehavior on bottomNoise {
+        gate: root._everLoaded
+        NumberAnimation { duration: Motion.palette; easing.type: Easing.OutCubic }
+    }
+    MotionBehavior on bottomTone {
         gate: root._everLoaded
         ColorAnimation { duration: Motion.palette; easing.type: Easing.OutCubic }
     }

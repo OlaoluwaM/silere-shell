@@ -54,13 +54,18 @@ Singleton {
         // the neutral theme chose no wallpaper hue on purpose, so only the matugen theme leans
         return _n ? lifted : mix(lifted, tone, 0.10)
     }
+    // the bar reads the edge it sits on, picked here from two settled values so a position
+    // flip snaps while a wallpaper change still eases both edges at the source
+    readonly property real  _stripLuminance: Metrics.barAtBottom ? GlassSample.bottomLuminance : GlassSample.topLuminance
+    readonly property real  _stripNoise:     Metrics.barAtBottom ? GlassSample.bottomNoise     : GlassSample.topNoise
+    readonly property color _stripTone:      Metrics.barAtBottom ? GlassSample.bottomTone      : GlassSample.topTone
     // the point of glass is the wallpaper hue showing through the blur: sink it half as hard
     // as the opaque background does, or "deeper" depth leaves the frost reading nearly black.
-    // Everything hanging below the bar reads the whole picture; the bar reads the edge it sits on
+    // Everything hanging below the bar reads the whole picture; the bar reads its own edge
     readonly property color _glassTint: _adaptive ? _adaptiveTint(GlassSample.fieldLuminance, GlassSample.fieldTone)
                                       : _n ? _pal.background
                                            : mix(MatugenTheme.background, depthSink, _depthK * 0.5)
-    readonly property color _barTint:   _adaptive ? _adaptiveTint(GlassSample.stripLuminance, GlassSample.stripTone)
+    readonly property color _barTint:   _adaptive ? _adaptiveTint(_stripLuminance, _stripTone)
                                                   : background
 
     readonly property color _surfaceBase: _n ? _pal.surface   : _matuSurface
@@ -138,8 +143,7 @@ Singleton {
     // high contrast floors this and adaptive glass moves it, so the readouts have to report
     // the effective value, not the setting
     readonly property real panelOpacity: _hc ? Math.max(0.90, ShellSettings.barOpacity)
-                                       : _adaptive ? _ladder(ShellSettings.barOpacity,
-                                                             GlassSample.stripLuminance, GlassSample.stripNoise)
+                                       : _adaptive ? _ladder(ShellSettings.barOpacity, _stripLuminance, _stripNoise)
                                                    : ShellSettings.barOpacity
     readonly property real popupOpacity: _adaptive ? _ladder(ShellSettings.glassOpacity,
                                                              GlassSample.fieldLuminance, GlassSample.fieldNoise)

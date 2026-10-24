@@ -3504,13 +3504,13 @@ ShellRoot {
         root._check(!GlassSample._everLoaded && !GlassSample.transitioning,
             "glass sample probe starts from the fallback state")
         GlassSample._load(sampleA)
-        root._check(!GlassSample.transitioning && GlassSample.stripLuminance === 0.17,
+        root._check(!GlassSample.transitioning && GlassSample.topLuminance === 0.17,
             "the first glass sample load snaps without arming the leaf-fade gate")
         GlassSample._load(sampleA)
         root._check(!GlassSample.transitioning,
             "a byte-identical glass sample rewrite leaves the leaf-fade gate idle")
         GlassSample._load(sampleA.replace(/0\.17/g, "0.91"))
-        root._check(GlassSample.transitioning && GlassSample.stripLuminance !== 0.91,
+        root._check(GlassSample.transitioning && GlassSample.topLuminance !== 0.91,
             "a changed glass sample arms the gate and interpolates instead of snapping")
     }
 

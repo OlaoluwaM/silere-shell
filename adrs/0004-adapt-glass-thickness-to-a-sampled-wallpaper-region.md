@@ -53,11 +53,13 @@ matugen retint and guarded so a sampling failure cannot abort the retint.
 
 `config/GlassSample.qml` watches that file the way `MatugenPalette` watches the
 palette: a malformed write keeps the last good values, a missing file reports
-`usingFallback`, and the six exposed values (strip and field luminance, noise
-and tone) are plain animated properties gated on the first load, so a swap
-eases once at the source and every derived token follows. `ColorFade` gains a
-second gate on `GlassSample.transitioning` for the same reason the palette has
-one.
+`usingFallback`, and the nine exposed values (luminance, noise and tone for
+the top strip, the bottom strip and the whole picture) are plain animated
+properties gated on the first load, so a swap eases once at the source and
+every derived token follows. `Theme` picks the bar's edge from the two settled
+strip values by bar position, so a position flip snaps while only a wallpaper
+change eases. `ColorFade` gains a second gate on `GlassSample.transitioning`
+for the same reason the palette has one.
 
 `Theme` moves every glass surface along one continuous thickness ladder:
 
