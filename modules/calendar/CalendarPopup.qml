@@ -474,10 +474,10 @@ OverlayPopupWindow {
 
                             Rectangle {
                                 anchors.centerIn: parent
-                                // a rounded square, not upstream's circle: it sits under the today pill and
-                                // the month button, both radiusControl rectangles; the arrows keep
-                                // IconButton's circle, the shell-wide arrow shape
-                                width: card.marker; height: card.marker; radius: Theme.radiusControl
+                                // a rounded square, not upstream's circle, so it sits with the today pill and
+                                // the month button rather than the arrows, which keep IconButton's circle;
+                                // the field radius because anything softer on a 28px square reads as a blob
+                                width: card.marker; height: card.marker; radius: Theme.radiusField
                                 antialiasing: true
                                 color: _dayCell.today
                                     ? (_dayTap.pressed

@@ -258,7 +258,7 @@ outside issues or pull requests.
   inset to the day markers' extent instead of running the full grid height, and
   the day grid starts a gutter right of the hairline so the today marker does
   not graze it; keep the fork's `weekCol`, `weekGap`, and the inset. The
-  today and hover marker is a rounded square at `Theme.radiusControl`, not
+  today and hover marker is a rounded square at `Theme.radiusField`, not
   upstream's circle, to match the today pill and month button above it; keep
   the fork's `marker`. The month label is centred between its arrows, without
   upstream's offset toward the day grid; do not take that offset back. The
