@@ -2981,6 +2981,52 @@ ShellRoot {
                 && Math.abs(greyBalanced.L - greyAccent.L) < 0.001,
             "a palette with no accent hue is left alone rather than invented")
 
+        // the glass ladder's constants are the ADR 0004 contract: a black region is thin
+        // and a bright one thick, noise adds a step, and the clamps hold at both ends
+        const near = (a, b) => Math.abs(a - b) < 0.0005
+        root._check(Theme._glassT(0.10) === 0 && Theme._glassT(0.60) === 1
+                && near(Theme._glassT(0.35), 0.5),
+            "glass thickness runs from a black region to a bright one")
+        root._check(near(Theme._ladder(0.64, 0.0, 0.0), 0.46)
+                && near(Theme._ladder(0.64, 1.0, 0.0), 0.72)
+                && near(Theme._ladder(0.64, 1.0, 1.0), 0.80)
+                && Theme._ladder(0.40, 0.0, 0.0) === 0.30
+                && Theme._ladder(1.0, 1.0, 1.0) === 0.95,
+            "the glass ladder climbs with brightness and noise inside its clamps")
+        const glassWas = [ShellSettings.glassSurfaces, ShellSettings.glassAdaptive,
+                          ShellSettings.neutralTheme, ShellSettings.highContrast]
+        ShellSettings.highContrast = false
+        ShellSettings.glassSurfaces = true
+        ShellSettings.glassAdaptive = true
+        const sampleRegion = "{\"luminance\":0.05,\"noise\":0.02,\"tone\":\"#ff0000\"}"
+        GlassSample._load("{\"version\":1,\"top\":" + sampleRegion + ",\"bottom\":"
+            + sampleRegion + ",\"field\":" + sampleRegion + "}")
+        ShellSettings.neutralTheme = false
+        root._check(Theme._adaptive
+                && near(Theme.panelOpacity, Theme._ladder(ShellSettings.barOpacity, 0.05, 0.02))
+                && near(Theme.popupOpacity, Theme._ladder(ShellSettings.glassOpacity, 0.05, 0.02))
+                && Theme.panel.a < ShellSettings.barOpacity,
+            "a loaded sample thins the bar and the popups below their settings on a dark wallpaper")
+        root._check(Theme._adaptiveTint(0.05, "#ff0000").toString()
+                === Theme.mix(Theme.mix(MatugenTheme.background, Theme._textBase, 0.10),
+                              "#ff0000", 0.10).toString(),
+            "the matugen theme lifts the tint toward text and leans a tenth toward the sampled tone")
+        ShellSettings.neutralTheme = true
+        root._check(Theme._adaptiveTint(0.05, "#ff0000").toString()
+                === Theme.mix(Theme._pal.background, Theme._textBase, 0.10).toString(),
+            "the neutral theme lifts the tint but carries no wallpaper hue")
+        ShellSettings.highContrast = true
+        root._check(!Theme._adaptive && Theme.panelOpacity >= 0.90,
+            "high contrast still wins over adaptive glass")
+        // back to the fallback state: the transition checks later assume it
+        GlassSample._everLoaded = false
+        GlassSample._sample = ({})
+        GlassSample.sampleStale = false
+        ShellSettings.glassSurfaces = glassWas[0]
+        ShellSettings.glassAdaptive = glassWas[1]
+        ShellSettings.neutralTheme = glassWas[2]
+        ShellSettings.highContrast = glassWas[3]
+
         root._check(Network._linkPriority(true, true) > Network._linkPriority(false, undefined)
                 && Network._linkPriority(true, undefined) > Network._linkPriority(false, undefined),
             "a wired link outranks Wi-Fi, and an unreported link counts as up")
