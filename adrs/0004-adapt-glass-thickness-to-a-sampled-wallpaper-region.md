@@ -56,9 +56,9 @@ palette: a malformed write keeps the last good values, a missing file reports
 `usingFallback`, and the nine exposed values (luminance, noise and tone for
 the top strip, the bottom strip and the whole picture) are plain animated
 properties gated on the first load, so a swap eases once at the source and
-every derived token follows. `Theme` picks the bar's edge from the two settled
-strip values by bar position, so a position flip snaps while only a wallpaper
-change eases. `ColorFade` gains a second gate on `GlassSample.transitioning`
+every derived token follows. `Theme` picks the bar's edge downstream of the two
+edges' Behaviors by bar position, so a position flip snaps while only a
+wallpaper change eases. `ColorFade` gains a second gate on `GlassSample.transitioning`
 for the same reason the palette has one.
 
 `Theme` moves every glass surface along one continuous thickness ladder:
@@ -115,7 +115,7 @@ deployment turns it on. High contrast already disables glass and is untouched.
 - Small transient surfaces that paint opaque by doctrine (the bar hint, the
   rail tooltips) take the adaptive tint but not the alpha, so they may read
   heavier next to thin glass. Left for a live look.
-- Theme bindings now depend on six animated sources in addition to the
+- Theme bindings now depend on nine animated sources in addition to the
   palette's eight. The fan-out is the same set of tokens the palette already
   drives, so the per-frame cost during a swap is of the same order, not a new
   class of work.
