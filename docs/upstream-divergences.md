@@ -254,8 +254,10 @@ outside issues or pull requests.
   `DateTime.currentDate`: `SystemClock.date` holds its last tick's wall time, so
   it stays stale after a timezone change until the next tick. Do not import
   `currentDate`. The week-number column is wider than upstream's so a
-  two-digit label keeps clear air before its hairline; keep the fork's
-  `weekCol`. Calendar week start and week numbers are otherwise upstream's.
+  two-digit label keeps clear air before its hairline, and that hairline is
+  inset to the digits' extent instead of running the full grid height; keep
+  the fork's `weekCol` and the inset. Calendar week start and week numbers
+  are otherwise upstream's.
 - Bar hover tooltips remain enabled and configurable. Keep `BarHintState`,
   `BarHintPopup`, the popup host, and every widget's hint bindings together.
   The retained popup must also take compatible upstream idle-settle fixes,

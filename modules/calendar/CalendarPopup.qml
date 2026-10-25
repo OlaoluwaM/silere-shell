@@ -415,10 +415,13 @@ OverlayPopupWindow {
 
                 Hairline {
                     visible: ShellSettings.calendarWeekNumbers
+                    // spans the digits from the first row to the last; a full-height line
+                    // runs half a cell past the numbers at both ends and reads as overshoot
+                    readonly property int inset: (card.cell - Settings.fontSize) / 2
                     x: card.weekCol - width
-                    y: 0
+                    y: inset
                     vertical: true
-                    height: parent.height
+                    height: parent.height - inset * 2
                     color: Theme.withAlpha(Theme.subtext, Theme.lineAlpha(0.10))
                 }
 
