@@ -148,8 +148,10 @@ Singleton {
         onExited: (code) => {
             // wallpaperLast is recorded before the command runs, so this line is the only
             // trace a failed retint leaves; without it the palette silently stays stale
+            // a child that exits zero on TERM would otherwise log a failure with code 0
             if (_applyProc.timedOut || code !== 0)
-                console.warn("silere-shell: wallpaper command failed:", code,
+                console.warn("silere-shell: wallpaper command failed:",
+                             _applyProc.timedOut ? "timed out" : code,
                              _applyErr.text.trim().split("\n").pop() || "")
             if (root._hasPendingApply) {
                 const next = root._pendingApplyPath
