@@ -25,7 +25,8 @@ OverlayPopupWindow {
 
         readonly property int  cell:     34
         readonly property int  pad:      14
-        readonly property int  weekCol:  ShellSettings.calendarWeekNumbers ? 22 : 0
+        // wide enough that a two-digit week number keeps clear air before the hairline
+        readonly property int  weekCol:  ShellSettings.calendarWeekNumbers ? 30 : 0
         readonly property int  gridW:    weekCol + cell * 7
         readonly property int  panelW:   Metrics.snap4Up(gridW + pad * 2)
 

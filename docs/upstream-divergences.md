@@ -253,7 +253,9 @@ outside issues or pull requests.
 - The calendar reads today from a fresh `new Date()`, not upstream's
   `DateTime.currentDate`: `SystemClock.date` holds its last tick's wall time, so
   it stays stale after a timezone change until the next tick. Do not import
-  `currentDate`; calendar week start and week numbers are otherwise upstream's.
+  `currentDate`. The week-number column is wider than upstream's so a
+  two-digit label keeps clear air before its hairline; keep the fork's
+  `weekCol`. Calendar week start and week numbers are otherwise upstream's.
 - Bar hover tooltips remain enabled and configurable. Keep `BarHintState`,
   `BarHintPopup`, the popup host, and every widget's hint bindings together.
   The retained popup must also take compatible upstream idle-settle fixes,
