@@ -24,10 +24,17 @@ OverlayPopupWindow {
         barBottom: Metrics.barAtBottom
 
         readonly property int  cell:     34
-        readonly property int  pad:      14
+        // the hairline inset is half the difference, so keep it even
+        readonly property int  marker:   cell - 6
+        readonly property int  pad:      20
         // wide enough that a two-digit week number keeps clear air before the hairline
         readonly property int  weekCol:  ShellSettings.calendarWeekNumbers ? 30 : 0
-        readonly property int  gridW:    weekCol + cell * 7
+        // the today marker fills its cell almost edge to edge, so a grid that starts at the
+        // hairline leaves the marker grazing the line; this gutter gives it the same clear
+        // air the week digits keep on their side
+        readonly property int  weekGap:  ShellSettings.calendarWeekNumbers ? 8 : 0
+        readonly property int  gridX:    weekCol + weekGap
+        readonly property int  gridW:    gridX + cell * 7
         readonly property int  panelW:   Metrics.snap4Up(gridW + pad * 2)
 
         property int dispYear:  2000
@@ -277,12 +284,12 @@ OverlayPopupWindow {
 
                 Item {
                     id: _monthButton
+                    // centred between the arrows that frame it, not over the day grid: the
+                    // row reads as one control, and a label offset toward the days looks adrift
                     anchors.centerIn: parent
-                    // the grid it names starts a week column in, so centring on the row leaves it visibly left of the days
-                    anchors.horizontalCenterOffset: Math.round(card.weekCol / 2)
                     // a long month name gives way to the arrows rather than running under them
                     width: Math.max(0, Math.min(_mLabel.implicitWidth + 16,
-                        parent.width - _prevButton.width - _nextButton.width - card.weekCol - 24))
+                        parent.width - _prevButton.width - _nextButton.width - 24))
                     height: Metrics.rowHeightFor(26)
                     Accessible.role: Accessible.Button
                     Accessible.name: "Return to current month"
@@ -354,6 +361,8 @@ OverlayPopupWindow {
                         font.weight: Font.Medium; font.capitalization: Font.AllUppercase
                     }
                 }
+                // the gutter the day grid keeps from the hairline, so the day headers stay over their columns
+                Item { width: card.weekGap; height: 1 }
                 Repeater {
                     model: 7
                     delegate: Item {
@@ -415,9 +424,10 @@ OverlayPopupWindow {
 
                 Hairline {
                     visible: ShellSettings.calendarWeekNumbers
-                    // spans the digits from the first row to the last; a full-height line
-                    // runs half a cell past the numbers at both ends and reads as overshoot
-                    readonly property int inset: (card.cell - Settings.fontSize) / 2
+                    // spans the markers from the first row to the last: a full-height line
+                    // runs past them at both ends and reads as overshoot, and a line ending at
+                    // the digits leaves the today square poking out below it
+                    readonly property int inset: (card.cell - card.marker) / 2
                     x: card.weekCol - width
                     y: inset
                     vertical: true
@@ -428,7 +438,7 @@ OverlayPopupWindow {
                 Grid {
                     id: _grid
                     property real xOff: 0
-                    x: card.weekCol + xOff
+                    x: card.gridX + xOff
                     width: card.cell * 7
                     columns: 7
                     // one texture for the whole grid while it slides, not a re-raster per cell
@@ -464,7 +474,10 @@ OverlayPopupWindow {
 
                             Rectangle {
                                 anchors.centerIn: parent
-                                width: 30; height: 30; radius: 15
+                                // a rounded square, not upstream's circle: it sits under the today pill and
+                                // the month button, both radiusControl rectangles; the arrows keep
+                                // IconButton's circle, the shell-wide arrow shape
+                                width: card.marker; height: card.marker; radius: Theme.radiusControl
                                 antialiasing: true
                                 color: _dayCell.today
                                     ? (_dayTap.pressed
