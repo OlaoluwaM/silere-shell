@@ -16,6 +16,10 @@ Item {
 
     readonly property int clockSize: LockState.px(148)
     readonly property int dateSize: LockState.px(20)
+    // a regular clock over a light date: the time carries the corner, the date steps back.
+    // The measurements below read these too, since ink moves with weight
+    readonly property int clockWeight: Font.Normal
+    readonly property int dateWeight: Font.Light
     // the mockup's 18px between line boxes, as JetBrains Mono's ink lands: the date's
     // capitals start this far under the clock's baseline
     readonly property int dateGap: LockState.px(37)
@@ -48,12 +52,14 @@ Item {
     TextMetrics {
         id: _dateLead
         font.family: root.family
+        font.weight: root.dateWeight
         font.pixelSize: 1000
         text: _date.text.charAt(0)
     }
     TextMetrics {
         id: _dateCap
         font.family: root.family
+        font.weight: root.dateWeight
         font.pixelSize: 1000
         text: "H"
     }
@@ -61,7 +67,7 @@ Item {
     TextMetrics {
         id: _clockMeasure
         font.family: root.family
-        font.weight: Font.ExtraLight
+        font.weight: root.clockWeight
         font.pixelSize: 1000
         font.features: { "tnum": 1 }
     }
@@ -72,7 +78,7 @@ Item {
         text: LockState.clockText
         color: Theme.text
         font.family: root.family
-        font.weight: Font.ExtraLight
+        font.weight: root.clockWeight
         font.pixelSize: root.clockSize
         font.letterSpacing: -0.04 * root.clockSize
         // proportional digits would shift the whole clock sideways every minute
@@ -89,6 +95,7 @@ Item {
         text: LockState.dateText
         color: Theme.subtext
         font.family: root.family
+        font.weight: root.dateWeight
         font.pixelSize: root.dateSize
     }
 }

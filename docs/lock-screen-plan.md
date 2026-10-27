@@ -36,7 +36,7 @@ mockup's 1440x900 logical size.
 | Area | Content |
 | --- | --- |
 | Background | The surface's own `color` is the theme background token (Quickshell's default is white). Over it, the current wallpaper from `lockWallpaper` (see Settings), blurred and dimmed. `wallpaper-set` renames a new file over that path, so the `Image` uses `cache: false`, resets its source on every lock, and loads `asynchronous: true` so decoding never delays the first frame Hyprland waits for. An empty path or `Image.Error` leaves the plain background. |
-| Top-left | Clock at 148px, weight 200, letter-spacing -0.04em (about -5.9px; Qt's `font.letterSpacing` is in pixels). Date at 20px in `Theme.subtext`, 18px below. The date's ink starts where the clock's ink starts. |
+| Top-left | Clock at 148px, weight 400, letter-spacing -0.04em (about -5.9px; Qt's `font.letterSpacing` is in pixels). Date at 20px, weight 300, in `Theme.subtext`, 18px below. The date's ink starts where the clock's ink starts. |
 | Top-right | Battery glyph and percentage at 14px. Adds `· charging` while charging and `· plug in` below `ShellSettings.batteryLowThreshold`, in `Theme.error`. Hidden when `Battery.available` is false. The digits' ink top sits level with the clock's. |
 | Bottom-left | User name, indented to the field's text inset (16px), over a 48px password field. Messages sit in the margin under the field so the field never moves: checking, wrong password with the attempt count, PAM messages, lockout. Caps Lock chip inside the field. A short shake on failure. Typed text clears after 10s idle; Esc clears it at once. |
 | Bottom-right | When `lockPowerButton` is on (the default), a 48px power button, bottom edge level with the field. It opens a card in the quick-settings card style with Suspend, Reboot and Power off. Suspend runs at once. Reboot and Power off move to a countdown card that looks like the desktop's `PowerActionCard` (60s, Enter runs it now, Esc cancels) but is driven by the lock itself (see Power on the lock). A failure keeps the screen locked and shows the failure on the card. |
@@ -69,9 +69,10 @@ the clock drops `lineHeight` and positions by its ink:
 `tightBoundingRect` and font features already have precedent in
 `modules/common/ConfirmButton.qml` and `modules/common/CollapsingText.qml`.
 Digits use tabular figures (`font.features: { "tnum": 1 }`) so a proportional
-font does not shift sideways each minute. A family without weight 200 renders
-the clock at its nearest weight. The mockup held to within 1px across JetBrains
-Mono, Berkeley Mono, DejaVu Sans and Noto Serif; repeat that check in Qt.
+font does not shift sideways each minute. A family without weight 400 or 300
+renders the clock or date at its nearest weight. The mockup held to within 1px
+across JetBrains Mono, Berkeley Mono, DejaVu Sans and Noto Serif; repeat that
+check in Qt.
 
 ### Settings
 
