@@ -89,6 +89,10 @@ outside issues or pull requests.
   accepting the OpenSSL crash risk `Media.artSource` documents. On a collision
   keep the binding, and carry any new upstream literal into
   `GeneratedDefaults.qml`.
+- `modules/menu/settings/SettingsInterfaceSection.qml`: the Font row's
+  shortlist is built by `_fontChoices`, which the lock screen's Font row
+  shares, where upstream builds it inline in the row's `model`. Port upstream
+  edits to that inline block into the function and keep both rows calling it.
 - `qmldir` files, `BarContent`'s widget registry, `barWidgetMeta`, and the
   zone-order defaults: unions — keep both sides' entries.
 - `scripts/check.sh` keeps sequential smoke cases and their shared launcher.

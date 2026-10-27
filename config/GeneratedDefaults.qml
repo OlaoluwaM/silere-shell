@@ -84,4 +84,14 @@ Singleton {
     // "" = unconfigured, same contract as wallpaperCommand above: no packaging points at a
     // wallpaper directory here, so the picker has nothing to scan
     readonly property string wallpapersDir:       ""
+    // "" = JetBrains Mono, same contract as fontFamily above: the lock screen draws a 148px
+    // clock, so its face is a separate choice from the bar's glyph-coverage font
+    readonly property string lockFontFamily:      ""
+    readonly property bool   lockPowerButton:     true
+    // "" = unconfigured, same contract as wallpapersDir above: only the packaging knows which
+    // file the wallpaper command last wrote, so a plain checkout locks over the plain background
+    readonly property string lockWallpaper:       ""
+    // "" = feature dormant, same contract as wallpaperCommand above: only the packaging knows
+    // which wrapper starts the lock, so with no command the menu keeps its current lock path
+    readonly property string lockCommand:         ""
 }

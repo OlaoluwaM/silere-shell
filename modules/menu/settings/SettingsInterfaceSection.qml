@@ -16,54 +16,55 @@ Column {
     readonly property bool _hasMultiScreen: Quickshell.screens.length > 1
     readonly property bool _hasRouting: _hasBrightnessChoice || _hasMultiScreen
 
+    // the default entry mirrors whatever GeneratedDefaults renders (the NixOS module can
+    // name any installed family there), so choosing it writes the default value back -- a
+    // no-op override -- instead of upstream's hardcoded "" that only means the stock face
+    // on an installer-provisioned setup
+    function _fontChoices(cur: string, def: string, defName: string, defFace: string): var {
+        const m = [{
+            value: def,
+            label: defName + " (default)",
+            fontFamily: def.length > 0 ? def : defFace
+        }]
+        // the shortlist stays Nerd-only because each option previews in
+        // its own face; all of fc-list would instantiate 1000+ fonts
+        const fams = FontScan.nerdFamilies
+        for (let i = 0; i < fams.length; i++) {
+            const f = fams[i]
+            if (f === defFace || f === def) continue
+            m.push({
+                value: f,
+                label: f.replace(/ Nerd Font( Mono)?$/, ""),
+                fontFamily: f
+            })
+        }
+        if (cur.length > 0 && m.findIndex(e => e.value === cur) < 0) {
+            // outside the shortlist is not the same as gone: a family
+            // hand-set in settings.json still renders if installed
+            const missing = FontScan.scanned && FontScan.families.indexOf(cur) < 0
+            if (missing) m.push({
+                value: cur,
+                label: cur.replace(/ Nerd Font( Mono)?$/, "") + " (not installed)"
+            })
+            else m.push({
+                value: cur,
+                label: cur.replace(/ Nerd Font( Mono)?$/, ""),
+                fontFamily: cur
+            })
+        }
+        return m
+    }
+
     SectionLabel { label: "TEXT & ACCESSIBILITY"; first: true }
     SettingsCard {
         SelectRow {
             glyph: "󰛖"; label: "Font"
             currentValue: ShellSettings.fontFamily
-            model: {
-                // the default entry mirrors whatever GeneratedDefaults renders
-                // (the NixOS module can name any installed family there), so
-                // choosing it writes the default value back -- a no-op override
-                // -- instead of upstream's hardcoded "" that only means
-                // JetBrainsMono on an installer-provisioned setup
-                const def = GeneratedDefaults.fontFamily
-                const m = [{
-                    value: def,
-                    label: (def.length > 0
-                        ? def.replace(/ Nerd Font( Mono)?$/, "")
-                        : "JetBrainsMono") + " (default)",
-                    fontFamily: def.length > 0 ? def : "JetBrainsMono Nerd Font"
-                }]
-                // the shortlist stays Nerd-only because each option previews in
-                // its own face; all of fc-list would instantiate 1000+ fonts
-                const fams = FontScan.nerdFamilies
-                for (let i = 0; i < fams.length; i++) {
-                    const f = fams[i]
-                    if (f === "JetBrainsMono Nerd Font" || f === def) continue
-                    m.push({
-                        value: f,
-                        label: f.replace(/ Nerd Font( Mono)?$/, ""),
-                        fontFamily: f
-                    })
-                }
-                const cur = ShellSettings.fontFamily
-                if (cur.length > 0 && m.findIndex(e => e.value === cur) < 0) {
-                    // outside the shortlist is not the same as gone: a family
-                    // hand-set in settings.json still renders if installed
-                    const missing = FontScan.scanned && FontScan.families.indexOf(cur) < 0
-                    if (missing) m.push({
-                        value: cur,
-                        label: cur.replace(/ Nerd Font( Mono)?$/, "") + " (not installed)"
-                    })
-                    else m.push({
-                        value: cur,
-                        label: cur.replace(/ Nerd Font( Mono)?$/, ""),
-                        fontFamily: cur
-                    })
-                }
-                return m
-            }
+            model: root._fontChoices(ShellSettings.fontFamily, GeneratedDefaults.fontFamily,
+                GeneratedDefaults.fontFamily.length > 0
+                    ? GeneratedDefaults.fontFamily.replace(/ Nerd Font( Mono)?$/, "")
+                    : "JetBrainsMono",
+                "JetBrainsMono Nerd Font")
             onChosen: (v) => ShellSettings.fontFamily = v
         }
         // the list is a small slice of what fc-list reports, and an installed font missing
@@ -123,6 +124,25 @@ Column {
             glyph: "󰧞"; label: "Mark changed pages"
             description: "Dot the categories holding a changed setting"
             key: "settingsNavDots"
+        }
+    }
+
+    SectionLabel { label: "LOCK SCREEN" }
+    SettingsCard {
+        SelectRow {
+            glyph: "󰛖"; label: "Font"
+            currentValue: ShellSettings.lockFontFamily
+            model: root._fontChoices(ShellSettings.lockFontFamily, GeneratedDefaults.lockFontFamily,
+                GeneratedDefaults.lockFontFamily.length > 0
+                    ? GeneratedDefaults.lockFontFamily.replace(/ Nerd Font( Mono)?$/, "")
+                    : "JetBrains Mono",
+                "JetBrains Mono")
+            onChosen: (v) => ShellSettings.lockFontFamily = v
+        }
+        ToggleRow {
+            glyph: "󰌾"; label: "Power button"
+            description: "Suspend, restart and shut down while locked"
+            key: "lockPowerButton"
         }
     }
 

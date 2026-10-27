@@ -77,6 +77,12 @@ Singleton {
     // packaging-only, same contract as wallpaperCommand above: no settings page exposes
     // this, the Nix side is the only writer of "" vs a real wallpaper directory path
     property string wallpapersDir:       GeneratedDefaults.wallpapersDir
+    // packaging-only, same contract as wallpapersDir above: no settings page exposes this,
+    // the Nix side is the only writer of "" vs the file the wallpaper command last wrote
+    property string lockWallpaper:       GeneratedDefaults.lockWallpaper
+    // packaging-only, same contract as wallpaperCommand above: only the packaging knows
+    // which wrapper starts the lock, so it alone writes the command the menu's Lock entries run
+    property string lockCommand:         GeneratedDefaults.lockCommand
     // runtime, not packaging: the wallpaper picker writes its own last-applied pick here,
     // same as caffeinePreset above is a runtime choice rather than a packaged default
     property string wallpaperLast:       ""
@@ -100,6 +106,8 @@ Singleton {
     property real   outlineStrength:     1.0
     property real   uiScale:             GeneratedDefaults.uiScale
     property string fontFamily:          GeneratedDefaults.fontFamily
+    property string lockFontFamily:      GeneratedDefaults.lockFontFamily
+    property bool   lockPowerButton:     GeneratedDefaults.lockPowerButton
 
     property bool   notifPopupEnabled:   true
     property bool   notifFullscreenSilence: true
@@ -404,6 +412,8 @@ Singleton {
         { k: "keybindsFile",        t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "wallpaperCommand",    t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "wallpapersDir",       t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
+        { k: "lockWallpaper",       t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
+        { k: "lockCommand",         t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "wallpaperLast",       t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "barShowCaffeine",     t: "bool", sec: "widgets" },
         { k: "osdEnabled",          t: "bool", sec: "osd" },
@@ -421,6 +431,8 @@ Singleton {
         { k: "outlineStrength",     t: "real", min: 0.5, max: 2.4, sec: "theme" },
         { k: "uiScale",             t: "real", min: 0.8, max: 1.15, sec: "interface" },
         { k: "fontFamily",          t: "re",   re: /^[^\u0000-\u001F\u007F]{0,128}$/, sec: "interface" },
+        { k: "lockFontFamily",      t: "re",   re: /^[^\u0000-\u001F\u007F]{0,128}$/, sec: "interface" },
+        { k: "lockPowerButton",     t: "bool", sec: "interface" },
         { k: "notifPopupEnabled",   t: "bool", sec: "popups" },
         { k: "notifFullscreenSilence", t: "bool", sec: "popups" },
         { k: "notifPosition",       t: "enum", vals: ["top-right", "top-left", "top-center"], sec: "popups" },
