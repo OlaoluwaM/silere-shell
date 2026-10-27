@@ -77,6 +77,9 @@ Item {
             // a module's visible prompt (a username, a code) shows what is typed
             echoMode: LockState.promptVisible ? TextInput.Normal : TextInput.Password
             passwordCharacter: "•"
+            // a platform or touch profile can default this above 0, which shows each typed
+            // character in clear for a moment
+            passwordMaskDelay: 0
             // echoMode alone leaves inputMethodHints at 0: an IME would still predict and
             // capitalise a case-sensitive password
             inputMethodHints: Qt.ImhSensitiveData | Qt.ImhNoPredictiveText
