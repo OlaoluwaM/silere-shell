@@ -78,7 +78,9 @@ Item {
             readOnly: LockState.checking || LockState.unlocking
             // a module's visible prompt (a username, a code) shows what is typed
             echoMode: LockState.promptVisible ? TextInput.Normal : TextInput.Password
-            passwordCharacter: "•"
+            // the larger round mask, drawn smaller than the text (below): the bullet reads as a
+            // speck at the field's size, and the full-size circle crowds the field
+            passwordCharacter: "●"
             // a platform or touch profile can default this above 0, which shows each typed
             // character in clear for a moment
             passwordMaskDelay: 0
@@ -89,10 +91,11 @@ Item {
             color: LockState.checking ? Theme.subtext : Theme.text
             selectionColor: Theme.withAlpha(Theme.accent, 0.4)
             font.family: root.family
-            font.pixelSize: root.textSize
+            readonly property bool _masked: _input.text.length > 0
+                && _input.echoMode === TextInput.Password
+            font.pixelSize: _input._masked ? Math.round(root.textSize * 0.7) : root.textSize
             // the dots run together at the field's size without it
-            font.letterSpacing: _input.text.length > 0 && _input.echoMode === TextInput.Password
-                ? 0.18 * root.textSize : 0
+            font.letterSpacing: _input._masked ? 0.3 * root.textSize : 0
             clip: true
             Accessible.name: LockState.prompting ? LockState.prompt : "Password"
 
