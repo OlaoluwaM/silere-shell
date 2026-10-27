@@ -69,7 +69,11 @@ Item {
         z: -2
         color: Theme.withAlpha(Theme.depthSink, 0.45)
         opacity: LockPower.open ? 1 : 0
-        MotionBehavior on opacity { NumberAnimation { duration: Motion.normal } }
+        // the card's own fades, since this surface hides the moment the card is gone
+        MotionBehavior on opacity {
+            id: _scrimFade
+            NumberAnimation { duration: _scrimFade.targetValue > 0 ? Motion.popInFade : Motion.popOutFade }
+        }
     }
 
     TapHandler {
