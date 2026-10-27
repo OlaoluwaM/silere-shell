@@ -125,6 +125,13 @@ outside issues or pull requests.
   to the stateless `services/ClockFormat.js`, which the lock process calls
   directly so it never starts `DateTime` and its Network and TimeZoneWatch
   watchers. Port upstream edits to those three functions into the library.
+- `modules/notifications/NotificationPopups.qml`: the card viewport and its
+  scroll content are sized by `cardCol.visualHeight`, which reaches each moving
+  card's painted position, rather than upstream's `cardCol.implicitHeight`, so a
+  card stays visible until it lands. The viewport's `visible` still follows
+  `cardCol.implicitHeight`, as upstream's effectively did: following its own
+  height would feed `visualHeight` back into itself through the slots'
+  visibility. Keep both on an import.
 - `qmldir` files, `BarContent`'s widget registry, `barWidgetMeta`, and the
   zone-order defaults: unions — keep both sides' entries.
 - `scripts/check.sh` keeps sequential smoke cases and their shared launcher.

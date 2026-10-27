@@ -328,7 +328,11 @@ PanelWindow {
         Item {
             id: _cardViewport
             width: parent.width
-            visible: height > 0.5
+            // the layout height, not the viewport's own: that follows visualHeight, and hiding
+            // the viewport changes each slot's visibility, which snaps visualY and so feeds
+            // visualHeight back into itself as the last card leaves. The two differ only once
+            // every slot is zero-height, when nothing is left to paint
+            visible: cardCol.implicitHeight > 0.5
             height: Math.min(cardCol.visualHeight, Math.max(48,
                 win._availableContentH - _clearChip.height - _moreChip.height
                 - outerCol.spacing * 2))
