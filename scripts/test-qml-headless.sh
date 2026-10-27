@@ -107,7 +107,7 @@ trap 'rm -rf "$tmp"' EXIT
 CHECK_ROOT="$tmp/source"
 mkdir -p "$CHECK_ROOT"
 cp -R "$ROOT/assets" "$ROOT/config" "$ROOT/modules" "$ROOT/services" "$CHECK_ROOT/"
-cp "$ROOT/shell.qml" "$CHECK_ROOT/shell.qml"
+cp "$ROOT/shell.qml" "$ROOT/lock.qml" "$CHECK_ROOT/"
 had_failure=0
 jobs_n="$(nproc 2>/dev/null || echo 4)"
 

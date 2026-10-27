@@ -2,6 +2,7 @@ import glob, re, sys
 
 QML = sorted(
     glob.glob('shell.qml')
+    + glob.glob('lock.qml')
     + glob.glob('config/*.qml')
     + glob.glob('services/*.qml')
     + glob.glob('modules/**/*.qml', recursive=True)

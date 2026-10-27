@@ -36,6 +36,7 @@ SILERE_REQUIRED_QML_MODULES=(
     Quickshell.Networking
     Quickshell.Services.Mpris
     Quickshell.Services.Notifications
+    Quickshell.Services.Pam
     Quickshell.Services.Pipewire
     Quickshell.Services.SystemTray
     Quickshell.Services.UPower

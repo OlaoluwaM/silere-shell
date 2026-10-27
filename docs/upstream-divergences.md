@@ -108,6 +108,14 @@ outside issues or pull requests.
   is hidden while that string is set, since the packaged locker does not need
   hyprlock. Keep both on an import of either file; `commandAvailable` needs no
   change because `sh` is always available.
+- `scripts/ci-lint.sh`, `scripts/check-connections.py`,
+  `scripts/test-qml-headless.sh` and `scripts/lib/qml-modules.sh`: the lock
+  process's entry point, `lock.qml`, sits beside `shell.qml`, so every path
+  list that names `shell.qml` names `lock.qml` too, and the animation-driver
+  rule checks both entry points. The boot-arming rule stays on `shell.qml`
+  alone, since the lock must not start the shell's armed watchers.
+  `Quickshell.Services.Pam` is a required module for the lock's PAM. Add
+  `lock.qml` to any list an import adds or rewrites, or the gates skip it.
 - `qmldir` files, `BarContent`'s widget registry, `barWidgetMeta`, and the
   zone-order defaults: unions — keep both sides' entries.
 - `scripts/check.sh` keeps sequential smoke cases and their shared launcher.

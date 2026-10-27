@@ -1,0 +1,3 @@
+singleton LockState 1.0 LockState.qml
+LockContent 1.0 LockContent.qml
+LockPasswordField 1.0 LockPasswordField.qml

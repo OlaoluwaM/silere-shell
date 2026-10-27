@@ -216,7 +216,7 @@ imported_modules="$(
   # in the unconditional module inventory.
   grep -RhE --include='*.qml' \
     '^[[:space:]]*import[[:space:]]+[A-Za-z][A-Za-z0-9_.]*([[:space:]]|$)' \
-    shell.qml modules config services \
+    shell.qml lock.qml modules config services \
     | awk '$1 == "import" { print $2 }' | sort -u
 )"
 required_modules="$(printf '%s\n' "${SILERE_REQUIRED_QML_MODULES[@]}" | sort -u)"
@@ -242,7 +242,7 @@ while IFS= read -r f; do
   fi
 done < <(
   while IFS= read -r singleton; do
-    grep -RIl --include='*.qml' -E "(^|[^A-Za-z0-9_])${singleton}\." shell.qml modules config || true
+    grep -RIl --include='*.qml' -E "(^|[^A-Za-z0-9_])${singleton}\." shell.qml lock.qml modules config || true
   done < <(awk '$1 == "singleton" { print $2 }' services/qmldir) | sort -u
 )
 if [ "$missing_singleton_import" -eq 0 ]; then
@@ -385,7 +385,7 @@ section "loader lifetime bindings"
 # does not diagnose, so keep lifetime state outside the Loader instead.
 loader_item_cycles="$(grep -RInE --include='*.qml' \
   '^[[:space:]]*(active:|\|\||&&).*(^|[^A-Za-z0-9_.])item(\?)?\.(opacity|visible|status)([^A-Za-z0-9_]|$)' \
-  shell.qml modules config services || true)"
+  shell.qml lock.qml modules config services || true)"
 if [ -n "$loader_item_cycles" ]; then
   fail "Loader.active must not depend on its own item:"
   printf '%s\n' "$loader_item_cycles"
@@ -399,7 +399,7 @@ section "coordinate mapping in bindings"
 # forever. Call them from a function when the position is needed instead.
 mapped_bindings="$(grep -RInE --include='*.qml' \
   '^[[:space:]]*(readonly[[:space:]]+)?(property[[:space:]]+[A-Za-z_][A-Za-z0-9_]*[[:space:]]+)?[A-Za-z_][A-Za-z0-9_.]*:.*map(To|From)Item\(' \
-  shell.qml modules config services | grep -vE ':[[:space:]]*on[A-Z][A-Za-z0-9_]*:' || true)"
+  shell.qml lock.qml modules config services | grep -vE ':[[:space:]]*on[A-Z][A-Za-z0-9_]*:' || true)"
 if [ -n "$mapped_bindings" ]; then
   fail "mapToItem()/mapFromItem() must not be used in a property binding:"
   printf '%s\n' "$mapped_bindings"
@@ -430,7 +430,7 @@ $(sed -n 's/^[[:space:]]*delegate:[[:space:]]*\([A-Z][A-Za-z0-9_]*\).*/\1/p' "$f
 EOF
   done <<EOF
 $(grep -rlE 'reuseItems:[[:space:]]*true|ListView\.on(Pooled|Reused)' \
-  --include='*.qml' shell.qml modules config services 2>/dev/null)
+  --include='*.qml' shell.qml lock.qml modules config services 2>/dev/null)
 EOF
 }
 
@@ -528,7 +528,7 @@ while IFS= read -r _f; do
   [ -n "$_miss" ] && transition_residue="$transition_residue$_miss"$'\n'
 done <<EOF
 $(grep -rlE 'reuseItems:[[:space:]]*true' --include='*.qml' \
-  shell.qml modules config services 2>/dev/null)
+  shell.qml lock.qml modules config services 2>/dev/null)
 EOF
 
 if [ -n "$transition_residue" ]; then
@@ -543,7 +543,7 @@ section "reduce-motion gating"
 # animates for users who asked for no motion, so route every one through it
 # and put any extra condition on `gate:` instead of `enabled:`.
 bare_behaviors="$(grep -RInE --include='*.qml' '^[[:space:]]*Behavior[[:space:]]+on[[:space:]]' \
-  shell.qml modules config services || true)"
+  shell.qml lock.qml modules config services || true)"
 if [ -n "$bare_behaviors" ]; then
   fail "use MotionBehavior instead of a bare Behavior:"
   printf '%s\n' "$bare_behaviors"
@@ -633,7 +633,7 @@ else
 fi
 # A bare stop preserves a bump's value for continuous retriggering. Cleanup must
 # use retire instead. Match ids within each file, including calls before the declaration.
-if ! bump_stops="$(find shell.qml modules config services -name '*.qml' -print0 \
+if ! bump_stops="$(find shell.qml lock.qml modules config services -name '*.qml' -print0 \
   | xargs -0 -r awk '
   FNR == 1 { inbump = 0; depth = 0 }
   {
@@ -692,7 +692,7 @@ section "portable QML key handlers"
 # qmlcachegen accepts arbitrary Keys.onFooPressed names, but the live engine
 # rejects handlers that are not signals on QtQuick.Keys. Keep this allowlist
 # explicit so a typo cannot make the entire shell fail at startup again.
-key_handlers="$(grep -RhoE 'Keys\.on[A-Za-z0-9_]+' --include='*.qml' shell.qml modules config services \
+key_handlers="$(grep -RhoE 'Keys\.on[A-Za-z0-9_]+' --include='*.qml' shell.qml lock.qml modules config services \
     | sed 's/^Keys\.//' | sort -u)"
 unsupported_key_handlers="$(printf '%s\n' "$key_handlers" \
     | grep -vE '^(onPressed|onReleased|onUpPressed|onDownPressed|onLeftPressed|onRightPressed|onSpacePressed|onReturnPressed|onEnterPressed|onEscapePressed|onMenuPressed)$' \
@@ -714,7 +714,7 @@ while IFS=: read -r file line _; do
   end=$((line + 14))
   sed -n "${line},${end}p" "$file" | grep -q 'isAutoRepeat' && continue
   release_without_repeat="${release_without_repeat}${file}:${line}"$'\n'
-done < <(grep -RInE --include='*.qml' 'Keys\.onReleased' shell.qml modules config services || true)
+done < <(grep -RInE --include='*.qml' 'Keys\.onReleased' shell.qml lock.qml modules config services || true)
 release_without_repeat="${release_without_repeat%$'\n'}"
 if [ -n "$release_without_repeat" ]; then
   fail "release-based key activation must ignore auto-repeat releases:"
@@ -730,7 +730,7 @@ section "reduce-motion durations"
 # the exclusion must match only the declaration form: animation one-liners carry
 # `property: "_op"` on the same line and a bare `grep -v property` hides every real hit
 raw_durations="$(grep -RInE 'duration:[[:space:]]*[0-9]' --include='*.qml' \
-  shell.qml modules config services \
+  shell.qml lock.qml modules config services \
   | grep -vE 'property[[:space:]]+(int|real|var)[[:space:]]+duration' || true)"
 if [ -n "$raw_durations" ]; then
   fail "animation durations must route through Motion.* so reduce motion can zero them:"
@@ -746,7 +746,7 @@ section "motion timing direction"
 # targetValue is written before the job starts, so a branch must read it instead.
 # CollapsibleSection's symmetric never flips with the value, and Disclosure's _enter
 # is read from targetValue.
-mapfile -t motion_files < <(find shell.qml modules config -name '*.qml')
+mapfile -t motion_files < <(find shell.qml lock.qml modules config -name '*.qml')
 stale_timing="$(awk '
   function check(   e) {
     e = expr
@@ -791,11 +791,14 @@ else
 fi
 
 section "multi-window animation pacing"
-if grep -qF '//@ pragma DefaultEnv QSG_USE_SIMPLE_ANIMATION_DRIVER = 1' shell.qml; then
-  ok "motion driver" "elapsed-time pacing is the overrideable default"
-else
-  fail "shell.qml must default QSG_USE_SIMPLE_ANIMATION_DRIVER=1 so popups do not fall back to the 16 ms multi-window timer"
-fi
+# lock.qml draws one surface per output, so it is a multi-window process as well
+for entry in shell.qml lock.qml; do
+  if grep -qF '//@ pragma DefaultEnv QSG_USE_SIMPLE_ANIMATION_DRIVER = 1' "$entry"; then
+    ok "motion driver" "$entry: elapsed-time pacing is the overrideable default"
+  else
+    fail "$entry must default QSG_USE_SIMPLE_ANIMATION_DRIVER=1 so its windows do not fall back to the 16 ms multi-window timer"
+  fi
+done
 
 section "arm-then-confirm guards"
 # TapHandler fires once per tap, so the second half of a double-click confirms the
@@ -821,7 +824,7 @@ section "underscore property handlers"
 lower_underscore_handlers="$(grep -RInE --include='*.qml' \
   -e '^[[:space:]]*on_[a-z][A-Za-z0-9_]*[[:space:]]*:' \
   -e 'function[[:space:]]+on_[a-z][A-Za-z0-9_]*[[:space:]]*\(' \
-  shell.qml modules config services || true)"
+  shell.qml lock.qml modules config services || true)"
 if [ -n "$lower_underscore_handlers" ]; then
   fail "underscore handlers must capitalise the property name (on_FooChanged):"
   printf '%s\n' "$lower_underscore_handlers"
@@ -1237,7 +1240,7 @@ fi
 # validate and update them together so arranger/bar callers cannot drift.
 direct_layout_writes="$(grep -RInE --include='*.qml' \
   'ShellSettings\.barWidgetOrder(Left|Center|Right)[[:space:]]*=' \
-  shell.qml modules config || true)"
+  shell.qml lock.qml modules config || true)"
 if [ -n "$direct_layout_writes" ]; then
     fail "bar widget order must be changed through ShellSettings layout methods:"
     printf '%s\n' "$direct_layout_writes"
@@ -1248,7 +1251,7 @@ fi
 section "config storage boundary"
 private_config_access="$(grep -RInE --include='*.qml' \
   'ShellSettings\._(configDir|configDirReady|ensureConfigDir)' \
-  shell.qml modules services config || true)"
+  shell.qml lock.qml modules services config || true)"
 if [ -n "$private_config_access" ]; then
     fail "config consumers must use ConfigStore instead of ShellSettings internals:"
     printf '%s\n' "$private_config_access"
@@ -1282,7 +1285,7 @@ fi
 
 xdg_path_bypass="$(grep -RInE --include='*.qml' \
   'Quickshell\.env\("(XDG_(CONFIG|CACHE|STATE)_HOME|XDG_RUNTIME_DIR)"\)' \
-  shell.qml modules services config \
+  shell.qml lock.qml modules services config \
   | grep -v '^services/XdgPaths.qml:' || true)"
 if [ -n "$xdg_path_bypass" ]; then
     fail "QML consumers must resolve XDG homes through XdgPaths:"
@@ -1653,7 +1656,7 @@ fi
 # silently gets stale focus back. HyprDispatch only writes (dispatch calls), never
 # reads focus, so it stays on the allowlist.
 facade_leaks="$(grep -rln 'import Quickshell\.Hyprland' --include='*.qml' \
-  modules config services shell.qml 2>/dev/null \
+  modules config services shell.qml lock.qml 2>/dev/null \
   | grep -v -e '^services/CompositorHyprland\.qml$' -e '^services/HyprDispatch\.qml$' || true)"
 if [ -n "$facade_leaks" ]; then
   fail "only services/CompositorHyprland.qml and services/HyprDispatch.qml may import Quickshell.Hyprland:"
@@ -1692,6 +1695,8 @@ section "boot arming"
 # A singleton is only created once something reads a member of it, so a watcher nothing
 # else references never starts and its events are silently lost. The armed marker is how
 # a service declares it needs that read, and shell.qml is the only place it happens.
+# lock.qml is left out on purpose: it starts only the singletons its surfaces draw with,
+# and the armed watchers are the shell's session-wide ones.
 unarmed_services=""
 for f in services/*.qml; do
   grep -qE '^[[:space:]]*readonly property bool armed' "$f" || continue
