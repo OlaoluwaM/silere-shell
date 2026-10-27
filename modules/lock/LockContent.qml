@@ -1,5 +1,6 @@
 import QtQuick
 import "../../config"
+import "../../services"
 
 // Everything a lock surface draws over its background colour. The preview window draws this
 // same item, so the dev loop iterates on what locks.
@@ -38,6 +39,12 @@ Item {
     onPrimaryChanged: if (root.primary) _field.claimFocus()
     Component.onCompleted: if (root.primary) _field.claimFocus()
 
+    // the field stands down while the power card is up, so Enter answers the card
+    Connections {
+        target: LockPower
+        function onOpenChanged() { if (!LockPower.open && root.primary) _field.claimFocus() }
+    }
+
     LockBackground {
         anchors.fill: parent
         outputName: root.outputName
@@ -64,12 +71,37 @@ Item {
         anchors.bottomMargin: root.edge
         width: Math.max(0, Math.min(LockState.px(380), parent.width - 2 * x))
         visible: root.primary
+        enabled: !LockPower.open
     }
 
-    // the field's own Enter submits; Esc has to work wherever the keyboard is in the window
+    LockPowerButton {
+        anchors.right: parent.right
+        anchors.rightMargin: root.edge
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: root.edge
+        visible: root.primary && ShellSettings.lockPowerButton
+        onTriggered: LockPower.openMenu()
+    }
+
+    LockPowerCard {
+        anchors.fill: parent
+        wanted: root.primary
+    }
+
+    // the field's own Enter submits; Esc and the countdown's Enter have to work wherever
+    // the keyboard is in the window
     Shortcut {
         sequence: "Escape"
         context: Qt.WindowShortcut
-        onActivated: LockState.cancel()
+        onActivated: {
+            if (LockPower.open) LockPower.dismiss()
+            else LockState.cancel()
+        }
+    }
+    Shortcut {
+        sequences: ["Return", "Enter"]
+        context: Qt.WindowShortcut
+        enabled: LockPower.stage === "countdown"
+        onActivated: LockPower.confirm()
     }
 }

@@ -615,8 +615,15 @@ outside issues or pull requests.
   launches keep upstream's compositor path.
 - Log out, Reboot and Power off open the fork's countdown card
   (`PowerActionState`, `modules/power`) instead of upstream's
-  arm-and-press-again rows; every power action runs through
-  `PowerActionState.run`, which keeps the sandbox guard. The `power` IPC
+  arm-and-press-again rows; every power action in the shell runs through
+  `PowerActionState.run`, which keeps the sandbox guard. The lock process is
+  the exception: its card (`modules/lock/LockPower.qml`) counts down on its
+  own, reuses only `PowerCountdownBody`, and runs plain `systemctl suspend`,
+  `reboot` or `poweroff` in a `Process`, never `Settings.rebootCommand` or
+  `poweroffCommand`, since hyprshutdown would let an app's save prompt hold
+  the shutdown behind the lock. Outside a wrapper-started lock it runs a
+  stand-in instead. Do not route it through `PowerActionState` or the
+  session-end script on an import of either. The `power` IPC
   target exposes `request logout|reboot|poweroff` and `close` for launchers;
   requests require an available command and use the same countdown and
   idle/overview refusal as the rail, with no direct-execution fallback.

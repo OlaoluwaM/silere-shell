@@ -59,6 +59,14 @@ ShellRoot {
     // a file save must never rebuild a live lock
     settings.watchFiles: false
 
+    // the power card reaches systemd only from a real lock; a preview or sandboxed run gets
+    // a stand-in, so the dev loop can never suspend or reboot the machine it runs on
+    Binding {
+        target: LockPower
+        property: "live"
+        value: root.allowed && !root.preview
+    }
+
     function _exit(code: int, why: string): void {
         if (root._exiting) return
         root._exiting = true

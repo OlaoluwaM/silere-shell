@@ -282,6 +282,11 @@ the card; a failure shows on the card with the matching title ("Reboot failed",
 "Shut down failed") while the screen stays locked. The divergence from the
 desktop card goes in the ledger.
 
+Only a lock the wrapper started reaches systemd: `lock.qml` sets
+`LockPower.live`, which defaults to false. A preview or sandboxed run executes
+`true` in its place, or `false` when `SILERE_LOCK_PREVIEW_POWER=fail`, so the
+dev loop can show every state of the card without suspending the machine.
+
 ## Logging
 
 Every lock is traceable in one place: `journalctl --user -t silere-lock`. The
