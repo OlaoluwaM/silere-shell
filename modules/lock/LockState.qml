@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Pam
 import "../../services"
+import "../../services/ClockFormat.js" as ClockFormat
 
 // What every output's lock surface shares: the text typed so far and the one PAM
 // conversation, so a password typed on any output is checked once and unlocks them all.
@@ -110,7 +111,7 @@ Singleton {
 
     function _tick(): void {
         const now = new Date()
-        root.clockText = DateTime.clockText(now)
+        root.clockText = ClockFormat.clockText(now, ShellSettings.clock12h)
         root.dateText = Qt.formatDateTime(now, "dddd, MMMM d")
     }
 

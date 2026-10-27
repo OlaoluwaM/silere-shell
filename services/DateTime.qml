@@ -2,6 +2,7 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import "ClockFormat.js" as ClockFormat
 
 Singleton {
     id: root
@@ -41,23 +42,12 @@ Singleton {
 
     Component.onCompleted: _update(new Date())
 
-    // qt only counts 12-hour when AP shares the format string; "h" alone still reads 0-23
-    function clockHour(d): string {
-        if (!ShellSettings.clock12h) return Qt.formatDateTime(d, "HH")
-        const text = Qt.formatDateTime(d, "h'|'AP")
-        const at = text.indexOf("|")
-        return at < 0 ? text : text.slice(0, at)
-    }
+    // the words live in ClockFormat so the lock process can share them without this service
+    function clockHour(d): string { return ClockFormat.clockHour(d, ShellSettings.clock12h) }
 
-    function clockSuffix(d): string {
-        return ShellSettings.clock12h ? Qt.formatDateTime(d, "AP") : ""
-    }
+    function clockSuffix(d): string { return ClockFormat.clockSuffix(d, ShellSettings.clock12h) }
 
-    function clockText(d): string {
-        const suffix = root.clockSuffix(d)
-        return root.clockHour(d) + ":" + Qt.formatDateTime(d, "mm")
-            + (suffix.length > 0 ? " " + suffix : "")
-    }
+    function clockText(d): string { return ClockFormat.clockText(d, ShellSettings.clock12h) }
 
     function isoWeek(d): int {
         const t = new Date(d.getFullYear(), d.getMonth(), d.getDate())

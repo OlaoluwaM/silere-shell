@@ -29,10 +29,10 @@ import "config"
 // ShellSettings, ConfigStore, XdgPaths, FontScan, SystemTools, Compositor with its Hyprland
 // or Niri backend, HyprDispatch, SafeText, Monitors and Idle, which the field already
 // reaches; IconResolver, for the wallpaper's file URL (it touches DesktopEntries only when
-// asked for an app icon, which the lock never does); and Battery and DateTime, which pull
-// in CalendarState, MenuState, OverlayCoordinator and OverviewState too, and Network (a
-// NetworkManager client that owns no name) and TimeZoneWatch, whose inotifywait keeps the
-// clock right if the zone changes during a long lock. Their IPC handlers sit on this
+// asked for an app icon, which the lock never does); and Battery, which pulls in MenuState
+// and the small state singletons it reads. The clock formats through ClockFormat.js rather
+// than DateTime, whose catch-up watchers would start Network and TimeZoneWatch here for
+// nothing. Their IPC handlers sit on this
 // instance's own socket, and every write the settings layer would make is gated by the
 // read-only pragma above. Never reach anything that owns a session-wide D-Bus name or
 // service (the notification server, the tray watcher, MPRIS) or another session-wide

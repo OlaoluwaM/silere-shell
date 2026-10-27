@@ -120,6 +120,10 @@ outside issues or pull requests.
   window's `devicePixelRatio` (`Window.window`) when `QsWindow.window` is null,
   as it is on a session-lock surface; desktop surfaces still read the QsWindow.
   Keep the fallback on an import of the stroke snapping.
+- `services/DateTime.qml`: `clockHour`, `clockSuffix` and `clockText` delegate
+  to the stateless `services/ClockFormat.js`, which the lock process calls
+  directly so it never starts `DateTime` and its Network and TimeZoneWatch
+  watchers. Port upstream edits to those three functions into the library.
 - `qmldir` files, `BarContent`'s widget registry, `barWidgetMeta`, and the
   zone-order defaults: unions — keep both sides' entries.
 - `scripts/check.sh` keeps sequential smoke cases and their shared launcher.
