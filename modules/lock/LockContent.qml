@@ -39,10 +39,15 @@ Item {
     onPrimaryChanged: if (root.primary) _field.claimFocus()
     Component.onCompleted: if (root.primary) _field.claimFocus()
 
-    // the field stands down while the power card is up, so Enter answers the card
+    // the field stands down while the power card is up, so Enter answers the card. A disabled
+    // field misses Caps Lock presses and the window never left active, so its state is re-read
     Connections {
         target: LockPower
-        function onOpenChanged() { if (!LockPower.open && root.primary) _field.claimFocus() }
+        function onOpenChanged() {
+            if (LockPower.open || !root.primary) return
+            LockState.refreshCapsLock()
+            _field.claimFocus()
+        }
     }
 
     LockBackground {
