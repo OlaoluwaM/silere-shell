@@ -40,7 +40,6 @@ OverlayPopupWindow {
 
         readonly property int pad: 16
         readonly property var action: PowerActionState.action
-        property real progress: 1.0
 
         width:  Math.round(Math.max(260, Math.min(340, win.width - 96)))
         height: Math.round(_body.implicitHeight + card.pad * 2)
@@ -51,38 +50,20 @@ OverlayPopupWindow {
         Accessible.name: card.action ? card.action.label : ""
         Accessible.description: _body.message
 
-        // the duration is the countdown itself, which Motion must not scale or the bar would lie
-        NumberAnimation {
+        PowerCountdownDrain {
             id: _drain
-            target: card
-            property: "progress"
-            to: 0.0
-            easing.type: Easing.Linear
+            seconds: PowerActionState.seconds
+            deadline: PowerActionState.deadline
+            remaining: PowerActionState.remaining
         }
 
-        function _startDrain(): void {
-            _drain.stop()
-            const total = PowerActionState.seconds * 1000
-            const left = Math.max(0, Math.min(total, PowerActionState.deadline - Date.now()))
-            card.progress = left / total
-            if (ShellSettings.reduceMotion || left <= 0) return
-            _drain.from = card.progress
-            _drain.duration = left
-            _drain.start()
-        }
-
-        Component.onCompleted: if (PowerActionState.open) card._startDrain()
+        Component.onCompleted: if (PowerActionState.open) _drain.start()
 
         Connections {
             target: PowerActionState
-            function onStarted() { card._startDrain() }
+            function onStarted() { _drain.start() }
             // the bar holds where it stopped through the exit fade
             function onOpenChanged() { if (!PowerActionState.open) _drain.stop() }
-            // without the drain the bar steps with the seconds instead
-            function onRemainingChanged() {
-                if (ShellSettings.reduceMotion)
-                    card.progress = PowerActionState.remaining / PowerActionState.seconds
-            }
         }
 
         PowerCountdownBody {
@@ -96,7 +77,7 @@ OverlayPopupWindow {
                 ? card.action.phrase + " in " + PowerActionState.remaining
                     + (PowerActionState.remaining === 1 ? " second." : " seconds.")
                 : ""
-            progress: card.progress
+            progress: _drain.progress
             confirmLabel: card.action ? card.action.label : ""
             onCancelled: PowerActionState.close()
             onConfirmed: PowerActionState.confirm()

@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import "../../config"
-import "../../services"
 import "../common"
 import "../power"
 
@@ -106,7 +105,6 @@ Item {
         // bound, so emptying the stage can never reach it
         property string _shown: ""
         readonly property bool _menu: _card._shown === "menu"
-        property real progress: 1.0
 
         width: Math.round(Math.max(260, Math.min(340, root.width - 96)))
         height: Math.round((_card._menu ? _menuBody.implicitHeight : _body.implicitHeight) + _card.pad * 2)
@@ -116,44 +114,26 @@ Item {
         Accessible.name: _card._menu ? "Power" : _body.title
         Accessible.description: _card._menu ? "" : _body.message
 
-        // the duration is the countdown itself, which Motion must not scale or the bar would lie
-        NumberAnimation {
+        PowerCountdownDrain {
             id: _drain
-            target: _card
-            property: "progress"
-            to: 0.0
-            easing.type: Easing.Linear
-        }
-
-        function _startDrain(): void {
-            _drain.stop()
-            const total = LockPower.seconds * 1000
-            const left = Math.max(0, Math.min(total, LockPower.deadline - Date.now()))
-            _card.progress = left / total
-            if (ShellSettings.reduceMotion || left <= 0) return
-            _drain.from = _card.progress
-            _drain.duration = left
-            _drain.start()
+            seconds: LockPower.seconds
+            deadline: LockPower.deadline
+            remaining: LockPower.remaining
         }
 
         // an output plugged in mid-countdown builds its card after started() has gone by
         Component.onCompleted: {
             _card._shown = LockPower.stage
-            if (LockPower.stage === "countdown") _card._startDrain()
+            if (LockPower.stage === "countdown") _drain.start()
         }
 
         Connections {
             target: LockPower
-            function onStarted() { _card._startDrain() }
+            function onStarted() { _drain.start() }
             // the bar holds where it stopped once the countdown ends, either way
             function onStageChanged() {
                 if (LockPower.stage !== "countdown") _drain.stop()
                 if (LockPower.stage.length > 0) _card._shown = LockPower.stage
-            }
-            // without the drain the bar steps with the seconds instead
-            function onRemainingChanged() {
-                if (ShellSettings.reduceMotion)
-                    _card.progress = LockPower.remaining / LockPower.seconds
             }
         }
 
@@ -205,7 +185,7 @@ Item {
                 : _body._counting ? _card.action.phrase + " in " + LockPower.remaining
                     + (LockPower.remaining === 1 ? " second." : " seconds.")
                 : _card.action.phrase + "…"
-            progress: _body._counting ? _card.progress : 0
+            progress: _body._counting ? _drain.progress : 0
             confirmLabel: _body._failed ? "Try again" : _card.action ? _card.action.label : ""
             onCancelled: LockPower.dismiss()
             onConfirmed: {
