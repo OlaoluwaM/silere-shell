@@ -1,3 +1,6 @@
 singleton LockState 1.0 LockState.qml
+LockBackground 1.0 LockBackground.qml
+LockBattery 1.0 LockBattery.qml
+LockClock 1.0 LockClock.qml
 LockContent 1.0 LockContent.qml
 LockPasswordField 1.0 LockPasswordField.qml

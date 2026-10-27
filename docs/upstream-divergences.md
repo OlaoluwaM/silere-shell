@@ -116,6 +116,10 @@ outside issues or pull requests.
   alone, since the lock must not start the shell's armed watchers.
   `Quickshell.Services.Pam` is a required module for the lock's PAM. Add
   `lock.qml` to any list an import adds or rewrites, or the gates skip it.
+- `modules/common/OutlineBorder.qml`: `_dpr` falls back to the plain Qt
+  window's `devicePixelRatio` (`Window.window`) when `QsWindow.window` is null,
+  as it is on a session-lock surface; desktop surfaces still read the QsWindow.
+  Keep the fallback on an import of the stroke snapping.
 - `qmldir` files, `BarContent`'s widget registry, `barWidgetMeta`, and the
   zone-order defaults: unions — keep both sides' entries.
 - `scripts/check.sh` keeps sequential smoke cases and their shared launcher.

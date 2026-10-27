@@ -15,8 +15,10 @@ Shape {
     property real bottomLeftRadius: root.radius
     property real bottomRightRadius: root.radius
 
-    // the window reports the real fractional scale where the screen rounds 1.25 up to 2; whole device pixels stay crisp
-    readonly property real _dpr: QsWindow.window ? QsWindow.window.devicePixelRatio : 1
+    // the window reports the real fractional scale where the screen rounds 1.25 up to 2; whole device pixels stay crisp.
+    // A session-lock surface is no QsWindow, so there the plain Qt window answers instead
+    readonly property real _dpr: QsWindow.window ? QsWindow.window.devicePixelRatio
+        : Window.window ? Window.window.devicePixelRatio : 1
     readonly property real _stroke: Math.max(1, Math.ceil(root.outlineWidth * root._dpr - 0.5)) / root._dpr
 
     anchors.fill: parent

@@ -409,13 +409,19 @@ all fork work.
 
 ## Open questions
 
-- **Caps Lock state.** No Quickshell API for modifier state was found. Watching
-  `Key_CapsLock` presses misses the state at lock time. Candidates: the keyboard
-  `capsLock` field in Hyprland's `devices` query, or the Caps Lock LED under
-  `/sys/class/leds`. Verify one before step 5.
-- **The focused output while locked.** Whether Hyprland reports focus changes
-  (`focusedmon`) while a lock is up is unverified. Fallbacks: the output that
-  last received a key or the pointer, else the first output.
+- **Caps Lock state.** Resolved in step 5: the main keyboard's `capsLock` in
+  `hyprctl devices -j`. It is Hyprland's own xkb state, the one the typed text
+  gets, where the `/sys/class/leds` LED exists only on keyboards that have one
+  and is a copy Hyprland pushes to each device. Never polled: the lock asks at
+  start, on every Caps Lock press it receives, and whenever a surface takes the
+  keyboard (resume, hotplug). Niri has no such query, so the chip stays hidden
+  there.
+- **The focused output while locked.** Resolved in step 5. Hyprland 0.55.4's
+  `mouseMoveUnified` calls `rawMonitorFocus` before its session-lock branch,
+  which posts `focusedmon` and then hands that output's lock surface the
+  keyboard (read in the source, not seen in a live lock). The field goes to the
+  surface whose window is active, since that is where typing lands; until one
+  is, Hyprland's focused monitor; else the first output.
 - **logind option.** `services.logind.settings.Login.InhibitDelayMaxSec` was
   seen in store copies of the 26.05 module; confirm it against the pinned
   nixpkgs in step 10.
@@ -426,5 +432,8 @@ all fork work.
 - **Lockout.** The lockout message shows only when PAM returns `MaxTries`. NixOS
   sets no attempt limit by default, so it stays hidden unless `pam_faillock` is
   enabled.
-- **Scaling.** The mockup's pixel values are at 1440x900 logical. Decide whether
-  the clock scales with the output's height or with `ShellSettings.uiScale`.
+- **Scaling.** Resolved in step 5: with `ShellSettings.uiScale`, like the rest
+  of the shell's type, never with the output's height. The design's sizes and
+  gaps are multiplied by it (`LockState.px`), row heights come from
+  `Metrics.rowHeightFor`, and the 80px corner margins stay fixed, as the other
+  surfaces' frames do.

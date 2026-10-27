@@ -28,12 +28,14 @@ import "config"
 // Settings, Metrics, Motion, MatugenTheme, GlassSample, GeneratedDefaults, ShellSettings,
 // ConfigStore, XdgPaths, FontScan, SystemTools, Compositor with its Hyprland or Niri
 // backend, HyprDispatch, SafeText, Monitors and Idle, which the field already reaches;
-// and Battery and DateTime, which pull in CalendarState, MenuState, OverlayCoordinator and
-// OverviewState too. Their IPC handlers sit on this instance's own socket, and every write
-// the settings layer would make is gated by the read-only pragma above. Never reach anything
-// that owns a session-wide D-Bus name or service (the notification server, the tray
-// watcher, MPRIS) or another session-wide resource; Recording, for one, keeps an
-// inotifywait running and creates its state directory whenever the bar shows its widget.
+// IconResolver, for the wallpaper's file URL (it touches DesktopEntries only when asked
+// for an app icon, which the lock never does); and Battery and DateTime, which pull in
+// CalendarState, MenuState, OverlayCoordinator and OverviewState too. Their IPC handlers
+// sit on this instance's own socket, and every write the settings layer would make is
+// gated by the read-only pragma above. Never reach anything that owns a session-wide D-Bus
+// name or service (the notification server, the tray watcher, MPRIS) or another
+// session-wide resource; Recording, for one, keeps an inotifywait running and creates its
+// state directory whenever the bar shows its widget.
 ShellRoot {
     id: root
 
@@ -152,7 +154,10 @@ ShellRoot {
                     _surface.screen ? _surface.screen.name : "an unnamed output")
             }
 
-            LockContent { anchors.fill: parent }
+            LockContent {
+                anchors.fill: parent
+                outputName: _surface.screen ? _surface.screen.name : ""
+            }
         }
     }
 
@@ -160,12 +165,18 @@ ShellRoot {
         active: root.preview
         component: FloatingWindow {
             title: "Silere lock preview"
-            // the design's logical size
+            // the design's logical size, pinned: a tiling compositor floats a window that
+            // cannot resize, so the preview stays comparable with the mockup
             implicitWidth: 1440
             implicitHeight: 900
+            minimumSize: Qt.size(1440, 900)
+            maximumSize: Qt.size(1440, 900)
             color: Theme.background
 
-            LockContent { anchors.fill: parent }
+            LockContent {
+                anchors.fill: parent
+                previewWindow: true
+            }
         }
     }
 
