@@ -41,8 +41,8 @@ Singleton {
     property string _pending: ""
     // PAM asked something new (a one-time code, say) that the user has to type first
     property bool _awaitingUser: false
-    // what a module said on its own (a lockout, a fingerprint request): the generic
-    // outcome text must not bury it
+    // an error a module raised on its own (a lockout): the generic outcome text must not
+    // bury it
     property string _note: ""
     // start() can fail synchronously after already reporting the failure through completed
     property bool _starting: false
@@ -213,11 +213,10 @@ Singleton {
         if (_pam.active) {
             console.info(root.log, "silere-shell: authentication cancelled")
             root._abort()
-            root._show("", false)
-        } else {
-            root.typed = ""
-            root._show("", false)
         }
+        // a half-typed answer to a module's prompt would otherwise go in as the next password
+        root.typed = ""
+        root._show("", false)
     }
 
     function _abort(): void {
@@ -293,7 +292,9 @@ Singleton {
                 root._awaitingUser = true
                 root._show("", false)
             } else if (_pam.message.length > 0) {
-                root._note = _pam.message
+                // only an error (a lockout, say) explains the outcome; an instruction such as
+                // a fingerprint request is stale by then and would bury the attempt count
+                if (_pam.messageIsError) root._note = _pam.message
                 root._show(_pam.message, _pam.messageIsError)
             }
         }

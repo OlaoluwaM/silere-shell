@@ -618,9 +618,10 @@ outside issues or pull requests.
   arm-and-press-again rows; every power action in the shell runs through
   `PowerActionState.run`, which keeps the sandbox guard. The lock process is
   the exception: its card (`modules/lock/LockPower.qml`) counts down on its
-  own, reuses only `PowerCountdownBody`, and runs plain `systemctl suspend`,
-  `reboot` or `poweroff` in a `Process`, never `Settings.rebootCommand` or
-  `poweroffCommand`, since hyprshutdown would let an app's save prompt hold
+  own, reuses only `PowerCountdownBody`, and runs plain `systemctl
+  --no-ask-password` with `suspend`, `reboot` or `poweroff` in a `Process`,
+  never `Settings.rebootCommand` or `poweroffCommand`, since hyprshutdown
+  would let an app's save prompt hold
   the shutdown behind the lock. Outside a wrapper-started lock it runs a
   stand-in instead. Do not route it through `PowerActionState` or the
   session-end script on an import of either. The `power` IPC

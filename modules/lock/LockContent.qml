@@ -69,7 +69,7 @@ Item {
         x: 86
         anchors.bottom: parent.bottom
         anchors.bottomMargin: root.edge
-        width: Math.max(0, Math.min(LockState.px(380), parent.width - 2 * x))
+        width: Math.max(0, Math.min(LockState.px(380), root.width - 2 * _field.x))
         visible: root.primary
         enabled: !LockPower.open
     }
@@ -80,6 +80,8 @@ Item {
         anchors.bottom: parent.bottom
         anchors.bottomMargin: root.edge
         visible: root.primary && ShellSettings.lockPowerButton
+        // the card's outside tap only listens, so a press here would also reach the button
+        enabled: !LockPower.open
         onTriggered: LockPower.openMenu()
     }
 

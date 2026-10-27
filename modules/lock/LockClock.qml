@@ -27,6 +27,10 @@ Item {
     // the tallest digit, so the clock's top edge holds still from one minute to the next
     readonly property real digitHeight: -_digitsInk.tightBoundingRect.y * root._clockK
 
+    // from the top of the digits' ink, so a parent that lays this out sees what draws
+    implicitWidth: _clock.implicitWidth
+    implicitHeight: root.showDate ? _date.y + _date.implicitHeight : root.digitHeight
+
     // not until the face is settled, so the clock never draws in one font and jumps to another
     opacity: LockState.fontReady ? 1 : 0
     MotionBehavior on opacity { NumberAnimation { duration: Motion.slow } }

@@ -24,18 +24,20 @@ import "config"
 // A QML load error makes qs exit 255 on its own.
 //
 // Singletons start on first use, so this process runs only the ones it reaches, and it may
-// reach only those that claim no session-wide resource. Allowed: LockState, Theme,
-// Settings, Metrics, Motion, MatugenTheme, GlassSample, GeneratedDefaults, ShellSettings,
-// ConfigStore, XdgPaths, FontScan, SystemTools, Compositor with its Hyprland or Niri
-// backend, HyprDispatch, SafeText, Monitors and Idle, which the field already reaches;
-// IconResolver, for the wallpaper's file URL (it touches DesktopEntries only when asked
-// for an app icon, which the lock never does); and Battery and DateTime, which pull in
-// CalendarState, MenuState, OverlayCoordinator and OverviewState too. Their IPC handlers
-// sit on this instance's own socket, and every write the settings layer would make is
-// gated by the read-only pragma above. Never reach anything that owns a session-wide D-Bus
-// name or service (the notification server, the tray watcher, MPRIS) or another
-// session-wide resource; Recording, for one, keeps an inotifywait running and creates its
-// state directory whenever the bar shows its widget.
+// reach only those that claim no session-wide resource. Allowed: LockState, LockPower,
+// Theme, Settings, Metrics, Motion, MatugenTheme, GlassSample, GeneratedDefaults,
+// ShellSettings, ConfigStore, XdgPaths, FontScan, SystemTools, Compositor with its Hyprland
+// or Niri backend, HyprDispatch, SafeText, Monitors and Idle, which the field already
+// reaches; IconResolver, for the wallpaper's file URL (it touches DesktopEntries only when
+// asked for an app icon, which the lock never does); and Battery and DateTime, which pull
+// in CalendarState, MenuState, OverlayCoordinator and OverviewState too, and Network (a
+// NetworkManager client that owns no name) and TimeZoneWatch, whose inotifywait keeps the
+// clock right if the zone changes during a long lock. Their IPC handlers sit on this
+// instance's own socket, and every write the settings layer would make is gated by the
+// read-only pragma above. Never reach anything that owns a session-wide D-Bus name or
+// service (the notification server, the tray watcher, MPRIS) or another session-wide
+// resource; Recording, for one, creates its state directory whenever the bar shows its
+// widget.
 ShellRoot {
     id: root
 

@@ -18,9 +18,10 @@ Item {
         anchors.fill: parent
         // not before the surface has its size, or the decode runs twice: once for nothing
         source: root.width > 0 && root.height > 0 ? IconResolver.localSource(ShellSettings.lockWallpaper) : ""
-        // the blur needs no more detail than the output has pixels
-        sourceSize.width: root.width
-        sourceSize.height: root.height
+        // half the output's size is already more detail than a blur this strong keeps, at a
+        // quarter of the memory per output
+        sourceSize.width: Math.ceil(root.width / 2)
+        sourceSize.height: Math.ceil(root.height / 2)
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: false

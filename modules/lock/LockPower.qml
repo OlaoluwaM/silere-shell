@@ -22,9 +22,11 @@ Singleton {
     property bool live: false
 
     readonly property int seconds: 60
-    // "" when closed, then "menu", "countdown", "running" or "failed"
-    property string stage: ""
-    readonly property bool open: root.stage.length > 0
+    // "" when closed, then "menu", "countdown", "running" or "failed"; written only here, so
+    // every transition goes through the guards below
+    property string _stage: ""
+    readonly property string stage: root._stage
+    readonly property bool open: root._stage.length > 0
     property string _kind: ""
     property int _remaining: 0
     property real _deadline: 0
@@ -46,15 +48,15 @@ Singleton {
     signal started()
 
     function openMenu(): void {
-        if (root.stage === "running" || LockState.unlocking) return
-        root.stage = "menu"
+        if (root.open || LockState.unlocking) return
+        root._stage = "menu"
     }
 
     // Esc and a tap outside: every way out short of confirming, except while a command runs,
     // since by then there is nothing left to take back
     function dismiss(): void {
         if (root.stage === "running") return
-        root.stage = ""
+        root._stage = ""
     }
 
     // a plain object also answers inherited names such as "toString"
@@ -69,7 +71,7 @@ Singleton {
         root._remaining = root.seconds
         root._deadline = Date.now() + root.seconds * 1000
         root._lastTick = Date.now()
-        root.stage = "countdown"
+        root._stage = "countdown"
         root.started()
     }
 
@@ -83,28 +85,54 @@ Singleton {
     }
 
     function _run(): void {
-        const command = root.live ? ["systemctl", root._kind]
+        // --no-ask-password: polkit's prompt would open on the desktop behind the lock, where
+        // nobody can answer it, and systemctl would wait on it with the card stuck running
+        const command = root.live ? ["systemctl", "--no-ask-password", root._kind]
             : [Quickshell.env("SILERE_LOCK_PREVIEW_POWER") === "fail" ? "false" : "true"]
         if (!root.live)
             console.info(LockState.log, "silere-shell: not a live lock;", command[0],
                 "stands in for systemctl", root._kind)
-        root.stage = "running"
+        root._stage = "running"
         _proc.exec(command)
     }
 
     BoundedProcess {
         id: _proc
+        // logind answers at once, whether it queues the job or refuses it; a systemctl still
+        // running after this is stuck, and the field must not stay out of reach behind it.
+        // The timer is monotonic, so the time a suspend spends asleep does not count
+        timeoutMs: 30000
         // a failed start never reports an exit on its own; BoundedProcess turns it into 127
         onExited: (code) => {
-            const ok = code === 0
+            const ok = _proc.completedSuccessfully(code)
             const report = "silere-shell: power action " + root._kind + " exited with " + code
+                + (_proc.timedOut ? " after timing out" : "")
             if (ok) console.info(LockState.log, report)
             else console.warn(LockState.log, report)
             if (root.stage !== "running") return
-            // a suspend returns once the machine wakes, back to the lock it left; a reboot or
-            // power off that succeeded leaves the card up until the session goes down
-            if (!ok) root.stage = "failed"
-            else if (root._kind === "suspend") root.stage = ""
+            if (!ok) {
+                root._stage = "failed"
+            } else if (root._kind === "suspend" || !root.live) {
+                // logind queues a suspend and answers before the machine sleeps, so the card
+                // closes and the machine wakes to the lock it left; a stand-in has nothing to
+                // bring down
+                root._stage = ""
+            } else {
+                _goingDown.start()
+            }
+        }
+    }
+
+    // a reboot or power off that logind accepted keeps the card up while the session goes
+    // down; one that never comes must not leave the lock without its field
+    Timer {
+        id: _goingDown
+        interval: 60000
+        onTriggered: {
+            if (root.stage !== "running") return
+            console.warn(LockState.log, "silere-shell: power action", root._kind,
+                "was accepted, but the session is still up a minute later")
+            root._stage = "failed"
         }
     }
 

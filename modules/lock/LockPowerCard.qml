@@ -63,8 +63,10 @@ Item {
 
     visible: root.wanted && (LockPower.open || _card.opacity > 0)
 
+    // under the card's shadow, which PopupShadow places at z -1, or the scrim would dim it
     Rectangle {
         anchors.fill: parent
+        z: -2
         color: Theme.withAlpha(Theme.depthSink, 0.45)
         opacity: LockPower.open ? 1 : 0
         MotionBehavior on opacity { NumberAnimation { duration: Motion.normal } }
@@ -125,6 +127,9 @@ Item {
             _drain.duration = left
             _drain.start()
         }
+
+        // an output plugged in mid-countdown builds its card after started() has gone by
+        Component.onCompleted: if (LockPower.stage === "countdown") _card._startDrain()
 
         Connections {
             target: LockPower

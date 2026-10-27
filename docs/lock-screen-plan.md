@@ -282,6 +282,12 @@ the card; a failure shows on the card with the matching title ("Reboot failed",
 "Shut down failed") while the screen stays locked. The divergence from the
 desktop card goes in the ledger.
 
+The command carries `--no-ask-password`: polkit's prompt would open on the
+desktop behind the lock, where nobody can answer it. A command still running
+after 30s, or a reboot or power off still not under way a minute after logind
+accepted it, ends on the failure card, so the field is never out of reach for
+long.
+
 Only a lock the wrapper started reaches systemd: `lock.qml` sets
 `LockPower.live`, which defaults to false. A preview or sandboxed run executes
 `true` in its place, or `false` when `SILERE_LOCK_PREVIEW_POWER=fail`, so the

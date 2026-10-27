@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import Quickshell
 import "../../config"
@@ -152,13 +154,14 @@ Item {
 
             Row {
                 id: _dots
+                // steps rather than eases, so it reads as waiting, not as progress
+                property int lit: 0
+
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 visible: LockState.checking
                 spacing: 4
 
-                // steps rather than eases, so it reads as waiting, not as progress
-                property int lit: 0
                 Timer {
                     interval: 200
                     repeat: true
@@ -170,12 +173,13 @@ Item {
                 Repeater {
                     model: 3
                     Rectangle {
+                        id: _dot
                         required property int index
                         width: 5
                         height: 5
                         radius: 1
                         antialiasing: true
-                        color: index === _dots.lit ? Theme.accent : Theme.withAlpha(Theme.accent, 0.3)
+                        color: _dot.index === _dots.lit ? Theme.accent : Theme.withAlpha(Theme.accent, 0.3)
                     }
                 }
             }
@@ -197,7 +201,7 @@ Item {
         function onRejected() {
             _shake.stop()
             _shift.x = 0
-            if (!ShellSettings.reduceMotion && !Idle.isIdle) _shake.start()
+            if (root.visible && !ShellSettings.reduceMotion && !Idle.isIdle) _shake.start()
         }
     }
 
