@@ -621,24 +621,23 @@ outside issues or pull requests.
 - Log out, Reboot and Power off open the fork's countdown card
   (`PowerActionState`, `modules/power`) instead of upstream's
   arm-and-press-again rows; every power action in the shell runs through
-  `PowerActionState.run`, which keeps the sandbox guard. The lock process is
-  the exception: its card (`modules/lock/LockPower.qml`) counts down on its
-  own, reuses only `PowerCountdownBody`, and runs plain `systemctl
-  --no-ask-password` with `suspend`, `reboot` or `poweroff` in a `Process`,
-  never `Settings.rebootCommand` or `poweroffCommand`, since hyprshutdown
-  would let an app's save prompt hold
-  the shutdown behind the lock. Outside a wrapper-started lock it runs a
-  stand-in instead. Do not route it through `PowerActionState` or the
-  session-end script on an import of either. The `power` IPC
-  target exposes `request logout|reboot|poweroff` and `close` for launchers;
-  requests require an available command and use the same countdown and
-  idle/overview refusal as the rail, with no direct-execution fallback.
-  Another accepted request replaces the action and restarts the countdown.
-  Port upstream's rail changes around the rows' `onTriggered`, and do not
-  restore their `confirm` or cross-disarm wiring. `PowerRailRow`'s
-  arm-and-confirm code stays commented out in place, with `armed` a constant
-  `false`; take upstream edits to it into the commented block rather than
-  reviving it.
+  `PowerActionState.run`, which keeps the sandbox guard. The lock process is the
+  exception: its card (`modules/lock/LockPower.qml`) counts down on its own,
+  reuses `PowerCountdownBody`, `PowerCountdownDrain` and the words in
+  `services/PowerActions.js`, and runs plain `systemctl --no-ask-password` with
+  `suspend`, `reboot` or `poweroff` in a `Process`, never
+  `Settings.rebootCommand` or `poweroffCommand`, since hyprshutdown would let an
+  app's save prompt hold the shutdown behind the lock. Outside a wrapper-started
+  lock it runs a stand-in instead. Do not route it through `PowerActionState` or
+  the session-end script on an import of either. The `power` IPC target exposes
+  `request logout|reboot|poweroff` and `close` for launchers; requests require
+  an available command and use the same countdown and idle/overview refusal as
+  the rail, with no direct-execution fallback. Another accepted request replaces
+  the action and restarts the countdown. Port upstream's rail changes around the
+  rows' `onTriggered`, and do not restore their `confirm` or cross-disarm
+  wiring. `PowerRailRow`'s arm-and-confirm code stays commented out in place,
+  with `armed` a constant `false`; take upstream edits to it into the commented
+  block rather than reviving it.
 
 ## What belongs here
 

@@ -129,8 +129,9 @@ session is unlocked:
   unlock request is flushed first. Exit 0 means exactly that: the user
   unlocked.
 - **Any other end exits non-zero.** The compositor ending the lock (`finished`,
-  which Quickshell turns into an unlock it did not ask for) exits 2. A QML load
-  error makes `qs` exit 255 on its own.
+  which Quickshell turns into an unlock it did not ask for) exits 2, a lock that
+  could not even be requested (no ext-session-lock-v1) exits 1, and a refusal to
+  lock exits 3. A QML load error makes `qs` exit 255 on its own.
 - **Settings are read, never written.** `//@ pragma Env
   SILERE_SETTINGS_READ_ONLY=1` in `lock.qml` turns on a read-only mode, applied
   before the engine starts. Loading settings writes in more places than
@@ -159,10 +160,11 @@ session is unlocked:
 ## Lock integrity
 
 The rules: a lock request must never end in an unlocked session, a failure must
-never leave a session nobody can unlock, and there are never two lock clients
-at once. All three are the job of one small wrapper, `silere-lock`, in
-nixos-config (`writeShellApplication`, with `util-linux`, `procps`, `coreutils`,
-`systemd`, Hyprland, Quickshell and hyprlock in `runtimeInputs`).
+never leave a session nobody can unlock, and there are never two lock clients at
+once. All three are the job of one small wrapper, `silere-lock`, in nixos-config
+(`writeShellApplication`, with `util-linux`, `procps`, `coreutils`, `systemd`,
+Hyprland and hyprlock in `runtimeInputs`, and `qs` passed by absolute path,
+since the lock runs with the shell's own `PATH`, which has no `qs`).
 
 Every lock goes through it. Idle, Super+L and suspend reach hypridle through
 `loginctl lock-session`, and hypridle's `lock_cmd` runs the wrapper. The menu's
@@ -185,42 +187,45 @@ time asleep would kill a healthy lock on resume.
 
 1. **Its own scope.** hypridle runs `lock_cmd` inside `hypridle.service`, which
    restarts on failure and whenever its settings change; a restart would kill
-   the lock with it and leave the lockdead screen with no fallback. So the
-   wrapper first re-runs itself with `systemd-run --user --scope --collect`,
-   guarded by a variable so it happens once. In scope mode `systemd-run`
-   returns the command's own status, so the outer run passes a marker path that
-   the inner run touches first: `systemd-run … || [ -e "$marker" ] ||` run the
-   rest unscoped. A user bus that cannot be reached must still produce a lock.
-   A user manager that stalls (a daemon-reload mid-switch) gets 2s, then the
-   wrapper locks unscoped; each side writes its flag ("started", "abandoned")
-   before reading the other's, so a scope that starts late sees it was given up
-   on and exits 75 instead of locking a second time.
-2. **One lock at a time.** Open the lock file on a dedicated descriptor
-   (`exec {lockfd}>"$XDG_RUNTIME_DIR/silere-lock.lock"`) and take `flock -n` on
-   it, held for the wrapper's lifetime; the wrapper lives as long as any lock
-   client it started. Every child is started with that descriptor closed
-   (`{lockfd}>&-`): `qs`
-   passes inherited descriptors on to everything it spawns, and some of those
-   outlive it (`TimeZoneWatch` runs `inotifywait -m` indefinitely; `fc-list`,
-   `BoundedProcess` terminators and the PAM helper can too), which would hold
-   the lock and make every later request skip. If the lock is already held, log
-   and exit 0. Also exit 0 if a hyprlock started outside the wrapper is running
+   the lock with it and leave the lockdead screen with no fallback. (The menu's
+   Lock arrives through Hyprland's `exec` instead, and gets a scope the same
+   way.) So the wrapper first re-runs itself with `systemd-run --user --scope
+   --collect`, guarded by a variable so it happens once. In scope mode
+   `systemd-run` returns the command's own status, so the outer run passes a
+   directory in which the inner run first writes a "started" flag: no flag means
+   `systemd-run` itself failed, and the rest runs unscoped. A user bus that
+   cannot be reached must still produce a lock. A user manager that stalls (a
+   daemon-reload mid-switch) gets 2s, then the wrapper locks unscoped; each side
+   writes its flag ("started", "abandoned") before reading the other's, so a
+   scope that starts late sees it was given up on and exits 75 instead of
+   locking a second time.
+2. **One lock at a time.** Open the lock file on a dedicated descriptor (`exec
+   {lockfd}>"$XDG_RUNTIME_DIR/silere-lock.lock"`) and take `flock -n` on it,
+   held for the wrapper's lifetime; the wrapper lives as long as any lock client
+   it started. Every child is started with that descriptor closed
+   (`{lockfd}>&-`): `qs` passes inherited descriptors on to everything it
+   spawns, and some of those can outlive it (`fc-list`, `BoundedProcess`
+   terminators, the PAM helper), which would hold the lock and make every later
+   request skip. If the lock is already held and the session reads locked, log
+   and exit 0; held while the session does not read locked, wait for it as step
+   5 describes. Also exit 0 if a hyprlock started outside the wrapper is running
    *and* `hyprctl locked` reads true; a hyprlock that lingers holding nothing
    must not disable locking.
 3. **Start the lock.** Create a fresh directory with `mktemp -d` under
-   `$XDG_RUNTIME_DIR` and name the ready file inside it. Run `qs -p
-   <package>/share/silere-shell/lock.qml` under `setsid` (its own process
-   group) and `systemd-cat -t silere-lock`, in the background, with the lock
-   descriptor closed and with `SILERE_LOCK_WRAPPER=1`, `SILERE_LOCK_READY_FILE`,
-   `NO_COLOR=1`, `QS_DISABLE_CRASH_HANDLER=1`, and `PATH` set to the shell's
-   own curated path (`silereShellPath` in `silere.nix`, exported through
+   `$XDG_RUNTIME_DIR` and name the ready file inside it. Run `qs
+   --no-detailed-logs -p <package>/share/silere-shell/lock.qml` (the flag keeps
+   Quickshell's PAM helper from relaying PAM's prompt text into the journal)
+   under `setsid` (its own process group) and `systemd-cat -t silere-lock`, in
+   the background, with the lock descriptor closed and with
+   `SILERE_LOCK_WRAPPER=1`, `SILERE_LOCK_READY_FILE`, `NO_COLOR=1`,
+   `QS_DISABLE_CRASH_HANDLER=1`, and `PATH` set to the shell's own curated path
+   (`silereShellPath` in `silere.nix`, exported through
    `local.hyprland.commands`), so `FontScan` finds `fc-list` and the lock's
    probes agree with the bar's. Quickshell's crash handler is compiled into the
    pinned `qs`: on a crash it forks a reporter window that lives until closed,
-   and a crash more than 10s after launch re-`execve`s a relaunch under the
-   same PID, so the wrapper would never see the exit. It has to be an
-   environment variable, because the handler starts before `lock.qml`'s pragmas
-   apply.
+   and a crash more than 10s after launch re-`execve`s a relaunch under the same
+   PID, so the wrapper would never see the exit. It has to be an environment
+   variable, because the handler starts before `lock.qml`'s pragmas apply.
 4. **Confirm it.** Wait up to 3s (30 iterations) for the ready file. If the
    process exits first, or the file never appears, stop it (TERM, up to 1s,
    KILL), kill what is left of its process group, `wait` for it to be gone, and
@@ -313,8 +318,8 @@ dev loop can show every state of the card without suspending the machine.
 Every lock is traceable in one place: `journalctl --user -t silere-lock`. The
 wrapper runs the lock process under `systemd-cat -t silere-lock` and logs its
 own decisions there too. Locks arrive by two routes with their own environments:
-idle, Super+L and suspend through hypridle, and the menu's Lock straight from
-the shell, so `silere-shell.service`'s environment applies to those.
+idle, Super+L and suspend through hypridle, and the menu's Lock through
+Hyprland's `exec`, so Hyprland's environment applies to those.
 
 Checked in the journal on 2026-10-26: Quickshell 0.3.1 writes every line to
 stdout at one priority, with ANSI colour codes unless `NO_COLOR` is set, and
@@ -335,9 +340,10 @@ prints the category in each line (`WARN scene: …`). So:
   warnings.
 - **Debug detail** (PAM message text, timings) is off by default. Set
   `QT_LOGGING_RULES="silere.lock.debug=true"` with `systemctl --user
-  set-environment`, then restart hypridle and, for the menu's route,
-  `silere-shell.service`; the wrapper passes it through, and Quickshell applies
-  `QT_LOGGING_RULES` to categories outside its own.
+  set-environment` and restart hypridle; the wrapper passes it through, and
+  Quickshell applies `QT_LOGGING_RULES` to categories outside its own. It
+  reaches the hypridle route only (idle, Super+L, suspend), not the menu's Lock,
+  which runs in Hyprland's environment.
 - **Never logged:** the typed password, its length, or any PAM response.
 
 The README gains a short "Debugging the lock" section with these commands, plus

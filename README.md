@@ -185,14 +185,13 @@ compositor has no session-lock support, 2 the lock ended without an unlock,
 3 it refused to lock because the wrapper did not start it, 255 a QML load
 error. Anything but 0 hands the session to hyprlock.
 
-Debug detail (PAM message text, timings) is off by default. To turn it on,
-run `systemctl --user set-environment QT_LOGGING_RULES="silere.lock.debug=true"`
-and restart hypridle, which starts the wrapper for idle, Super+L and suspend.
-The menu's Lock starts it from the shell's environment instead, so it picks
-the setting up only once `silere-shell.service` restarts too.
-`systemctl --user unset-environment QT_LOGGING_RULES` and the same restarts
-turn it off. The typed password, its length and PAM's
-responses are never logged.
+Debug detail (PAM message text, timings) is off by default. To turn it on, run
+`systemctl --user set-environment QT_LOGGING_RULES="silere.lock.debug=true"` and
+restart hypridle, which starts the wrapper for idle, Super+L and suspend; lock
+with Super+L to see them. The menu's Lock starts the wrapper through Hyprland
+instead, in Hyprland's environment, which that setting never reaches. `systemctl
+--user unset-environment QT_LOGGING_RULES` and another hypridle restart turn it
+off. The typed password, its length and PAM's responses are never logged.
 
 To work on the layout, preview it in a window instead of locking:
 `SILERE_LOCK_PREVIEW=1 nix develop . --command qs -p lock.qml`. Started any
