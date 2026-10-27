@@ -22,6 +22,9 @@ On top of upstream, the fork carries its own features:
 - a wallpaper picker
 - adaptive frosted glass that follows a sample of the wallpaper
 - a sound settings section
+- a lock screen, `lock.qml`: its own short-lived process beside `shell.qml`,
+  started for each lock by nixos-config's `silere-lock` wrapper, with hyprlock
+  as the fallback
 - packaging hooks that allow for some declarative configuration
 
 All this while keeping upstream's token architecture and restraint intact.
@@ -159,3 +162,33 @@ works until `nixos-config`'s silere module renders the same set into
 `GeneratedDefaults.qml`. So the fork push, the silere-module change, and
 the re-lock have to reach the machine in the same rebuild. Never
 piecemeal.
+
+## Debugging the lock
+
+Every lock goes through nixos-config's `silere-lock` wrapper, which logs its
+own decisions and the lock process's output under one journal tag:
+
+- `journalctl --user -t silere-lock` shows each lock: the wrapper's decisions,
+  the lock process's `silere.lock` lines, and hyprlock's output after a
+  fallback.
+- `journalctl --user -t silere-lock -p warning` lists only the wrapper's
+  warnings: every fallback to hyprlock, with its reason, and every exit other
+  than an unlock. The lock process's own lines all arrive at one priority, so
+  filter those with `-g WARN`.
+- `journalctl --user -u hypridle.service` shows the requests that started a
+  lock (idle, Super+L, suspend, and the menu's Lock).
+
+The lock's exit status says how it ended: 0 the user unlocked, 1 the
+compositor has no session-lock support, 2 the lock ended without an unlock,
+3 it refused to lock because the wrapper did not start it, 255 a QML load
+error. Anything but 0 hands the session to hyprlock.
+
+Debug detail (PAM message text, timings) is off by default. To turn it on,
+run `systemctl --user set-environment QT_LOGGING_RULES="silere.lock.debug=true"`
+and restart hypridle; `systemctl --user unset-environment QT_LOGGING_RULES`
+and another restart turn it off. The typed password, its length and PAM's
+responses are never logged.
+
+To work on the layout, preview it in a window instead of locking:
+`SILERE_LOCK_PREVIEW=1 nix develop . --command qs -p lock.qml`. Started any
+other way outside the wrapper, `lock.qml` refuses to lock and exits 3.
