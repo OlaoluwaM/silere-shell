@@ -62,7 +62,10 @@ Singleton {
     }
 
     // a plain object also answers inherited names such as "toString"
+    // only from the open menu: its tiles stay on screen through the card's exit fade, and a tap
+    // there after Esc must not start an action the user just walked away from
     function pick(kind: string): void {
+        if (root.stage !== "menu" || LockState.unlocking) return
         if (!Object.prototype.hasOwnProperty.call(root.actions, kind)) return
         root._kind = kind
         console.info(LockState.log, "silere-shell: power action picked:", kind)
