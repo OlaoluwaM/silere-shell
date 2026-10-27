@@ -3,6 +3,31 @@
 Deferred work worth revisiting. Each entry records why it waited, so it can be
 picked up without redoing the analysis.
 
+## Binding loop on the notification stack's `visualHeight` (top priority)
+
+Break the binding loop Qt reports on `cardCol.visualHeight` in
+`modules/notifications/NotificationPopups.qml`:
+
+```text
+WARN scene: QML Column at @modules/notifications/NotificationPopups.qml[345:17]:
+Binding loop detected for property "visualHeight":
+qs:@/qs/modules/notifications/NotificationPopups.qml:349:21
+```
+
+Recorded on 2026-10-26 as top priority. The user journal holds 1,584 of these
+between 2026-10-06 and 2026-10-26 (`journalctl --user -u silere-shell.service
+-g visualHeight`), and they bury every other shell message there, which matters
+more once the lock screen relies on that journal for debugging.
+
+`visualHeight` arrived with 94d36642 ("fix(notifications): preserve stack motion
+through card changes", 2026-09-19). It reads the Column's `implicitHeight` and
+each loaded slot's `visualY + height`, and feeds both the viewport's `height` and
+`_cardScroll.contentHeight`. The cycle has not been traced yet; the likeliest
+path runs from the viewport or flickable size back into the slots' heights or the
+Column's layout, but that is unverified. Find the edge Qt flags before changing
+anything, and keep the commit's motion fix (a moving card stays visible until it
+lands).
+
 ## Notification actions in history
 
 Keep a notification's action buttons usable from the Recent page while the
