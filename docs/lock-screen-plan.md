@@ -164,9 +164,12 @@ nixos-config (`writeShellApplication`, with `util-linux`, `procps`, `coreutils`,
 
 Every lock goes through it. Idle, Super+L and suspend reach hypridle through
 `loginctl lock-session`, and hypridle's `lock_cmd` runs the wrapper. The menu's
-Lock entries do the same: `lockCommand` renders `loginctl lock-session`, so the
-menu takes the same path and environment as every other lock instead of
-starting processes through Hyprland's `exec` with Hyprland's environment.
+Lock entries run the wrapper directly: `lockCommand` renders the path of a
+small `silere-lock-request` script that execs it. Going through `loginctl
+lock-session` instead would make the menu depend on hypridle being up and
+subscribed, and logind answers that request by emitting a signal, so its
+success never says whether anything locked. The wrapper's flock keeps the two
+routes from ever making a second lock.
 
 The wrapper runs under `writeShellApplication`'s `set -euo pipefail`, so every
 command that may fail is captured rather than allowed to abort it: `rc=0; wait
@@ -392,8 +395,8 @@ fork's steps. In the other order, the packaged shell lacks the new keys and
    in `modules/nixos/hyprland.nix`, next to the `hyprlock` entry.
 10. Lock safety, in one commit because each part needs the others: the
     `silere-lock` wrapper in its `"hyprlock"` form (scope, flock, hyprlock
-    check), used by hypridle's `lock_cmd`; `lockCommand` rendered as `loginctl
-    lock-session`; `silereShellPath` exported through `local.hyprland.commands`;
+    check), used by hypridle's `lock_cmd`; `lockCommand` rendered as the path
+    of `silere-lock-request`, which execs the wrapper; `silereShellPath` exported through `local.hyprland.commands`;
     `misc:allow_session_lock_restore`; `inhibit_sleep = 3`; logind's
     `InhibitDelayMaxSec`. Rewrite the `lock_cmd` and `inhibit_sleep` comments in
     `hypridle.nix`, including "Hyprland rejects duplicate session-lock clients",
@@ -446,10 +449,9 @@ all fork work.
 - **logind option.** `services.logind.settings.Login.InhibitDelayMaxSec` was
   seen in store copies of the 26.05 module; confirm it against the pinned
   nixpkgs in step 10.
-- **Menu Lock while hypridle is down.** `loginctl lock-session` does nothing
-  then (hypridle restarts after 10s). Super+L already shares that dependency;
-  decide in step 10 whether `lockCommand` adds a guard (`systemctl --user
-  is-active -q hypridle.service || exec silere-lock`).
+- **Menu Lock while hypridle is down.** Resolved: the menu runs the wrapper
+  directly (see Lock integrity), so it never depends on hypridle. Super+L still
+  goes through `loginctl lock-session` and so still shares that dependency.
 - **Lockout.** The lockout message shows only when PAM returns `MaxTries`. NixOS
   sets no attempt limit by default, so it stays hidden unless `pam_faillock` is
   enabled.
