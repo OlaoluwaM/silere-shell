@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import "../../services"
 import "../../config"
+import "../../services/PowerActions.js" as PowerActions
 
 // Suspend, Reboot and Power off from the lock screen. The lock drives its own countdown
 // rather than borrowing the desktop's PowerActionState: that one belongs to the shell's
@@ -40,12 +41,8 @@ Singleton {
     // kept through close so the card's exit fade still reads the action it was showing
     readonly property var action: root.actions[root._kind] ?? null
 
-    // the desktop card's words and glyphs, so the two read the same
-    readonly property var actions: ({
-        suspend:  { label: "Suspend",   glyph: "󰒲", phrase: "Suspending",   failTitle: "Suspend failed" },
-        reboot:   { label: "Reboot",    glyph: "󰑐", phrase: "Rebooting",    failTitle: "Reboot failed" },
-        poweroff: { label: "Power off", glyph: "󰐥", phrase: "Powering off", failTitle: "Shut down failed" }
-    })
+    // the desktop card's words and glyphs, from the table both read
+    readonly property var actions: PowerActions.table(["suspend", "reboot", "poweroff"])
 
     signal started()
 

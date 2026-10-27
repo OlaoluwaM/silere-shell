@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "../config"
+import "PowerActions.js" as PowerActions
 
 // State for PowerActionCard (modules/power). Log out, Reboot and Power off run behind a
 // countdown on a centered card, and the countdown is the confirmation: nothing has run
@@ -27,11 +28,8 @@ PopupState {
     property bool _armed: false
     property real _lastTick: 0
 
-    readonly property var _actions: ({
-        logout:   { label: "Log out",   glyph: "󰍃", phrase: "Logging out",  failTitle: "Log out failed" },
-        reboot:   { label: "Reboot",    glyph: "󰑐", phrase: "Rebooting",    failTitle: "Reboot failed" },
-        poweroff: { label: "Power off", glyph: "󰐥", phrase: "Powering off", failTitle: "Shut down failed" }
-    })
+    // shared with the lock's power card, which runs in a process without this singleton
+    readonly property var _actions: PowerActions.table(["logout", "reboot", "poweroff"])
 
     signal started()
 
