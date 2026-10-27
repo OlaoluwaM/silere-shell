@@ -230,9 +230,9 @@ time asleep would kill a healthy lock on resume.
    it at once), and if the session still reads locked, fall back to hyprlock as
    in step 4. Any other exit, including a crash while locked (Hyprland then
    shows its lockdead screen), falls back the same way, and hyprlock takes over
-   the dead lock because restore is on. A lock request that arrives during that
-   last second finds the lock still held and is dropped; the session is
-   unlocking at that moment by the user's own action.
+   the dead lock because restore is on. A lock request that arrives while a
+   lock is ending finds the flock held and the session reading unlocked, so it
+   waits up to 5s for the flock and then locks, instead of being dropped.
 6. **Stay with hyprlock.** hyprlock runs as a supervised child under
    `systemd-cat -t silere-lock` (bare when the journal does not answer a probe,
    since `systemd-cat` exits without running its command when it cannot open
@@ -244,10 +244,12 @@ time asleep would kill a healthy lock on resume.
    is first seen locked the session is checked five times a second, so a quick
    unlock is not mistaken for a client that never locked.
 
-`hyprctl locked` runs under `timeout 2`, the one wait on the clock, because a
-hung compositor must not hang the wrapper; a missed answer fails safe (unlocked
-before a lock starts, still locked after one ends). The wrapper's own log lines
-fall back to stderr, and a failed or broken write there never aborts it.
+`hyprctl locked` runs under `timeout 2`, because a hung compositor must not
+hang the wrapper; a missed answer fails safe (unlocked before a lock starts,
+still locked after one ends), and only an answered "false" ever stops a client.
+Every log write and the journal probe get `timeout 1`, so a hung journal cannot
+hold up a lock. The wrapper's own log lines fall back to stderr, and a failed or
+broken write there never aborts it.
 
 Supporting settings, all in nixos-config:
 
