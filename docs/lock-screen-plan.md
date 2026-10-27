@@ -139,10 +139,11 @@ session is unlocked:
   runs during migration before any other write check. Migration still happens,
   in memory.
 - **Only the services it needs.** Singletons start on first use. The lock draws
-  with `Theme`, `Settings`, `ShellSettings`, `Battery`, `FontScan` and
-  `DateTime`, which pull in about 22 in all, including `Idle`, `MenuState`,
-  `CalendarState`, `OverviewState`, the Hyprland compositor backend, and the
-  `SystemTools` and `FontScan` probe processes. Those are allowed: none claims a
+  with `Theme`, `Settings`, `ShellSettings`, `Battery` and `FontScan`, which pull
+  in about 20 in all, including `Idle`, `MenuState`, the Hyprland compositor
+  backend, and the `SystemTools` and `FontScan` probe processes. The clock
+  formats through `services/ClockFormat.js`, not `DateTime`, whose catch-up
+  watchers would start `Network` and `TimeZoneWatch` for nothing. Those are allowed: none claims a
   session-wide resource. Their IPC handlers sit on the lock's own instance
   socket, and nixos-config's IPC calls target `shell.qml`. Forbidden: anything
   that owns a session-wide D-Bus name or service, such as the notification
