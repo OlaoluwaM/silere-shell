@@ -132,6 +132,9 @@ outside issues or pull requests.
   `cardCol.implicitHeight`, as upstream's effectively did: following its own
   height would feed `visualHeight` back into itself through the slots'
   visibility. Keep both on an import.
+- `modules/common/ActionButton.qml`: a `fontFamily` input for the label,
+  defaulting to `Settings.font`, so the lock's power card can draw its buttons
+  in the lock's font. Every other caller leaves it alone; keep it on an import.
 - `qmldir` files, `BarContent`'s widget registry, `barWidgetMeta`, and the
   zone-order defaults: unions — keep both sides' entries.
 - `scripts/check.sh` keeps sequential smoke cases and their shared launcher.

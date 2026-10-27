@@ -7,6 +7,8 @@ ButtonBase {
     property string label: ""
     property bool emphasis: false
     property real radius: Theme.radiusField
+    // the label's face; the glyph keeps the shell's font, which carries the icons
+    property string fontFamily: Settings.font
 
     accessibleName: label
 
@@ -68,6 +70,7 @@ ButtonBase {
                 visible: root.label.length > 0
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.label
+                font.family: root.fontFamily
                 color: root.emphasis ? Theme.text
                     : root.hovered
                         ? Theme.mix(Theme.text, root.accentColor, 0.07)

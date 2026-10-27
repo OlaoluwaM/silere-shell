@@ -51,6 +51,7 @@ Item {
             ShellText {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: _tile._action.label
+                font.family: LockState.textFamily
                 color: Theme.text
                 font.pixelSize: Settings.fontLabel
             }
@@ -147,6 +148,7 @@ Item {
 
             ShellText {
                 text: "Power"
+                font.family: LockState.textFamily
                 color: Theme.text
                 font.pixelSize: Settings.fontSize
                 font.weight: Font.DemiBold
@@ -168,6 +170,7 @@ Item {
 
         PowerCountdownBody {
             id: _body
+            fontFamily: LockState.textFamily
             x: _card.pad
             y: _card.pad
             width: _card.width - _card.pad * 2

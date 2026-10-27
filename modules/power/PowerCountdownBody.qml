@@ -13,6 +13,9 @@ Column {
     property string message: ""
     property real progress: 1.0
     property string confirmLabel: ""
+    // the words' face: the shell's by default, the lock's on the lock screen. The glyph keeps
+    // the shell's font, which carries the icons
+    property string fontFamily: Settings.font
 
     signal cancelled()
     signal confirmed()
@@ -31,6 +34,7 @@ Column {
         ShellText {
             anchors.verticalCenter: parent.verticalCenter
             text: root.title
+            font.family: root.fontFamily
             color: Theme.text
             font.pixelSize: Settings.fontSize
             font.weight: Font.DemiBold
@@ -40,6 +44,7 @@ Column {
     ShellText {
         width: parent.width
         text: root.message
+        font.family: root.fontFamily
         wrapMode: Text.Wrap
         color: Theme.withAlpha(Theme.subtext, 0.86)
         font.pixelSize: Settings.fontLabel
@@ -74,10 +79,12 @@ Column {
 
             ActionButton {
                 label: "Cancel"
+                fontFamily: root.fontFamily
                 onTriggered: root.cancelled()
             }
             ActionButton {
                 label: root.confirmLabel
+                fontFamily: root.fontFamily
                 emphasis: true
                 onTriggered: root.confirmed()
             }

@@ -15,8 +15,7 @@ Item {
 
     // the field never waits for the font to settle, as the clock does: it is the one thing that
     // must work at once, so it starts in the default face and takes the chosen one when known
-    readonly property string family: LockState.fontFamily.length > 0
-        ? LockState.fontFamily : LockState.defaultFamily
+    readonly property string family: LockState.textFamily
     // the text's inset from the field's edge, which the name above lines up with
     readonly property int textInset: 16
     readonly property int textSize: LockState.px(15)

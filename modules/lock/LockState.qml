@@ -67,6 +67,9 @@ Singleton {
     // to another face while the lock is up
     property string fontFamily: ""
     readonly property bool fontReady: root.fontFamily.length > 0
+    // for text that must show at once rather than wait for the font to settle (the field, the
+    // power card): the default face until then
+    readonly property string textFamily: root.fontReady ? root.fontFamily : root.defaultFamily
 
     // a failed or absent scan counts as settled; FontScan only sets scanned on success and
     // takes up to 20s to time out, which is far too long to hold the clock back
