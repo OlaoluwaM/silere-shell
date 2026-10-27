@@ -80,8 +80,10 @@ Item {
         anchors.bottom: parent.bottom
         anchors.bottomMargin: root.edge
         visible: root.primary && ShellSettings.lockPowerButton
-        // the card's outside tap only listens, so a press here would also reach the button
-        enabled: !LockPower.open
+        // the card's outside tap only listens, so a press here would also reach the button.
+        // Out of reach while a password is being checked too: a success then unlocks, and a
+        // power action started meanwhile would run on an unlocked desktop with its card gone
+        enabled: !LockPower.open && !LockState.checking
         onTriggered: LockPower.openMenu()
     }
 

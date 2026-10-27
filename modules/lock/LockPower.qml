@@ -48,7 +48,7 @@ Singleton {
     signal started()
 
     function openMenu(): void {
-        if (root.open || LockState.unlocking) return
+        if (root.open || LockState.unlocking || LockState.checking) return
         root._stage = "menu"
     }
 
@@ -85,6 +85,8 @@ Singleton {
     }
 
     function _run(): void {
+        // the unlock ends every stage; a command that slipped in after it would outlive the lock
+        if (LockState.unlocking) return
         // --no-ask-password: polkit's prompt would open on the desktop behind the lock, where
         // nobody can answer it, and systemctl would wait on it with the card stuck running
         const command = root.live ? ["systemctl", "--no-ask-password", root._kind]
