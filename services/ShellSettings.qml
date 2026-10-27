@@ -777,7 +777,9 @@ Singleton {
 
     Component.onDestruction: {
         _store.stop()
-        // never overwrite the file with defaults never confirmed from disk
+        // never overwrite the file with defaults never confirmed from disk. A read-only run
+        // (the lock) never writes at all, and its config dir is never readied, so the flush
+        // below is already refused and the warning would fire on every exit
         if (!root._loaded || !_store.writeAllowed || ConfigStore.readOnly) return
         if (!ConfigStore.ready)
             console.warn("silere-shell: saving settings before config dir is ready:",

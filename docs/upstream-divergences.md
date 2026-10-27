@@ -99,7 +99,8 @@ outside issues or pull requests.
   disk write of the settings layer: `ConfigStore.ensureDirectory`,
   `hardenFile` and `pruneBackups`, `PersistedFile.flush`, and
   `ShellSettings._backupSettingsText`, which returns true so a migration
-  carries on in memory. Re-apply the gate to any writer an import adds to
+  carries on in memory, plus `ShellSettings`' destruction-time save, which
+  returns early. Re-apply the gate to any writer an import adds to
   those files, or the lock rewrites the user's settings.
 - `config/Settings.qml` and `modules/menu/settings/SettingsMaintenanceSection.qml`:
   `Settings.lockCommand` runs `ShellSettings.lockCommand` as `["sh", "-c", ...]`
