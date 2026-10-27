@@ -141,7 +141,7 @@ Column {
         }
         ToggleRow {
             glyph: "󰌾"; label: "Power button"
-            description: "Suspend, restart and shut down while locked"
+            description: "Suspend, reboot and power off while locked"
             key: "lockPowerButton"
         }
     }

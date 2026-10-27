@@ -30,11 +30,10 @@ import "config"
 // or Niri backend, HyprDispatch, SafeText, Monitors and Idle, which the field already
 // reaches; IconResolver, for the wallpaper's file URL (it touches DesktopEntries only when
 // asked for an app icon, which the lock never does); and Battery, which pulls in MenuState
-// and the small state singletons it reads. The clock formats through ClockFormat.js rather
-// than DateTime, whose catch-up watchers would start Network and TimeZoneWatch here for
-// nothing. Their IPC handlers sit on this
-// instance's own socket, and every write the settings layer would make is gated by the
-// read-only pragma above. Never reach anything that owns a session-wide D-Bus name or
+// and the small state singletons it reads. Their IPC handlers sit on this instance's own
+// socket, and every write the settings layer would make is gated by the read-only pragma
+// above. The clock formats through ClockFormat.js rather than DateTime, whose catch-up
+// watchers would start Network and TimeZoneWatch here for nothing. Never reach anything that owns a session-wide D-Bus name or
 // service (the notification server, the tray watcher, MPRIS) or another session-wide
 // resource; Recording, for one, creates its state directory whenever the bar shows its
 // widget.
@@ -42,7 +41,9 @@ ShellRoot {
     id: root
 
     // the wrapper alone sets SILERE_LOCK_WRAPPER; a bare `qs -p lock.qml` in the dev loop
-    // would otherwise lock the real session, and nothing can unlock it without the PAM service
+    // would otherwise lock the real session, and nothing can unlock it without the PAM service.
+    // Any value counts as sandboxed, not just the "1" other readers test: refusing is the safe
+    // way to read a value someone set by hand
     readonly property bool sandboxed: String(Quickshell.env("SILERE_SANDBOX") || "").length > 0
     readonly property bool allowed: Quickshell.env("SILERE_LOCK_WRAPPER") === "1" && !root.sandboxed
     // wins over everything: the surface content in a plain window, and nothing locks
