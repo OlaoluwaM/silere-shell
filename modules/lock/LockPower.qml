@@ -2,8 +2,8 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
-import "../../services"
 import "../../config"
+import "../../services"
 import "../../services/PowerActions.js" as PowerActions
 
 // Suspend, Reboot and Power off from the lock screen. The lock drives its own countdown

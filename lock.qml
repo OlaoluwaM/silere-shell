@@ -33,10 +33,10 @@ import "config"
 // and the small state singletons it reads. Their IPC handlers sit on this instance's own
 // socket, and every write the settings layer would make is gated by the read-only pragma
 // above. The clock formats through ClockFormat.js rather than DateTime, whose catch-up
-// watchers would start Network and TimeZoneWatch here for nothing. Never reach anything that owns a session-wide D-Bus name or
-// service (the notification server, the tray watcher, MPRIS) or another session-wide
-// resource; Recording, for one, creates its state directory whenever the bar shows its
-// widget.
+// watchers would start Network and TimeZoneWatch here for nothing. Never reach anything
+// that owns a session-wide D-Bus name or service (the notification server, the tray
+// watcher, MPRIS) or another session-wide resource; Recording, for one, creates its state
+// directory whenever the bar shows its widget.
 ShellRoot {
     id: root
 

@@ -181,6 +181,7 @@ Item {
             glyph: _card.action ? _card.action.glyph : ""
             title: !_card.action ? "" : _body._failed ? _card.action.failTitle : _card.action.label
             message: !_card.action ? ""
+                // the words the desktop sends (runOrNotify in services/SystemTools) when a power action fails
                 : _body._failed ? "It may require authorization or be blocked by a running task."
                 : _body._counting ? _card.action.phrase + " in " + LockPower.remaining
                     + (LockPower.remaining === 1 ? " second." : " seconds.")
