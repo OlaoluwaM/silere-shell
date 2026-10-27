@@ -188,8 +188,9 @@ time asleep would kill a healthy lock on resume.
    rest unscoped. A user bus that cannot be reached must still produce a lock.
 2. **One lock at a time.** Open the lock file on a dedicated descriptor
    (`exec {lockfd}>"$XDG_RUNTIME_DIR/silere-lock.lock"`) and take `flock -n` on
-   it, held for the wrapper's lifetime and through an `exec` of hyprlock. Every
-   other child is started with that descriptor closed (`{lockfd}>&-`): `qs`
+   it, held for the wrapper's lifetime; the wrapper lives as long as any lock
+   client it started. Every child is started with that descriptor closed
+   (`{lockfd}>&-`): `qs`
    passes inherited descriptors on to everything it spawns, and some of those
    outlive it (`TimeZoneWatch` runs `inotifywait -m` indefinitely; `fc-list`,
    `BoundedProcess` terminators and the PAM helper can too), which would hold
@@ -214,15 +215,17 @@ time asleep would kill a healthy lock on resume.
 4. **Confirm it.** Wait up to 3s (30 iterations) for the ready file. If the
    process exits first, or the file never appears, stop it (TERM, up to 1s,
    KILL), kill what is left of its process group, `wait` for it to be gone, and
-   only then `exec systemd-cat -t silere-lock hyprlock`, which keeps both the
-   PID and the lock descriptor and logs the fallback under the same tag.
+   only then start hyprlock (step 6).
    Hyprland ignores a new lock client while an earlier lock request is still
    unconfirmed, so starting hyprlock before the old process has died could drop
    its request and leave a lockdead screen nobody can clear. `hyprctl locked` is
    no substitute for the ready file: it turns true as soon as any client
    requests a lock, before a frame, and stays true after that client dies.
 5. **Wait for the end.** Once ready, wait for the process and capture its
-   status; then kill what is left of its process group. Exit 0 means the user
+   status; then kill what is left of its process group. The wait polls rather
+   than blocks: a client still running once the session has read unlocked on
+   two checks a second apart is stopped and counts as an unlock, since it
+   would otherwise hold the flock and silently turn every later lock off. Exit 0 means the user
    unlocked; confirm it by polling `hyprctl locked` for up to 1s (unlock clears
    it at once), and if the session still reads locked, fall back to hyprlock as
    in step 4. Any other exit, including a crash while locked (Hyprland then
@@ -230,6 +233,21 @@ time asleep would kill a healthy lock on resume.
    the dead lock because restore is on. A lock request that arrives during that
    last second finds the lock still held and is dropped; the session is
    unlocking at that moment by the user's own action.
+6. **Stay with hyprlock.** hyprlock runs as a supervised child under
+   `systemd-cat -t silere-lock` (bare when the journal does not answer a probe,
+   since `systemd-cat` exits without running its command when it cannot open
+   a stream). The wrapper waits as in step 5. A hyprlock that ends without an
+   unlock (non-zero, or the session still reads locked) is started again a
+   second later, up to five times, so a crash leaves the lockdead screen for a
+   second, not until the next lock request. One that never makes its lock
+   request within about 10s is stopped and counted as a failed start. Until it
+   is first seen locked the session is checked five times a second, so a quick
+   unlock is not mistaken for a client that never locked.
+
+`hyprctl locked` runs under `timeout 2`, the one wait on the clock, because a
+hung compositor must not hang the wrapper; a missed answer fails safe (unlocked
+before a lock starts, still locked after one ends). The wrapper's own log lines
+fall back to stderr, and a failed or broken write there never aborts it.
 
 Supporting settings, all in nixos-config:
 
@@ -245,8 +263,8 @@ Supporting settings, all in nixos-config:
   inhibitor is a delay inhibitor capped by it (systemd's default is 5s), and a
   cold Quickshell start, plus the 3s confirmation window and a hyprlock
   fallback, can exceed 5s.
-- In `"hyprlock"` mode the wrapper does steps 1 and 2 and then `exec`s hyprlock
-  directly, so restore never lets two hyprlocks meet there either.
+- In `"hyprlock"` mode the wrapper does steps 1, 2 and 6, so restore never lets
+  two hyprlocks meet there either.
 
 ## Power on the lock
 
