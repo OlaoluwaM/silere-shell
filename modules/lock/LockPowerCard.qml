@@ -97,7 +97,11 @@ Item {
 
         readonly property int pad: 16
         readonly property var action: LockPower.action
-        readonly property bool _menu: LockPower.stage === "menu"
+        // the stage the card last showed: closing empties LockPower.stage at once, and the exit
+        // fade must not redraw the card as some other stage on its way out. Set by hand, not
+        // bound, so emptying the stage can never reach it
+        property string _shown: ""
+        readonly property bool _menu: _card._shown === "menu"
         property real progress: 1.0
 
         width: Math.round(Math.max(260, Math.min(340, root.width - 96)))
@@ -129,13 +133,19 @@ Item {
         }
 
         // an output plugged in mid-countdown builds its card after started() has gone by
-        Component.onCompleted: if (LockPower.stage === "countdown") _card._startDrain()
+        Component.onCompleted: {
+            _card._shown = LockPower.stage
+            if (LockPower.stage === "countdown") _card._startDrain()
+        }
 
         Connections {
             target: LockPower
             function onStarted() { _card._startDrain() }
             // the bar holds where it stopped once the countdown ends, either way
-            function onStageChanged() { if (LockPower.stage !== "countdown") _drain.stop() }
+            function onStageChanged() {
+                if (LockPower.stage !== "countdown") _drain.stop()
+                if (LockPower.stage.length > 0) _card._shown = LockPower.stage
+            }
             // without the drain the bar steps with the seconds instead
             function onRemainingChanged() {
                 if (ShellSettings.reduceMotion)
@@ -163,7 +173,8 @@ Item {
                 width: parent.width
                 spacing: 8
 
-                readonly property real _tileWidth: (_tiles.width - _tiles.spacing * 2) / 3
+                // whole pixels, or the second and third tiles' outlines land between two
+                readonly property real _tileWidth: Math.floor((_tiles.width - _tiles.spacing * 2) / 3)
 
                 Tile { kind: "suspend"; width: _tiles._tileWidth }
                 Tile { kind: "reboot"; width: _tiles._tileWidth }
@@ -180,8 +191,8 @@ Item {
             // nothing to take back once the command runs, and a second run would race the first
             enabled: LockPower.stage !== "running"
 
-            readonly property bool _failed: LockPower.stage === "failed"
-            readonly property bool _counting: LockPower.stage === "countdown"
+            readonly property bool _failed: _card._shown === "failed"
+            readonly property bool _counting: _card._shown === "countdown"
 
             glyph: _card.action ? _card.action.glyph : ""
             title: !_card.action ? "" : _body._failed ? _card.action.failTitle : _card.action.label
