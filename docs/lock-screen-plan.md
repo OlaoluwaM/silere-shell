@@ -1,7 +1,8 @@
 # Lock screen: design and plan
 
 Status: design locked on 2026-10-26; architecture reworked the same day after
-five adversarial reviews; implementation not started. Work happens on the
+five adversarial reviews; steps 1 to 11 implemented on 2026-10-27 and reviewed
+since, step 12 and the manual QA still to come. Work happens on the
 `lock-screen` branch here and on a matching branch in nixos-config. The
 interactive mockup is the "Silere Lock Screen" canvas
 (<https://claude.ai/artifact/NQR3Fy1xRWXEJahSaHNo7P>, private to the maintainer).
@@ -139,16 +140,16 @@ session is unlocked:
   runs during migration before any other write check. Migration still happens,
   in memory.
 - **Only the services it needs.** Singletons start on first use. The lock draws
-  with `Theme`, `Settings`, `ShellSettings`, `Battery` and `FontScan`, which pull
-  in about 20 in all, including `Idle`, `MenuState`, the Hyprland compositor
-  backend, and the `SystemTools` and `FontScan` probe processes. The clock
-  formats through `services/ClockFormat.js`, not `DateTime`, whose catch-up
-  watchers would start `Network` and `TimeZoneWatch` for nothing. Those are allowed: none claims a
-  session-wide resource. Their IPC handlers sit on the lock's own instance
-  socket, and nixos-config's IPC calls target `shell.qml`. Forbidden: anything
-  that owns a session-wide D-Bus name or service, such as the notification
-  server, the tray watcher or MPRIS. Step 4 audits the graph and records the
-  allowed list in `lock.qml`'s header comment.
+  with `Theme`, `Settings`, `ShellSettings`, `Battery` and `FontScan`, which
+  pull in about 20 in all, including `Idle`, `MenuState`, the Hyprland
+  compositor backend, and the `SystemTools` and `FontScan` probe processes.
+  Those are allowed: none claims a session-wide resource. Their IPC handlers sit
+  on the lock's own instance socket, and nixos-config's IPC calls target
+  `shell.qml`. The clock formats through `services/ClockFormat.js`, not
+  `DateTime`, whose catch-up watchers would start `Network` and `TimeZoneWatch`
+  for nothing. Forbidden: anything that owns a session-wide D-Bus name or
+  service, such as the notification server, the tray watcher or MPRIS. Step 4
+  audits the graph and records the allowed list in `lock.qml`'s header comment.
 - **Font settling never blocks the field.** `FontScan` runs `fc-list`
   asynchronously, never sets `scanned` if the scan fails, and can take up to 20s
   to time out. The lock waits at most about 1s for it, counts a failure as
@@ -231,18 +232,18 @@ time asleep would kill a healthy lock on resume.
    requests a lock, before a frame, and stays true after that client dies.
 5. **Wait for the end.** Once ready, wait for the process and capture its
    status; then kill what is left of its process group. The wait polls rather
-   than blocks: a client still running once the session has read unlocked on
-   two checks a second apart is stopped and counts as an unlock, since it
-   would otherwise hold the flock and silently turn every later lock off. Exit 0 means the user
-   unlocked; confirm it by polling `hyprctl locked` for up to 1s (unlock clears
-   it at once), and if the session still reads locked, fall back to hyprlock as
-   in step 4. Any other exit, including a crash while locked (Hyprland then
-   shows its lockdead screen), falls back the same way, and hyprlock takes over
-   the dead lock because restore is on. A lock request that arrives while a
-   lock is ending finds the flock held and the session reading unlocked, so it
-   keeps waiting for the flock and then locks, instead of being dropped. It
-   stops waiting only if the session reads locked meanwhile, which means a
-   lock has it.
+   than blocks: a client still running once the session has read unlocked on two
+   checks a second apart is stopped and counts as an unlock, since it would
+   otherwise hold the flock and silently turn every later lock off. Exit 0 means
+   the user unlocked; confirm it by polling `hyprctl locked` for up to 1s
+   (unlock clears it at once), and if the session still reads locked, fall back
+   to hyprlock as in step 4. Any other exit, including a crash while locked
+   (Hyprland then shows its lockdead screen), falls back the same way, and
+   hyprlock takes over the dead lock because restore is on. A lock request that
+   arrives while a lock is ending finds the flock held and the session reading
+   unlocked, so it keeps waiting for the flock and then locks, instead of being
+   dropped. It stops waiting only if the session reads locked meanwhile, which
+   means a lock has it.
 6. **Stay with hyprlock.** hyprlock runs as a supervised child under
    `systemd-cat -t silere-lock` (bare when the journal does not answer a probe,
    since `systemd-cat` exits without running its command when it cannot open
@@ -311,8 +312,9 @@ dev loop can show every state of the card without suspending the machine.
 
 Every lock is traceable in one place: `journalctl --user -t silere-lock`. The
 wrapper runs the lock process under `systemd-cat -t silere-lock` and logs its
-own decisions there too. Every lock arrives through hypridle, so one environment
-applies to all of them.
+own decisions there too. Locks arrive by two routes with their own environments:
+idle, Super+L and suspend through hypridle, and the menu's Lock straight from
+the shell, so `silere-shell.service`'s environment applies to those.
 
 Checked in the journal on 2026-10-26: Quickshell 0.3.1 writes every line to
 stdout at one priority, with ANSI colour codes unless `NO_COLOR` is set, and
@@ -333,8 +335,9 @@ prints the category in each line (`WARN scene: …`). So:
   warnings.
 - **Debug detail** (PAM message text, timings) is off by default. Set
   `QT_LOGGING_RULES="silere.lock.debug=true"` with `systemctl --user
-  set-environment` and restart hypridle; the wrapper passes it through, and
-  Quickshell applies `QT_LOGGING_RULES` to categories outside its own.
+  set-environment`, then restart hypridle and, for the menu's route,
+  `silere-shell.service`; the wrapper passes it through, and Quickshell applies
+  `QT_LOGGING_RULES` to categories outside its own.
 - **Never logged:** the typed password, its length, or any PAM response.
 
 The README gains a short "Debugging the lock" section with these commands, plus
@@ -360,7 +363,9 @@ fork's steps. In the other order, the packaged shell lacks the new keys and
    counts them there too), and the two rows on the Interface page (steps 5 to 7
    add the reads), with the upstream-neutral defaults above. Add
    `pkgs.jetbrains-mono` to the dev shell's fonts in `flake.nix`, so `check.sh`
-   measures the real default face.
+   measures the real default face. Deferred: at the fork's pinned nixpkgs that
+   package builds from source and one of its fixed-output inputs fails its
+   hash, so it waits for a nixpkgs bump.
 3. The read-only settings mode (`SILERE_SETTINGS_READ_ONLY=1`) and its gates
    in `PersistedFile.flush`, `ConfigStore` and
    `ShellSettings._backupSettingsText`.
@@ -397,7 +402,8 @@ fork's steps. In the other order, the packaged shell lacks the new keys and
 10. Lock safety, in one commit because each part needs the others: the
     `silere-lock` wrapper in its `"hyprlock"` form (scope, flock, hyprlock
     check), used by hypridle's `lock_cmd`; `lockCommand` rendered as the path
-    of `silere-lock-request`, which execs the wrapper; `silereShellPath` exported through `local.hyprland.commands`;
+    of `silere-lock-request`, which execs the wrapper; `silereShellPath`
+    exported through `local.hyprland.commands`;
     `misc:allow_session_lock_restore`; `inhibit_sleep = 3`; logind's
     `InhibitDelayMaxSec`. Rewrite the `lock_cmd` and `inhibit_sleep` comments in
     `hypridle.nix`, including "Hyprland rejects duplicate session-lock clients",
