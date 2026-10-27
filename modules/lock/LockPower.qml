@@ -34,6 +34,8 @@ Singleton {
     property real _deadline: 0
     property real _lastTick: 0
     property real _countdownAtMs: 0
+    // a suspend in flight with the card closed (see _run)
+    property bool _quietRun: false
     readonly property string kind: root._kind
     readonly property int remaining: root._remaining
     // the card's bar drains toward the wall-clock end, the one clock the seconds also read
@@ -97,7 +99,7 @@ Singleton {
 
     function _run(): void {
         // the unlock ends every stage; a command that slipped in after it would outlive the lock
-        if (LockState.unlocking) return
+        if (LockState.unlocking || _proc.running) return
         // --no-ask-password: polkit's prompt would open on the desktop behind the lock, where
         // nobody can answer it, and systemctl would wait on it with the card stuck running
         const command = root.live ? ["systemctl", "--no-ask-password", root._kind]
@@ -105,7 +107,11 @@ Singleton {
         if (!root.live)
             console.info(LockState.log, "silere-shell: not a live lock;", command[0],
                 "stands in for systemctl", root._kind)
-        root._stage = "running"
+        // Suspend closes the card at once: it runs without asking, so a "Suspending…" card in
+        // the moment before the machine sleeps only reads as a question. It comes back only to
+        // say the suspend failed
+        root._quietRun = root._kind === "suspend"
+        root._stage = root._quietRun ? "" : "running"
         _proc.exec(command)
     }
 
@@ -122,13 +128,16 @@ Singleton {
                 + (_proc.timedOut ? " after timing out" : "")
             if (ok) console.info(LockState.log, report)
             else console.warn(LockState.log, report)
+            if (root._quietRun) {
+                root._quietRun = false
+                if (!ok && !LockState.unlocking) root._stage = "failed"
+                return
+            }
             if (root.stage !== "running") return
             if (!ok) {
                 root._stage = "failed"
-            } else if (root._kind === "suspend" || !root.live) {
-                // logind queues a suspend and answers before the machine sleeps, so the card
-                // closes and the machine wakes to the lock it left; a stand-in has nothing to
-                // bring down
+            } else if (!root.live) {
+                // a stand-in has nothing to bring down
                 root._stage = ""
             } else {
                 _goingDown.start()
