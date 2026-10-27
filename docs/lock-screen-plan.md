@@ -428,8 +428,9 @@ fork's steps. In the other order, the packaged shell lacks the new keys and
 ## Manual QA
 
 No new automated tests or probes. Once the steps are in, the lock gets a manual
-QA checklist, written at that point and run by hand in the real session on the
-NixOS install, with hyprlock as the fallback and a spare TTY as the way out.
+QA checklist, [lock-screen-qa.md](lock-screen-qa.md), run by hand in the real
+session on the NixOS install, with hyprlock as the fallback and a spare TTY as
+the way out.
 
 Three things the checklist depends on: steps 9 and 10 must be built and
 switched to first (`PamContext.start()` fails without a message when
