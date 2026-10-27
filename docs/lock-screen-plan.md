@@ -186,6 +186,10 @@ time asleep would kill a healthy lock on resume.
    returns the command's own status, so the outer run passes a marker path that
    the inner run touches first: `systemd-run … || [ -e "$marker" ] ||` run the
    rest unscoped. A user bus that cannot be reached must still produce a lock.
+   A user manager that stalls (a daemon-reload mid-switch) gets 2s, then the
+   wrapper locks unscoped; each side writes its flag ("started", "abandoned")
+   before reading the other's, so a scope that starts late sees it was given up
+   on and exits 75 instead of locking a second time.
 2. **One lock at a time.** Open the lock file on a dedicated descriptor
    (`exec {lockfd}>"$XDG_RUNTIME_DIR/silere-lock.lock"`) and take `flock -n` on
    it, held for the wrapper's lifetime; the wrapper lives as long as any lock
@@ -232,14 +236,18 @@ time asleep would kill a healthy lock on resume.
    shows its lockdead screen), falls back the same way, and hyprlock takes over
    the dead lock because restore is on. A lock request that arrives while a
    lock is ending finds the flock held and the session reading unlocked, so it
-   waits up to 5s for the flock and then locks, instead of being dropped.
+   keeps waiting for the flock and then locks, instead of being dropped. It
+   stops waiting only if the session reads locked meanwhile, which means a
+   lock has it.
 6. **Stay with hyprlock.** hyprlock runs as a supervised child under
    `systemd-cat -t silere-lock` (bare when the journal does not answer a probe,
    since `systemd-cat` exits without running its command when it cannot open
    a stream). The wrapper waits as in step 5. A hyprlock that ends without an
    unlock (non-zero, or the session still reads locked) is started again a
    second later, up to five times, so a crash leaves the lockdead screen for a
-   second, not until the next lock request. One that never makes its lock
+   second, not until the next lock request. `systemd-cat` can also stall after
+   the probe, before it execs hyprlock, so it gets 1s to stop being
+   `systemd-cat`; then hyprlock starts bare. One that never makes its lock
    request within about 10s is stopped and counted as a failed start. Until it
    is first seen locked the session is checked five times a second, so a quick
    unlock is not mistaken for a client that never locked.
