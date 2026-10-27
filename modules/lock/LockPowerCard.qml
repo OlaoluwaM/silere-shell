@@ -195,7 +195,7 @@ Item {
             onCancelled: LockPower.dismiss()
             onConfirmed: {
                 if (_body._failed) LockPower.retry()
-                else LockPower.confirm()
+                else LockPower.confirmByPointer()
             }
         }
     }

@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import "../../services"
+import "../../config"
 
 // Suspend, Reboot and Power off from the lock screen. The lock drives its own countdown
 // rather than borrowing the desktop's PowerActionState: that one belongs to the shell's
@@ -31,6 +32,7 @@ Singleton {
     property int _remaining: 0
     property real _deadline: 0
     property real _lastTick: 0
+    property real _countdownAtMs: 0
     readonly property string kind: root._kind
     readonly property int remaining: root._remaining
     // the card's bar drains toward the wall-clock end, the one clock the seconds also read
@@ -71,6 +73,7 @@ Singleton {
         root._remaining = root.seconds
         root._deadline = Date.now() + root.seconds * 1000
         root._lastTick = Date.now()
+        root._countdownAtMs = Date.now()
         root._stage = "countdown"
         root.started()
     }
@@ -78,6 +81,14 @@ Singleton {
     function confirm(): void {
         if (root.stage !== "countdown") return
         root._run()
+    }
+
+    // the countdown's confirm button opens under the tile that started it, so the second click
+    // of a double-click would run the action the countdown exists to give a chance to cancel;
+    // Enter is a deliberate key and keeps going through confirm()
+    function confirmByPointer(): void {
+        if (Date.now() - root._countdownAtMs < Metrics.confirmGuardMs) return
+        root.confirm()
     }
 
     function retry(): void {
