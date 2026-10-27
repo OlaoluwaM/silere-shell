@@ -128,10 +128,12 @@ Item {
             }
         }
 
-        // whatever sits at the field's right end: the Caps Lock chip, or the check in progress
+        // whatever sits at the field's right end: the Caps Lock chip, or the check in progress.
+        // The chip carries its own padding; the bare dots take the text's inset instead, so
+        // they sit as far from the right edge as the text does from the left
         Item {
             id: _trail
-            anchors.right: parent.right; anchors.rightMargin: 10
+            anchors.right: parent.right; anchors.rightMargin: _dots.visible ? root.textInset : 10
             anchors.verticalCenter: parent.verticalCenter
             width: _caps.visible ? _caps.width : _dots.visible ? _dots.width : 0
             height: _field.height
@@ -182,7 +184,7 @@ Item {
                         required property int index
                         width: 5
                         height: 5
-                        radius: 1
+                        radius: width / 2
                         antialiasing: true
                         color: _dot.index === _dots.lit ? Theme.accent : Theme.withAlpha(Theme.accent, 0.3)
                     }
