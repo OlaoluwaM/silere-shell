@@ -176,8 +176,8 @@ own decisions and the lock process's output under one journal tag:
   than an unlock. The lock process's own lines all arrive at one priority, so
   filter those with `-g WARN`.
 - `journalctl --user -u hypridle.service` shows the requests that reached the
-  wrapper through hypridle (idle, Super+L, suspend). The menu's Lock runs the
-  wrapper directly from the shell, so those requests show only under the
+  wrapper through hypridle (idle, Super+L, suspend). The menu's Lock asks
+  Hyprland to run the wrapper instead, so those requests show only under the
   `silere-lock` tag.
 
 The lock's exit status says how it ended: 0 the user unlocked, 1 the

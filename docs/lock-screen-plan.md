@@ -168,12 +168,11 @@ since the lock runs with the shell's own `PATH`, which has no `qs`).
 
 Every lock goes through it. Idle, Super+L and suspend reach hypridle through
 `loginctl lock-session`, and hypridle's `lock_cmd` runs the wrapper. The menu's
-Lock entries run the wrapper directly: `lockCommand` renders the path of a
-small `silere-lock-request` script that execs it. Going through `loginctl
-lock-session` instead would make the menu depend on hypridle being up and
-subscribed, and logind answers that request by emitting a signal, so its
-success never says whether anything locked. The wrapper's flock keeps the two
-routes from ever making a second lock.
+Lock entries run the wrapper directly: `lockCommand` renders its path in the
+user profile. Going through `loginctl lock-session` instead would make the menu
+depend on hypridle being up and subscribed, and logind answers that request by
+emitting a signal, so its success never says whether anything locked. The
+wrapper's flock keeps the two routes from ever making a second lock.
 
 The wrapper runs under `writeShellApplication`'s `set -euo pipefail`, so every
 command that may fail is captured rather than allowed to abort it: `rc=0; wait
@@ -407,13 +406,12 @@ fork's steps. In the other order, the packaged shell lacks the new keys and
    in `modules/nixos/hyprland.nix`, next to the `hyprlock` entry.
 10. Lock safety, in one commit because each part needs the others: the
     `silere-lock` wrapper in its `"hyprlock"` form (scope, flock, hyprlock
-    check), used by hypridle's `lock_cmd`; `lockCommand` rendered as the path
-    of `silere-lock-request`, which execs the wrapper; `silereShellPath`
-    exported through `local.hyprland.commands`;
-    `misc:allow_session_lock_restore`; `inhibit_sleep = 3`; logind's
-    `InhibitDelayMaxSec`. Rewrite the `lock_cmd` and `inhibit_sleep` comments in
-    `hypridle.nix`, including "Hyprland rejects duplicate session-lock clients",
-    which stops being true once restore is on.
+    check), used by hypridle's `lock_cmd`; `lockCommand` rendered as the
+    wrapper's path in the user profile; `silereShellPath` exported through
+    `local.hyprland.commands`; `misc:allow_session_lock_restore`; `inhibit_sleep
+    = 3`; logind's `InhibitDelayMaxSec`. Rewrite the `lock_cmd` and
+    `inhibit_sleep` comments in `hypridle.nix`, including "Hyprland rejects
+    duplicate session-lock clients", which stops being true once restore is on.
 11. `local.hyprland.lockScreen`, `"hyprlock"` or `"follow-shell"`, defaulting to
     `"hyprlock"` until the new lock is proven, so rollback is one line.
     `"follow-shell"` gives the wrapper its steps 3 to 5. Add `lock.qml` to the
