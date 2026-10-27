@@ -89,7 +89,9 @@ Column {
         if (!SystemTools.hasBrightnessctl)     tool("󰃟", "Brightness control", "brightnessctl")
         if (!SystemTools.hasHyprsunset)        tool("󰖙", "Night light", "hyprsunset")
         if (!PowerProfiles.available)          tool("󰾅", "Power profiles", "power-profiles-daemon")
-        if (!SystemTools.hasHyprlock)          tool("󰌾", "Screen lock", "hyprlock")
+        // a packaged lock command brings its own locker, so hyprlock is only the fallback's requirement
+        if (!SystemTools.hasHyprlock && ShellSettings.lockCommand.trim().length === 0)
+            tool("󰌾", "Screen lock", "hyprlock")
         // the warnings page stays visible and settable without notify-send, so this one is inert rather than hidden
         if (!SystemTools.hasNotifySend)
             out.push({ g: "󰂚", n: "System alerts", s: "Battery and temperature warnings cannot be sent", v: "libnotify", p: true })

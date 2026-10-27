@@ -52,7 +52,11 @@ Singleton {
 
     readonly property int hPad: 14
 
-    readonly property list<string> lockCommand: SystemTools.hasHyprlock ? ["hyprlock"]
+    // the packaged command is a shell string like the other packaging-only *Command settings, so a
+    // bare script path and a path with arguments both run; empty leaves the tool-based fallback
+    readonly property list<string> lockCommand: ShellSettings.lockCommand.trim().length > 0
+        ? ["sh", "-c", ShellSettings.lockCommand]
+        : SystemTools.hasHyprlock ? ["hyprlock"]
         : SystemTools.hasLoginctl ? ["loginctl", "lock-session"] : []
     readonly property list<string> suspendCommand: SystemTools.hasSystemctl ? ["systemctl", "suspend"]
         : SystemTools.hasLoginctl ? ["loginctl", "suspend"] : []

@@ -26,7 +26,11 @@ esac
 # all and read as a motion regression. Fail on the real cause; a skip would let an unattended
 # gate run pass with no motion coverage. Another user's lock screen is on another seat
 _session_locked() {
-    command -v pgrep >/dev/null 2>&1 && pgrep -u "$(id -u)" -x hyprlock >/dev/null 2>&1
+    command -v pgrep >/dev/null 2>&1 || return 1
+    # the shell's own lock is a qs process (or its wrapper) whose argv names lock.qml; anchoring on
+    # the binary name and the path flag keeps an editor or this script's own command line out
+    pgrep -u "$(id -u)" -x hyprlock >/dev/null 2>&1 \
+        || pgrep -u "$(id -u)" -f '^[^ ]*(qs|quickshell)[^ ]*( .*)? (-p|--path) [^ ]*lock\.qml( |$)' >/dev/null 2>&1
 }
 if _session_locked; then
     echo "FAIL: the session is locked, so the compositor withholds frames from the probe" >&2

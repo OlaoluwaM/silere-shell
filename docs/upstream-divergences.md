@@ -101,6 +101,13 @@ outside issues or pull requests.
   `ShellSettings._backupSettingsText`, which returns true so a migration
   carries on in memory. Re-apply the gate to any writer an import adds to
   those files, or the lock rewrites the user's settings.
+- `config/Settings.qml` and `modules/menu/settings/SettingsMaintenanceSection.qml`:
+  `Settings.lockCommand` runs `ShellSettings.lockCommand` as `["sh", "-c", ...]`
+  when it is non-empty, ahead of upstream's hyprlock-then-`loginctl` chain,
+  which stays as the empty-string fallback. The Maintenance "Screen lock" row
+  is hidden while that string is set, since the packaged locker does not need
+  hyprlock. Keep both on an import of either file; `commandAvailable` needs no
+  change because `sh` is always available.
 - `qmldir` files, `BarContent`'s widget registry, `barWidgetMeta`, and the
   zone-order defaults: unions — keep both sides' entries.
 - `scripts/check.sh` keeps sequential smoke cases and their shared launcher.
