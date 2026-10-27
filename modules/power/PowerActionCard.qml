@@ -49,7 +49,7 @@ OverlayPopupWindow {
         // a fixed name: binding it to the ticking message would re-announce every second
         Accessible.role: Accessible.AlertMessage
         Accessible.name: card.action ? card.action.label : ""
-        Accessible.description: _message.text
+        Accessible.description: _body.message
 
         // the duration is the countdown itself, which Motion must not scale or the bar would lie
         NumberAnimation {
@@ -85,81 +85,21 @@ OverlayPopupWindow {
             }
         }
 
-        Column {
+        PowerCountdownBody {
             id: _body
             x: card.pad
             y: card.pad
             width: card.width - card.pad * 2
-            spacing: 10
-
-            Row {
-                spacing: 9
-
-                ShellText {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: card.action ? card.action.glyph : ""
-                    color: Theme.accent
-                    font.pixelSize: Settings.fontSize
-                }
-                ShellText {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: card.action ? card.action.label : ""
-                    color: Theme.text
-                    font.pixelSize: Settings.fontSize
-                    font.weight: Font.DemiBold
-                }
-            }
-
-            ShellText {
-                id: _message
-                width: parent.width
-                text: card.action
-                    ? card.action.phrase + " in " + PowerActionState.remaining
-                        + (PowerActionState.remaining === 1 ? " second." : " seconds.")
-                    : ""
-                wrapMode: Text.Wrap
-                color: Theme.withAlpha(Theme.subtext, 0.86)
-                font.pixelSize: Settings.fontLabel
-            }
-
-            Rectangle {
-                id: _track
-                width: parent.width
-                height: 3
-                radius: 1.5
-                antialiasing: true
-                color: Theme.controlFill(Theme.text, 0.06)
-
-                Rectangle {
-                    width: _track.width * card.progress
-                    height: parent.height
-                    radius: parent.radius
-                    antialiasing: true
-                    color: Theme.accent
-                }
-            }
-
-            Item {
-                width: parent.width
-                height: _buttons.height + 4
-
-                Row {
-                    id: _buttons
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    spacing: 6
-
-                    ActionButton {
-                        label: "Cancel"
-                        onTriggered: PowerActionState.close()
-                    }
-                    ActionButton {
-                        label: card.action ? card.action.label : ""
-                        emphasis: true
-                        onTriggered: PowerActionState.confirm()
-                    }
-                }
-            }
+            glyph: card.action ? card.action.glyph : ""
+            title: card.action ? card.action.label : ""
+            message: card.action
+                ? card.action.phrase + " in " + PowerActionState.remaining
+                    + (PowerActionState.remaining === 1 ? " second." : " seconds.")
+                : ""
+            progress: card.progress
+            confirmLabel: card.action ? card.action.label : ""
+            onCancelled: PowerActionState.close()
+            onConfirmed: PowerActionState.confirm()
         }
     }
 }
