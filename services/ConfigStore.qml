@@ -15,6 +15,11 @@ Singleton {
     readonly property string notificationsPath: directory.length > 0
         ? directory + "/notifications.json" : ""
 
+    // lock.qml runs beside the shell on this same tree and config directory; it reads the
+    // settings but must never be the process that writes, backs up, or re-permissions them.
+    // Read once here so every writer below and in PersistedFile asks the same question
+    readonly property bool readOnly: Quickshell.env("SILERE_SETTINGS_READ_ONLY") === "1"
+
     property bool ready: false
     property string _error: ""
     readonly property string error: _error
@@ -38,7 +43,7 @@ Singleton {
     }
 
     function ensureDirectory(force): void {
-        if (_mkdir.running || (root.ready && force !== true)) return
+        if (root.readOnly || _mkdir.running || (root.ready && force !== true)) return
         if (_mkdirRetry.running && force !== true) return
         if (force === true || root._directoryFailures >= root.maxDirectoryAttempts) {
             _mkdirRetry.stop()
@@ -67,7 +72,7 @@ Singleton {
 
     // stamped reset backups would otherwise accumulate forever
     function pruneBackups(): void {
-        if (root.directory.length === 0) return
+        if (root.readOnly || root.directory.length === 0) return
         Quickshell.execDetached(["bash", "-c",
             "cd -- \"$1\" 2>/dev/null || exit 0; "
             + "ls -1t settings.pre-reset*.bak.json 2>/dev/null | tail -n +6 | "
@@ -77,7 +82,7 @@ Singleton {
 
     function hardenFile(path: string): void {
         // only files owned by this store may be chmodded. Keep the path as a separate argv entry so even unusual XDG paths never become syntax
-        if (path.length === 0 || !root._owned(path)) return
+        if (root.readOnly || path.length === 0 || !root._owned(path)) return
         Quickshell.execDetached(["bash", "-c",
             "[ ! -L \"$1\" ] && chmod 0600 -- \"$1\"", "bash", path])
     }
@@ -117,5 +122,9 @@ Singleton {
         }
     }
 
-    Component.onCompleted: root.ensureDirectory()
+    Component.onCompleted: {
+        if (root.readOnly)
+            console.info("silere-shell: settings are read-only; nothing under", root.directory, "will be written")
+        root.ensureDirectory()
+    }
 }

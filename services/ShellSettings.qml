@@ -778,7 +778,7 @@ Singleton {
     Component.onDestruction: {
         _store.stop()
         // never overwrite the file with defaults never confirmed from disk
-        if (!root._loaded || !_store.writeAllowed) return
+        if (!root._loaded || !_store.writeAllowed || ConfigStore.readOnly) return
         if (!ConfigStore.ready)
             console.warn("silere-shell: saving settings before config dir is ready:",
                 ConfigStore.directory)
@@ -827,6 +827,8 @@ Singleton {
     property bool _backupAlternate: false
 
     function _backupSettingsText(tag: string, text: string): bool {
+        // a read-only run writes nothing, so a migration has nothing to lose and carries on in memory
+        if (ConfigStore.readOnly) return true
         const body = (text || "").trim()
         if (body.length === 0) return false
         root._backupWriteSucceeded = false

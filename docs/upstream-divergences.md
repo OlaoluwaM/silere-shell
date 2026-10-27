@@ -93,6 +93,14 @@ outside issues or pull requests.
   shortlist is built by `_fontChoices`, which the lock screen's Font row
   shares, where upstream builds it inline in the row's `model`. Port upstream
   edits to that inline block into the function and keep both rows calling it.
+- `services/ConfigStore.qml`, `config/PersistedFile.qml` and
+  `services/ShellSettings.qml`: `ConfigStore.readOnly`
+  (`SILERE_SETTINGS_READ_ONLY=1`, set by the lock process) gates every
+  disk write of the settings layer: `ConfigStore.ensureDirectory`,
+  `hardenFile` and `pruneBackups`, `PersistedFile.flush`, and
+  `ShellSettings._backupSettingsText`, which returns true so a migration
+  carries on in memory. Re-apply the gate to any writer an import adds to
+  those files, or the lock rewrites the user's settings.
 - `qmldir` files, `BarContent`'s widget registry, `barWidgetMeta`, and the
   zone-order defaults: unions — keep both sides' entries.
 - `scripts/check.sh` keeps sequential smoke cases and their shared launcher.

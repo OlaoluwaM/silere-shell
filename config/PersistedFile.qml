@@ -44,7 +44,7 @@ Scope {
     }
 
     function flush(force: bool): void {
-        if (!root.writeAllowed || !root.serialize) return
+        if (ConfigStore.readOnly || !root.writeAllowed || !root.serialize) return
         if (!force && root._reloading) {
             _debounce.restart()
             return
