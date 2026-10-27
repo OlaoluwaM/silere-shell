@@ -12,9 +12,35 @@ QtObject {
     // whether the page is in view: a run joined behind a hidden page stays folded, as
     // a menu opening would show it
     property bool shown: false
+    // the notification service's history category, handed in rather than imported: the
+    // singleton would start a notification server inside the grouping probe
+    property var log: null
     property var _openRuns: ({})
     // a row of the run that opens once a removal lands
     property int _tailHeir: -1
+
+    function _trace(...parts): void {
+        if (root.log) console.debug(root.log, "grouping:", ...parts)
+    }
+
+    // one entry per run, newest first, as the page draws it: app, rows, and whether a
+    // run tall enough to stack stands open or folded; a bar marks each day boundary
+    function describe(): string {
+        const rows = root.model
+        if (rows.count === 0) return "(empty)"
+        let text = ""
+        let at = 0
+        while (at < rows.count) {
+            const run = root.runBounds(at)
+            const state = run.length < root.foldAt ? ""
+                : root._openRuns[run.key] === true ? " open" : " folded"
+            if (at > 0) text += root.dayKey(rows.get(at).time)
+                !== root.dayKey(rows.get(at - 1).time) ? " | " : ", "
+            text += rows.get(at).appName + " x" + run.length + state
+            at = run.start + run.length
+        }
+        return text
+    }
 
     function dayKey(ms): string {
         const d = new Date(Number(ms || Date.now()))
@@ -82,10 +108,12 @@ QtObject {
         for (const known in root._openRuns) next[known] = root._openRuns[known]
         if (open) next[key] = true
         else delete next[key]
+        root._trace(open ? "opened" : "closed", key)
         root._openRuns = next
     }
 
     function reset(): void {
+        root._trace("folded every run")
         root._openRuns = ({})
     }
 
@@ -103,7 +131,9 @@ QtObject {
         const was = root.runKey(app, day, above)
         if (root._openRuns[was] !== true) return
         const now = root.runBounds(first - 1).key
-        if (now !== was) root.setOpen(now, true)
+        if (now === was) return
+        root._trace("arrival under an open tail carries it from", was)
+        root.setOpen(now, true)
     }
 
     // Clearing the tail of an open run must not refold the rows still in it. The
@@ -122,7 +152,9 @@ QtObject {
         if (root.runBounds(last).start > first) return
         const above = rows.get(first - 1)
         if (String(above.appName) !== app || root.dayKey(above.time) !== day) return
-        if (root._openRuns[root.runKey(app, day, tail)] === true) root._tailHeir = first - 1
+        if (root._openRuns[root.runKey(app, day, tail)] !== true) return
+        root._tailHeir = first - 1
+        root._trace("cleared tail of an open run, row", first - 1, "inherits")
     }
 
     // Clearing the row between two runs of one app joins them into one, keyed by the
@@ -145,16 +177,20 @@ QtObject {
         }
         const upper = root.runBounds(first - 1)
         const lower = root.runBounds(last + 1)
-        if (root._openRuns[lower.key] === true) return
-        if (root._openRuns[upper.key] === true
-                || (upper.length < root.foldAt && lower.length < root.foldAt))
-            root._tailHeir = first - 1
+        const upperOpen = root._openRuns[upper.key] === true
+        const lowerOpen = root._openRuns[lower.key] === true
+        const joins = !lowerOpen
+            && (upperOpen || (upper.length < root.foldAt && lower.length < root.foldAt))
+        root._trace("removal joins", app, "runs of", upper.length + (upperOpen ? " open" : ""),
+            "and", lower.length + (lowerOpen ? " open" : ""), joins ? "-> joined run opens" : "-> state kept")
+        if (joins) root._tailHeir = first - 1
     }
 
     function _carryRemovedTail(): void {
         const heir = root._tailHeir
         if (heir < 0) return
         root._tailHeir = -1
+        root._trace("row", heir, "takes the open state")
         root.setOpen(root.runBounds(heir).key, true)
     }
 
@@ -184,14 +220,12 @@ QtObject {
             if (root._openRuns[key] === true) keep[key] = true
         }
 
-        let same = true
-        for (const key in root._openRuns) {
-            if (!keep[key]) {
-                same = false
-                break
-            }
-        }
-        if (!same) root._openRuns = keep
+        const dropped = []
+        for (const key in root._openRuns)
+            if (!keep[key]) dropped.push(key)
+        if (dropped.length === 0) return
+        root._trace("pruned", dropped.join(", "))
+        root._openRuns = keep
     }
 
     property Connections _modelChanges: Connections {

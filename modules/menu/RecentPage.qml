@@ -28,6 +28,35 @@ PageShell {
         model: Notifications.historyModel
         foldAt: root.foldAt
         shown: root._announcedActive
+        log: Notifications.historyLog
+    }
+
+    // what the page showed when a remove was asked for and what it shows once the model and
+    // the grouping have settled, so the journal says whether a row was lost or only hidden
+    function _logRemoval(gesture: string, row): void {
+        const rows = Notifications.historyModel
+        const held = row.index >= 0 && row.index < rows.count ? rows.get(row.index) : null
+        // a delegate whose index names another entry would take that entry's row instead
+        const drift = !held || root._rowIdentity(held.id, held.time) !== row._identity
+        console.info(Notifications.historyLog, "history:", gesture, "on",
+            Notifications.historyRowLabel(row.index) + ",",
+            row._stacked ? "folded stack" : row._runOpen ? "open run" : "run", "of", row._runLength,
+            drift ? "- but the delegate holds " + row.modelData.appName + " id " + row.modelData.id : "")
+        console.info(Notifications.historyLog, "history: before:", _historyGrouping.describe())
+        Qt.callLater(() => console.info(Notifications.historyLog, "history: after:",
+            _historyGrouping.describe()))
+    }
+
+    // a row that is not leaving and still drawn faded or closed is one the user sees as gone
+    function _checkSettledRows(): void {
+        const rows = _historyList.contentItem.children
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i]
+            if (row._pooled !== false || row._leaving) continue
+            if (row._leaveFade < 1 || row._leaveK < 1)
+                console.info(Notifications.historyLog, "history: row", row.index, "stays closed after",
+                    "leaving rows settled: fade", row._leaveFade.toFixed(2), "height", row._leaveK.toFixed(2))
+        }
     }
 
     function _touchNow(): void {
@@ -137,6 +166,8 @@ PageShell {
             leaving[i]._after = above
             above = root._closingUnder(leaving[i])
         }
+        console.debug(Notifications.historyLog, "history: rows", first, "to", last, "leave,",
+            leaving.length, "built,", root._leavingRows.length, "still closing")
         // reduced motion closes a row inside _leave, so the chain is in place before any starts
         root._leavingRows = root._leavingRows.concat(leaving)
         for (let i = 0; i < leaving.length; i++) leaving[i]._leave()
@@ -496,6 +527,9 @@ PageShell {
                         // the list builds the next entries from them. A close left running would
                         // shut whichever entry the row comes back as, and the list never resets
                         // delayRemove, which would hold that entry once it is removed in turn
+                        if (_entry._leaving)
+                            console.info(Notifications.historyLog, "history: list took back row",
+                                _entry.index, "mid-exit at", _entry._leaveK.toFixed(2))
                         _leaveAnim.stop()
                         _entry.ListView.delayRemove = false
                         _entry._pooled = true
@@ -546,6 +580,7 @@ PageShell {
                         root._leftRow(_entry)
                         _entry._releaseSection()
                         _entry.ListView.delayRemove = false
+                        if (root._leavingRows.length === 0) root._checkSettledRows()
                     }
 
                     // the next row inherits the header only when it is from the same day; a
@@ -589,6 +624,7 @@ PageShell {
                     function removeSelf(): void {
                         if (_removing || root._clearing) return
                         const rowIndex = index
+                        root._logRemoval("remove", _entry)
                         // persist immediately. A delegate-owned delay is lost if the user changes pages before its timer fires
                         _removing = true
                         // a folded stack is one card on screen; its × takes the run it stands for
@@ -605,6 +641,7 @@ PageShell {
                     // folded branch above and asks for the run explicitly
                     function removeRun(): void {
                         if (_removing || root._clearing) return
+                        root._logRemoval("clear all", _entry)
                         _removing = true
                         _entry._handOffSection(_entry._runLength)
                         Notifications.removeRunFromHistory(_entry.index, _entry._runLength)

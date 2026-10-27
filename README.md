@@ -196,3 +196,20 @@ off. The typed password, its length and PAM's responses are never logged.
 To work on the layout, preview it in a window instead of locking:
 `SILERE_LOCK_PREVIEW=1 nix develop . --command qs -p lock.qml`. Started any
 other way outside the wrapper, `lock.qml` refuses to lock and exits 3.
+
+## Debugging notification history
+
+The history and the menu's grouping of it log under the `silere.notifications`
+category, which `journalctl --user -u silere-shell -g silere.notifications`
+shows. Every removal the user asks for logs four lines: the row and the run
+the delegate thought it held, the rows the model actually removed, and the
+page's runs before and after, each as app, length, and whether a stack stands
+open or folded. A row lost from the model shows in the removal line; a row only
+hidden shows as a run that folded in the after line. A row the list took back
+mid-exit, or one left faded once every exit ended, logs as well. Notification
+text is never logged.
+
+Updates that replace a row, trims and the grouping's open-state bookkeeping
+log at Debug. To see them, run `systemctl --user set-environment
+QT_LOGGING_RULES="silere.notifications.debug=true"` and restart
+`silere-shell.service`; unset it and restart again to turn them off.

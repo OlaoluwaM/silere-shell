@@ -43,6 +43,20 @@ Singleton {
     readonly property int historyCount: _history.count
     readonly property bool hasHistory: _history.count > 0
 
+    // History edits and the menu's grouping log here, so a row that vanishes can be told
+    // apart from one the model lost. A user's removal logs at Info; updates, trims and the
+    // grouping's bookkeeping only at Debug. Rows log by app and id, never their text
+    readonly property LoggingCategory historyLog: LoggingCategory {
+        name: "silere.notifications"
+        defaultLogLevel: LoggingCategory.Info
+    }
+
+    function historyRowLabel(index: int): string {
+        if (index < 0 || index >= _history.count) return "#" + index + " (none)"
+        const row = _history.get(index)
+        return "#" + index + " " + row.appName + " id " + row.id
+    }
+
 
     function identityText(value): string {
         return SafeText.singleLineText(value, root._maxIdentityChars)
@@ -82,6 +96,8 @@ Singleton {
         while (_history.count > limit) {
             const id = _history.get(_history.count - 1).id
             if (id !== undefined) dropped.push(String(id))
+            console.debug(root.historyLog, "history: trimmed", root.historyRowLabel(_history.count - 1),
+                "over the limit of", limit)
             _history.remove(_history.count - 1)
         }
         root._forgetTrimmed(dropped)
@@ -279,6 +295,8 @@ Singleton {
         if (!root._persistentReady || !ShellSettings.ready) return
         if (!ShellSettings.notifHistoryPersistent) {
             root._diskHistoryMayRestore = false
+            if (_history.count > 0)
+                console.info(root.historyLog, "history: cleared", _history.count, "rows, history is off")
             _history.clear()
             root._pruneOrphanState()
         }
@@ -611,6 +629,7 @@ Singleton {
             const id = _history.get(i).id
             if (id !== undefined) ids.push(String(id))
         }
+        console.info(root.historyLog, "history: cleared all", _history.count, "rows")
         _history.clear()
         // one map copy per state kind, not one set of copies per history row
         root._forgetTrimmed(ids)
@@ -646,6 +665,7 @@ Singleton {
         for (let i = _history.count - 1; i >= 0; i--) {
             const previous = _history.get(i)
             if (previous.id === id && previous.sessionCurrent === true) {
+                console.debug(root.historyLog, "history: replaced", root.historyRowLabel(i), "with its update")
                 _history.remove(i)
                 replaced = true
             }
@@ -795,8 +815,12 @@ Singleton {
                 }
             }
         }
-        if (idx < 0 || idx >= _history.count) return
+        if (idx < 0 || idx >= _history.count) {
+            console.info(root.historyLog, "history: remove ignored, no row", idx, "of", _history.count)
+            return
+        }
         const id = _history.get(idx).id
+        console.info(root.historyLog, "history: removing", root.historyRowLabel(idx), "of", _history.count)
         _history.remove(idx)
         root._saveHistory()
         // a reused id must not let an old row erase a live card's read/time state
@@ -805,13 +829,21 @@ Singleton {
 
     // a stacked run clears as one gesture, so the file is written once rather than per row
     function removeRunFromHistory(start: int, count: int): void {
-        if (start < 0 || count <= 0 || start >= _history.count) return
+        if (start < 0 || count <= 0 || start >= _history.count) {
+            console.info(root.historyLog, "history: run remove ignored, rows", start, "+", count,
+                "of", _history.count)
+            return
+        }
         const n = Math.min(count, _history.count - start)
         const ids = []
+        const labels = []
         for (let i = start; i < start + n; i++) {
             const id = _history.get(i).id
             if (id !== undefined) ids.push(String(id))
+            labels.push(root.historyRowLabel(i))
         }
+        console.info(root.historyLog, "history: removing run of", n, "(asked", count + ") of",
+            _history.count + ":", labels.join(", "))
         _history.remove(start, n)
         root._saveHistory()
         root._forgetTrimmed(ids)
