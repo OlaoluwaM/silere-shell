@@ -27,11 +27,20 @@ Item {
     opacity: LockState.unlocking ? 0 : 1
     MotionBehavior on opacity { NumberAnimation { duration: Motion.popOutFade } }
 
-    // a surface whose window takes the keyboard (at start, after resume, after hotplug) is
-    // where typing lands, so it takes the field and the field takes the keys
+    // a surface whose window takes the keyboard (at start, after hotplug) is where typing
+    // lands, so it takes the field and the field takes the keys
     readonly property bool _windowActive: Window.active
     on_WindowActiveChanged: {
-        if (!root._windowActive) return
+        // A suspend takes every keyboard off the seat, and Hyprland drops them without a
+        // leave. Qt then leaves no window focused, and when the keyboard comes back with the
+        // same surface it never activates this one again, so the keys would wait for a click
+        // on the field. With no window focused Qt still lets an item take focus, which is all
+        // that click does, so the field takes it back here. Focus gone to another output
+        // leaves that output's window focused, and this claim does nothing there
+        if (!root._windowActive) {
+            if (root.primary && !LockPower.open) _field.claimFocus()
+            return
+        }
         LockState.claimOutput(root.outputName)
         LockState.refreshCapsLock()
         _field.claimFocus()
