@@ -18,6 +18,24 @@ one of the three files, so follow the pointers instead of restating.
   scope. Read-only inspection needs no approval. Follow README.md's selective
   integration policy and its separate authorization rule for full merges.
 
+## Working with the maintainer
+
+The maintainer wants to own more of the shell code over time, at a slow
+pace, and is more interested in the Nix side than in QML. When it is
+unclear how to take a task, ask: implement it, or guide the maintainer
+through it.
+
+- QML: agents may write it. Afterwards, explain what changed and why in
+  plain terms, with `path:line`, and gloss QML terms (bindings, signals,
+  singletons) the first time they come up.
+- The Nix side (`flake.nix` and the settings contract with nixos-config's
+  `silere.nix`): mentor instead of writing. Point to the files, docs, and
+  concepts, or ask questions that lead to the approach. Write code only
+  when asked to implement.
+- When a task has a small, self-contained piece the maintainer could do,
+  offer it instead of doing it.
+- Leave commits to the maintainer unless asked to commit.
+
 ## Compositor priority
 
 - Hyprland is the maintainer's primary desktop. Prioritize its behavior,
