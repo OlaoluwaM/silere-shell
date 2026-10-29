@@ -414,7 +414,7 @@ QtObject {
             }
             if (n === "openwindow" || n === "closewindow") root._setClosed(event.data, n === "closewindow")
             if (n === "openwindow" || n === "closewindow" || n === "movewindow" || n === "movewindowv2"
-                || n === "fullscreen")
+                || n === "fullscreen" || n === "changeworkspaceid")
                 root.refreshToplevels()
             // a window that never retitles after opening has no windowtitlev2 to arm this on
             if (n === "openwindow" && root._liveTitlesWanted && !Idle.isIdle && !_titleSync.running)
