@@ -82,8 +82,23 @@ _probe_wait() { # $1 = log, $2 = pid, $3 = sentinel, $4 = ticks, $5 = seconds pe
 
 # grep is line-oriented, so [^\n] here would mean "not backslash or n" and truncate
 # "Cannot assign to non-existent..." at the first n. Use .* instead.
+# Quickshell 0.3.2 stops a discarded generation's JavaScript before it destroys that
+# generation's objects (upstream 4594680 and 2d3b3e9), and any binding that fires in
+# between evaluates to undefined whatever it says. So after a reload, and once a probe
+# has reported its result and is being torn down, "Unable to assign [undefined]" comes
+# from the copy being thrown away, not the live shell. Every other error kind, and that
+# one before the first reload or result, still counts.
 _probe_errors() { # $1 = log
-    grep -oE "$SILERE_PROBE_ERRORS" "$1" | sort -u | head -10 || true
+    awk '/Reloading configuration|PROBE-[A-Z0-9-]+ (passed|failed)/ { after = 1 }
+         !(after && /Unable to assign \[undefined\]/)' "$1" \
+        | grep -oE "$SILERE_PROBE_ERRORS" | sort -u | head -10 || true
+}
+
+# check.sh runs under LC_ALL=C, and since Quickshell 0.3.2 (upstream fd11689) `qs ipc` starts
+# a Qt application that prints its non-UTF-8 locale warning into the reply. Probes compare
+# replies exactly, so ask in a UTF-8 locale; C.UTF-8 keeps C's collation for everything else.
+_probe_qs_ipc() {
+    LC_ALL=C.UTF-8 qs ipc "$@"
 }
 
 # A probe's children, such as fontconfig's fc-list, must not outlive it and race the

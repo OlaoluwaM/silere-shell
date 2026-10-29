@@ -98,7 +98,7 @@ printf 'blocking replacement file\n' > "$settings_dir"
 ipc_out="$(
     XDG_CONFIG_HOME="$config_home" XDG_STATE_HOME="$state_home" \
         XDG_RUNTIME_DIR="$runtime" QT_QPA_PLATFORM=offscreen \
-        qs ipc -p "$project/probe-config-recovery.qml" \
+        _probe_qs_ipc -p "$project/probe-config-recovery.qml" \
         call configRecovery writeSecond 2>&1
 )" || {
     printf '%s\n' "$ipc_out" >&2

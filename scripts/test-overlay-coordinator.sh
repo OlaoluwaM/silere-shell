@@ -68,7 +68,7 @@ if ! grep -q 'PROBE-OVERLAY-READY' "$log"; then
     exit 1
 fi
 ipc() {
-    XDG_RUNTIME_DIR="$runtime" qs ipc -p "$probe_project/probe-overlay-coordinator.qml" call -- "$@"
+    XDG_RUNTIME_DIR="$runtime" _probe_qs_ipc -p "$probe_project/probe-overlay-coordinator.qml" call -- "$@"
 }
 fail() { cat "$log" >&2; echo "FAIL: $*" >&2; exit 1; }
 expect_reply() {

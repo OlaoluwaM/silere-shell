@@ -23,7 +23,7 @@ trap cleanup EXIT
 trap 'exit 130' INT TERM
 
 fail() { cat "$log" >&2; echo "FAIL: $*" >&2; exit 1; }
-ipc() { qs ipc -p "$project/probe-settings-migration.qml" call -- migrationProbe "$@"; }
+ipc() { _probe_qs_ipc -p "$project/probe-settings-migration.qml" call -- migrationProbe "$@"; }
 wait_ready() {
     local i state
     for ((i=0; i<100; i++)); do
@@ -138,7 +138,7 @@ import json, pathlib, sys
 saved = json.loads(pathlib.Path(sys.argv[1]).read_text())
 assert saved['barHeight'] == 44 and saved['uiScale'] == 1.1, 'a reload must not write back over the hand edit'
 PYKEPT
-        [[ "$(qs ipc -p "$project/probe-settings-migration.qml" call settings set noSuchKey 1)" == error:* ]] \
+        [[ "$(_probe_qs_ipc -p "$project/probe-settings-migration.qml" call settings set noSuchKey 1)" == error:* ]] \
             || fail "settings IPC errors must start with error:"
     fi
     if [[ "$scenario" == replaced ]]; then
