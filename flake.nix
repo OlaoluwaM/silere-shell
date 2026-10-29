@@ -13,8 +13,10 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+
+    # We're updating Hyprland to v0.57+ so the shell's quickshell ver needs to upgrade as well for compatibility and to take advantage of certain things
     quickshell = {
-      url = "git+https://git.outfoxxed.me/quickshell/quickshell.git?ref=refs/tags/v0.3.1";
+      url = "git+https://git.outfoxxed.me/quickshell/quickshell.git?rev=4befab5bc670218e1dac84e4b60470bf26dbadf4";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
