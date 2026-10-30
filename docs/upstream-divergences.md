@@ -375,6 +375,10 @@ outside issues or pull requests.
   rapid marker retriggering because `restart()` first stops the animation.
   Menu access must remain available when compositor workspace data is not
   ready, without requesting workspace activation or a marker pulse.
+  `changeworkspaceid` also refreshes the toplevels, not only the workspace
+  list: Hyprland 0.57 renumbers a workspace without a window event, so the
+  windows on it would keep the old id. Keep it when importing upstream's
+  event handling.
 - Night light keeps the systemd service backend, so upstream's restore of a
   hand-chosen state after a shell restart (`nightLightOn`) stays out: the unit
   outlives the shell. Its solar math follows upstream's. The lock action keeps

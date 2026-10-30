@@ -413,6 +413,8 @@ QtObject {
                 return
             }
             if (n === "openwindow" || n === "closewindow") root._setClosed(event.data, n === "closewindow")
+            // Hyprland 0.57 renumbers a workspace without a window event, so the windows on it
+            // would keep the old id until something else moved them
             if (n === "openwindow" || n === "closewindow" || n === "movewindow" || n === "movewindowv2"
                 || n === "fullscreen" || n === "changeworkspaceid")
                 root.refreshToplevels()
