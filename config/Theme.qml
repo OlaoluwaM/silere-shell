@@ -83,7 +83,12 @@ Singleton {
 
     readonly property color background: _n ? _pal.background : _matuBg
     readonly property color text:       _hc ? "#ffffff" : _textBase
-    readonly property color subtext:    _hc ? mix(_subtextBase, text, 0.32) : _subtextBase
+    // the sink under _subtextBase is what keeps secondary text a step below text on dark glass,
+    // and on bright glass it is what erases it, so up to a third of the step comes back as the
+    // menu's corner brightens (ADR 0005). subtext is shared and the bar and popups follow the
+    // menu here: the lift only narrows the hierarchy, it never costs legibility
+    readonly property real  _inkLift:   _adaptive ? 0.35 * _glassT(_menuPeak) : 0
+    readonly property color subtext:    _hc ? mix(_subtextBase, text, 0.32) : mix(_subtextBase, text, _inkLift)
     readonly property color surface:    _hc ? mix(_surfaceBase, text, 0.035) : _surfaceBase
     // the presets below are solved at this L*; matugen's dark primary lands near 80, so the
     // same hue reads hotter under Wallpaper than under Custom until it is walked back

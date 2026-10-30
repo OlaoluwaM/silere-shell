@@ -3044,6 +3044,10 @@ ShellRoot {
                 && Theme.menuOpacity > Theme.popupOpacity
                 && near(Theme.menuPane.a, Theme.menuOpacity),
             "the menu pane thickens for its own bright corner while the other popups stay thin")
+        root._check(near(Theme._inkLift, 0.35)
+                && Theme.subtext.toString()
+                    === Theme.mix(Theme._subtextBase, Theme.text, 0.35).toString(),
+            "a bright menu corner gives secondary text back a third of its step toward text")
         ShellSettings.barPosition = barPositionWas
         ShellSettings.neutralTheme = false
         root._check(Theme._adaptive
