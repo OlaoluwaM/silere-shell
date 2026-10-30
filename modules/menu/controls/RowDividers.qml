@@ -34,6 +34,12 @@ Repeater {
         if (!item || item.rowBottomEngaged === undefined) return root.engaged(item)
         return (item.rowInteractive ?? true) === true && item.rowBottomEngaged === true
     }
+    // and the line over a row answers to its top edge: a picker opens on its list's first row,
+    // whose band can stay filled, as a connected network's does, with nothing hovered
+    function engagedAbove(item): bool {
+        if (!item || item.rowTopEngaged === undefined) return root.engaged(item)
+        return (item.rowInteractive ?? true) === true && item.rowTopEngaged === true
+    }
 
     // a radius group (CollapsibleSection) has no hover of its own: the line beside it answers to the
     // group's edge row, first when the group sits below the line and last when it sits above.
@@ -74,7 +80,7 @@ Repeater {
             ? (root.column.children[root._aboveIndex[index]] ?? null) : null
         // a hovered row's fill runs to the card edge past the inset line and covers only the line at
         // its own top, so both lines beside it fade and the fill reads as one clean band
-        readonly property bool _engaged: root.engaged(root.edgeRow(row, true))
+        readonly property bool _engaged: root.engagedAbove(root.edgeRow(row, true))
             || root.engagedBelow(root.edgeRow(rowAbove, false))
         // a separate factor: the row-driven opacity below must follow a collapsing row frame for frame
         property real _fade: _engaged ? 0 : 1

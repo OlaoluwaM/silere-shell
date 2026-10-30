@@ -162,6 +162,17 @@ outside issues or pull requests.
   `min` themselves at the ends of the rail, past upstream's off-grid bounds
   fix, because min + 1 × (max − min) can carry a float residue that the snap
   rounds a whole step down. Keep that on an import of the rail code.
+- `modules/common/ShellFlickable.qml`, `ShellListView.qml`, `ShellGridView.qml`,
+  `NestedWheel.qml` and `services/Scroll.qml`: each scroller carries a
+  `NestedWheel`. Inside a scrolling page it keeps a wheel gesture that started
+  on it, through `Scroll.wheelBelongsToList`, so reaching its end no longer
+  scrolls the page, and a gesture already scrolling the page turns its
+  `interactive` off and goes on to the page. Nested call sites therefore set
+  `scrollable`, not `interactive` (`WifiList`, `BluetoothList`, `SelectRow`);
+  a page keeps its explicit `interactive`. Only a ShellFlickable outside any
+  scrolling page calls `Scroll.notePageMoved`. Keep all of it on an import of
+  these files, and convert any `interactive:` an import sets on a nested
+  vertical scroller.
 - `services/Media.qml`: `_trackActivity` runs at startup as well as on
   playing changes, and ranks only listed players, past upstream's change
   handler, so players already playing when the shell starts are not ranked as
@@ -250,6 +261,12 @@ outside issues or pull requests.
   open, non-scrolling list ends on a band and fades its list hairline when the
   first option shows one, and `InlineOptionRow` reports that as
   `fillShowing`. Keep all three on an import of the dividers or the dropdown.
+  The same goes for the home page's Wi-Fi and Bluetooth pickers: `RowDividers`
+  also reads an optional `rowTopEngaged` for the line over a row,
+  `InlinePicker` passes both edge flags on from its content, and `WifiList`
+  and `BluetoothList` raise them through `ListEdgeBands` while their first or
+  last row shows a band (a connected entry's included) and rests against the
+  line. Keep those on an import of the dividers, the picker or either list.
 - `services/OsdBarState.qml`: `show` also drops volume while the fork's
   Sound settings page is showing (`MenuState.soundSectionActive`), since
   that page carries its own volume slider, as the home page does in

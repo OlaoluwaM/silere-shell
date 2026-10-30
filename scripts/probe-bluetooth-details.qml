@@ -23,7 +23,8 @@ ShellRoot {
         visible: true
         implicitWidth: 480
         implicitHeight: 420
-        BluetoothList { id: list; width: 480; open: true }
+        // clear of the window's corner, where an offscreen pointer rests and would hover the first row
+        BluetoothList { id: list; y: 60; width: 480; open: true }
     }
 
     Timer {
@@ -33,6 +34,9 @@ ShellRoot {
         onTriggered: {
             switch (root.step++) {
             case 0:
+                // the card's lines beside the picker answer to these (RowDividers' edge contract)
+                root.check(list.rowTopEngaged && list.rowBottomEngaged,
+                    "connected first and last devices show their bands to the card's lines")
                 list._detailsAddr = "first"
                 root.check(Bluetooth._devicesFrozen, "opening details freezes the published model")
                 break
@@ -40,11 +44,15 @@ ShellRoot {
                 Bluetooth.second.connected = false
                 root.check(list._detailsAddr === "first" && Bluetooth._devicesFrozen,
                     "another device disconnecting preserves the selected details")
+                root.check(list.rowTopEngaged && !list.rowBottomEngaged,
+                    "a disconnected last device no longer holds the line below the list")
                 break
             case 2:
                 Bluetooth.first.connected = false
                 root.check(list._detailsAddr === "" && !Bluetooth._devicesFrozen,
                     "the selected device disconnecting clears details and releases the model")
+                root.check(!list.rowTopEngaged,
+                    "a disconnected first device no longer holds the line above the list")
                 break
             case 3:
                 Bluetooth.first.connected = true

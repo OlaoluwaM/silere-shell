@@ -12,11 +12,15 @@ Item {
     id: root
 
     property bool open: false
+    // the card's lines above and below the picker sit on this list's first and last rows
+    readonly property bool rowTopEngaged: _edges.topEngaged
+    readonly property bool rowBottomEngaged: _edges.bottomEngaged
 
     width: parent ? parent.width : 0
     implicitHeight: _col.implicitHeight
 
     ArmConfirm { id: _confirm }
+    ListEdgeBands { id: _edges; list: _list }
 
     // Match the open details by address so selection survives row moves. Freezing
     // the published order keeps the row in place while its details are being read.
@@ -92,7 +96,7 @@ Item {
             width: parent.width
             height: Math.min(contentHeight, 240)
             visible: root.open && Bluetooth.available && Bluetooth.enabled && Bluetooth.devices.length > 0
-            interactive: contentHeight > height
+            scrollable: contentHeight > height
             spacing: 0
             // Same ScriptModel treatment as WifiList, but with NO objectProp: these
             // values are live BluetoothDevice objects, and ScriptModel's fallback
@@ -112,6 +116,11 @@ Item {
                 spacing: 0
 
                 readonly property bool _detailsOpen: root._detailsAddr === modelData.address && modelData.connected
+                // the row's band is this entry's top edge, and its bottom one while no
+                // drawer has opened beneath it (ListEdgeBands)
+                readonly property bool rowTopEngaged: _row.fillShowing
+                readonly property bool rowBottomEngaged: _row.fillShowing
+                    && _entry.height <= _row.height + 0.5
 
                 // Clear selection from the device event so expanded's binding
                 // never writes back into the state it is currently evaluating.

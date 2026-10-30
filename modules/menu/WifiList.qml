@@ -11,6 +11,9 @@ Item {
     id: root
 
     property bool open: false
+    // the card's lines above and below the picker sit on this list's first and last rows
+    readonly property bool rowTopEngaged: _edges.topEngaged
+    readonly property bool rowBottomEngaged: _edges.bottomEngaged
 
     width: parent ? parent.width : 0
     implicitHeight: _col.implicitHeight
@@ -21,6 +24,7 @@ Item {
     property bool _detailsOpen: false
 
     ArmConfirm { id: _confirm }
+    ListEdgeBands { id: _edges; list: _list }
 
     // a structural wifiNetworks rebuild while a password row is being typed into,
     // or while the details disclosure is open, would destroy and recreate that
@@ -125,7 +129,7 @@ Item {
             width: parent.width
             height: Math.min(contentHeight, 240)
             visible: root.open && Network.wifiNetworks.length > 0
-            interactive: contentHeight > height
+            scrollable: contentHeight > height
             spacing: 0
             // ScriptModel, not the bare array: a plain-array model has no diffing, so
             // every snapshot republish was a full model reset -- contentY yanked back
@@ -154,6 +158,11 @@ Item {
                 readonly property bool _forgetArmed: _confirm.key === "forget:" + modelData.ssid
                 // collapses on its own once this network stops being the active one
                 readonly property bool _detailsOpen: root._detailsOpen && modelData.active
+                // the row's band is this entry's top edge, and its bottom one while no
+                // drawer has opened beneath it (ListEdgeBands)
+                readonly property bool rowTopEngaged: _row.fillShowing
+                readonly property bool rowBottomEngaged: _row.fillShowing
+                    && _entry.height <= _row.height + 0.5
 
                 function _submitPassword(): void {
                     if (_entry._connecting) return

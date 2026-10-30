@@ -48,12 +48,14 @@ The full check already includes the runners below, directly or through
 | [test-niri-focus.sh](test-niri-focus.sh) | Niri focus handling using a mock compositor |
 | [test-history-grouping.sh](test-history-grouping.sh) | Notification history grouping |
 | [test-recent-geometry.sh](test-recent-geometry.sh) | Recent page rows start where the row above ends after an insert while shown, an insert while hidden and revealed, a body expansion, and a reveal under reduced motion; offscreen window |
+| [test-list-wheel.sh](test-list-wheel.sh) | A list or Flickable nested in a scrolling page keeps the wheel at its ends, a gesture already scrolling the page passes over it, short, sideways and top-level scrollers pass an unused wheel on, and only the page stamps its movement; real wheel events in an offscreen window |
+| [test-list-dividers.sh](test-list-dividers.sh) | The card lines beside the Wi-Fi picker fade while the real list's first or last row shows its band against them, return once that row scrolls off the line or loses its fill, and stay put beside a picker without the edge contract; offscreen window |
 | [test-popup-lifecycle.sh](test-popup-lifecycle.sh) | Popup lifecycle under normal and reduced motion |
 | [test-config-recovery.sh](test-config-recovery.sh) | Recovery from malformed configuration |
 | [test-settings-migration.sh](test-settings-migration.sh) | Settings migration and write protection |
 | [test-bar-hint-idle.sh](test-bar-hint-idle.sh) | Hint surface idle transitions; requires Wayland |
 | [test-overlay-coordinator.sh](test-overlay-coordinator.sh) | Popup registration, exclusivity, tray relationships, cold IPC, anchor policies, disappearance, reload, and idle/overview blocking |
-| [test-bluetooth-details.sh](test-bluetooth-details.sh) | Details selection and disconnect cleanup using synthetic devices |
+| [test-bluetooth-details.sh](test-bluetooth-details.sh) | Details selection and disconnect cleanup using synthetic devices, and the edge flags the card lines beside the picker read |
 | [test-upstream-services.sh](test-upstream-services.sh) | Selected upstream service regressions with controlled inputs |
 | [test-brightness-write.sh](test-brightness-write.sh) | Brightness write results routed by display through the real process exit, with a stand-in `brightnessctl` failing slowly enough for the display to switch underneath it |
 | [test-power-profile-recovery.sh](test-power-profile-recovery.sh) | Power profile list recovery on panel open after a failed or empty initial read, using a stand-in profile tool |

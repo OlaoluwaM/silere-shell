@@ -10,3 +10,5 @@ ProbePanels 1.0 probe-panels.qml
 ProbeNotificationStack 1.0 probe-notification-stack.qml
 ProbeBrightnessWrite 1.0 probe-brightness-write.qml
 ProbeRecentGeometry 1.0 probe-recent-geometry.qml
+ProbeListWheel 1.0 probe-list-wheel.qml
+ProbeListDividers 1.0 probe-list-dividers.qml
