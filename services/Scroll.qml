@@ -36,6 +36,15 @@ Singleton {
         return true
     }
 
+    // a wheel gesture that started on a scroller nested in the page stays with it until it
+    // rests, so the scroller's end stops the gesture instead of handing the rest to the page
+    function wheelBelongsToList(claim): bool {
+        const now = Date.now()
+        if (now - claim.ownedAt >= root.pageLatchMs && root.wheelBelongsToPage(0)) return false
+        claim.ownedAt = now
+        return true
+    }
+
     // natural scrolling flips the delta; a level keeps "up means more", as Qt's own sliders do
     function processLevelWheel(event, key: string): int {
         const n = root.processControlWheel(event, key)

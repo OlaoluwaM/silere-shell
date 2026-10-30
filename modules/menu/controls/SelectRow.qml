@@ -320,7 +320,7 @@ Item {
             : 0
         contentWidth: width
         contentHeight: _optCol.implicitHeight
-        interactive: contentHeight > height + 1
+        scrollable: contentHeight > height + 1
         visible: height > 0.5
 
         Disclosure on height { list: true }
