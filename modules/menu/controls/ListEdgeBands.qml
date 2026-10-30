@@ -14,12 +14,18 @@ QtObject {
     readonly property bool bottomEngaged: root.list.visible && root.list.atYEnd
         && root._engaged(root.list.count - 1, false)
 
+    // Read through the rows' own index, not itemAtIndex(): that call is no dependency, and
+    // a row sorted onto the edge, as a network just connected is, left the answer stale.
+    // Every index read up to the match is one, so whichever row's renumbering lands last
+    // reruns this against the settled order
     function _engaged(index: int, top: bool): bool {
-        // the list builds its rows after count changes; contentHeight follows the build
-        if (index < 0 || root.list.contentHeight <= 0) return false
-        const item = root.list.itemAtIndex(index)
-        // reading index rebinds when that row moves off the edge without the count changing
-        if (!item || item.index !== index) return false
-        return (top ? item.rowTopEngaged : item.rowBottomEngaged) === true
+        if (index < 0) return false
+        const rows = root.list.contentItem.children
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i]
+            if (row.index === index)
+                return (top ? row.rowTopEngaged : row.rowBottomEngaged) === true
+        }
+        return false
     }
 }

@@ -34,6 +34,12 @@ ShellRoot {
         return rows
     }
 
+    // the same networks in a new order, as Network's sort republishes them when one connects
+    function ordered(names, active: string): var {
+        return names.map(name => ({ ssid: name, label: name, glyph: "󰤨", secured: true,
+            psk: true, profileOnly: false, active: name === active, known: true }))
+    }
+
     function findList(item): var {
         if (!item) return null
         if (item.scrollable !== undefined && item.delegate !== undefined && item.model !== undefined)
@@ -168,6 +174,25 @@ ShellRoot {
                     "scrolled to its end, the list's connected last row hides the line below")
                 root.check(root.kept(otherLines, 1) && root.kept(otherLines, 2),
                     "the other card's lines never moved")
+                // the same rows, kept by ssid, so a reorder moves delegates instead of rebuilding them
+                Network.wifiNetworks = root.ordered(["net0", "net1", "net2"], "")
+                break
+            case 20:
+                root.check(root.kept(wifiLines, 1) && root.kept(wifiLines, 2),
+                    "a reordered list starts with both lines")
+                // net2 connects and sorts to the front
+                Network.wifiNetworks = root.ordered(["net2", "net0", "net1"], "net2")
+                break
+            case 22:
+                root.check(root.faded(wifiLines, 1) && root.kept(wifiLines, 2),
+                    "a network that connects and sorts to the top hides the line above it")
+                // still connected, it sorts to the end: only the order changes, so the line
+                // below now answers to the filled row and the line above comes back
+                Network.wifiNetworks = root.ordered(["net0", "net1", "net2"], "net2")
+                break
+            case 24:
+                root.check(root.kept(wifiLines, 1) && root.faded(wifiLines, 2),
+                    "a filled row sorted to the bottom moves the fade from the top line to the bottom one")
                 Network.wifiNetworks = []
                 ShellSettings.reduceMotion = root.reduceMotionWas
                 console.log("PROBE-LIST-DIVIDERS " + (root.failures ? "failed" : "passed")
