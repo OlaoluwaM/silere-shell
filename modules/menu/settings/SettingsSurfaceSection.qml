@@ -64,7 +64,9 @@ Column {
             key: "glassOpacity"
             step: 0.02
             enabled: ShellSettings.glassSurfaces
-            displayValue: Math.round(Theme.popupOpacity * 100) + "%"
+            // the slider is read on the menu's own pane, which follows its corner rather than the
+            // whole picture the other popups read, so it reports the glass under the reader's eye
+            displayValue: Math.round(Theme.menuOpacity * 100) + "%"
         }
         // the sample comes from the wallpaper command, so a stock install has nothing to follow
         ToggleRow {

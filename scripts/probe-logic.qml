@@ -358,6 +358,17 @@ ShellRoot {
                     + ",\"bottom\":" + region + ",\"field\":"
                     + region.replace("#1f2e23", "green") + "}") === null,
             "glass sample accepts only version 1 with three complete unit-range regions")
+        const base = "{\"version\":1,\"top\":" + region + ",\"bottom\":" + region
+            + ",\"field\":" + region
+        const peakRegion = region.replace("}", ",\"peak\":0.71}")
+        const withMenu = GlassSample._parseSample(base + ",\"menuTop\":" + peakRegion
+            + ",\"menuBottom\":" + peakRegion + "}")
+        root._check(withMenu !== null && withMenu.menuTop.peak === 0.71
+                && withMenu.menuBottom.peak === 0.71 && sample.menuTop === undefined
+                && GlassSample._parseSample(base + ",\"menuTop\":" + region + "}") === null
+                && GlassSample._parseSample(base + ",\"menuTop\":"
+                    + peakRegion.replace("0.71", "1.2") + "}") === null,
+            "the menu's corner regions are optional, but one that is present needs a unit-range peak")
         const sampleEverWas = GlassSample._everLoaded
         const sampleStaleWas = GlassSample.sampleStale
         GlassSample._everLoaded = true
@@ -3010,8 +3021,30 @@ ShellRoot {
         ShellSettings.glassSurfaces = true
         ShellSettings.glassAdaptive = true
         const sampleRegion = "{\"luminance\":0.05,\"noise\":0.02,\"tone\":\"#ff0000\"}"
-        GlassSample._load("{\"version\":1,\"top\":" + sampleRegion + ",\"bottom\":"
-            + sampleRegion + ",\"field\":" + sampleRegion + "}")
+        const darkSample = "{\"version\":1,\"top\":" + sampleRegion + ",\"bottom\":"
+            + sampleRegion + ",\"field\":" + sampleRegion
+        GlassSample._load(darkSample + "}")
+        root._check(Theme._adaptive && near(Theme.menuOpacity, Theme.popupOpacity)
+                && Theme._menuTint.toString() === Theme._glassTint.toString(),
+            "a sample without the menu's corner leaves the menu on the whole picture")
+        // a fresh load from the fallback snaps, so the corner's values are readable at once
+        GlassSample._everLoaded = false
+        GlassSample._sample = ({})
+        const brightCorner = "{\"luminance\":0.48,\"noise\":0.19,\"tone\":\"#8a795e\",\"peak\":0.71}"
+        const dimCorner = "{\"luminance\":0.20,\"noise\":0.19,\"tone\":\"#3a332b\",\"peak\":0.25}"
+        GlassSample._load(darkSample + ",\"menuTop\":" + brightCorner
+            + ",\"menuBottom\":" + dimCorner + "}")
+        const barPositionWas = ShellSettings.barPosition
+        ShellSettings.barPosition = "bottom"
+        const bottomPeak = Theme._menuPeak
+        ShellSettings.barPosition = "top"
+        root._check(bottomPeak === 0.25 && Theme._menuPeak === 0.71,
+            "the menu reads the corner under the bar it hangs from")
+        root._check(near(Theme.menuOpacity, Theme._ladder(ShellSettings.glassOpacity, 0.71, 0.19))
+                && Theme.menuOpacity > Theme.popupOpacity
+                && near(Theme.menuPane.a, Theme.menuOpacity),
+            "the menu pane thickens for its own bright corner while the other popups stay thin")
+        ShellSettings.barPosition = barPositionWas
         ShellSettings.neutralTheme = false
         root._check(Theme._adaptive
                 && near(Theme.panelOpacity, Theme._ladder(ShellSettings.barOpacity, 0.05, 0.02))

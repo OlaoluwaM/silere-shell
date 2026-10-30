@@ -59,14 +59,20 @@ Singleton {
     readonly property real  _stripLuminance: Metrics.barAtBottom ? GlassSample.bottomLuminance : GlassSample.topLuminance
     readonly property real  _stripNoise:     Metrics.barAtBottom ? GlassSample.bottomNoise     : GlassSample.topNoise
     readonly property color _stripTone:      Metrics.barAtBottom ? GlassSample.bottomTone      : GlassSample.topTone
+    // the menu reads the corner it opens into, at that corner's brightest tenth rather than its
+    // mean: a pane over a bright sky and a dark field is only as legible as its brightest part (ADR 0005)
+    readonly property real  _menuPeak:  Metrics.barAtBottom ? GlassSample.menuBottomPeak  : GlassSample.menuTopPeak
+    readonly property real  _menuNoise: Metrics.barAtBottom ? GlassSample.menuBottomNoise : GlassSample.menuTopNoise
+    readonly property color _menuTone:  Metrics.barAtBottom ? GlassSample.menuBottomTone  : GlassSample.menuTopTone
     // the point of glass is the wallpaper hue showing through the blur: sink it half as hard
     // as the opaque background does, or "deeper" depth leaves the frost reading nearly black.
-    // Everything hanging below the bar reads the whole picture; the bar reads its own edge
+    // Popups read the whole picture, the menu its own corner and the bar its own edge
     readonly property color _glassTint: _adaptive ? _adaptiveTint(GlassSample.fieldLuminance, GlassSample.fieldTone)
                                       : _n ? _pal.background
                                            : mix(MatugenTheme.background, depthSink, _depthK * 0.5)
     readonly property color _barTint:   _adaptive ? _adaptiveTint(_stripLuminance, _stripTone)
                                                   : background
+    readonly property color _menuTint:  _adaptive ? _adaptiveTint(_menuPeak, _menuTone) : _glassTint
 
     readonly property color _surfaceBase: _n ? _pal.surface   : _matuSurface
     readonly property color _textBase:    _n ? "#e9eaf0"      : MatugenTheme.text
@@ -148,6 +154,8 @@ Singleton {
     readonly property real popupOpacity: _adaptive ? _ladder(ShellSettings.glassOpacity,
                                                              GlassSample.fieldLuminance, GlassSample.fieldNoise)
                                                    : ShellSettings.glassOpacity
+    readonly property real menuOpacity: _adaptive ? _ladder(ShellSettings.glassOpacity, _menuPeak, _menuNoise)
+                                                  : ShellSettings.glassOpacity
     readonly property color panel: withAlpha(_barTint, panelOpacity)
     // glass mirrors the bar's own trick (background tinted, then cut with alpha) so popups
     // read as the same pane of glass, not a different material stacked on top of it; outside
@@ -164,7 +172,7 @@ Singleton {
         ? withAlpha(mix(_glassTint, text, 0.06), popupOpacity)
         : withAlpha(mix(popup, subtext, 0.06), popup.a)
 
-    readonly property color menuPane:        _glass ? withAlpha(_glassTint, popupOpacity)
+    readonly property color menuPane:        _glass ? withAlpha(_menuTint, menuOpacity)
                                                 : _n ? mix(background, text, _elevK * (_hc ? 0.050 : 0.030))
                                                 : mix(background, _hc ? text : surface, _elevK * (_hc ? 0.055 : 0.18))
     // opaque mixes toward background/text would paint over the frost; a light text-alpha

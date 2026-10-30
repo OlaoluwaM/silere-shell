@@ -1,6 +1,6 @@
 # ADR 0004: Adapt Glass Thickness to a Sampled Wallpaper Region
 
-- **Status:** Accepted
+- **Status:** Accepted; the menu pane's input amended by [ADR 0005](0005-tune-the-menu-glass-and-secondary-text-to-the-menus-own-corner.md)
 - **Date:** 2026-10-24
 
 ## Context

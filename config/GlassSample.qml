@@ -23,16 +23,21 @@ Singleton {
     property bool sampleStale: false
 
     readonly property var _regions: ["top", "bottom", "field"]
+    // the menu's corner under each bar position, with its brightest tenth (ADR 0005). Optional,
+    // so a sample written before the sampler measured them still loads and the menu reads field
+    readonly property var _peakRegions: ["menuTop", "menuBottom"]
     // quiet mid-grey so every binding below is defined before a sample lands; Theme never
     // paints from it, since its adaptive branch waits on usingFallback
     readonly property var _fallbackRegion: ({ luminance: 0.30, noise: 0.10, tone: "" })
 
-    // both edges are exposed and Theme picks the one the bar sits on: selecting here would
-    // route a bar-position flip through the Behaviors below, and a settings flip must snap
-    // (ADR 0001) while only a wallpaper change eases
+    // both edges and both menu corners are exposed and Theme picks by bar position: selecting
+    // here would route a bar-position flip through the Behaviors below, and a settings flip must
+    // snap (ADR 0001) while only a wallpaper change eases
     readonly property var _top:    root._sample.top    ?? root._fallbackRegion
     readonly property var _bottom: root._sample.bottom ?? root._fallbackRegion
     readonly property var _field:  root._sample.field  ?? root._fallbackRegion
+    readonly property var _menuTop:    root._sample.menuTop    ?? null
+    readonly property var _menuBottom: root._sample.menuBottom ?? null
 
     // Plain properties, not readonly: the Behaviors below ease a wallpaper-driven sample
     // swap at the source (ADR 0001), so every Theme color derived from these fades once.
@@ -46,6 +51,12 @@ Singleton {
     property real  fieldLuminance:  root._field.luminance
     property real  fieldNoise:      root._field.noise
     property color fieldTone:       root._field.tone  || MatugenTheme.background
+    property real  menuTopPeak:     root._menuTop    ? root._menuTop.peak     : root._field.luminance
+    property real  menuTopNoise:    root._menuTop    ? root._menuTop.noise    : root._field.noise
+    property color menuTopTone:     (root._menuTop    ? root._menuTop.tone    : root._field.tone) || MatugenTheme.background
+    property real  menuBottomPeak:  root._menuBottom ? root._menuBottom.peak  : root._field.luminance
+    property real  menuBottomNoise: root._menuBottom ? root._menuBottom.noise : root._field.noise
+    property color menuBottomTone:  (root._menuBottom ? root._menuBottom.tone : root._field.tone) || MatugenTheme.background
 
     // gated on _everLoaded for the same reason as the palette: launch must snap, not
     // cross-fade from the fallback to the on-disk sample
@@ -85,21 +96,56 @@ Singleton {
         gate: root._everLoaded
         ColorAnimation { duration: Motion.palette; easing.type: Easing.OutCubic }
     }
+    MotionBehavior on menuTopPeak {
+        gate: root._everLoaded
+        NumberAnimation { duration: Motion.palette; easing.type: Easing.OutCubic }
+    }
+    MotionBehavior on menuTopNoise {
+        gate: root._everLoaded
+        NumberAnimation { duration: Motion.palette; easing.type: Easing.OutCubic }
+    }
+    MotionBehavior on menuTopTone {
+        gate: root._everLoaded
+        ColorAnimation { duration: Motion.palette; easing.type: Easing.OutCubic }
+    }
+    MotionBehavior on menuBottomPeak {
+        gate: root._everLoaded
+        NumberAnimation { duration: Motion.palette; easing.type: Easing.OutCubic }
+    }
+    MotionBehavior on menuBottomNoise {
+        gate: root._everLoaded
+        NumberAnimation { duration: Motion.palette; easing.type: Easing.OutCubic }
+    }
+    MotionBehavior on menuBottomTone {
+        gate: root._everLoaded
+        ColorAnimation { duration: Motion.palette; easing.type: Easing.OutCubic }
+    }
 
     // the sample lands a beat after the palette (the wallpaper command writes it last), so
     // the leaf fades need their own hold or they double-ease the tail of this swap
     readonly property bool transitioning: _transitionHold.running
     Timer { id: _transitionHold; interval: Motion.palette }
 
+    function _unit(v: var): bool {
+        return typeof v === "number" && isFinite(v) && v >= 0 && v <= 1
+    }
+
     function _parseRegion(raw: var): var {
         if (raw === null || typeof raw !== "object" || Array.isArray(raw))
             return null
-        const unit = v => typeof v === "number" && isFinite(v) && v >= 0 && v <= 1
-        if (!unit(raw.luminance) || !unit(raw.noise))
+        if (!root._unit(raw.luminance) || !root._unit(raw.noise))
             return null
         if (typeof raw.tone !== "string" || !/^#[0-9a-fA-F]{6}$/.test(raw.tone))
             return null
         return { luminance: raw.luminance, noise: raw.noise, tone: raw.tone }
+    }
+
+    function _parsePeakRegion(raw: var): var {
+        const region = root._parseRegion(raw)
+        if (region === null || !root._unit(raw.peak))
+            return null
+        region.peak = raw.peak
+        return region
     }
 
     function _parseSample(raw: string): var {
@@ -120,6 +166,16 @@ Singleton {
                 return null
             clean[root._regions[i]] = region
         }
+        // absent is fine, malformed is not: half a menu region would move the pane on a guess
+        for (let i = 0; i < root._peakRegions.length; i++) {
+            const name = root._peakRegions[i]
+            if (parsed[name] === undefined)
+                continue
+            const region = root._parsePeakRegion(parsed[name])
+            if (region === null)
+                return null
+            clean[name] = region
+        }
         return clean
     }
 
@@ -127,6 +183,14 @@ Singleton {
         for (let i = 0; i < root._regions.length; i++) {
             const x = a[root._regions[i]], y = b[root._regions[i]]
             if (!x || x.luminance !== y.luminance || x.noise !== y.noise || x.tone !== y.tone)
+                return true
+        }
+        for (let i = 0; i < root._peakRegions.length; i++) {
+            const x = a[root._peakRegions[i]], y = b[root._peakRegions[i]]
+            if (!x !== !y)
+                return true
+            if (x && (x.luminance !== y.luminance || x.noise !== y.noise
+                    || x.tone !== y.tone || x.peak !== y.peak))
                 return true
         }
         return false
