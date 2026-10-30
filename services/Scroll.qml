@@ -23,17 +23,24 @@ Singleton {
     // a plain field, so stamping it on every scrolled frame notifies nothing
     readonly property var _page: ({ movedAt: 0 })
 
+    // the page calls this only while the user moves it (ShellFlickable): a reveal or a
+    // clamp is no gesture for a control to yield to
     function notePageMoved(): void {
         root._page.movedAt = Date.now()
     }
 
-    // a wheel gesture that is scrolling the page keeps scrolling it when a slider passes under the pointer
+    // a wheel gesture that is scrolling the page keeps scrolling it when a slider passes
+    // under the pointer, and stays with the page until it rests, as a list keeps its own:
+    // asking renews a latch already held, so wheeling on at the page's end nudges nothing.
+    // Only the page moving under the user starts one, so a hover that has not rested, or a
+    // page moved by code, hands the wheel over without keeping it
     function wheelBelongsToPage(hoveredSince: real): bool {
         const now = Date.now()
-        if (now - root._page.movedAt >= root.pageLatchMs
-                && now - hoveredSince >= root.sliderRestMs) return false
-        root._page.movedAt = now
-        return true
+        if (now - root._page.movedAt < root.pageLatchMs) {
+            root._page.movedAt = now
+            return true
+        }
+        return now - hoveredSince < root.sliderRestMs
     }
 
     // a wheel gesture that started on a scroller nested in the page stays with it until it

@@ -19,7 +19,8 @@ Flickable {
     // one scroll feel shell-wide: drag stops at the edge, a flick still rebounds
     boundsMovement: Flickable.StopAtBounds
     interactive: scrollable && !_wheel.toPage
-    // only a page stamps: a nested scroller still coasting would otherwise hand a fresh
-    // gesture on itself to the page
-    onContentYChanged: if (!_wheel.inScrollingPage()) Scroll.notePageMoved()
+    // only a page the user is moving stamps: a nested scroller still coasting would hand a
+    // fresh gesture on itself to the page, and a reveal, a clamp or an animated scroll
+    // would hand the wheel to a page nobody is scrolling
+    onContentYChanged: if (moving && !_wheel.inScrollingPage()) Scroll.notePageMoved()
 }

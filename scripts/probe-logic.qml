@@ -2343,6 +2343,17 @@ ShellRoot {
         Scroll._page.movedAt = 0
         root._check(Scroll.wheelBelongsToPage(Date.now()),
             "a slider the pointer only just reached does not take the wheel")
+        // a page gesture wheeling on at the page's end stays the page's until it rests, so a
+        // slider resting under the pointer is not nudged by the rest of it
+        const latchedAt = Date.now() - 300
+        Scroll._page.movedAt = latchedAt
+        root._check(Scroll.wheelBelongsToPage(Date.now() - 1000) && Scroll._page.movedAt > latchedAt,
+            "a wheel query renews the page latch while the page holds the gesture")
+        // only the page moving starts one: a hover that has not rested hands the wheel over
+        // without keeping it, so the slider takes the gesture once the hover rests
+        Scroll._page.movedAt = 0
+        root._check(Scroll.wheelBelongsToPage(Date.now()) && Scroll._page.movedAt === 0,
+            "a hover that has not rested starts no page latch")
         Scroll._page.movedAt = 0
         const trayPad = (x, y) => ({ angleDelta: { x: x, y: y }, pixelDelta: { x: x / 8, y: y / 8 },
             device: { type: PointerDevice.TouchPad } })

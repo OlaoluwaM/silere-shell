@@ -118,7 +118,7 @@ ShellRoot {
                     interactive: contentWidth > width + 1
                 }
 
-                Item { width: parent.width; height: 400 }
+                Item { id: tail; width: parent.width; height: 400 }
             }
         }
 
@@ -246,10 +246,9 @@ ShellRoot {
             case 34: {
                 root.rest(150, inner, 0)
                 inner.contentY = 50
-                const innerStamped = Scroll._page.movedAt !== 0
                 page.contentY = 160
-                root.check(!innerStamped && Scroll._page.movedAt !== 0,
-                    "only the page counts as the page moving, not a scroller nested in it")
+                root.check(Scroll._page.movedAt === 0,
+                    "neither a nested scroller nor a page moved by code counts as the page moving")
                 root.rest(150, across, 0)
                 root.wheel(across, 0, -120)
                 root.check(page.moving && !across._wheel.toPage && across.interactive,
@@ -272,6 +271,53 @@ ShellRoot {
                 root.check(page.contentY > 0 && Scroll._page.movedAt !== 0,
                     "the page scrolled and stamped its movement as before (page "
                         + page.contentY + ")")
+                // a reveal sets the page's contentY with nobody scrolling it
+                root.rest(0, list, 100)
+                page.contentY = 30
+                root.wheel(list, 0, -120)
+                root.check(list.interactive && list.moving && !page.moving,
+                    "a page moved by code right before still leaves the wheel to the list")
+                break
+            case 43:
+                root.check(list.contentY > 100 && page.contentY === 30,
+                    "the list scrolled after the page's programmatic move (list " + list.contentY
+                        + ", page " + page.contentY + ")")
+                // a section collapsing under a scrolled page, then the menu's clampToContent
+                // pulling the page back inside its shorter content
+                root.rest(200, list, 100)
+                tail.height = 0
+                _col.forceLayout()
+                page.contentY = Math.max(0, Math.min(page.contentY, page.contentHeight - page.height))
+                root.wheel(list, 0, -120)
+                root.check(list.interactive && list.moving && !page.moving,
+                    "a page clamped into its content right before still leaves the wheel to the list")
+                break
+            case 46:
+                root.check(list.contentY > 100 && page.contentY === page.contentHeight - page.height,
+                    "the list scrolled after the clamp (list " + list.contentY + ", page " + page.contentY + ")")
+                tail.height = 400
+                // the page just moved under a real gesture, then has nowhere to go: it sits at
+                // its top while the user keeps wheeling up over the list
+                root.rest(0, list, 100)
+                Scroll.notePageMoved()
+                break
+            case 47: case 48: case 49: case 50: case 51: case 52: case 53:
+                root.wheel(list, 0, 120)
+                break
+            case 54:
+                // the gesture started on the page, so it stays the page's while it goes on
+                root.check(list.contentY === 100 && page.contentY === 0,
+                    "a page gesture that ran into the page's end keeps the wheel while it goes on (list "
+                        + list.contentY + ")")
+                break
+            // a pause longer than the latch ends that gesture
+            case 60:
+                root.wheel(list, 0, 120)
+                break
+            case 62:
+                root.check(list.contentY < 100 && list.interactive && page.contentY === 0,
+                    "after a pause, the next gesture over the list is the list's (list "
+                        + list.contentY + ")")
                 console.log("PROBE-LIST-WHEEL " + (root.failures ? "failed" : "passed")
                     + " " + root.checks + " checks")
                 console.log("PROBE-LIST-WHEEL-DONE")

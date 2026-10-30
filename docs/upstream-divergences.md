@@ -170,9 +170,14 @@ outside issues or pull requests.
   `interactive` off and goes on to the page. Nested call sites therefore set
   `scrollable`, not `interactive` (`WifiList`, `BluetoothList`, `SelectRow`);
   a page keeps its explicit `interactive`. Only a ShellFlickable outside any
-  scrolling page calls `Scroll.notePageMoved`. Keep all of it on an import of
-  these files, and convert any `interactive:` an import sets on a nested
-  vertical scroller.
+  scrolling page, and only while the user is `moving` it, calls
+  `Scroll.notePageMoved`: a reveal, a clamp or an animated scroll moves no
+  gesture. Upstream's `wheelBelongsToPage` renews the latch each time it answers
+  yes, a hover that has not rested included; the fork's renews only a latch the
+  page's movement started, so a page gesture keeps the wheel until it rests, at
+  the page's end too, and nothing else can start one. Keep all of it on an
+  import of these files, and convert any `interactive:` an import sets on a
+  nested vertical scroller.
 - `services/Media.qml`: `_trackActivity` runs at startup as well as on
   playing changes, and ranks only listed players, past upstream's change
   handler, so players already playing when the shell starts are not ranked as
