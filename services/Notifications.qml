@@ -6,6 +6,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Notifications
 import "../config"
+import "HistoryRuns.js" as HistoryRuns
 
 Singleton {
     id: root
@@ -85,7 +86,10 @@ Singleton {
             time:         isFinite(rawTime) && rawTime >= 0 && rawTime <= 8.64e15
                 ? rawTime : 0,
             // PersistentProperties and the server share one process lifetime.
-            sessionCurrent: e.sessionCurrent === true
+            sessionCurrent: e.sessionCurrent === true,
+            // the run label HistoryRuns gives a row when it is filed; "" until then, and on
+            // rows saved before runs were labelled, which labelMissing fills in
+            run:          typeof e.run === "string" ? e.run.slice(0, 64) : ""
         }
     }
 
@@ -158,7 +162,9 @@ Singleton {
         const now = Date.now()
         let at = 0
         while (at < _history.count && _history.get(at).time > e.time && _history.get(at).time <= now) at++
+        e.run = HistoryRuns.runForInsert(_history, at, e)
         _history.insert(at, e)
+        HistoryRuns.splitAt(_history, at)
         root._trimHistory()
     }
 
@@ -175,7 +181,7 @@ Singleton {
             out.push({
                 id: h.id, appName: h.appName, appIcon: h.appIcon, desktopEntry: h.desktopEntry,
                 summary: h.summary, body: h.body, urgency: h.urgency, time: h.time,
-                sessionCurrent: h.sessionCurrent
+                sessionCurrent: h.sessionCurrent, run: h.run
             })
         }
         _persist.historyJson = ShellSettings.notifHistoryPersistent
@@ -282,6 +288,7 @@ Singleton {
                 if (e) _history.append(e)
             }
         }
+        HistoryRuns.labelMissing(_history)
         root._seen = root._normalizeSeenMap(savedSeen)
         root._times = root._normalizeTimesMap(savedTimes)
         root._liveIds = root._normalizeLiveIds(savedLiveIds)
@@ -497,6 +504,7 @@ Singleton {
             if (!root._reloadStateAuthoritative && root._diskHistoryMayRestore
                     && ShellSettings.notifHistoryPersistent
                     && Array.isArray(parsed.history)) {
+                const liveCount = _history.count
                 const limit = _history.count + root._historyCapacity
                 const scanLimit = Math.min(parsed.history.length, root._historyCapacity)
                 for (let i = 0; i < scanLimit && _history.count < limit; i++) {
@@ -509,6 +517,8 @@ Singleton {
                     entry.sessionCurrent = false
                     _history.append(entry)
                 }
+                HistoryRuns.labelMissing(_history)
+                HistoryRuns.joinAt(_history, liveCount)
             }
             const diskSeen = root._normalizeSeenMap(parsed.seen)
             const diskTimes = root._normalizeTimesMap(parsed.times)

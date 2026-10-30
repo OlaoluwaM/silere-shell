@@ -71,7 +71,25 @@ ShellRoot {
         running: true
         repeat: true
         onTriggered: {
-            if (root.phase.startsWith("delayed-") && !root.started) {
+            // a notification archived before the held disk read lands sits right above the
+            // same app's saved run; the restore must join them, not keep two runs for good
+            if (root.phase === "delayed-runs" && !root.started) {
+                if (!ShellSettings.ready || !Notifications._persistentReady
+                        || !Notifications._diskReadable) return
+                root.started = true
+                root.archive("Kitty", "arrived early", 74, 7400)
+                Notifications._diskLoadSettled = true
+                Notifications._tryRestoreDisk()
+                const joined = Notifications.historyModel
+                let one = joined.count === 4
+                for (let i = 0; i < joined.count; i++)
+                    one = one && joined.get(i).run === "disk-run"
+                root.check(one, "an arrival before the restore joins the saved run of its app below it")
+                finishTimer.start()
+                poll.stop()
+                return
+            }
+            if (root.phase.startsWith("delayed-") && root.phase !== "delayed-runs" && !root.started) {
                 if (!ShellSettings.ready || !Notifications._persistentReady
                         || !Notifications._diskReadable) return
                 root.started = true
@@ -150,6 +168,53 @@ ShellRoot {
                     finishTimer.start()
                     poll.running = false
                 }
+                return
+            }
+
+            // runs are labelled when filed and saved with their rows, so the two runs of one
+            // app that a cleared row leaves side by side stay two through a real restart
+            if (root.phase === "runs-seed" && !root.started) {
+                root.started = true
+                Notifications.clearHistory()
+                root.archive("Kitty", "one", 61, 6100)
+                root.archive("Kitty", "two", 62, 6200)
+                root.archive("Other", "between", 63, 6300)
+                root.archive("Kitty", "three", 64, 6400)
+                root.archive("Kitty", "four", 65, 6500)
+                root.archive("Kitty", "five", 66, 6600)
+                const filed = Notifications.historyModel
+                root.check(filed.count === 6 && filed.get(0).run.length > 0
+                        && filed.get(0).run === filed.get(2).run && filed.get(4).run === filed.get(5).run
+                        && filed.get(2).run !== filed.get(4).run,
+                    "arrivals are labelled with the run they stack into")
+                Notifications.removeFromHistory(3)
+                root.check(filed.count === 5 && filed.get(2).run !== filed.get(3).run,
+                    "clearing the row between two runs of one app keeps their labels apart")
+                finishTimer.start()
+                return
+            }
+
+            if (root.phase === "runs-restore" && !root.started) {
+                root.started = true
+                const kept = Notifications.historyModel
+                root.check(kept.count === 5 && kept.get(0).run.length > 0
+                        && kept.get(0).run === kept.get(2).run && kept.get(3).run === kept.get(4).run
+                        && kept.get(2).run !== kept.get(3).run,
+                    "two runs of one app side by side stay two after a restart")
+                finishTimer.start()
+                return
+            }
+
+            // a file from before runs were labelled takes the old adjacency rule once, then keeps it
+            if (root.phase === "runs-legacy" && !root.started) {
+                root.started = true
+                const legacy = Notifications.historyModel
+                let labelled = legacy.count === 4
+                for (let i = 0; i < legacy.count; i++) labelled = labelled && legacy.get(i).run.length > 0
+                root.check(labelled && legacy.get(0).run === legacy.get(1).run
+                        && legacy.get(1).run !== legacy.get(2).run && legacy.get(2).run !== legacy.get(3).run,
+                    "unlabelled rows from an older file are grouped by adjacency on load")
+                finishTimer.start()
                 return
             }
 

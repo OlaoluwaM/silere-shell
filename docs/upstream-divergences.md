@@ -409,15 +409,23 @@ outside issues or pull requests.
   fork's own: an upstream history grouping lands under that fold or not at all.
   Popup and history dismiss icons center their measured ink horizontally,
   with fractional positioning retained for fonts such as Berkeley Mono.
-  Expansion belongs to a run's retained oldest entry, including its timestamp,
-  rather than its ordinal among the day's runs. Removing an older run must not
-  transfer expansion to another run. A run joined by clearing the row between
-  two runs of one app keeps its oldest entry's state when that was open; otherwise
-  it opens when the upper run was open or neither side was tall enough to stack,
-  and a standing stack takes a short side in.
-  An older row that history files below an open run's tail becomes its oldest
-  entry, and `HistoryGrouping` carries the open state to it. Clearing that
-  oldest entry hands the state to the row above it when that row stays in the run.
+  A run is a label each history row carries (`run`, from
+  `services/HistoryRuns.js`), given when the service files the row and saved
+  with it in `notifications.json`, which stays at `__version` 1 since older
+  readers ignore the field. Rows without one, from an older file or reload
+  state, take the old adjacency rule once on load, joining a labelled run of
+  their app and day beside them. A row joins the run of the
+  older same-app, same-day row below it, else of the row above it, as a late
+  close does under a run's oldest row; a row of another run filed inside a run
+  splits off the part below it. Runs never join: clearing the row between two
+  runs of one app leaves two runs with their own headers, stacks and Clear, and
+  a restart keeps them apart. The one join is at startup: a row filed before
+  the disk read lands found no run to join, so the restore gives it the label of
+  the same app's restored run directly below it. Expansion belongs to the run's label rather than its ordinal
+  or its oldest row, so arrivals, a cleared oldest row and removals elsewhere
+  keep it; a run that goes, or falls below the fold, gives it up. Upstream
+  groups by adjacency alone; keep the labels on an import of the history
+  insert, its persistence, or `HistoryGrouping`.
   History edits and the grouping log under the fork's `silere.notifications`
   category (`historyLog`, `historyRowLabel`); keep the removal lines on an
   import of the history removals, which are how a lost row is told from a hidden one.
@@ -549,7 +557,7 @@ outside issues or pull requests.
 - History rows leave on their own clock (`ListView.delayRemove` from
   `RecentPage`'s `_noteLeaving`), not through a remove transition: Qt drops a
   running remove transition on any later layout of the list, so a second
-  clear, a history trim, or a run folding as it merges cut the first row's exit
+  clear, a history trim, or a run folding cut the first row's exit
   short. A leaving row keeps its place until it has closed, so the list lays
   out from live heights on every frame: the rows below close up, a list at its
   end follows the row down, and removals animate other rows' heights (they no

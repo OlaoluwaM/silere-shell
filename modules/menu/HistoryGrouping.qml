@@ -1,23 +1,19 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import "../../services/HistoryRuns.js" as HistoryRuns
 
-// The notification service owns history. This object owns only the menu's
-// app/day grouping and the expansion state that belongs to those groups.
+// The notification service owns history and labels each row with its run. This object
+// owns only the menu's reading of those runs and the expansion state that belongs to them.
 QtObject {
     id: root
 
     required property var model
     property int foldAt: 3
-    // whether the page is in view: a run joined behind a hidden page stays folded, as
-    // a menu opening would show it
-    property bool shown: false
     // the notification service's history category, handed in rather than imported: the
     // singleton would start a notification server inside the grouping probe
     property var log: null
     property var _openRuns: ({})
-    // a row of the run that opens once a removal lands
-    property int _tailHeir: -1
 
     function _trace(...parts): void {
         if (root.log) console.debug(root.log, "grouping:", ...parts)
@@ -43,16 +39,15 @@ QtObject {
     }
 
     function dayKey(ms): string {
-        const d = new Date(Number(ms || Date.now()))
-        return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate()
+        return HistoryRuns.dayKey(ms)
     }
 
-    // The run tail survives arrivals newer than it. It identifies the retained
-    // group without confusing equal timestamps or reused server ids; an older
-    // arrival that history slots in below the tail becomes the new tail, and
-    // _carryOpenTail moves the open state over to it.
-    function runKey(app: string, day: string, tail): string {
-        return JSON.stringify([app, day, tail.id, tail.time])
+    // The run's label is its identity, so its expansion survives arrivals, a cleared
+    // oldest row, and a removal that leaves another run of its app beside it. A row
+    // without one (only ever a hand-built model) falls back to its app, day and oldest row
+    function runKey(row, tail): string {
+        if (row.run) return "run:" + String(row.run)
+        return JSON.stringify([String(row.appName), root.dayKey(row.time), tail.id, tail.time])
     }
 
     function runBounds(index: int): var {
@@ -61,28 +56,17 @@ QtObject {
         if (index < 0 || index >= n) return { start: index, length: 1, critical: false, key: "" }
 
         const here = rows.get(index)
-        const app = String(here.appName)
-        const day = root.dayKey(here.time)
         let start = index
-        while (start > 0) {
-            const above = rows.get(start - 1)
-            if (String(above.appName) !== app || root.dayKey(above.time) !== day) break
-            start--
-        }
+        while (start > 0 && HistoryRuns.sameRun(rows.get(start - 1), here)) start--
         let end = index
-        while (end + 1 < n) {
-            const below = rows.get(end + 1)
-            if (String(below.appName) !== app || root.dayKey(below.time) !== day) break
-            end++
-        }
+        while (end + 1 < n && HistoryRuns.sameRun(rows.get(end + 1), here)) end++
 
         let critical = false
         for (let i = start; i <= end && !critical; i++)
             critical = Number(rows.get(i).urgency) === 2
 
-        const tail = rows.get(end)
         return { start: start, length: end - start + 1, critical: critical,
-            key: root.runKey(app, day, tail) }
+            key: root.runKey(here, rows.get(end)) }
     }
 
     // A pooled row keeps its last index, and a Binding's value still evaluates while
@@ -95,7 +79,9 @@ QtObject {
         const row = rows.get(index)
         const previous = index > 0 ? rows.get(index - 1) : null
         const section = !previous || root.dayKey(row.time) !== root.dayKey(previous.time)
-        const header = section || String(row.appName) !== String(previous.appName)
+        // a run of the same app right under another starts with its own header, so its
+        // stack and its Clear take only its own rows
+        const header = section || !HistoryRuns.sameRun(previous, row)
         const run = root.runBounds(index)
         return { first: index === 0, section: section, header: header,
             length: run.length, critical: run.critical, key: run.key,
@@ -117,107 +103,16 @@ QtObject {
         root._openRuns = ({})
     }
 
-    // History files a notification by arrival when it closes, so one that
-    // outlived newer ones from its app lands under the run the user opened.
-    function _carryOpenTail(first: int, last: int): void {
-        if (first <= 0) return
-        const rows = root.model
-        const above = rows.get(first - 1)
-        const app = String(above.appName)
-        const day = root.dayKey(above.time)
-        // the row above was its run's tail only when nothing of that run follows the insert
-        const below = last + 1 < rows.count ? rows.get(last + 1) : null
-        if (below && String(below.appName) === app && root.dayKey(below.time) === day) return
-        const was = root.runKey(app, day, above)
-        if (root._openRuns[was] !== true) return
-        const now = root.runBounds(first - 1).key
-        if (now === was) return
-        root._trace("arrival under an open tail carries it from", was)
-        root.setOpen(now, true)
-    }
-
-    // Clearing the tail of an open run must not refold the rows still in it. The
-    // row above takes the open state only when it stays in that run: a cleared
-    // run never hands its state to the run above
-    function _noteRemovedTail(first: int, last: int): void {
-        root._tailHeir = -1
-        if (first <= 0) return
-        const rows = root.model
-        const tail = rows.get(last)
-        const app = String(tail.appName)
-        const day = root.dayKey(tail.time)
-        const below = last + 1 < rows.count ? rows.get(last + 1) : null
-        if (below && String(below.appName) === app && root.dayKey(below.time) === day) return
-        // a removal reaching past the run's head takes the whole run with it
-        if (root.runBounds(last).start > first) return
-        const above = rows.get(first - 1)
-        if (String(above.appName) !== app || root.dayKey(above.time) !== day) return
-        if (root._openRuns[root.runKey(app, day, tail)] !== true) return
-        root._tailHeir = first - 1
-        root._trace("cleared tail of an open run, row", first - 1, "inherits")
-    }
-
-    // Clearing the row between two runs of one app joins them into one, keyed by the
-    // lower run's tail, so the upper run's state would be lost and its rows folded. The
-    // joined run shows what was in view: it opens when either side was open, or when
-    // neither side was tall enough to stack. A standing stack takes a short side in
-    function _noteJoinedRuns(first: int, last: int): void {
-        if (!root.shown || first <= 0) return
-        const rows = root.model
-        if (last + 1 >= rows.count) return
-        const above = rows.get(first - 1)
-        const below = rows.get(last + 1)
-        const app = String(above.appName)
-        const day = root.dayKey(above.time)
-        if (String(below.appName) !== app || root.dayKey(below.time) !== day) return
-        // rows of that run leaving from inside it join nothing
-        for (let i = first; i <= last; i++) {
-            const row = rows.get(i)
-            if (String(row.appName) === app && root.dayKey(row.time) === day) return
-        }
-        const upper = root.runBounds(first - 1)
-        const lower = root.runBounds(last + 1)
-        const upperOpen = root._openRuns[upper.key] === true
-        const lowerOpen = root._openRuns[lower.key] === true
-        const joins = !lowerOpen
-            && (upperOpen || (upper.length < root.foldAt && lower.length < root.foldAt))
-        root._trace("removal joins", app, "runs of", upper.length + (upperOpen ? " open" : ""),
-            "and", lower.length + (lowerOpen ? " open" : ""), joins ? "-> joined run opens" : "-> state kept")
-        if (joins) root._tailHeir = first - 1
-    }
-
-    function _carryRemovedTail(): void {
-        const heir = root._tailHeir
-        if (heir < 0) return
-        root._tailHeir = -1
-        root._trace("row", heir, "takes the open state")
-        root.setOpen(root.runBounds(heir).key, true)
-    }
-
-    // A removed or shortened tail must not leave its key behind for a later
-    // group that happens to carry the same app, id, time, and day.
+    // A run that is gone, or too short to stack, gives up its open state, so it comes
+    // back folded should it grow into a stack again
     function _pruneOpenRuns(): void {
         const rows = root.model
-        const runs = []
-        for (let i = 0; i < rows.count; i++) {
-            const row = rows.get(i)
-            const app = String(row.appName)
-            const day = root.dayKey(row.time)
-            const last = runs[runs.length - 1]
-            if (last && last.app === app && last.day === day) {
-                last.length++
-                last.tail = row
-            } else {
-                runs.push({ app: app, day: day, length: 1, tail: row })
-            }
-        }
-
         const keep = {}
-        for (let i = 0; i < runs.length; i++) {
-            const run = runs[i]
-            if (run.length < root.foldAt) continue
-            const key = root.runKey(run.app, run.day, run.tail)
-            if (root._openRuns[key] === true) keep[key] = true
+        let at = 0
+        while (at < rows.count) {
+            const run = root.runBounds(at)
+            if (run.length >= root.foldAt && root._openRuns[run.key] === true) keep[run.key] = true
+            at = run.start + run.length
         }
 
         const dropped = []
@@ -230,17 +125,6 @@ QtObject {
 
     property Connections _modelChanges: Connections {
         target: root.model
-        // before onCountChanged, whose prune drops the old tail's key
-        function onRowsInserted(parent, first: int, last: int) { root._carryOpenTail(first, last) }
-        function onRowsAboutToBeRemoved(parent, first: int, last: int) {
-            root._noteRemovedTail(first, last)
-            root._noteJoinedRuns(first, last)
-        }
-        // not on rowsRemoved: a carry there can reach the list's rows before they are
-        // renumbered, and the last one reads past the shortened model
-        function onCountChanged() {
-            root._carryRemovedTail()
-            root._pruneOpenRuns()
-        }
+        function onCountChanged() { root._pruneOpenRuns() }
     }
 }

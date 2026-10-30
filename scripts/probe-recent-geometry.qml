@@ -647,6 +647,9 @@ ShellRoot {
                     + root.tailFirstStray + ")")
                 root.atEnd("after the oldest row is trimmed")
                 ShellSettings.notifHistoryLimit = 100
+                // appendOld files no run label, and unlabelled rows of one app and day group by
+                // adjacency alone, so these two runs join once the row between them goes. Live
+                // rows carry their labels and stay apart; this exercises the fold, not the join
                 for (const app of ["Sigma", "Sigma", "Sigma", "Tau", "Sigma", "Sigma", "Sigma"])
                     root.appendOld(app, 3)
                 break

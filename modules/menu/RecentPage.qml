@@ -27,7 +27,6 @@ PageShell {
         id: _historyGrouping
         model: Notifications.historyModel
         foldAt: root.foldAt
-        shown: root._announcedActive
         log: Notifications.historyLog
     }
 
@@ -133,8 +132,8 @@ PageShell {
 
     // Rows leave on their own clock (ListView.delayRemove), not through the list's remove
     // transition: any later layout of the list drops a remove transition already running,
-    // so a second clear, a history trim or a run folding as it merges cut the first one
-    // short. A leaving row keeps its place until it has closed, so the list lays everything
+    // so a second clear, a history trim or a run folding cut the first one short. A
+    // leaving row keeps its place until it has closed, so the list lays everything
     // out from live heights on every frame: the rows below close up, a run that folds or
     // a row that takes a day header changes height on the same curve, and a list at its
     // end follows the leaving row down. The list never positions a row it has let go of,

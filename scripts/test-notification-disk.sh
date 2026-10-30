@@ -92,6 +92,23 @@ grep -q '"history":\[\]' "$history" \
     || { echo "FAIL: reload restored cleared disk history" >&2; exit 1; }
 run_phase live-markers
 
+settings 100 true
+run_phase runs-seed
+run_phase runs-restore
+printf '{"__version":1,"history":[{"id":74,"appName":"Old","summary":"d","time":7400},{"id":73,"appName":"Old","summary":"c","time":7300},{"id":72,"appName":"Other","summary":"b","time":7200},{"id":71,"appName":"Old","summary":"a","time":7100}]}\n' > "$history"
+run_phase runs-legacy
+python3 - "$history" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1]) as source:
+    rows = json.load(source)['history']
+runs = [row.get('run') for row in rows]
+assert len(rows) == 4 and all(runs), f'legacy rows were saved without runs: {runs}'
+assert runs[0] == runs[1] != runs[2] != runs[3], f'legacy runs were not grouped by adjacency: {runs}'
+PY
+settings 5 true
+
 for phase in delayed-row delayed-run delayed-clear; do
     printf '{"__version":1,"history":[{"id":11,"summary":"old one","time":1100},{"id":12,"summary":"old two","time":1200},{"id":13,"summary":"old three","time":1300}]}\n' > "$history"
     run_phase "$phase"
@@ -105,6 +122,17 @@ expected = [] if sys.argv[2] == 'delayed-clear' else [11, 12, 13, 90]
 assert ids == expected, f'{sys.argv[2]} persisted {ids}, expected {expected}'
 PY
 done
+
+printf '{"__version":1,"history":[{"id":73,"appName":"Kitty","summary":"c","time":7300,"run":"disk-run"},{"id":72,"appName":"Kitty","summary":"b","time":7200,"run":"disk-run"},{"id":71,"appName":"Kitty","summary":"a","time":7100}]}\n' > "$history"
+run_phase delayed-runs
+python3 - "$history" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1]) as source:
+    runs = [row.get('run') for row in json.load(source)['history']]
+assert runs == ['disk-run'] * 4, f'the early arrival and the restored run were saved apart: {runs}'
+PY
 
 printf '{"__version":2,"unknown":{"preserve":true},"history":[{"id":1,"summary":"future","time":1001,"unknown":"keep"}],"seen":{"1":true},"times":{"1":1001}}\n' > "$history"
 cp "$history" "$history.expected"

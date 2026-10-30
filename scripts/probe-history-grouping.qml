@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import "services/HistoryRuns.js" as HistoryRuns
 
 // Exercises grouping through the same ListModel mutations that history uses.
 // The sender is intentionally absent: test-history-grouping creates a private
@@ -34,16 +35,40 @@ ShellRoot {
         console.warn("PROBE-FAIL " + label)
     }
 
+    // every row carries the run role, as a normalized history entry does; an empty one is
+    // a row saved before runs were labelled
     function entry(app: string, id: int, time: real, urgency: int): var {
-        return { appName: app, id: id, time: time, urgency: urgency || 1 }
+        return { appName: app, id: id, time: time, urgency: urgency || 1, run: "" }
     }
 
+    // files a row at a position the way the notification service does, labelling its run
+    function fileAt(at: int, row): void {
+        row.run = HistoryRuns.runForInsert(history, at, row)
+        history.insert(at, row)
+        HistoryRuns.splitAt(history, at)
+    }
+
+    // a row older than every row so far, as history files one that closed last
     function append(app: string, id: int, time: real, urgency: int): void {
-        history.append(root.entry(app, id, time, urgency))
+        root.fileAt(history.count, root.entry(app, id, time, urgency))
     }
 
     function prepend(app: string, id: int, time: real, urgency: int): void {
-        history.insert(0, root.entry(app, id, time, urgency))
+        root.fileAt(0, root.entry(app, id, time, urgency))
+    }
+
+    // what saving and restoring history does to the rows, across a reload or a restart
+    function saveAndRestore(): void {
+        const saved = []
+        for (let i = 0; i < history.count; i++) {
+            const h = history.get(i)
+            saved.push({ appName: h.appName, id: h.id, time: h.time, urgency: h.urgency, run: h.run })
+        }
+        const text = JSON.stringify(saved)
+        history.clear()
+        const restored = JSON.parse(text)
+        for (let i = 0; i < restored.length; i++) history.append(restored[i])
+        HistoryRuns.labelMissing(history)
     }
 
     function resetCase(): void {
@@ -190,7 +215,7 @@ ShellRoot {
         root.append("Late", 401, root.day + 401)
         root.append("separator", 300, root.day + 300)
         root.grouping.setOpen(root.shape(0).key, true)
-        history.insert(3, root.entry("Late", 400, root.day + 400))
+        root.fileAt(3, root.entry("Late", 400, root.day + 400))
         root.check(root.shape(0).length === 4 && root.shape(0).open,
             "an older same-app arrival below the tail keeps the run open")
         root.check(root.shape(4).header && !root.shape(4).open,
@@ -201,7 +226,7 @@ ShellRoot {
         root.append("Late", 402, root.day + 402)
         root.append("Late", 401, root.day + 401)
         root.grouping.setOpen(root.shape(0).key, true)
-        history.insert(3, root.entry("Other", 400, root.day + 400))
+        root.fileAt(3, root.entry("Other", 400, root.day + 400))
         root.check(root.shape(0).open && root.shape(3).header && !root.shape(3).open,
             "an older arrival from another app leaves the open run and starts its own")
 
@@ -209,7 +234,7 @@ ShellRoot {
         root.append("Late", 403, root.day + 403)
         root.append("Late", 402, root.day + 402)
         root.append("Late", 401, root.day + 401)
-        history.insert(3, root.entry("Late", 400, root.day + 400))
+        root.fileAt(3, root.entry("Late", 400, root.day + 400))
         root.check(!root.shape(0).open,
             "an older arrival below a folded run leaves it folded")
     }
@@ -267,33 +292,97 @@ ShellRoot {
             "a removal spanning more than the open run hands its state to no run above")
     }
 
-    function checkMergeSemantics(): void {
+    function seedSplitRuns(): void {
         root.resetCase()
-        root.append("Merge", 302, root.day + 302)
-        root.append("Merge", 301, root.day + 301)
-        root.append("Merge", 300, root.day + 300)
+        root.append("Kitty", 302, root.day + 302)
+        root.append("Kitty", 301, root.day + 301)
+        root.append("Kitty", 300, root.day + 300)
         root.append("separator", 200, root.day + 200)
-        root.append("Merge", 102, root.day + 102)
-        root.append("Merge", 101, root.day + 101)
-        root.append("Merge", 100, root.day + 100)
-        const newer = root.shape(0)
-        root.grouping.setOpen(newer.key, true)
-        history.remove(3)
-        root.check(!root.shape(0).open,
-            "merging runs refolds expansion attached to the removed newer tail group")
+        root.append("Kitty", 106, root.day + 106)
+        root.append("Kitty", 105, root.day + 105)
+        root.append("Kitty", 104, root.day + 104)
+        root.append("Kitty", 103, root.day + 103)
+    }
 
-        root.resetCase()
-        root.append("Merge", 302, root.day + 302)
-        root.append("Merge", 301, root.day + 301)
-        root.append("Merge", 300, root.day + 300)
-        root.append("separator", 200, root.day + 200)
-        root.append("Merge", 102, root.day + 102)
-        root.append("Merge", 101, root.day + 101)
-        root.append("Merge", 100, root.day + 100)
+    function ids(start: int, count: int): string {
+        const out = []
+        for (let i = start; i < start + count && i < history.count; i++) out.push(history.get(i).id)
+        return out.join(",")
+    }
+
+    // the logged case: clearing the row between two runs of one app made them one run of
+    // seven, and the next Clear on that stack took both
+    function checkSeparateRunsStaySeparate(): void {
+        root.seedSplitRuns()
+        history.remove(3)
+        root.check(root.shape(0).length === 3 && root.shape(3).header
+                && root.shape(3).length === 4 && root.shape(0).key !== root.shape(3).key,
+            "clearing the row between two runs of one app leaves two runs (" + root.grouping.describe() + ")")
+        const upper = root.shape(0)
+        history.remove(0, upper.length)
+        root.check(history.count === 4 && root.ids(0, 4) === "106,105,104,103",
+            "a Clear on the upper run then takes only its own rows (left " + root.ids(0, history.count) + ")")
+
+        root.seedSplitRuns()
+        root.grouping.setOpen(root.shape(0).key, true)
+        history.remove(3)
+        root.check(root.shape(0).open && !root.shape(3).open,
+            "the open upper run stays open and the lower one folded once they meet")
+
+        root.seedSplitRuns()
         root.grouping.setOpen(root.shape(4).key, true)
         history.remove(3)
-        root.check(root.shape(0).open,
-            "merging runs retains expansion attached to the older retained tail group")
+        root.check(!root.shape(0).open && root.shape(3).open,
+            "the open lower run stays open and the upper one folded once they meet")
+
+        // a notification that closed late lands inside a run; the halves stay apart once it goes
+        root.resetCase()
+        root.append("Kitty", 404, root.day + 404)
+        root.append("Kitty", 403, root.day + 403)
+        root.append("Kitty", 402, root.day + 402)
+        root.append("Kitty", 401, root.day + 401)
+        root.fileAt(2, root.entry("Late", 4025, root.day + 402.5))
+        root.check(root.shape(0).length === 2 && root.shape(3).header && root.shape(3).length === 2,
+            "a row of another app filed inside a run splits it in two")
+        history.remove(2)
+        root.check(root.shape(0).length === 2 && root.shape(2).header && root.shape(2).length === 2,
+            "clearing that row leaves the halves as two runs")
+
+        // consecutive arrivals still stack, under the run below and the row above alike
+        root.resetCase()
+        root.prepend("Burst", 1, root.day + 1)
+        root.prepend("Burst", 2, root.day + 2)
+        root.prepend("Burst", 3, root.day + 3)
+        root.check(root.shape(0).length === 3 && root.shape(0).header,
+            "notifications that arrive in a row from one app still form one run")
+    }
+
+    // runs are saved with their rows, so a restart cannot join two of them
+    function checkRunsSurviveRestart(): void {
+        root.seedSplitRuns()
+        history.remove(3)
+        const upperKey = root.shape(0).key
+        root.saveAndRestore()
+        root.check(root.shape(0).length === 3 && root.shape(3).header && root.shape(3).length === 4,
+            "two runs of one app side by side stay two after a restart (" + root.grouping.describe() + ")")
+        root.check(root.shape(0).key === upperKey,
+            "a run keeps its identity across a restart")
+
+        // rows saved before runs were labelled take the old adjacency rule on load
+        root.resetCase()
+        const legacy = [["Old", 503], ["Old", 502], ["Old", 501], ["other", 400],
+                        ["Old", 302], ["Old", 301], ["Old", 300]]
+        for (let i = 0; i < legacy.length; i++)
+            history.append(root.entry(legacy[i][0], legacy[i][1], root.day + legacy[i][1]))
+        HistoryRuns.labelMissing(history)
+        let labelled = true
+        for (let i = 0; i < history.count; i++) labelled = labelled && history.get(i).run.length > 0
+        root.check(labelled && root.shape(0).length === 3 && root.shape(3).length === 1
+                && root.shape(4).length === 3 && root.shape(0).key !== root.shape(4).key,
+            "unlabelled rows from an older file are grouped by adjacency on load")
+        history.remove(3)
+        root.check(root.shape(0).length === 3 && root.shape(3).header && root.shape(3).length === 3,
+            "once labelled, those runs stay apart when the row between them goes")
     }
 
     function checkDayBoundaryAndBoundShape(): void {
@@ -348,7 +437,8 @@ ShellRoot {
         root.checkConcurrentArrivalsAndRefold()
         root.checkOlderArrivalBelowTail()
         root.checkClearedTail()
-        root.checkMergeSemantics()
+        root.checkSeparateRunsStaySeparate()
+        root.checkRunsSurviveRestart()
         root.checkDayBoundaryAndBoundShape()
         if (root.failures === 0)
             console.warn("PROBE-HISTORY passed " + root.checks + " checks")

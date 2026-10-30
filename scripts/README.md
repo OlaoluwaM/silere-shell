@@ -46,7 +46,7 @@ The full check already includes the runners below, directly or through
 | [test-notification-reload.sh](test-notification-reload.sh) | Notification reload behavior |
 | [test-notification-stack.sh](test-notification-stack.sh) | Notification stack placement, movement, expansion, and timeout collapse on a private session bus; requires Wayland and skips otherwise |
 | [test-niri-focus.sh](test-niri-focus.sh) | Niri focus handling using a mock compositor |
-| [test-history-grouping.sh](test-history-grouping.sh) | Notification history grouping |
+| [test-history-grouping.sh](test-history-grouping.sh) | Notification history grouping: run labels, runs that stay apart when the row between them goes, and expansion state |
 | [test-recent-geometry.sh](test-recent-geometry.sh) | Recent page rows start where the row above ends after an insert while shown, an insert while hidden and revealed, a body expansion, and a reveal under reduced motion; offscreen window |
 | [test-list-wheel.sh](test-list-wheel.sh) | A list or Flickable nested in a scrolling page keeps the wheel at its ends, a gesture already scrolling the page passes over it, short, sideways and top-level scrollers pass an unused wheel on, and only the page stamps its movement; real wheel events in an offscreen window |
 | [test-list-dividers.sh](test-list-dividers.sh) | The card lines beside the Wi-Fi picker fade while the real list's first or last row shows its band against them, return once that row scrolls off the line or loses its fill, and stay put beside a picker without the edge contract; offscreen window |
@@ -60,7 +60,7 @@ The full check already includes the runners below, directly or through
 | [test-brightness-write.sh](test-brightness-write.sh) | Brightness write results routed by display through the real process exit, with a stand-in `brightnessctl` failing slowly enough for the display to switch underneath it |
 | [test-power-profile-recovery.sh](test-power-profile-recovery.sh) | Power profile list recovery on panel open after a failed or empty initial read, using a stand-in profile tool |
 | [test-audio-switch.sh](test-audio-switch.sh) | Bluetooth Listening/Calls mode switches against a stand-in PipeWire module: readiness, volume and mute carry-over, fallback handling, and completion on a successful process exit |
-| [test-notification-disk.sh](test-notification-disk.sh) | Private-bus process restart, settings order, deletes before disk restoration, immediate reload after clear, read-only future-format restoration, file protection, and failed-write recovery |
+| [test-notification-disk.sh](test-notification-disk.sh) | Private-bus process restart, settings order, deletes before disk restoration, immediate reload after clear, history run labels across a restart and from an unlabelled file, read-only future-format restoration, file protection, and failed-write recovery |
 | [test-upstream-connectivity.sh](test-upstream-connectivity.sh) | Wi-Fi security classification and Bluetooth state helpers |
 | [test-upstream-connectivity-paths.sh](test-upstream-connectivity-paths.sh) | Actual service and row paths with synthetic backend inputs; pairing guard, guarded forget, and identity during synchronous row replacement |
 | [test-upstream-tray.sh](test-upstream-tray.sh) | Descendant hover-chain logic and confirmation-control transitions |
