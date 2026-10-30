@@ -84,13 +84,21 @@ _probe_wait() { # $1 = log, $2 = pid, $3 = sentinel, $4 = ticks, $5 = seconds pe
 # "Cannot assign to non-existent..." at the first n. Use .* instead.
 # Quickshell 0.3.2 stops a discarded generation's JavaScript before it destroys that
 # generation's objects (upstream 4594680 and 2d3b3e9), and any binding that fires in
-# between evaluates to undefined whatever it says. So after a reload, and once a probe
-# has reported its result and is being torn down, "Unable to assign [undefined]" comes
-# from the copy being thrown away, not the live shell. Every other error kind, and that
-# one before the first reload or result, still counts.
+# between evaluates to undefined whatever it says. That teardown has two places in a log:
+# a reload destroys the old generation in one pass right after printing "Configuration
+# Loaded", and a probe that has printed its result is torn down at exit. A stopped
+# generation runs no JavaScript, so the next console line (the qml category, or one of the
+# shell's silere.* categories) comes from a live one and ends the window; a probe's own
+# result and DONE markers do not. Only "Unable to assign [undefined]" inside those windows
+# is let through: the reloaded generation's load and its later checks still count.
 _probe_errors() { # $1 = log
-    awk '/Reloading configuration|PROBE-[A-Z0-9-]+ (passed|failed)/ { after = 1 }
-         !(after && /Unable to assign \[undefined\]/)' "$1" \
+    awk '/Reloading configuration/ { reloading = 1; teardown = 0 }
+         /Configuration Loaded/ { if (reloading) teardown = 1; reloading = 0 }
+         /^ *[A-Z]+ (qml|silere\.[A-Za-z.]+): / {
+             if (/PROBE-[A-Z0-9-]+ (passed|failed)/) teardown = 1
+             else if (!/PROBE-[A-Z0-9-]*DONE/) teardown = 0
+         }
+         !(teardown && /Unable to assign \[undefined\]/)' "$1" \
         | grep -oE "$SILERE_PROBE_ERRORS" | sort -u | head -10 || true
 }
 
