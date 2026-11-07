@@ -16,7 +16,7 @@
 
     # We're updating Hyprland to v0.57+ so the shell's quickshell ver needs to upgrade as well for compatibility and to take advantage of certain things
     quickshell = {
-      url = "git+https://git.outfoxxed.me/quickshell/quickshell.git?rev=4befab5bc670218e1dac84e4b60470bf26dbadf4";
+      url = "git+https://git.outfoxxed.me/quickshell/quickshell.git?rev=18c95fae4aec2f9da465c5f42d7ae13fe65f2aba";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };

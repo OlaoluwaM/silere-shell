@@ -9,8 +9,9 @@ A personal fork of [s3rven/silere-shell](https://github.com/s3rven/silere-shell)
 
 Upstream v1.0.0 requires Quickshell 0.3.1 or newer. This repository's
 development flake pins a later commit, which follows Hyprland's workspace id
-changes; the deploying NixOS configuration must supply a Quickshell at least
-that new before it re-locks the fork.
+changes and emits `WlSessionLock.locked` on unlock, the signal the lock exits
+on; the deploying NixOS configuration must supply a Quickshell at least that
+new before it re-locks the fork.
 
 It is the shell for the Hyprland profile in my [`nixos-config`](https://github.com/OlaoluwaM/nixos-config). `nixos-config` consumes
 the fork as a flake input (a source dependency pinned by commit), packages it, and writes its declared defaults into `config/GeneratedDefaults.qml` at build time.
