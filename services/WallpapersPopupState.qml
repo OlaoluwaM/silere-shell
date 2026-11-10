@@ -17,9 +17,4 @@ PopupState {
     // would never register and the toggle chord would be a no-op. This binding is the
     // bootstrap: it drags Wallpapers (and its IpcHandler) into existence at shell start.
     readonly property bool available: Wallpapers.available
-
-    function toggle(): void {
-        if (open) { close(); return }
-        open = true
-    }
 }

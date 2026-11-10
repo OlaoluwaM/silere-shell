@@ -24,8 +24,7 @@ AnchoredPopupState {
             if (root.open) { root.close(); return "ok" }
             root.barBottom = Metrics.barAtBottom
             root.openUnanchored()
-            return root.open ? "ok"
-                : "error: quick actions stay closed while the session is idle or the overview is open"
+            return root.open ? "ok" : root.refusedOpenText("quick actions", "stay")
         }
         function close(): void { root.close() }
 

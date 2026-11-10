@@ -59,6 +59,10 @@ PopupState {
         root.triggerScreen = screen ?? null
         root.open = true
     }
+    function toggleAt(x: real, screen, source): void {
+        if (root.open) { root.close(); return }
+        root.openAt(x, screen, source)
+    }
     function close(): void {
         // open first: clearing anchorSource while open re-enters close() through its handler
         if (root.open) root.open = false

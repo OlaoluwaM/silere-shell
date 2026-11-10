@@ -519,7 +519,11 @@ outside issues or pull requests.
   or in overview. All nine states inherit `PopupState`, directly or through
   `AnchoredPopupState`, and register with the coordinator. Represent the
   popup-sourced tray menu's parent with `popupParent`; keep centered pickers
-  free of anchor machinery. Media and tray-list anchor loss closes
+  free of anchor machinery. The plain `toggleAt` lives on
+  `AnchoredPopupState` and the centered pickers' `toggle` on `PopupState`, so
+  port an upstream edit to `CalendarState.toggleAt` into the base; the IPC
+  toggles' idle/overview refusal comes from `PopupState.refusedOpenText`.
+  Media and tray-list anchor loss closes
   immediately; the other anchored states retain 150 ms replacement recovery.
   Registry metadata preserves the existing control-surface/bar-hint sets and
   `ControlSurfaces.opened` refresh signal. Panels, menus, centered pickers,

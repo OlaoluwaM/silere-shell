@@ -23,9 +23,4 @@ AnchoredPopupState {
         // (QObjectList) with its own change signal -- same reasoning as the pill's show gate
         function onValuesChanged() { if (root.open && SystemTray.items.values.length === 0) root.close() }
     }
-
-    function toggleAt(x: real, screen, source): void {
-        if (open) { close(); return }
-        openAt(x, screen, source)
-    }
 }

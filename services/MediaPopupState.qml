@@ -16,9 +16,4 @@ AnchoredPopupState {
         target: Media
         function onShownChanged() { if (root.open && !Media.shown) root.close() }
     }
-
-    function toggleAt(x: real, screen, source): void {
-        if (open) { close(); return }
-        openAt(x, screen, source)
-    }
 }

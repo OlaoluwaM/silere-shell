@@ -8,10 +8,6 @@ AnchoredPopupState {
     id: root
 
     blocksBarHints: true
-    function toggleAt(x: real, screen, source): void {
-        if (open) { close(); return }
-        openAt(x, screen, source)
-    }
 
     IpcHandler {
         target: "calendar"
@@ -19,8 +15,7 @@ AnchoredPopupState {
         function toggle(): string {
             if (root.open) { root.close(); return "ok" }
             root.openUnanchored()
-            return root.open ? "ok"
-                : "error: the calendar stays closed while the session is idle or the overview is open"
+            return root.open ? "ok" : root.refusedOpenText("the calendar", "stays")
         }
         function close(): void { root.close() }
     }

@@ -31,4 +31,17 @@ Singleton {
         if (root.open) root.open = false
         root.triggerScreen = null
     }
+
+    // a centered picker has no anchor to place, so its keybind opens it as it stands
+    function toggle(): void {
+        if (root.open) { root.close(); return }
+        root.open = true
+    }
+
+    // the coordinator refuses an open while the session is idle or the overview is up;
+    // IPC callers and probes may match this text, so its wording stays fixed
+    function refusedOpenText(noun: string, verb: string): string {
+        return "error: " + noun + " " + verb
+            + " closed while the session is idle or the overview is open"
+    }
 }

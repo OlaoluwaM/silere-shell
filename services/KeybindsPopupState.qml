@@ -17,9 +17,4 @@ PopupState {
     // never registered and the toggle chord was a no-op. This binding is the bootstrap:
     // it drags Keybinds (and its IpcHandler) into existence at shell start.
     readonly property bool available: Keybinds.available
-
-    function toggle(): void {
-        if (open) { close(); return }
-        open = true
-    }
 }

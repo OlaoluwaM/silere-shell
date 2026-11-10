@@ -199,7 +199,7 @@ AnchoredPopupState {
         tabRequested(tab)
     }
 
-    readonly property string _refusedText: "error: the menu stays closed while the session is idle or the overview is open"
+    readonly property string _refusedText: root.refusedOpenText("the menu", "stays")
 
     IpcHandler {
         target: "menu"
@@ -232,8 +232,7 @@ AnchoredPopupState {
             case "system":        tab = root.systemTab; break
             default:              tab = -1
             }
-            root.triggerScreen = null
-            root._setAnchor(null)
+            root._unanchor()
             if (tab < 0) {
                 root.showTab(root.homeTab)
                 if (!root.open) return root._refusedText
