@@ -50,7 +50,6 @@ Singleton {
     // same "dispatcher [args]" (or quoted lua-framework call) string a forked
     // `hyprctl dispatch <that text>` used to receive as its one request argument.
     function dispatch(dispatcher, args): void {
-        if (!SystemTools.ready || !SystemTools.hasHyprctl) return
         Hyprland.dispatch(root._text(dispatcher, args))
     }
 
@@ -85,7 +84,6 @@ Singleton {
     // sh chain existed to guarantee, without needing a shell to sequence detached
     // processes or --batch, which mangled the quoted lua-framework calls
     function dispatchPair(d1, a1, d2, a2): void {
-        if (!SystemTools.ready || !SystemTools.hasHyprctl) return
         Hyprland.dispatch(root._text(d1, a1))
         Hyprland.dispatch(root._text(d2, a2))
     }

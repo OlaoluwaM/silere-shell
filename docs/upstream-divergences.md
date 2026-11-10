@@ -158,6 +158,10 @@ outside issues or pull requests.
   an import rewrites the script's preamble; a host without logind access runs
   unguarded, and the stack runner fails by name while this user's hyprlock
   is running.
+- `services/HyprDispatch.qml`: `dispatch` and `dispatchPair` write through
+  `Hyprland.dispatch` in-process instead of upstream's forked `hyprctl`, so
+  they carry no `SystemTools.hasHyprctl` gate; `launch` still runs `hyprctl`
+  and keeps it. Keep both on an import of the dispatch helpers.
 - `modules/menu/controls/SliderTrack.qml`: `_posToVal` returns `max` and
   `min` themselves at the ends of the rail, past upstream's off-grid bounds
   fix, because min + 1 × (max − min) can carry a float residue that the snap
