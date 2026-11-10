@@ -76,18 +76,18 @@ Item {
         }
         property color _effectColor: _effectColorTarget
         MotionBehavior on _effectColor {
-            gate: !Idle.isIdle
+            gate: !Idle.isIdle && !MatugenTheme.transitioning && !GlassSample.transitioning
             ColorAnimation { duration: Motion.ms(350) }
         }
 
         property color _stopColor: Theme.withAlpha(_effectColorTarget, 0.9)
         MotionBehavior on _stopColor {
-            gate: !Idle.isIdle
+            gate: !Idle.isIdle && !MatugenTheme.transitioning && !GlassSample.transitioning
             ColorAnimation { duration: Motion.ms(350) }
         }
         property color _stopColorMid: Theme.withAlpha(_effectColorTarget, 0.45)
         MotionBehavior on _stopColorMid {
-            gate: !Idle.isIdle
+            gate: !Idle.isIdle && !MatugenTheme.transitioning && !GlassSample.transitioning
             ColorAnimation { duration: Motion.ms(350) }
         }
         property real _sweepSpread: 0.28

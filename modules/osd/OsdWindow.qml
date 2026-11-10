@@ -175,7 +175,10 @@ PanelWindow {
                         OutlineBorder {
                             radius: _osdCardFill.radius
                             outlineColor: _osdCardFill._outlineColor
-                            MotionBehavior on outlineColor {ColorAnimation { duration: Motion.medium } }
+                            MotionBehavior on outlineColor {
+                                gate: !MatugenTheme.transitioning && !GlassSample.transitioning
+                                ColorAnimation { duration: Motion.medium }
+                            }
                         }
 
                         Row {
@@ -189,7 +192,10 @@ PanelWindow {
                                 text:           card.icon
                                 color:          card.hasBar ? Theme.text : card.fillColor
                                 font.pixelSize: Settings.fontSize + 4
-                                MotionBehavior on color {ColorAnimation { duration: Motion.medium } }
+                                MotionBehavior on color {
+                                    gate: !MatugenTheme.transitioning && !GlassSample.transitioning
+                                    ColorAnimation { duration: Motion.medium }
+                                }
                             }
 
                             Rectangle {
@@ -241,6 +247,7 @@ PanelWindow {
                                 font.pixelSize: Settings.fontSize
 
                                 MotionBehavior on color {
+                                    gate: !MatugenTheme.transitioning && !GlassSample.transitioning
                                     ColorAnimation { duration: Motion.medium }
                                 }
                             }

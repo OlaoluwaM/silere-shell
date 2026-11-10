@@ -138,7 +138,7 @@ Item {
             color:          OsdBarState.hasBar ? Theme.text : OsdBarState.fillColor
             font.pixelSize: Settings.iconSize + 2
             MotionBehavior on color {
-                gate: !Idle.isIdle
+                gate: !Idle.isIdle && !MatugenTheme.transitioning && !GlassSample.transitioning
                 ColorAnimation { duration: Motion.medium }
             }
         }
@@ -185,7 +185,7 @@ Item {
             font.pixelSize: Settings.fontSize
             font.weight:    Font.Medium
             MotionBehavior on color {
-                gate: !Idle.isIdle
+                gate: !Idle.isIdle && !MatugenTheme.transitioning && !GlassSample.transitioning
                 ColorAnimation { duration: Motion.medium }
             }
         }

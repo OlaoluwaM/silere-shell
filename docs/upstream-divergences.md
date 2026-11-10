@@ -349,6 +349,10 @@ outside issues or pull requests.
 - Palette changes keep the fork's central `MatugenTheme` transition and its
   leaf-fade gate. Do not introduce upstream's parallel `PaletteFade` mechanism
   or replace the fork's glass and control tokens with upstream's palette.
+  Leaf colour Behaviors that keep their own duration or gate stand down on
+  the same two `transitioning` flags as `ColorFade`: `BarUnderline`,
+  `OsdBarWidget`, `OsdWindow` and `NotificationCard`, while `WorkspaceMarker`
+  uses `ColorFade` itself. Keep the terms on an import of those Behaviors.
 - Blur stays with the deploying Hyprland config's `silere-*` layer rule. Do
   not import upstream's `BackgroundEffect.blurRegion` protocol blur
   (`995f262`, `d13d351`, `5aca380`, `b21d987`) or the region hunks later

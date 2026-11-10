@@ -822,7 +822,7 @@ Item {
                 ? Theme.withAlpha(Theme.error,  0.62)
                 : Theme.outline
             MotionBehavior on outlineColor {
-                gate: !Idle.isIdle
+                gate: !Idle.isIdle && !MatugenTheme.transitioning && !GlassSample.transitioning
                 ColorAnimation { duration: Motion.medium }
             }
         }
