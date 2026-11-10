@@ -54,11 +54,11 @@ AnchoredPopupState {
         if (!SystemTools.ready) return "error: still looking for a night light tool"
         if (!NightLight.toolAvailable)
             return "error: night light needs hyprsunset"
-        // toggle() flips enabled synchronously, so an unchanged value means it returned early
-        const before = NightLight.enabled
-        NightLight.toggle()
-        if (NightLight.enabled === before)
-            return "error: a night light change is already in progress"
+        // a toggle that waits on a fresh check cannot name its target, so it only says one is under way
+        switch (NightLight.toggleFresh()) {
+        case "busy":   return "error: a night light change is already in progress"
+        case "queued": return "switching"
+        }
         return NightLight.enabled ? "on" : "off"
     }
 

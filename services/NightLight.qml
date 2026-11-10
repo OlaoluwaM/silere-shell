@@ -200,9 +200,6 @@ Singleton {
         target: Idle
         function onIsIdleChanged() {
             if (!Idle.isIdle && ShellSettings.nightLightAuto && root.enabled) root._solarTick++
-            // the drift poll below sleeps through idle too; catch up once on the way
-            // back out instead of leaving drift unnoticed for up to 60s
-            if (!Idle.isIdle) root._checkActive()
         }
     }
 
@@ -224,6 +221,8 @@ Singleton {
     function toggle(): void {
         if (!toolAvailable || _toggleProc.running) return
         const goingOn = !root.enabled
+        // a toggle from anywhere settles the one a waiting keybind asked for, so it must not toggle again
+        root._toggleQueued = false
         root._checkError = false
         root.lastError = ""
         // set the target temperature before flipping `enabled`: onTemperatureChanged
@@ -256,12 +255,36 @@ Singleton {
     // the check runs on every wake, when the user manager can be slow, so its error is cleared
     // by the next check that answers; a toggle error is not, so the two cannot share a string test
     property bool _checkError: false
+    // a keybind toggle waiting on a fresh check; it counts as busy, so later presses never stack
+    property bool _toggleQueued: false
+    onToolAvailableChanged: if (!root.toolAvailable) root._toggleQueued = false
 
     function _checkActive(): void {
         if (!root.toolAvailable) return
         if (_checkProc.running) { root._recheckPending = true; return }
         _checkProc._generation = _toggleProc.running ? -1 : root._toggleGeneration
+        _checkProc._forToggle = root._toggleQueued
         _checkProc.exec(["systemctl", "--user", "is-active", "--quiet", root._unit])
+    }
+
+    readonly property bool _watched: ControlSurfaces.anyOpen
+
+    // only an open surface shows `enabled`, so with every surface shut a start or stop from
+    // outside the shell leaves it stale; the keybind's toggle waits on one fresh check instead
+    // of a poll. "" means it toggled now and `enabled` names the request, "queued" that the
+    // toggle follows the check, and "busy" or "unavailable" that nothing was asked
+    function toggleFresh(): string {
+        if (!root.toolAvailable) return "unavailable"
+        if (_toggleProc.running || root._toggleQueued) return "busy"
+        if (root._watched) {
+            root.toggle()
+            return ""
+        }
+        root._toggleQueued = true
+        // a check already running when the keybind came cannot see a change made after it
+        // started, so it is followed by another instead of counting
+        root._checkActive()
+        return "queued"
     }
 
     // the menu is what instantiates this singleton, so _startGeo's opening edge is already spent by first load
@@ -275,6 +298,10 @@ Singleton {
         _geoProc.running = true
     }
 
+    Connections {
+        target: ControlSurfaces
+        function onOpened() { root._checkActive() }
+    }
     Connections {
         target: SystemTools
         function onReadyChanged() { root._checkActive(); root._startGeo() }
@@ -310,6 +337,8 @@ Singleton {
                 root._checkError = true
                 root.lastError = "Could not check hyprsunset.service"
             }
+            // the keybind was already told it was switching, so the row's error says why nothing did
+            if (_checkProc._forToggle) root._toggleQueued = false
         } else {
             if (root._checkError) {
                 root._checkError = false
@@ -332,6 +361,8 @@ Singleton {
             // later external activation
             if (confirms && !root.enabled)
                 root._pushTempOnConfirm = false
+            // the check the keybind waited on has read the unit, so the toggle starts from what it found
+            if (_checkProc._forToggle && root._toggleQueued) root.toggle()
         }
         if (rerun) root._checkActive()
     }
@@ -339,6 +370,7 @@ Singleton {
     BoundedProcess {
         id: _checkProc
         property int _generation: -1
+        property bool _forToggle: false
         timeoutMs: 5000
         onExited: (code) => root._acceptCheckResult(_checkProc.timedOut, code)
     }
@@ -401,12 +433,12 @@ Singleton {
 
     // catches drift from outside the shell (a manual systemctl call, the unit
     // failing on its own) since only systemd — not this singleton — decides
-    // when the daemon actually starts or stops. Idle-gated same as the solar
-    // tick above: the Idle Connections reconciles once on the idle→active edge,
-    // so this only needs to run while someone could actually be looking.
+    // when the daemon actually starts or stops. Only an open control surface
+    // shows `enabled`, and opening one checks at once, so this runs only while
+    // one is open; the keybind reads afresh through toggleFresh() instead.
     Timer {
         interval: 60000; repeat: true
-        running: root.toolAvailable && !Idle.isIdle
+        running: root.toolAvailable && root._watched && !Idle.isIdle
         onTriggered: root._checkActive()
     }
 }

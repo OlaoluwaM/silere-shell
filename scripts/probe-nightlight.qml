@@ -14,6 +14,9 @@ ShellRoot {
 
     property int step: 0
     property int waited: 0
+    property int paused: 0
+    property int startsBefore: 0
+    property int stopsBefore: 0
     property int checks: 0
     property int failures: 0
     property bool done: false
@@ -52,10 +55,31 @@ ShellRoot {
     function setFile(file, text: string): void {
         file.setText(text + "\n")
     }
+    function count(list, word: string): int {
+        return list.filter(l => l === word).length
+    }
+    // the stand-in has answered the latest toggle once a check follows its call
+    function settled(): bool {
+        const calls = root.lines(_systemctlCalls)
+        const last = Math.max(calls.lastIndexOf("start"), calls.lastIndexOf("stop"))
+        return calls.lastIndexOf("is-active") > last
+    }
+    function markCalls(): void {
+        const calls = root.lines(_systemctlCalls)
+        root.startsBefore = root.count(calls, "start")
+        root.stopsBefore = root.count(calls, "stop")
+    }
+    function toggledOnce(word: string): bool {
+        const calls = root.lines(_systemctlCalls)
+        const starts = root.count(calls, "start") - root.startsBefore
+        const stops = root.count(calls, "stop") - root.stopsBefore
+        return word === "start" ? starts === 1 && stops === 0 : stops === 1 && starts === 0
+    }
 
     FileView { id: _systemctlCalls; path: root.base + "/systemctl-calls"; blockAllReads: true; printErrors: false }
     FileView { id: _unitState; path: root.base + "/unit-state"; blockAllReads: true; blockWrites: true; printErrors: false }
     FileView { id: _toggleMode; path: root.base + "/toggle-mode"; blockWrites: true; printErrors: false }
+    FileView { id: _slowCheck; path: root.base + "/slow-check"; blockWrites: true; printErrors: false }
 
     Timer {
         id: _ticks
@@ -114,6 +138,108 @@ ShellRoot {
                         "the stand-in unit stops on the next toggle", 20))
                     return
                 root.check(NightLight.lastError === "", "a stop that succeeds leaves no error")
+                root.check(!ControlSurfaces.anyOpen && !NightLight._watched,
+                    "with every control surface shut the drift poll is off")
+
+                // started outside the shell while nothing showed it
+                root.setFile(_unitState, "active")
+                QuickActionsState.open = true
+                root.check(QuickActionsState.open && NightLight._watched,
+                    "an open control surface turns the drift poll on")
+                break
+            case 3: {
+                if (!root.ready(NightLight.enabled, "opening a control surface checks the unit", 20))
+                    return
+                QuickActionsState.close()
+                // stopped outside the shell, so `enabled` is stale with every surface shut
+                root.setFile(_unitState, "inactive")
+                root.markCalls()
+                root.check(!NightLight._watched && NightLight.enabled,
+                    "with every surface shut the row keeps its stale state")
+                root.check(NightLight.toggleFresh() === "queued",
+                    "a keybind toggle with every surface shut waits on a fresh check")
+                root.check(NightLight.toggleFresh() === "busy",
+                    "a second keybind toggle before the first settles is refused")
+                root.check(QuickActionsState._nightLightReply()
+                        === "error: a night light change is already in progress",
+                    "the keybind reply names a queued toggle as one in progress")
+                break
+            }
+            case 4:
+                if (!root.ready(root.settled() && NightLight.enabled
+                        && root.lines(_unitState)[0] === "active",
+                        "the queued toggle starts the unit the fresh check found stopped", 20))
+                    return
+                root.check(root.toggledOnce("start"),
+                    "the queued toggle sends one start and no stop")
+
+                QuickActionsState.open = true
+                root.markCalls()
+                root.check(NightLight.toggleFresh() === "" && !NightLight.enabled,
+                    "with a control surface open a keybind toggle acts at once")
+                break
+            case 5:
+                if (!root.ready(root.settled() && !NightLight.enabled
+                        && root.lines(_unitState)[0] === "inactive",
+                        "the immediate toggle stops the unit", 20))
+                    return
+                root.check(root.toggledOnce("stop"), "the immediate toggle sends one stop")
+                QuickActionsState.close()
+
+                // a check that has already read the unit when the keybind comes
+                root.setFile(_slowCheck, "1")
+                root.setFile(_unitState, "active")
+                QuickActionsState.open = true
+                QuickActionsState.close()
+                break
+            case 6:
+                // the stand-in reads the unit before its slow answer
+                if (++root.paused < 2) return
+                root.paused = 0
+                root.setFile(_unitState, "inactive")
+                root.markCalls()
+                root.check(NightLight.toggleFresh() === "queued",
+                    "a keybind toggle during a check queues behind it")
+                break
+            case 7:
+                if (!root.ready(root.settled() && NightLight.enabled
+                        && root.lines(_unitState)[0] === "active",
+                        "the toggle waits for the check that follows the request", 40))
+                    return
+                root.check(root.toggledOnce("start"),
+                    "a check already running when the keybind came does not decide its toggle")
+                break
+            case 8:
+                // the check after the start is still on its slow answer
+                if (++root.paused < 8) return
+                root.paused = 0
+                root.setFile(_slowCheck, "7")
+                root.setFile(_unitState, "inactive")
+                root.markCalls()
+                root.check(NightLight.toggleFresh() === "queued",
+                    "a keybind toggle queues behind a check that will time out")
+                break
+            case 9:
+                if (!root.ready(NightLight.lastError === root.checkError,
+                        "a check that times out reports its error", 40))
+                    return
+                break
+            case 10:
+                if (++root.paused < 4) return
+                root.paused = 0
+                root.check(root.count(root.lines(_systemctlCalls), "start") === root.startsBefore
+                        && root.count(root.lines(_systemctlCalls), "stop") === root.stopsBefore,
+                    "a check that times out drops the queued toggle")
+                root.setFile(_slowCheck, "0")
+                root.check(NightLight.toggleFresh() === "queued",
+                    "a dropped toggle leaves the next keybind free to queue")
+                break
+            case 11:
+                if (!root.ready(root.settled() && NightLight.enabled
+                        && root.lines(_unitState)[0] === "active" && NightLight.lastError === "",
+                        "the next keybind toggle starts the unit and clears the check error", 20))
+                    return
+                root.check(root.toggledOnce("start"), "the next keybind toggle sends one start")
                 root.finish()
                 return
             }
