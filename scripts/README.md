@@ -1,8 +1,9 @@
 # Scripts
 
 Validation, development probes, and `hypr-session-end.sh`, which the shell runs
-to end a Hyprland session. Run the commands below from the repository root. Fork and deployment rules live in
-[AGENTS.md](../AGENTS.md) and the [root README](../README.md).
+to end a Hyprland session. Run the commands below from the repository root.
+Fork and deployment rules live in [AGENTS.md](../AGENTS.md) and the
+[root README](../README.md).
 
 ## Usual checks
 
