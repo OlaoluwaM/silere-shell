@@ -82,7 +82,24 @@ EOF2
 printf '#!/usr/bin/env bash\nexit 0\n' > "$probe_root/bin/hyprsunset"
 chmod +x "$probe_root/bin/systemctl" "$probe_root/bin/hyprctl" "$probe_root/bin/hyprsunset"
 
-PATH="$probe_root/bin:$PATH" SILERE_NIGHTLIGHT_PROBE_ROOT="$probe_root" \
+# the probe moves the stand-in hyprsunset aside to make the tool scan lose it, so a PATH
+# directory holding the host's own is replaced by links to everything else in it
+probe_path="$probe_root/bin"
+shadows=0
+IFS=: read -ra path_dirs <<< "$PATH"
+for dir in "${path_dirs[@]}"; do
+    if [ -n "$dir" ] && [ -e "$dir/hyprsunset" ]; then
+        shadows=$((shadows + 1))
+        mkdir "$probe_root/path-$shadows"
+        for f in "$dir"/*; do
+            [ "${f##*/}" = hyprsunset ] || ln -s "$f" "$probe_root/path-$shadows/"
+        done
+        dir="$probe_root/path-$shadows"
+    fi
+    probe_path="$probe_path:$dir"
+done
+
+PATH="$probe_path" SILERE_NIGHTLIGHT_PROBE_ROOT="$probe_root" \
     XDG_CONFIG_HOME="$probe_root/config" XDG_STATE_HOME="$probe_root/config" XDG_CACHE_HOME="$probe_root/config/cache" \
     XDG_RUNTIME_DIR="$probe_root/runtime" HYPRLAND_INSTANCE_SIGNATURE="" NIRI_SOCKET="" \
     QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen \
@@ -101,9 +118,9 @@ fi
 # steps from passing on nothing
 calls="$(cat "$probe_root/systemctl-calls" 2>/dev/null || true)"
 if ! grep -qx 'is-active' <<< "$calls" || ! grep -qx 'stop' <<< "$calls" \
-        || [ "$(grep -cx 'start' <<< "$calls")" -ne 6 ] || [ "$(grep -cx 'stop' <<< "$calls")" -ne 7 ]; then
+        || [ "$(grep -cx 'start' <<< "$calls")" -ne 7 ] || [ "$(grep -cx 'stop' <<< "$calls")" -ne 7 ]; then
     printf '%s\n' "$calls" >&2
-    echo 'FAIL: the stand-in systemctl did not see the checks, the seven stops and the six starts' >&2
+    echo 'FAIL: the stand-in systemctl did not see the checks, the seven stops and the seven starts' >&2
     exit 1
 fi
 if [ "$(grep -cx 'is-active 3.2' "$probe_root/systemctl-done" 2>/dev/null || true)" != 2 ]; then
@@ -118,8 +135,10 @@ if [ -e "$probe_root/systemctl-other" ]; then
 fi
 if [ -e "$probe_root/hyprctl-overlap" ] || ! grep -qx 'temperature 3700' "$probe_root/hyprctl-calls" \
         || grep -qxE 'temperature (4500|4600|4700)' "$probe_root/hyprctl-calls" \
-        || [ "$(tail -n 1 "$probe_root/hyprctl-calls")" != 'temperature 4300' ] \
-        || [ "$(tail -n 2 "$probe_root/hyprctl-done" | paste -sd,)" != 'temperature 4200,temperature 4300' ] \
+        || [ "$(grep -x -A1 'temperature 4200' "$probe_root/hyprctl-calls" | paste -sd,)" \
+            != 'temperature 4200,temperature 4300' ] \
+        || [ "$(grep -x -A1 'temperature 4200' "$probe_root/hyprctl-done" | paste -sd,)" \
+            != 'temperature 4200,temperature 4300' ] \
         || [ -e "$probe_root/hyprctl-other" ]; then
     cat "$probe_root/hyprctl-calls" "$probe_root/hyprctl-done" "$probe_root/hyprctl-overlap" \
         "$probe_root/hyprctl-other" 2>/dev/null >&2

@@ -87,6 +87,8 @@ ShellRoot {
     FileView { id: _systemctlDone; path: root.base + "/systemctl-done"; blockAllReads: true; printErrors: false }
     FileView { id: _hyprctlDone; path: root.base + "/hyprctl-done"; blockAllReads: true; printErrors: false }
     FileView { id: _slowPush; path: root.base + "/slow-push"; blockWrites: true; printErrors: false }
+    // moves the stand-in hyprsunset out of PATH and back, so the tool scan loses and finds it
+    Process { id: _moveHyprsunset }
 
     Timer {
         id: _ticks
@@ -456,7 +458,62 @@ ShellRoot {
                 root.check(done.length === 2 && root.count(done, "is-active 3.2") === 2
                         && NightLight.lastError === "",
                     "a check that follows a slow one gets a deadline of its own")
+                // reading the stand-in's stop first keeps the view from skipping the write below as
+                // one it already made
+                root.check(root.lines(_unitState)[0] === "inactive", "the stand-in unit is stopped")
+                // started outside the shell, so the slow check below reads it active
+                root.setFile(_unitState, "active")
+                root.setFile(_slowCheck, "3")
+                // the start's confirm push sends this, apart from the slow pushes above
+                ShellSettings.nightLightTemp = 4800
+                root.markCalls()
+                root.doneBefore = root.lines(_systemctlDone).length
+                root.check(NightLight.toggleFresh() === "queued",
+                    "a keybind toggle queues behind a slow check")
+                break
+            }
+            case 30:
+                // the stand-in reads the unit before its slow answer, then the unit stops outside
+                // the shell and hyprsunset goes away while that check still runs
+                if (++root.paused < 2) return
+                root.paused = 0
+                root.setFile(_unitState, "inactive")
+                _moveHyprsunset.command = ["mv", root.base + "/bin/hyprsunset", root.base + "/hyprsunset-aside"]
+                _moveHyprsunset.running = true
+                break
+            case 31:
+                if (_moveHyprsunset.running) return
+                SystemTools.refresh()
+                break
+            case 32:
+                if (!root.ready(!NightLight.toolAvailable, "the tool scan loses hyprsunset", 12))
+                    return
+                root.check(NightLight.toggleFresh() === "unavailable",
+                    "without hyprsunset a keybind toggle is refused")
+                _moveHyprsunset.command = ["mv", root.base + "/hyprsunset-aside", root.base + "/bin/hyprsunset"]
+                _moveHyprsunset.running = true
+                break
+            case 33:
+                if (_moveHyprsunset.running) return
+                SystemTools.refresh()
+                break
+            case 34:
+                if (!root.ready(NightLight.toolAvailable, "the tool scan finds hyprsunset again", 12))
+                    return
+                root.check(root.lines(_systemctlDone).length === root.doneBefore,
+                    "hyprsunset comes back while the check that read the unit active still runs")
                 root.setFile(_slowCheck, "0")
+                root.check(NightLight.toggleFresh() === "queued",
+                    "a keybind toggle after hyprsunset comes back queues behind a check")
+                break
+            case 35: {
+                const calls = root.lines(_systemctlCalls)
+                if (!root.ready(root.settled() && root.count(calls, "start") + root.count(calls, "stop")
+                        > root.startsBefore + root.stopsBefore,
+                        "the keybind toggle after hyprsunset comes back settles", 40))
+                    return
+                root.check(root.toggledOnce("start") && NightLight.enabled,
+                    "a check that read the unit for a request dropped with the tool does not settle a later one")
                 root.finish()
                 return
             }

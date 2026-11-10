@@ -297,6 +297,8 @@ Singleton {
     property bool _toggleQueued: false
     onToolAvailableChanged: if (!root.toolAvailable) {
         root._toggleQueued = false
+        // a check still running read the unit for the dropped request, so it settles no later one
+        _checkProc._forToggle = false
         root._pushQueued = false
     }
 
