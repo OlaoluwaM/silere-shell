@@ -200,6 +200,8 @@ Singleton {
         target: Idle
         function onIsIdleChanged() {
             if (!Idle.isIdle && ShellSettings.nightLightAuto && root.enabled) root._solarTick++
+            // the poll slept through idle, so a start still waiting to be confirmed is checked on waking
+            if (!Idle.isIdle && root._pushTempOnConfirm) root._checkActive()
         }
     }
 

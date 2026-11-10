@@ -388,17 +388,18 @@ ShellRoot {
                     "a start no check has confirmed keeps the drift poll on with every surface shut")
                 root.check(root.lines(_hyprctlCalls).length === root.pushesBefore,
                     "nothing is pushed for a start no check has confirmed")
-                // systemd brings the unit up after all; the next check sees it
+                // systemd brings the unit up after all, and the session idles and wakes before the
+                // poll's next minute; waking checks the unit
                 root.setFile(_toggleMode, "ok")
                 root.setFile(_slowCheck, "0")
                 root.setFile(_unitState, "active")
-                QuickActionsState.open = true
-                QuickActionsState.close()
+                Idle.isIdle = true
+                Idle.isIdle = false
                 break
             case 23: {
                 const pushes = root.lines(_hyprctlCalls).slice(root.pushesBefore)
                 if (!root.ready(pushes.length > 0 && !NightLight._pollWanted,
-                        "a check that finds the cut-off start active confirms it", 20))
+                        "the check on waking finds the cut-off start active and confirms it", 20))
                     return
                 root.check(pushes.length === 1 && pushes[0] === "temperature 4100",
                     "the confirmed start pushes the chosen temperature once")

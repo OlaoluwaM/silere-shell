@@ -395,7 +395,8 @@ outside issues or pull requests.
   on the next check that answers and a toggle error waits for the next toggle
   (`_checkError`); keep that split on an import. Its drift poll runs only
   while a control surface is open or a start cut off at its deadline still
-  waits to be confirmed (`_pollWanted`), so the keybind toggles through
+  waits to be confirmed (`_pollWanted`; waking from idle checks that start
+  at once), so the keybind toggles through
   `toggleFresh`, which acts on a check started after the request; do not
   bring back an always-on poll. Temperature nudges run one at a time through
   `_pushProc`, newest value last, never beside the start's confirm push; do

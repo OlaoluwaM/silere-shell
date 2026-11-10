@@ -25,6 +25,10 @@ mkdir -p "$probe_root/config/silere-shell" "$probe_root/runtime" "$probe_root/pr
 chmod 0700 "$probe_root/runtime"
 printf '{"__version":1}\n' > "$probe_root/config/silere-shell/settings.json"
 _probe_project "$ROOT" scripts/probe-nightlight.qml "$probe_root/project"
+# the probe idles and wakes the session, which the real singleton takes from the compositor
+rm "$probe_root/project/services"
+cp -a "$ROOT/services" "$probe_root/project/services"
+cp "$ROOT/scripts/fixtures/coordinator/Idle.qml" "$probe_root/project/services/Idle.qml"
 
 # The service starts and stops the real unit and pushes to the real display, so every
 # command it can reach is a stand-in here. The probe steers them through files it writes:
