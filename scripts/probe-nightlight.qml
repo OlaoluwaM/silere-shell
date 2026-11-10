@@ -141,13 +141,13 @@ ShellRoot {
                         "the stand-in unit stops on the next toggle", 20))
                     return
                 root.check(NightLight.lastError === "", "a stop that succeeds leaves no error")
-                root.check(!ControlSurfaces.anyOpen && !NightLight._watched,
-                    "with every control surface shut the drift poll is off")
+                root.check(!ControlSurfaces.anyOpen && !NightLight._pollWanted,
+                    "with every control surface shut and no start to confirm the drift poll is off")
 
                 // started outside the shell while nothing showed it
                 root.setFile(_unitState, "active")
                 QuickActionsState.open = true
-                root.check(QuickActionsState.open && NightLight._watched,
+                root.check(QuickActionsState.open && NightLight._pollWanted,
                     "an open control surface turns the drift poll on")
                 break
             case 3: {
@@ -351,6 +351,51 @@ ShellRoot {
                     "the confirm push sends the temperature the slider left")
                 root.check(root.lines(_hyprctlOverlap).length === 0,
                     "the confirm push waits for a slider push in flight")
+                NightLight.toggle()
+                break
+            }
+            case 21:
+                if (!root.ready(root.settled() && !NightLight.enabled
+                        && root.lines(_unitState)[0] === "inactive",
+                        "the unit stops before the cut-off start", 20))
+                    return
+                root.check(!NightLight._pollWanted,
+                    "a stop leaves no start to confirm, so the drift poll stays off")
+                // a start that outlives systemctl's deadline, followed by a check that does too
+                root.setFile(_toggleMode, "hang")
+                root.setFile(_slowCheck, "7")
+                root.markCalls()
+                root.pushesBefore = root.lines(_hyprctlCalls).length
+                NightLight.toggle()
+                break
+            case 22:
+                if (!root.ready(NightLight.lastError === "hyprsunset.service did not respond",
+                        "a start cut off at its deadline reports it", 40))
+                    return
+                // the check that follows runs into its own deadline
+                if (++root.paused < 24) return
+                root.paused = 0
+                root.check(root.lines(_systemctlCalls).lastIndexOf("is-active")
+                        > root.lines(_systemctlCalls).lastIndexOf("start"),
+                    "a check follows the cut-off start")
+                root.check(NightLight._pollWanted && !ControlSurfaces.anyOpen,
+                    "a start no check has confirmed keeps the drift poll on with every surface shut")
+                root.check(root.lines(_hyprctlCalls).length === root.pushesBefore,
+                    "nothing is pushed for a start no check has confirmed")
+                // systemd brings the unit up after all; the next check sees it
+                root.setFile(_toggleMode, "ok")
+                root.setFile(_slowCheck, "0")
+                root.setFile(_unitState, "active")
+                QuickActionsState.open = true
+                QuickActionsState.close()
+                break
+            case 23: {
+                const pushes = root.lines(_hyprctlCalls).slice(root.pushesBefore)
+                if (!root.ready(pushes.length > 0 && !NightLight._pollWanted,
+                        "a check that finds the cut-off start active confirms it", 20))
+                    return
+                root.check(pushes.length === 1 && pushes[0] === "temperature 4100",
+                    "the confirmed start pushes the chosen temperature once")
                 root.finish()
                 return
             }

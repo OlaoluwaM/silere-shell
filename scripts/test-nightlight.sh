@@ -28,7 +28,7 @@ _probe_project "$ROOT" scripts/probe-nightlight.qml "$probe_root/project"
 
 # The service starts and stops the real unit and pushes to the real display, so every
 # command it can reach is a stand-in here. The probe steers them through two files it
-# writes: unit-state (active or inactive) and toggle-mode (ok or fail).
+# writes: unit-state (active or inactive) and toggle-mode (ok, fail or hang).
 printf 'active\n' > "$probe_root/unit-state"
 printf 'ok\n' > "$probe_root/toggle-mode"
 cat > "$probe_root/bin/systemctl" <<EOF2
@@ -44,6 +44,8 @@ case "\$*" in
         ;;
     "--user start hyprsunset.service"|"--user stop hyprsunset.service")
         printf '%s\\n' "\$2" >> "$probe_root/systemctl-calls"
+        # a start that hangs past the service's deadline is cut off there
+        [ "\$(cat "$probe_root/toggle-mode")" = hang ] && exec sleep 7
         if [ "\$(cat "$probe_root/toggle-mode")" = fail ]; then
             echo "Job for hyprsunset.service failed: probe" >&2
             exit 1
@@ -79,7 +81,7 @@ PATH="$probe_root/bin:$PATH" SILERE_NIGHTLIGHT_PROBE_ROOT="$probe_root" \
     QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen \
     QT_NO_XDG_DESKTOP_PORTAL=1 setsid qs -p "$probe_root/project/probe-nightlight.qml" --no-color >"$probe_root/probe.log" 2>&1 &
 probe_pid=$!
-_probe_wait "$probe_root/probe.log" "$probe_pid" 'PROBE-NIGHTLIGHT' 320 0.25 || true
+_probe_wait "$probe_root/probe.log" "$probe_pid" 'PROBE-NIGHTLIGHT' 400 0.25 || true
 
 errs="$(_probe_errors "$probe_root/probe.log")"
 if ! grep -q 'PROBE-NIGHTLIGHT passed' "$probe_root/probe.log" \
@@ -92,9 +94,9 @@ fi
 # steps from passing on nothing
 calls="$(cat "$probe_root/systemctl-calls" 2>/dev/null || true)"
 if ! grep -qx 'is-active' <<< "$calls" || ! grep -qx 'stop' <<< "$calls" \
-        || [ "$(grep -cx 'start' <<< "$calls")" -ne 5 ] || [ "$(grep -cx 'stop' <<< "$calls")" -ne 5 ]; then
+        || [ "$(grep -cx 'start' <<< "$calls")" -ne 6 ] || [ "$(grep -cx 'stop' <<< "$calls")" -ne 6 ]; then
     printf '%s\n' "$calls" >&2
-    echo 'FAIL: the stand-in systemctl did not see the checks, the five stops and the five starts' >&2
+    echo 'FAIL: the stand-in systemctl did not see the checks, the six stops and the six starts' >&2
     exit 1
 fi
 if [ -e "$probe_root/systemctl-other" ]; then

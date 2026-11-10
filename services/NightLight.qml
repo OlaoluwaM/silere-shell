@@ -481,9 +481,13 @@ Singleton {
     // when the daemon actually starts or stops. Only an open control surface
     // shows `enabled`, and opening one checks at once, so this runs only while
     // one is open; the keybind reads afresh through toggleFresh() instead.
+    // A start cut off at its deadline may still come up, and its chosen
+    // temperature waits on a check that confirms it, so the poll also runs
+    // until one does; the confirmed or failed start clears the flag and stops it.
+    readonly property bool _pollWanted: root._watched || root._pushTempOnConfirm
     Timer {
         interval: 60000; repeat: true
-        running: root.toolAvailable && root._watched && !Idle.isIdle
+        running: root.toolAvailable && root._pollWanted && !Idle.isIdle
         onTriggered: root._checkActive()
     }
 }
