@@ -74,8 +74,9 @@ For each integration:
    Use `git cherry-pick -x` for direct picks and verify the provenance survives
    conflict resolution. Adapted commits name their sources and explain the
    material adaptations. Keep one commit per task item, per AGENTS.md.
-4. Review the affected ledger entries and update or retire them in the commit
-   that changes the divergence. Run the repository gates in
+4. Review the affected ledger entries and update or retire them as the
+   ledger's [rules](docs/upstream-divergences.md#what-belongs-here) require.
+   Run the repository gates in
    [AGENTS.md](AGENTS.md), plus checks of the affected fork behavior. Validate
    interactive Hyprland changes in a throwaway instance and label mock or
    static coverage accurately.

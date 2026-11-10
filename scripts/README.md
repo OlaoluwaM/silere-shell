@@ -18,7 +18,8 @@ available and the portability regressions (shell helpers, probe isolation, and l
 `check.sh` includes that lint pass, checks dependencies, compiles QML, runs
 behavioral probes, starts disposable shell instances, and checks settings and
 layout. The Nix development environment supplies the matching Quickshell and
-Qt tools and makes missing QML prerequisites fail instead of skip. Run the full
+Qt tools and makes missing QML prerequisites, or a missing shipped font, fail
+instead of skip. Run the full
 check from a graphical session for its Wayland coverage. Temporary instances
 run on a private session bus, so none can claim the desktop's notification or
 tray names, but they still reach the compositor and system services; this is

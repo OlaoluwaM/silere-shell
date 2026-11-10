@@ -141,8 +141,8 @@ outside issues or pull requests.
 - `scripts/check.sh` keeps sequential smoke cases and their shared launcher.
   The startup case uses a private configuration copy. Dereference source
   symlinks and fail the check if copying fails; never silently substitute an
-  incomplete copy for the real settings. This isolates shell-owned configuration
-  writes, not arbitrary configured commands or desktop services. Every smoke
+  incomplete copy for the real settings (scripts/README.md says what the copy
+  protects). Every smoke
   shell also gets a private cache directory beside that configuration, unmapped
   bars and a private session bus, so it neither fills the user's QML cache,
   reserves screen space on the live display, nor can claim the desktop's

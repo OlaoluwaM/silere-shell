@@ -82,10 +82,9 @@ and size rows with `Metrics.rowHeightFor()` rather than a number.
 This fork ships a development-only `flake.nix`: `nix develop` gives you `qs`,
 the matching Qt QML validation tools, JetBrainsMono Nerd Font, `hyprctl`,
 `matugen`, and the other tools the shell and its checks need. Run the gates
-there with `nix develop . --command bash scripts/check.sh`; the development
-shell makes missing QML tools or the shipped font fail, so type and layout
-checks have real coverage. A normal installed-shell diagnostic remains
-best-effort and reports those unavailable prerequisites as skipped.
+there with `nix develop . --command bash scripts/check.sh`;
+[scripts/README.md](../scripts/README.md) says what the development shell
+makes strict.
 
 The flake exposes no packages on purpose: the NixOS configuration that deploys
 this fork consumes the repo as a plain source input and does its own packaging
