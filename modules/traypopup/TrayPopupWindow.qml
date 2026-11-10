@@ -137,9 +137,10 @@ OverlayPopupWindow {
                         HoverHandler { id: _rowHover; cursorShape: Qt.PointingHandCursor }
                         TapHandler {
                             id: _tap
-                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                            acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
                             onTapped: (eventPoint, button) => {
                                 if (button === Qt.RightButton) win._openItemMenu(_row.modelData, _row)
+                                else if (button === Qt.MiddleButton) _row.modelData.secondaryActivate()
                                 else win._activateItem(_row.modelData, _row)
                             }
                         }
