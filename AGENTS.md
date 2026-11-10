@@ -92,10 +92,11 @@ A cosmetic or documentation-only change skips the `ci-lint.sh` and
   match what nixos-config's silere module renders. Adding or removing a
   settings key ties the commit to nixos-config; README.md explains the
   ordering.
-- The checked-in `config/GeneratedDefaults.qml` stays identical to
-  upstream's defaults, so someone running the fork without Nix sees a
-  stock shell. The deploying configuration swaps in its own render at
-  build time. Never edit it to carry local preferences.
+- The checked-in `config/GeneratedDefaults.qml` carries upstream's
+  default values, the literals upstream's `services/ShellSettings.qml`
+  initializes its settings with, so someone running the fork without Nix
+  sees a stock shell. The deploying configuration swaps in its own render
+  at build time. Never edit it to carry local preferences.
 
 ## QML work
 

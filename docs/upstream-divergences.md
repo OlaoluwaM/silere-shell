@@ -77,10 +77,11 @@ outside issues or pull requests.
 
 ## Shared files — union, with contracts
 
-- `config/GeneratedDefaults.qml`: take upstream's defaults wholesale, then
-  re-append the fork's added keys. The settings contract (AGENTS.md) must
-  hold after the merge, and key-set changes tie the merge to nixos-config
-  per README.md's coupling rule.
+- `config/GeneratedDefaults.qml`: upstream has no such file; it keeps its
+  defaults as literals in `services/ShellSettings.qml`. When an import
+  changes one of those literals, carry the new value into this file. The
+  settings contract (AGENTS.md) must hold after the merge, and key-set
+  changes tie the merge to nixos-config per README.md's coupling rule.
 - `services/ShellSettings.qml`: fork-added properties and `_schema` rows
   merge as a union with upstream's. `barCenterInGap` defaults to `true`
   against upstream's `false`; keep the fork's default on any collision.
