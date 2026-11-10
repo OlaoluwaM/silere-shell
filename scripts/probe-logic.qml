@@ -1472,6 +1472,14 @@ ShellRoot {
         root._check(PowerProfiles.nextProfile("balanced", profileOrder) === "performance"
                 && PowerProfiles.nextProfile("performance", profileOrder) === "power-saver",
             "cycling a power mode names the profile it moves to, wrapping at the end")
+        root._check(PowerProfiles.kindOf("Balanced") === "balanced"
+                && PowerProfiles.kindOf("balanced") === "balanced"
+                && PowerProfiles.kindOf("Performance") === "performance"
+                && PowerProfiles.kindOf("Quiet") === "saver"
+                && PowerProfiles.kindOf("power-saver") === "saver"
+                && PowerProfiles.kindOf("") === ""
+                && PowerProfiles.kindOf("Turbo") === "other",
+            "both backends' spellings of a power mode classify to the same kind")
         root._check(PowerProfiles.nextProfile("quiet", profileOrder) === ""
                 && PowerProfiles.nextProfile("balanced", ["balanced"]) === "",
             "a power mode outside the offered cycle names no successor")

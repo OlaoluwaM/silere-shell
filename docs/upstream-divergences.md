@@ -495,6 +495,8 @@ outside issues or pull requests.
   implementation because the deploying machine runs `asusd`.
   Refresh an empty profile list when a panel opens; a successful current-profile
   read must not leave the System page's choices empty after a missed startup list.
+  HomePage and QuickActionsPopup light the row from `PowerProfiles.kind`; keep
+  that over upstream's raw-name comparisons, which misread asusctl's capitalised names.
 - The fork's media card lives at `modules/menu/controls/MediaCard.qml` and its
   redesign wins. Never restore the obsolete `modules/menu/MediaCard.qml` path;
   port compatible upstream privacy and metadata fixes into the controls file.

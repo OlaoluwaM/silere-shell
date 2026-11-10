@@ -50,6 +50,16 @@ Singleton {
             .map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
     }
     readonly property string label: root._titleCase(root.profile)
+    // the two backends spell the same modes differently, so consumers compare the kind, never the raw name
+    function kindOf(name: string): string {
+        const p = String(name || "").toLowerCase()
+        if (p.length === 0) return ""
+        if (p.indexOf("performance") >= 0) return "performance"
+        if (p === "balanced") return "balanced"
+        if (p.indexOf("saver") >= 0 || p.indexOf("quiet") >= 0) return "saver"
+        return "other"
+    }
+    readonly property string kind: root.kindOf(root.profile)
     readonly property string glyph: {
         const p = root.profile.toLowerCase()
         if (p.indexOf("performance") >= 0) return "󰓅"

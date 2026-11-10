@@ -175,7 +175,7 @@ OverlayPopupWindow {
                 visible: PowerProfiles.available
                 glyph: PowerProfiles.glyph.length > 0 ? PowerProfiles.glyph : "󰾅"
                 label: "Power Mode"
-                active: PowerProfiles.profile === "performance"
+                active: PowerProfiles.kind === "performance"
                 error: PowerProfiles.lastError.length > 0
                 stateText: PowerProfiles.lastError.length > 0 ? "Failed"
                          : PowerProfiles.label.length > 0 ? PowerProfiles.label

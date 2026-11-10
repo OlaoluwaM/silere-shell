@@ -477,7 +477,7 @@ PageShell {
                 id: _powerRow
                 visible: PowerProfiles.available
                 available: PowerProfiles.profile !== ""
-                active: PowerProfiles.profile !== "" && PowerProfiles.profile !== "balanced"
+                active: PowerProfiles.kind !== "" && PowerProfiles.kind !== "balanced"
                 glyph: PowerProfiles.glyph
                 title: "Power Mode"
                 valueText: PowerProfiles.profile !== "" ? PowerProfiles.label
