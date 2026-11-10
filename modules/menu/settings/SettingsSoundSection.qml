@@ -31,7 +31,7 @@ Column {
             expanded: AudioMode.available || AudioMode.switching
             DescribedChipRow {
                 glyph: "󰋎"
-                title: "Mode"
+                label: "Mode"
                 description: AudioMode.mode === "calls" ? "Lo-fi · mic on" : "Hi-fi · no mic"
                 currentValue: AudioMode.mode
                 model: [

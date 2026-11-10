@@ -38,7 +38,7 @@ Item {
 
     signal moved(real value)
     signal glyphClicked()
-    signal optionChosen(var value)
+    signal chosen(var value)
 
     // each row names the glyph for one of its options; the list has no glyph data of its own
     function glyphFor(option: var): string { return "" }
@@ -101,7 +101,7 @@ Item {
                     selected: active
 
                     onTriggered: {
-                        root.optionChosen(modelData.value)
+                        root.chosen(modelData.value)
                         root.open = false
                     }
                 }

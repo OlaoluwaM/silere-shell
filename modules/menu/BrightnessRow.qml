@@ -21,7 +21,7 @@ LevelRow {
     }
 
     onMoved: value => Brightness.setPercent(Math.round(value * 100))
-    onOptionChosen: value => ShellSettings.brightnessDevice = value
+    onChosen: value => ShellSettings.brightnessDevice = value
 
     Connections {
         target: Brightness

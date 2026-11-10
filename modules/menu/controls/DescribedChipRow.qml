@@ -2,14 +2,14 @@ import QtQuick
 import "../../../config"
 import "../../common"
 
-// A chip row with a subtitle under its title. It wraps upstream's ChoiceChipRow instead
+// A chip row with a subtitle under its label. It wraps upstream's ChoiceChipRow instead
 // of changing it, since upstream reworks that file often, and uses only its public
 // surface: given no label or glyph, the base draws just its chips across the width it is
 // handed, so this row sizes that width and draws the glyph and text as ToggleRow does.
 MenuRow {
     id: root
 
-    property string title:       ""
+    property string label:       ""
     property string description: ""
     property var    model:       []
     property var    currentValue
@@ -45,7 +45,7 @@ MenuRow {
         return n * Math.max(44, Math.ceil(widest) + 22) + (n - 1) * 5
     }
 
-    Accessible.name: root.title
+    Accessible.name: root.label
     Accessible.description: root.description
 
     HoverHandler { id: _hover; enabled: root.enabled }
@@ -71,7 +71,7 @@ MenuRow {
 
         ShellText {
             width: parent.width
-            text: root.title
+            text: root.label
             elide: Text.ElideRight
             color: Theme.withAlpha(Theme.text, 0.88)
             font.pixelSize: Settings.fontSize

@@ -22,7 +22,7 @@ LevelRow {
 
     onGlyphClicked: Audio.toggleMute()
     onMoved: v => Audio.setVolume(v)
-    onOptionChosen: value => Audio.setSink(value)
+    onChosen: value => Audio.setSink(value)
 
     Connections {
         target: Audio
