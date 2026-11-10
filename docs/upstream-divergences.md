@@ -538,11 +538,14 @@ outside issues or pull requests.
   the power countdown all close their peers and reject late opens while idle
   or in overview. All nine states inherit `PopupState`, directly or through
   `AnchoredPopupState`, and register with the coordinator. Represent the
-  popup-sourced tray menu's parent with `popupParent`; keep centered pickers
-  free of anchor machinery. The plain `toggleAt` lives on
-  `AnchoredPopupState` and the centered pickers' `toggle` on `PopupState`, so
-  port an upstream edit to `CalendarState.toggleAt` into the base; the IPC
-  toggles' idle/overview refusal comes from `PopupState.refusedOpenText`.
+  popup-sourced tray menu's parent with `popupParent`, and keep the parent's
+  Escape shortcut disabled while a child popup is open
+  (`OverlayCoordinator.hasOpenChild`), since two enabled shortcuts with one
+  sequence cancel each other; keep centered pickers free of anchor
+  machinery. The plain `toggleAt` lives on `AnchoredPopupState` and the
+  centered pickers' `toggle` on `PopupState`, so port an upstream edit to
+  `CalendarState.toggleAt` into the base; the IPC toggles' idle/overview
+  refusal comes from `PopupState.refusedOpenText`.
   Media and tray-list anchor loss closes
   immediately; the other anchored states retain 150 ms replacement recovery.
   Registry metadata preserves the existing control-surface/bar-hint sets and

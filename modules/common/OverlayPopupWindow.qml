@@ -50,7 +50,7 @@ PanelWindow {
     Shortcut {
         sequence: "Escape"
         context: Qt.ApplicationShortcut
-        enabled: root.popupState.open
+        enabled: root.popupState.open && !OverlayCoordinator.hasOpenChild(root.popupState)
         onActivated: root.handleEscape()
     }
 

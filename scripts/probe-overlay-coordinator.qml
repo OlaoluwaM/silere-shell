@@ -46,6 +46,11 @@ ShellRoot {
         QtObject { property real menuAnchorX: 42 }
     }
     Component {
+        // the binding OverlayPopupWindow's Escape shortcut uses to yield to a child popup
+        id: yieldFactory
+        QtObject { property bool yields: OverlayCoordinator.hasOpenChild(TrayPopupState) }
+    }
+    Component {
         id: popupFactory
         // Exercise the production base's construction and destruction. Dynamic
         // instances produce Quickshell's "not the root component of its file"
@@ -147,9 +152,31 @@ ShellRoot {
         TrayMenuState.open = true
         root.check(TrayPopupState.open && TrayMenuState.open,
             "a tray-list item menu keeps its tray-list parent open")
+        root.check(OverlayCoordinator.hasOpenChild(TrayPopupState)
+                && !OverlayCoordinator.hasOpenChild(TrayMenuState),
+            "the tray list has an open child while its item menu is open, and the menu has none")
         MediaPopupState.open = true
         root.check(root.onlyStateOpen("media") && !TrayMenuState.popupSourced,
             "media closes the tray-list child and clears its source")
+
+        root.reset()
+        TrayPopupState.open = true
+        TrayMenuState.popupSourced = true
+        TrayMenuState.open = true
+        TrayMenuState.close()
+        root.check(TrayPopupState.open && !OverlayCoordinator.hasOpenChild(TrayPopupState),
+            "the tray list has no open child once its item menu closes")
+
+        root.reset()
+        const yielding = yieldFactory.createObject(root)
+        root.check(!yielding.yields, "a tray list with no item menu keeps its Escape")
+        TrayPopupState.open = true
+        TrayMenuState.popupSourced = true
+        TrayMenuState.open = true
+        root.check(yielding.yields, "a binding on hasOpenChild yields when the item menu opens")
+        TrayMenuState.close()
+        root.check(!yielding.yields, "a binding on hasOpenChild takes the key back when the item menu closes")
+        yielding.destroy()
 
         root.reset()
         TrayPopupState.open = true
@@ -165,6 +192,10 @@ ShellRoot {
         TrayMenuState.open = true
         root.check(TrayMenuState.open && !TrayPopupState.open,
             "an inline tray context menu closes the unrelated tray list")
+        let anyChild = false
+        for (const state of OverlayCoordinator.popups)
+            anyChild = anyChild || OverlayCoordinator.hasOpenChild(state)
+        root.check(!anyChild, "an inline tray context menu is nobody's child")
     }
 
     function testCloseAll(): void {

@@ -63,6 +63,16 @@ Singleton {
         root._openPopups = list
     }
 
+    // two enabled Escape shortcuts in one process cancel each other, so a parent yields the key
+    // while a child popup is open
+    function hasOpenChild(state): bool {
+        const list = root._openPopups
+        for (let i = 0; i < list.length; i++) {
+            if (list[i] !== state && list[i].popupParent === state) return true
+        }
+        return false
+    }
+
     function closeAll(): void {
         // close() re-enters popupClosed, so iterate a copy that cannot shift underneath
         const list = root._popups.slice()
