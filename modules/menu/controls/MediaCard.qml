@@ -63,12 +63,18 @@ ClippingRectangle {
     component SourceStepButton: Item {
         id: _step
         property string glyph: ""
+        property string accessibleName: ""
         signal triggered()
 
         implicitWidth: 20
         implicitHeight: 20
         width: implicitWidth
         height: implicitHeight
+
+        Accessible.role: Accessible.Button
+        Accessible.name: _step.accessibleName
+        Accessible.focusable: _step.enabled
+        Accessible.onPressAction: if (_step.enabled) _step.triggered()
 
         HoverHandler { id: _stepHover; cursorShape: Qt.PointingHandCursor }
         TapHandler   { id: _stepTap; onTapped: _step.triggered() }
@@ -402,8 +408,14 @@ ClippingRectangle {
             visible: Media.playerCount > 1
             spacing: 4
 
-            SourceStepButton { glyph: "󰅁"; onTriggered: Media.cyclePlayer(-1) }
-            SourceStepButton { glyph: "󰅂"; onTriggered: Media.cyclePlayer(1) }
+            SourceStepButton {
+                glyph: "󰅁"; accessibleName: "Previous player"
+                onTriggered: Media.cyclePlayer(-1)
+            }
+            SourceStepButton {
+                glyph: "󰅂"; accessibleName: "Next player"
+                onTriggered: Media.cyclePlayer(1)
+            }
         }
     }
 
