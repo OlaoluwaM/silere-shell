@@ -385,7 +385,7 @@ Singleton {
         environment: ({ "LC_ALL": "C" })
         stdout: StdioCollector { id: _listOut }
         onExited: (code) => {
-            if (!timedOut && code === 0) {
+            if (_list.completedSuccessfully(code)) {
                 const parsed = root.backend === "asusctl"
                     ? root._parseAsusList(_listOut.text) : root._parsePpdList(_listOut.text)
                 if (parsed.length > 0) root.profiles = parsed
@@ -412,7 +412,7 @@ Singleton {
                 return
             }
             root._degradedReason = (root.backend === "powerprofilesctl"
-                    && root.profile === "performance" && code === 0 && !timedOut)
+                    && root.profile === "performance" && _degradedProc.completedSuccessfully(code))
                 ? root._parseDegraded(_degradedOut.text) : ""
         }
     }

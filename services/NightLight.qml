@@ -373,7 +373,7 @@ Singleton {
         timeoutMs: 5000
         stderr: StdioCollector { id: _toggleErr }
         onExited: (code) => {
-            if (_toggleProc.timedOut || code !== 0) {
+            if (!_toggleProc.completedSuccessfully(code)) {
                 root.lastError = SafeText.lastNonEmptyLine(
                     _toggleErr.text, "hyprsunset.service did not respond", 160)
                 // a refused start never happens, but one cut off at the deadline may

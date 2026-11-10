@@ -109,13 +109,13 @@ Singleton {
         id: _kernelProc
         timeoutMs: 5000
         stdout: StdioCollector { id: _kernelOut }
-        onExited: (code) => { if (code === 0) root.kernel = SafeText.singleLineText(_kernelOut.text, 64) }
+        onExited: (code) => { if (_kernelProc.completedSuccessfully(code)) root.kernel = SafeText.singleLineText(_kernelOut.text, 64) }
     }
     BoundedProcess {
         id: _hostProc
         timeoutMs: 5000
         stdout: StdioCollector { id: _hostOut }
-        onExited: (code) => { if (code === 0) root.hostname = SafeText.singleLineText(_hostOut.text, 64) }
+        onExited: (code) => { if (_hostProc.completedSuccessfully(code)) root.hostname = SafeText.singleLineText(_hostOut.text, 64) }
     }
     // jq-free: hyprctl already emits clean JSON, so a plain JSON.parse over the
     // collected stdout is simpler than shelling out to jq for one field
@@ -124,7 +124,7 @@ Singleton {
         timeoutMs: 5000
         stdout: StdioCollector { id: _compositorOut }
         onExited: (code) => {
-            if (code !== 0) return
+            if (!_compositorProc.completedSuccessfully(code)) return
             root._compositorRead = true
             try {
                 const parsed = JSON.parse(_compositorOut.text)

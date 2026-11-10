@@ -129,7 +129,7 @@ Singleton {
         }
         // hold the last known reading through a transient scan failure rather than blanking it
         onExited: (code) => {
-            if (code !== 0 || !_freqProc._candidateFound) return
+            if (!_freqProc.completedSuccessfully(code) || !_freqProc._candidateFound) return
             root._frequencyMHz = _freqProc._candidateFreq
             root.securityLabel = _freqProc._candidateSecurity === "--"
                 || _freqProc._candidateSecurity.length === 0
@@ -163,7 +163,7 @@ Singleton {
             }
         }
         onExited: (code) => {
-            if (code !== 0) {
+            if (!_deviceProc.completedSuccessfully(code)) {
                 // launchEditor() forced this read outside the usual _wanted gate to get a
                 // fresh uuid; a failed lookup must surface rather than leave the click inert
                 if (root._launchPending) {
@@ -211,7 +211,7 @@ Singleton {
             }
         }
         onExited: (code) => {
-            if (code === 0 && _bandProc._found) root.savedBand = _bandProc._value
+            if (_bandProc.completedSuccessfully(code) && _bandProc._found) root.savedBand = _bandProc._value
         }
     }
 
@@ -221,7 +221,7 @@ Singleton {
         environment: ({ "LC_ALL": "C" })
         stderr: StdioCollector { id: _modifyErr }
         onExited: (code) => {
-            if (_modifyProc.timedOut || code !== 0) {
+            if (!_modifyProc.completedSuccessfully(code)) {
                 root.lastError = SafeText.lastNonEmptyLine(
                     _modifyErr.text, "Could not change the Wi-Fi band", 160)
                 root.bandPending = false
@@ -237,7 +237,7 @@ Singleton {
         environment: ({ "LC_ALL": "C" })
         stderr: StdioCollector { id: _activateErr }
         onExited: (code) => {
-            if (_activateProc.timedOut || code !== 0) {
+            if (!_activateProc.completedSuccessfully(code)) {
                 root.lastError = SafeText.lastNonEmptyLine(
                     _activateErr.text, "Could not reconnect with the new band", 160)
             } else if (root.profileUuid === root._pendingUuid) {

@@ -183,7 +183,7 @@ Singleton {
         timeoutMs: 5000
         stderr: StdioCollector { id: _toggleErr }
         onExited: (code) => {
-            const failed = _toggleProc.timedOut || code !== 0
+            const failed = !_toggleProc.completedSuccessfully(code)
             if (failed && !root._chainIgnoreCurrent) {
                 // a hard failure mid-chain (systemd-run rejected, unit missing, ...)
                 // abandons the rest of the chain rather than starting a unit whose
@@ -296,7 +296,7 @@ Singleton {
         onExited: (code) => {
             const rerun = root._inhibitCheckPending
             root._inhibitCheckPending = false
-            if (!_inhibitProc.timedOut && code === 0) {
+            if (_inhibitProc.completedSuccessfully(code)) {
                 const who = root._parseIdleInhibitors(_inhibitOut.text)
                 root.inhibited = who.length > 0
                 root.inhibitorLabel = who.length === 0 ? ""
@@ -473,7 +473,7 @@ Singleton {
             // token positions survives the weekday/timezone fields shifting around it.
             // A gone/elapsed timer prints nothing at all (--no-legend leaves no header
             // to fall back on), which the same "no match" branch below already covers.
-            const m = (!_remainingProc.timedOut && code === 0)
+            const m = _remainingProc.completedSuccessfully(code)
                 ? /(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})/.exec(_remainingOut.text)
                 : null
             // no match covers both "n/a" (no timer scheduled: an untimed run) and a

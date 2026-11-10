@@ -474,7 +474,7 @@ QtObject {
         onExited: (code) => {
             const rerun = root._gapRecheckPending
             root._gapRecheckPending = false
-            if (code === 0 && !_gapProc.timedOut) {
+            if (_gapProc.completedSuccessfully(code)) {
                 const gap = root._parseGapsOut(_gapOut.text)
                 // A transient query failure must not make the bar jump from its last
                 // confirmed compositor gap back to the configured width fraction.

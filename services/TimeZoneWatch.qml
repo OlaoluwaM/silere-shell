@@ -45,7 +45,7 @@ Singleton {
             const rerun = root._resolvePending
             root._resolvePending = false
             // an unreadable link is transient noise, not a zone -- never compare against it
-            if (!_resolveProc.timedOut && code === 0) {
+            if (_resolveProc.completedSuccessfully(code)) {
                 const next = root.zoneFromLink(_resolveOut.text)
                 if (!root._known) {
                     root._known = true

@@ -81,7 +81,7 @@ QtObject {
         property int _gen: 0
         onRunningChanged: if (running) _gen = root._probeGen
         onExited: (code) => {
-            if (_probeProc._gen === root._probeGen) root._toolFound = (code === 0)
+            if (_probeProc._gen === root._probeGen) root._toolFound = _probeProc.completedSuccessfully(code)
         }
     }
 

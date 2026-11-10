@@ -208,7 +208,7 @@ Singleton {
             "silere-shell: hook scan timed out; keeping the last known set")
         onExited: code => {
             // A timed-out or failed scan may have stopped before checking every hook.
-            if (timedOut || code !== 0) {
+            if (!_scan.completedSuccessfully(code)) {
                 root._found = ({})
                 root._rescanDelayMs = root._rescanDelayMs > 0
                     ? Math.min(root._rescanDelayMs * 2, root._maxRescanDelayMs)

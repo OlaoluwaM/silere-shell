@@ -94,7 +94,7 @@ Singleton {
             "done; exit 1"]
         stdout: StdioCollector { id: _chargeLimitProbeOut }
         onExited: (code) => {
-            root._chargeLimitPath = (code === 0 && !_chargeLimitProbe.timedOut)
+            root._chargeLimitPath = _chargeLimitProbe.completedSuccessfully(code)
                 ? (_chargeLimitProbeOut.text || "").trim() : ""
             if (root._chargeLimitPath.length === 0) root._chargeLimitRaw = -1
         }
