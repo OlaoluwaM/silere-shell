@@ -311,10 +311,7 @@ ClippingRectangle {
     // it punished every cover to save the worst case. The eyebrow chip below wins over any
     // cover by being opaque instead, so there is nothing left for a scrim here to do.
 
-    // covers only the art above the text block -- the eyebrow and the title/artist column
-    // are declared after this MouseArea, so their own hit targets (the source-step buttons)
-    // still win the tap; everywhere else in this band, clicking raises the player. Seek and
-    // transport sit below _seek.top and were never part of this target.
+    // a privacy-protected player with no cover gets a lock where the art would sit
     Rectangle {
         visible: Media.metadataPrivacyProtected && Media.stableArtUrl.length === 0
         anchors {
@@ -332,6 +329,10 @@ ClippingRectangle {
             font.pixelSize: Settings.fontSize + 24
         }
     }
+    // covers only the art above the text block -- the eyebrow and the title/artist column
+    // are declared after this MouseArea, so their own hit targets (the source-step buttons)
+    // still win the tap; everywhere else in this band, clicking raises the player. Seek and
+    // transport sit below _seek.top and are not part of this target.
     MouseArea {
         id: _playerTarget
         anchors.top: parent.top

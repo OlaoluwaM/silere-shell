@@ -25,7 +25,7 @@ Pill {
     animateGlyph:   false
     shrinkDelay:    0
 
-    // an update check or apply outlasts the quiet stage, and this loop is per-frame work
+    // a busy pill (a recording still finalising) can outlast the quiet stage, and this loop is per-frame work
     readonly property bool _scanning: root.busy && !Idle.isQuiet
     contentScanEnabled: root._scanning
     contentScanColor:   Theme.withAlpha(Theme.accent, 0.35)

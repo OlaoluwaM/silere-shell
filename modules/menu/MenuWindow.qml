@@ -190,8 +190,8 @@ OverlayPopupWindow {
             : contentPane.targetH
         // the 44%/55% bounds are the maintainer's own call, not a derived value: the panel
         // opens at 44% of the screen even with an empty history, an accepted tradeoff so the
-        // page doesn't open collapsed to nothing. 70 is NotificationCard's own minimum height,
-        // carried over from upstream, so this under-counts tall cards on purpose. availH is the
+        // page doesn't open collapsed to nothing. 70 is an estimate of one Recent row's height,
+        // so the wanted height grows with the history until the cap. availH is the
         // hard ceiling regardless of either bound - the panel's own room always wins.
         readonly property int recentViewportH: {
             const availH = panel._availablePanelH - panel.pageTopInset - panel.pageBottomInset

@@ -68,7 +68,8 @@ Singleton {
         root.preferredPlayer = players[next].dbusName
     }
 
-    // the media keys go to playerctld's most recently active player, so among equals the card follows the last one to start or stop
+    // the card and the bar show root.player and the media keys act on it through the media
+    // IpcHandler below, so among equals it follows the last one to start or stop
     property var _lastActive: ({})
     property var _wasPlaying: ({})
     property int _activeSeq: 0
