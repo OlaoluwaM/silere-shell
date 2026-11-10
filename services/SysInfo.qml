@@ -226,15 +226,31 @@ Singleton {
         }
     }
 
+    // one data row of `df -Pk`: total, used and available are read from the right because
+    // -P keeps a long device name on one line and its spaces would shift left-relative
+    // columns. A header or any row whose three columns are not plain integers gives null.
+    function _parseDfLine(line: string): var {
+        const f = line.trim().split(/\s+/)
+        const n = f.length
+        if (n < 6) return null
+        const total = f[n - 5]
+        const used = f[n - 4]
+        const avail = f[n - 3]
+        if (!/^[0-9]+$/.test(total) || !/^[0-9]+$/.test(used) || !/^[0-9]+$/.test(avail))
+            return null
+        return { totalKb: Number(total), usedKb: Number(used), availKb: Number(avail) }
+    }
+
+    // df prints one data row for a single path; the first match wins so a stray second row
+    // cannot overwrite it, and every run starts unclaimed
+    property bool _diskRowTaken: false
+
     function _refreshSlow(): void {
         if (_slowProc.running) return
         const elapsed = Date.now() - root._lastDiskReadMs
         if (root._lastDiskReadMs > 0 && elapsed >= 0 && elapsed < root._diskMinGapMs) return
-        _slowProc.exec(["bash", "-c",
-            // -P keeps a long device name on one line; read from the right so its spaces cannot shift the columns
-            "df -Pk / 2>/dev/null | awk '" +
-            "NF >= 6 && $(NF-4) ~ /^[0-9]+$/ && $(NF-3) ~ /^[0-9]+$/ && $(NF-2) ~ /^[0-9]+$/ { " +
-            "printf \"d%s %s %s\\n\", $(NF-3), $(NF-4), $(NF-2); exit }'"])
+        root._diskRowTaken = false
+        _slowProc.exec(["df", "-Pk", "/"])
     }
 
     BoundedProcess {
@@ -243,18 +259,18 @@ Singleton {
         environment: ({ "LC_ALL": "C" })
         stdout: SplitParser {
             onRead: (line) => {
-                if (!root._active) return
-                if (line.startsWith("d")) {
-                    const p = line.slice(1).trim().split(/\s+/)
-                    if (p.length >= 3) {
-                        root.diskUsedKb  = parseInt(p[0]) || 0
-                        root.diskTotalKb = parseInt(p[1]) || 0
-                        root.diskAvailKb = parseInt(p[2]) || 0
-                        root._lastDiskReadMs = Date.now()
-                    }
-                }
+                if (!root._active || root._diskRowTaken) return
+                const row = root._parseDfLine(line)
+                if (!row) return
+                root._diskRowTaken = true
+                root.diskUsedKb  = row.usedKb
+                root.diskTotalKb = row.totalKb
+                root.diskAvailKb = row.availKb
+                root._lastDiskReadMs = Date.now()
             }
         }
+        // collected and dropped, so a df error cannot reach the shell's log on every 10 s read
+        stderr: StdioCollector {}
         Component.onDestruction: running = false
     }
 }

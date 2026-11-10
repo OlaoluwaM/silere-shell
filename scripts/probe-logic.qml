@@ -2091,6 +2091,19 @@ ShellRoot {
         SysInfo.cpuPct = cpuPctWas
         SysInfo._active = cpuActiveWas
 
+        const dfRow = SysInfo._parseDfLine("/dev/nvme0n1p2 487652352 201234567 261456789 44% /")
+        root._check(dfRow !== null && dfRow.totalKb === 487652352
+                && dfRow.usedKb === 201234567 && dfRow.availKb === 261456789,
+            "a df data row gives total, used and available from the three integer columns")
+        const dfSpaced = SysInfo._parseDfLine("/dev/mapper/my disk 487652352 201234567 261456789 44% /")
+        root._check(dfSpaced !== null && dfSpaced.totalKb === 487652352
+                && dfSpaced.usedKb === 201234567 && dfSpaced.availKb === 261456789,
+            "a device name containing a space does not shift the disk columns")
+        root._check(SysInfo._parseDfLine("Filesystem 1024-blocks Used Available Capacity Mounted on") === null,
+            "the df header row is not read as disk usage")
+        root._check(SysInfo._parseDfLine("") === null,
+            "an empty df line is not read as disk usage")
+
         // hardening: counter rollback, malformed samples, and memory validation
         const cpuReadyWas = SysInfo.cpuReady
         SysInfo._active = true

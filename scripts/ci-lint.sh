@@ -1295,9 +1295,10 @@ else
 fi
 
 section "portable disk usage"
-if grep -qF '"df -Pk /' services/SysInfo.qml \
-    && grep -qF '$(NF-4)' services/SysInfo.qml \
-    && grep -qF '$(NF-3)' services/SysInfo.qml; then
+if grep -qF '["df", "-Pk", "/"]' services/SysInfo.qml \
+    && grep -qF 'f[n - 5]' services/SysInfo.qml \
+    && grep -qF 'f[n - 4]' services/SysInfo.qml \
+    && grep -qF 'f[n - 3]' services/SysInfo.qml; then
     ok "disk probe" "POSIX layout is parsed from the stable right-hand columns"
 else
     fail "SysInfo disk usage must use POSIX df output and right-relative columns"
