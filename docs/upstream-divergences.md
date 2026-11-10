@@ -396,7 +396,9 @@ outside issues or pull requests.
   (`_checkError`); keep that split on an import. Its drift poll runs only
   while a control surface is open, so the keybind toggles through
   `toggleFresh`, which acts on a check started after the request; do not
-  bring back an always-on poll. The lock action keeps
+  bring back an always-on poll. Temperature nudges run one at a time through
+  `_pushProc`, newest value last, never beside the start's confirm push; do
+  not go back to a detached `hyprctl` per change. The lock action keeps
   its existing provider selection. Additional upstream provider settings
   require a separate decision with their backend and UI consumers.
 - The floating OSD keeps its height and slide transitions. Shared bump

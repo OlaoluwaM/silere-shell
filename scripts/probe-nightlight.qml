@@ -17,6 +17,7 @@ ShellRoot {
     property int paused: 0
     property int startsBefore: 0
     property int stopsBefore: 0
+    property int pushesBefore: 0
     property int checks: 0
     property int failures: 0
     property bool done: false
@@ -79,6 +80,8 @@ ShellRoot {
     FileView { id: _systemctlCalls; path: root.base + "/systemctl-calls"; blockAllReads: true; printErrors: false }
     FileView { id: _unitState; path: root.base + "/unit-state"; blockAllReads: true; blockWrites: true; printErrors: false }
     FileView { id: _toggleMode; path: root.base + "/toggle-mode"; blockWrites: true; printErrors: false }
+    FileView { id: _hyprctlCalls; path: root.base + "/hyprctl-calls"; blockAllReads: true; printErrors: false }
+    FileView { id: _hyprctlOverlap; path: root.base + "/hyprctl-overlap"; blockAllReads: true; printErrors: false }
     FileView { id: _slowCheck; path: root.base + "/slow-check"; blockWrites: true; printErrors: false }
 
     Timer {
@@ -240,8 +243,74 @@ ShellRoot {
                         "the next keybind toggle starts the unit and clears the check error", 20))
                     return
                 root.check(root.toggledOnce("start"), "the next keybind toggle sends one start")
+                break
+            case 12: {
+                // the start's confirm push answers first
+                if (++root.paused < 4) return
+                root.paused = 0
+                ShellSettings.nightLightAuto = false
+                root.pushesBefore = root.lines(_hyprctlCalls).length
+                // one burst the way a slider sweep commits it, ending below 6500 so the
+                // final push names its temperature rather than the identity matrix
+                for (let t = 4000; t <= 5900; t += 100) ShellSettings.nightLightTemp = t
+                ShellSettings.nightLightTemp = 3700
+                break
+            }
+            case 13: {
+                const pushes = root.lines(_hyprctlCalls).slice(root.pushesBefore)
+                if (!root.ready(pushes.length > 0 && pushes[pushes.length - 1] === "temperature 3700",
+                        "a burst of temperature changes ends on its final value", 20))
+                    return
+                // the burst runs in one turn: its first value starts the one push in flight and
+                // every later one only replaces the value waiting behind it, so two calls carry
+                // all 21 values
+                root.check(pushes.length === 2 && pushes[0] === "temperature 4000",
+                    "a burst of 21 temperatures reaches hyprctl as its first and last value only")
+                root.check(root.lines(_hyprctlOverlap).length === 0,
+                    "no temperature push starts while another is running")
+                break
+            }
+            case 14: {
+                // the burst's last push is still running when its line lands
+                if (++root.paused < 3) return
+                root.paused = 0
+                root.pushesBefore = root.lines(_hyprctlCalls).length
+                ShellSettings.nightLightTemp = 4400
+                ShellSettings.nightLightTemp = 4500
+                // turned off while 4500 waits behind 4400
+                NightLight.toggle()
+                ShellSettings.nightLightTemp = 4600
+                ShellSettings.nightLightTemp = 4700
+                break
+            }
+            case 15: {
+                if (++root.paused < 6) return
+                if (!root.ready(root.settled() && !NightLight.enabled,
+                        "the unit stops under the pending push", 20))
+                    return
+                const pushes = root.lines(_hyprctlCalls).slice(root.pushesBefore)
+                root.check(pushes.length === 1 && pushes[0] === "temperature 4400",
+                    "turning night light off drops the waiting push and sends nothing while off")
+
+                // a slider move right after a start: the start's confirm push lands while the
+                // move's push is still running
+                root.pushesBefore = root.lines(_hyprctlCalls).length
+                NightLight.toggle()
+                ShellSettings.nightLightTemp = 4100
+                break
+            }
+            case 16: {
+                const pushes = root.lines(_hyprctlCalls).slice(root.pushesBefore)
+                if (!root.ready(pushes.length === 2 && root.settled() && NightLight.enabled,
+                        "the start's confirm push follows the slider's push", 20))
+                    return
+                root.check(pushes[0] === "temperature 4100" && pushes[1] === "temperature 4100",
+                    "the confirm push sends the temperature the slider left")
+                root.check(root.lines(_hyprctlOverlap).length === 0,
+                    "the confirm push waits for a slider push in flight")
                 root.finish()
                 return
+            }
             }
             root.step++
         }

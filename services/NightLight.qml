@@ -215,7 +215,42 @@ Singleton {
     // a plain IPC call rather than anything that touches the unit's lifecycle.
     onTemperatureChanged: {
         if (!root.enabled || !root.toolAvailable) return
-        Quickshell.execDetached(root.temperatureArgv(root.temperature))
+        root._pushTemp()
+    }
+
+    // the Home slider commits every step of a sweep, so one push runs at a time and the
+    // newest temperature follows it: the last value of a burst is the last the daemon hears
+    property bool _pushQueued: false
+    // what the daemon was last asked for; -1 once a push failed or the unit stopped, so the next is sent
+    property int _sentTemp: -1
+    onEnabledChanged: if (!root.enabled) { root._pushQueued = false; root._sentTemp = -1 }
+
+    function _pushTemp(): void {
+        if (!root.enabled || !root.toolAvailable) {
+            root._pushQueued = false
+            return
+        }
+        // a start's confirm push sends the same temperature, so the two never run at once
+        if (_pushProc.running || _confirmPushProc.running) {
+            root._pushQueued = true
+            return
+        }
+        root._pushQueued = false
+        if (root.temperature === root._sentTemp) return
+        root._sentTemp = root.temperature
+        _pushProc.exec(root.temperatureArgv(root.temperature))
+    }
+
+    BoundedProcess {
+        id: _pushProc
+        timeoutMs: 3000
+        onExited: (code) => {
+            // a failed nudge is no row error, but the daemon may not have it, so the next is sent
+            if (!_pushProc.completedSuccessfully(code)) root._sentTemp = -1
+            // a start's confirm push waited for this run; one already retrying keeps its own pace
+            if (!_confirmPushRetry.running) root._pushConfirmedTemp()
+            if (root._pushQueued) root._pushTemp()
+        }
     }
 
     function toggle(): void {
@@ -257,7 +292,10 @@ Singleton {
     property bool _checkError: false
     // a keybind toggle waiting on a fresh check; it counts as busy, so later presses never stack
     property bool _toggleQueued: false
-    onToolAvailableChanged: if (!root.toolAvailable) root._toggleQueued = false
+    onToolAvailableChanged: if (!root.toolAvailable) {
+        root._toggleQueued = false
+        root._pushQueued = false
+    }
 
     function _checkActive(): void {
         if (!root.toolAvailable) return
@@ -382,10 +420,12 @@ Singleton {
     property int _confirmPushAttempts: 0
 
     function _pushConfirmedTemp(): void {
-        if (_confirmPushProc.running || !root.enabled
+        // a live push in flight hands over to this one when it exits
+        if (_confirmPushProc.running || _pushProc.running || !root.enabled
                 || root._confirmPushGeneration !== root._toggleGeneration) return
         root._confirmPushAttempts++
         _confirmPushProc._generation = root._confirmPushGeneration
+        root._sentTemp = root.temperature
         _confirmPushProc.exec(root.temperatureArgv(root.temperature))
     }
 
@@ -399,12 +439,15 @@ Singleton {
             if (current && _confirmPushProc.completedSuccessfully(code)
                     && _confirmPushOut.text.trim().toLowerCase() === "ok") {
                 root._confirmPushGeneration = -1
-                return
+            } else {
+                root._sentTemp = -1
+                // a newer start skipped its push while this run held the process
+                if (!current) root._pushConfirmedTemp()
+                else if (root._confirmPushAttempts < 5) _confirmPushRetry.restart()
+                else root._confirmPushGeneration = -1
             }
-            // a newer start skipped its push while this run held the process
-            if (!current) root._pushConfirmedTemp()
-            else if (root._confirmPushAttempts < 5) _confirmPushRetry.restart()
-            else root._confirmPushGeneration = -1
+            // a slider move during the push waited for it
+            if (root._pushQueued) root._pushTemp()
         }
     }
 

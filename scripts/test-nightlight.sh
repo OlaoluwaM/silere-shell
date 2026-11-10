@@ -92,9 +92,16 @@ fi
 # steps from passing on nothing
 calls="$(cat "$probe_root/systemctl-calls" 2>/dev/null || true)"
 if ! grep -qx 'is-active' <<< "$calls" || ! grep -qx 'stop' <<< "$calls" \
-        || [ "$(grep -cx 'start' <<< "$calls")" -ne 3 ]; then
+        || [ "$(grep -cx 'start' <<< "$calls")" -ne 4 ]; then
     printf '%s\n' "$calls" >&2
-    echo 'FAIL: the stand-in systemctl did not see the checks, the stops and one start per keybind toggle' >&2
+    echo 'FAIL: the stand-in systemctl did not see the checks, the stops and the four starts' >&2
+    exit 1
+fi
+if [ -e "$probe_root/hyprctl-overlap" ] || ! grep -qx 'temperature 3700' "$probe_root/hyprctl-calls" \
+        || grep -qxE 'temperature (4500|4600|4700)' "$probe_root/hyprctl-calls" \
+        || [ -e "$probe_root/hyprctl-other" ]; then
+    cat "$probe_root/hyprctl-calls" "$probe_root/hyprctl-overlap" "$probe_root/hyprctl-other" 2>/dev/null >&2
+    echo 'FAIL: the stand-in hyprctl saw overlapping, missing or unexpected pushes' >&2
     exit 1
 fi
 grep -oE 'PROBE-NIGHTLIGHT passed [0-9]+ checks' "$probe_root/probe.log" | tail -1
