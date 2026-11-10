@@ -35,6 +35,11 @@ through it.
 - When a task has a small, self-contained piece the maintainer could do,
   offer it instead of doing it.
 - Leave commits to the maintainer unless asked to commit.
+- Design changes need a proposal first. Before a change to how the shell
+  looks, moves, reads or responds goes through, showcase the options in an
+  artifact and wait for the maintainer's pick. A bug fix that alters a
+  shape, a label, motion or input counts. When it is unclear whether a
+  change touches the design, treat it as one.
 
 ## Compositor priority
 
