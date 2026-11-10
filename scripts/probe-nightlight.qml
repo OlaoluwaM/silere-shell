@@ -18,6 +18,7 @@ ShellRoot {
     property int startsBefore: 0
     property int stopsBefore: 0
     property int pushesBefore: 0
+    property int doneBefore: 0
     property int checks: 0
     property int failures: 0
     property bool done: false
@@ -83,6 +84,9 @@ ShellRoot {
     FileView { id: _hyprctlCalls; path: root.base + "/hyprctl-calls"; blockAllReads: true; printErrors: false }
     FileView { id: _hyprctlOverlap; path: root.base + "/hyprctl-overlap"; blockAllReads: true; printErrors: false }
     FileView { id: _slowCheck; path: root.base + "/slow-check"; blockWrites: true; printErrors: false }
+    FileView { id: _systemctlDone; path: root.base + "/systemctl-done"; blockAllReads: true; printErrors: false }
+    FileView { id: _hyprctlDone; path: root.base + "/hyprctl-done"; blockAllReads: true; printErrors: false }
+    FileView { id: _slowPush; path: root.base + "/slow-push"; blockWrites: true; printErrors: false }
 
     Timer {
         id: _ticks
@@ -396,6 +400,63 @@ ShellRoot {
                     return
                 root.check(pushes.length === 1 && pushes[0] === "temperature 4100",
                     "the confirmed start pushes the chosen temperature once")
+                break
+            }
+            case 24:
+                // the confirm push answers before the slow ones start
+                if (++root.paused < 3) return
+                root.paused = 0
+                root.setFile(_slowPush, "2")
+                root.pushesBefore = root.lines(_hyprctlCalls).length
+                root.doneBefore = root.lines(_hyprctlDone).length
+                ShellSettings.nightLightTemp = 4200
+                break
+            case 25:
+                // 4300 waits behind 4200 and starts from its exit
+                if (++root.paused < 2) return
+                root.paused = 0
+                ShellSettings.nightLightTemp = 4300
+                break
+            case 26: {
+                const done = root.lines(_hyprctlDone).slice(root.doneBefore)
+                if (!root.ready(done.length >= 2, "a push started from the last one's exit answers", 28))
+                    return
+                const pushes = root.lines(_hyprctlCalls).slice(root.pushesBefore)
+                root.check(pushes.length === 2 && pushes[1] === "temperature 4300"
+                        && done.length === 2 && done[0] === "temperature 4200" && done[1] === "temperature 4300",
+                    "a push that follows a slow one gets a deadline of its own and lands last")
+                root.setFile(_slowPush, "0.2")
+                NightLight.toggle()
+                break
+            }
+            case 27: {
+                if (!root.ready(root.settled() && !NightLight.enabled && NightLight.lastError === "",
+                        "the unit stops before the slow checks", 20))
+                    return
+                if (++root.paused < 2) return
+                root.paused = 0
+                root.doneBefore = root.lines(_systemctlDone).length
+                root.setFile(_slowCheck, "3.2")
+                QuickActionsState.open = true
+                QuickActionsState.close()
+                break
+            }
+            case 28:
+                // a second check asked for while the first runs follows from its exit
+                if (++root.paused < 2) return
+                root.paused = 0
+                QuickActionsState.open = true
+                QuickActionsState.close()
+                break
+            case 29: {
+                const done = root.lines(_systemctlDone).slice(root.doneBefore)
+                if (!root.ready(done.length >= 2 || NightLight.lastError.length > 0,
+                        "a check started from the last one's exit answers", 40))
+                    return
+                root.check(done.length === 2 && root.count(done, "is-active 3.2") === 2
+                        && NightLight.lastError === "",
+                    "a check that follows a slow one gets a deadline of its own")
+                root.setFile(_slowCheck, "0")
                 root.finish()
                 return
             }

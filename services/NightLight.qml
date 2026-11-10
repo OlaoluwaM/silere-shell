@@ -249,7 +249,8 @@ Singleton {
             if (!_pushProc.completedSuccessfully(code)) root._sentTemp = -1
             // a start's confirm push waited for this run; one already retrying keeps its own pace
             if (!_confirmPushRetry.running) root._pushConfirmedTemp()
-            if (root._pushQueued) root._pushTemp()
+            // a tick later, so the next push arms a timeout of its own: BoundedProcess arms it on the running edge
+            if (root._pushQueued) Qt.callLater(root._pushTemp)
         }
     }
 
@@ -404,7 +405,8 @@ Singleton {
             // the check the keybind waited on has read the unit, so the toggle starts from what it found
             if (_checkProc._forToggle && root._toggleQueued) root.toggle()
         }
-        if (rerun) root._checkActive()
+        // a tick later, so the rerun arms a timeout of its own: BoundedProcess arms it on the running edge
+        if (rerun) Qt.callLater(root._checkActive)
     }
 
     BoundedProcess {
@@ -443,8 +445,9 @@ Singleton {
                 root._confirmPushGeneration = -1
             } else {
                 root._sentTemp = -1
-                // a newer start skipped its push while this run held the process
-                if (!current) root._pushConfirmedTemp()
+                // a newer start skipped its push while this run held the process; it starts a
+                // tick later so it arms a timeout of its own, which BoundedProcess does on the running edge
+                if (!current) Qt.callLater(root._pushConfirmedTemp)
                 else if (root._confirmPushAttempts < 5) _confirmPushRetry.restart()
                 else root._confirmPushGeneration = -1
             }

@@ -27,8 +27,9 @@ printf '{"__version":1}\n' > "$probe_root/config/silere-shell/settings.json"
 _probe_project "$ROOT" scripts/probe-nightlight.qml "$probe_root/project"
 
 # The service starts and stops the real unit and pushes to the real display, so every
-# command it can reach is a stand-in here. The probe steers them through two files it
-# writes: unit-state (active or inactive) and toggle-mode (ok, fail or hang).
+# command it can reach is a stand-in here. The probe steers them through files it writes:
+# unit-state (active or inactive), toggle-mode (ok, fail or hang), and slow-check and
+# slow-push, the seconds a check or a push takes.
 printf 'active\n' > "$probe_root/unit-state"
 printf 'ok\n' > "$probe_root/toggle-mode"
 cat > "$probe_root/bin/systemctl" <<EOF2
@@ -39,7 +40,11 @@ case "\$*" in
         printf 'is-active\\n' >> "$probe_root/systemctl-calls"
         # read before the delay, so a slow check answers for the state it started on
         current="\$(cat "\$state")"
-        [ -e "$probe_root/slow-check" ] && sleep "\$(cat "$probe_root/slow-check")"
+        delay=0
+        [ -e "$probe_root/slow-check" ] && delay="\$(cat "$probe_root/slow-check")"
+        sleep "\$delay"
+        # a check cut off at its deadline never gets here
+        printf 'is-active %s\\n' "\$delay" >> "$probe_root/systemctl-done"
         [ "\$current" = active ]
         ;;
     "--user start hyprsunset.service"|"--user stop hyprsunset.service")
@@ -59,7 +64,8 @@ case "\$*" in
 esac
 EOF2
 # hyprctl hyprsunset ...: logs its arguments, takes a fifth of a second the way a socket
-# round trip can, and records any call that starts while another is still running
+# round trip can unless slow-push names longer, records any call that starts while another
+# is still running, and logs its arguments again once it has answered
 cat > "$probe_root/bin/hyprctl" <<EOF2
 #!/usr/bin/env bash
 if [ "\${1:-}" != hyprsunset ]; then
@@ -68,8 +74,9 @@ if [ "\${1:-}" != hyprsunset ]; then
 fi
 mkdir "$probe_root/hyprctl-lock" 2>/dev/null || printf '%s\\n' "\$*" >> "$probe_root/hyprctl-overlap"
 printf '%s\\n' "\${*:2}" >> "$probe_root/hyprctl-calls"
-sleep 0.2
+if [ -e "$probe_root/slow-push" ]; then sleep "\$(cat "$probe_root/slow-push")"; else sleep 0.2; fi
 rmdir "$probe_root/hyprctl-lock" 2>/dev/null || true
+printf '%s\\n' "\${*:2}" >> "$probe_root/hyprctl-done"
 echo ok
 EOF2
 printf '#!/usr/bin/env bash\nexit 0\n' > "$probe_root/bin/hyprsunset"
@@ -94,9 +101,14 @@ fi
 # steps from passing on nothing
 calls="$(cat "$probe_root/systemctl-calls" 2>/dev/null || true)"
 if ! grep -qx 'is-active' <<< "$calls" || ! grep -qx 'stop' <<< "$calls" \
-        || [ "$(grep -cx 'start' <<< "$calls")" -ne 6 ] || [ "$(grep -cx 'stop' <<< "$calls")" -ne 6 ]; then
+        || [ "$(grep -cx 'start' <<< "$calls")" -ne 6 ] || [ "$(grep -cx 'stop' <<< "$calls")" -ne 7 ]; then
     printf '%s\n' "$calls" >&2
-    echo 'FAIL: the stand-in systemctl did not see the checks, the six stops and the six starts' >&2
+    echo 'FAIL: the stand-in systemctl did not see the checks, the seven stops and the six starts' >&2
+    exit 1
+fi
+if [ "$(grep -cx 'is-active 3.2' "$probe_root/systemctl-done" 2>/dev/null || true)" != 2 ]; then
+    cat "$probe_root/systemctl-done" >&2 2>/dev/null || true
+    echo 'FAIL: the stand-in systemctl did not answer both slow checks' >&2
     exit 1
 fi
 if [ -e "$probe_root/systemctl-other" ]; then
@@ -106,8 +118,11 @@ if [ -e "$probe_root/systemctl-other" ]; then
 fi
 if [ -e "$probe_root/hyprctl-overlap" ] || ! grep -qx 'temperature 3700' "$probe_root/hyprctl-calls" \
         || grep -qxE 'temperature (4500|4600|4700)' "$probe_root/hyprctl-calls" \
+        || [ "$(tail -n 1 "$probe_root/hyprctl-calls")" != 'temperature 4300' ] \
+        || [ "$(tail -n 2 "$probe_root/hyprctl-done" | paste -sd,)" != 'temperature 4200,temperature 4300' ] \
         || [ -e "$probe_root/hyprctl-other" ]; then
-    cat "$probe_root/hyprctl-calls" "$probe_root/hyprctl-overlap" "$probe_root/hyprctl-other" 2>/dev/null >&2
+    cat "$probe_root/hyprctl-calls" "$probe_root/hyprctl-done" "$probe_root/hyprctl-overlap" \
+        "$probe_root/hyprctl-other" 2>/dev/null >&2
     echo 'FAIL: the stand-in hyprctl saw overlapping, missing or unexpected pushes' >&2
     exit 1
 fi
