@@ -12,8 +12,8 @@ import "../services"
 Singleton {
     id: root
 
-    readonly property string samplePath: XdgPaths.configHome.length > 0
-        ? XdgPaths.configHome + "/silere-shell/glass.json" : ""
+    readonly property string samplePath: ConfigStore.directory.length > 0
+        ? ConfigStore.directory + "/glass.json" : ""
 
     property var _sample: ({})
     property bool _everLoaded: false
