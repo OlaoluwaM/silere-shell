@@ -7,7 +7,8 @@
 
 A personal fork of [s3rven/silere-shell](https://github.com/s3rven/silere-shell), a Quickshell/QML desktop shell. It serves as the only shell of a NixOS/Hyprland profile.
 
-Upstream v1.0.0 requires Quickshell 0.3.1 or newer. This repository's
+The shell requires Quickshell 0.3.1 or newer, the floor that
+`SILERE_MIN_QUICKSHELL` in `scripts/lib/qml-modules.sh` sets. This repository's
 development flake pins a later commit, which follows Hyprland's workspace id
 changes and emits `WlSessionLock.locked` on unlock, the signal the lock exits
 on; the deploying NixOS configuration must supply a Quickshell at least that
