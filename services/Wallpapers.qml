@@ -152,7 +152,7 @@ Singleton {
             if (_applyProc.timedOut || code !== 0)
                 console.warn("silere-shell: wallpaper command failed:",
                              _applyProc.timedOut ? "timed out" : code,
-                             _applyErr.text.trim().split("\n").pop() || "")
+                             SafeText.lastNonEmptyLine(_applyErr.text, "", 160))
             if (root._hasPendingApply) {
                 const next = root._pendingApplyPath
                 root._hasPendingApply = false

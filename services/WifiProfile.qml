@@ -222,7 +222,8 @@ Singleton {
         stderr: StdioCollector { id: _modifyErr }
         onExited: (code) => {
             if (_modifyProc.timedOut || code !== 0) {
-                root.lastError = _modifyErr.text.trim().split("\n").pop() || "could not change the Wi-Fi band"
+                root.lastError = SafeText.lastNonEmptyLine(
+                    _modifyErr.text, "Could not change the Wi-Fi band", 160)
                 root.bandPending = false
                 return
             }
@@ -237,7 +238,8 @@ Singleton {
         stderr: StdioCollector { id: _activateErr }
         onExited: (code) => {
             if (_activateProc.timedOut || code !== 0) {
-                root.lastError = _activateErr.text.trim().split("\n").pop() || "could not reconnect with the new band"
+                root.lastError = SafeText.lastNonEmptyLine(
+                    _activateErr.text, "Could not reconnect with the new band", 160)
             } else if (root.profileUuid === root._pendingUuid) {
                 // still the same network we wrote to; a switch mid-chain leaves this
                 // false, so the new network's own reconciled read wins instead

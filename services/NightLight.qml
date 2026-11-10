@@ -305,7 +305,7 @@ Singleton {
             const rerun = root._recheckPending
             root._recheckPending = false
             if (_checkProc.timedOut) {
-                root.lastError = "could not check hyprsunset.service"
+                root.lastError = "Could not check hyprsunset.service"
             } else {
                 root.enabled = (code === 0)
                 // the unit autostarts with the session and runs its own scheduled
@@ -374,7 +374,8 @@ Singleton {
         stderr: StdioCollector { id: _toggleErr }
         onExited: (code) => {
             if (_toggleProc.timedOut || code !== 0) {
-                root.lastError = _toggleErr.text.trim().split("\n").pop() || "hyprsunset.service did not respond"
+                root.lastError = SafeText.lastNonEmptyLine(
+                    _toggleErr.text, "hyprsunset.service did not respond", 160)
                 // a refused start never happens, but one cut off at the deadline may
                 // still be queued in systemd; the check that follows settles that
                 if (!_toggleProc.timedOut) root._pushTempOnConfirm = false

@@ -188,7 +188,8 @@ Singleton {
                 // a hard failure mid-chain (systemd-run rejected, unit missing, ...)
                 // abandons the rest of the chain rather than starting a unit whose
                 // scheduled stop never got armed, or leaving a stop-timer stray
-                root.lastError = _toggleErr.text.trim().split("\n").pop() || (root.unit + " did not respond")
+                root.lastError = SafeText.lastNonEmptyLine(
+                    _toggleErr.text, root.unit + " did not respond", 160)
                 root._chainQueue = []
                 // a reschedule queued against the chain that just failed would otherwise
                 // fire against unknown state once the chain frees up
