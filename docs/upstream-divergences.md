@@ -537,8 +537,8 @@ outside issues or pull requests.
 - Control popups keep one exclusive `OverlayCoordinator` claim: menu,
   calendar, tray menu/list, quick actions, keybinds, wallpapers, media, and
   the power countdown all close their peers and reject late opens while idle
-  or in overview. All nine states inherit `PopupState`, directly or through
-  `AnchoredPopupState`, and register with the coordinator. Represent the
+  or in overview. Every control popup state inherits `PopupState`, directly or
+  through `AnchoredPopupState`, and registers with the coordinator. Represent the
   popup-sourced tray menu's parent with `popupParent`, and keep the parent's
   Escape shortcut disabled while a child popup is open
   (`OverlayCoordinator.hasOpenChild`), since two enabled shortcuts with one

@@ -73,7 +73,7 @@ on platforms that support the full skill directory.
 
 | File | Purpose |
 |------|---------|
-| `SKILL.md` | Full skill instructions (412 lines) |
+| `SKILL.md` | Full skill instructions |
 | `references/qt-qml-review-checklist.md` | 47+ review rules with IDs |
 | `references/lint-scripts/qt_qml_lint.py` | Deterministic Python linter |
 | `platforms/windsurf.md` | Compact variant for Windsurf |

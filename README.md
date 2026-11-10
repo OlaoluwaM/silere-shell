@@ -161,7 +161,8 @@ goes in this order:
 One coupling rule makes the order matter. When a fork commit adds or
 removes a settings key (a packaging-only key like `recordingStopCommand`
 or `wallpaperCommand`, or an upstream import that changes the set), nothing
-works until `nixos-config`'s silere module renders the same set into
+works until `nixos-config`'s silere module
+(`modules/home-manager/hyprland/modules/silere.nix`) renders the same set into
 `GeneratedDefaults.qml`. So the fork push, the silere-module change, and
 the re-lock have to reach the machine in the same rebuild. Never
 piecemeal.
