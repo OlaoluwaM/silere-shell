@@ -616,9 +616,8 @@ Singleton {
         onTriggered: root._syncDndRemaining()
     }
 
-    // scheduled quiet hours used to sit between dnd and this: retired in favor of
-    // timed DND runs, which cover the "silence for a while" case without a second
-    // silencing mechanism to reason about
+    // no scheduled quiet hours: timed DND runs cover the "silence for a while" case
+    // without a second silencing mechanism to reason about
     readonly property bool silencingActive: dnd || fullscreenSilenced
     function markSeen(id: int): void {
         root._ensurePersistentState()

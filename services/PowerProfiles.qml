@@ -25,8 +25,7 @@ Singleton {
     readonly property bool syncing: _get.running || _set.running || _getRetry.running
     property string profile: ""
     // same value as `profile`, under the name the settings-page contract wants;
-    // `profile` stays because HomePage/QuickActionsPopup/PowerRailContent already
-    // read it and there is no reason to touch three already-working call sites
+    // HomePage, QuickActionsPopup and PowerRailContent read `profile`
     readonly property string current: root.profile
     // the backend's own names, shown until it answers: asusd can come up after the shell at
     // login, and a card that waits for the real list would pop in after the page

@@ -171,8 +171,8 @@ Singleton {
     readonly property color popup: _glass ? withAlpha(_glassTint, popupOpacity)
                                         : ShellSettings.popupMatchBarOpacity ? panel : background
     // hover step for popup-based fills that sit straight on the blur (notification cards):
-    // mix() always returns alpha 1.0, so the inline `mix(popup, subtext, 0.06)` views used to
-    // reach for would flash a hovered card solid over the blur the instant popup turns translucent,
+    // mix() always returns alpha 1.0, so an inline `mix(popup, subtext, 0.06)` in a view
+    // would flash a hovered card solid over the blur the instant popup turns translucent,
     // whether from glass or from matching the bar's opacity. Same 0.06 step, aimed at text instead
     // of subtext so it still reads once translucent, then cut back down to popup's own alpha.
     readonly property color popupHover: _glass
@@ -270,9 +270,9 @@ Singleton {
                 : (pressed ? 0.85 : hovered ? 0.79 : 0.73)
             return mix(_controlSolid, c, k)
         }
-        // ladder lifted one step from upstream's 0.035/0.085/0.14 (2026-08-28
-        // design pass): over glass frost the resting track read near-black, so
-        // rest takes the old hover value and the steps above shift with it
+        // one step above upstream's 0.035/0.085/0.14 ladder: over glass frost a
+        // resting track at 0.035 reads near-black, so rest sits at upstream's hover
+        // value and the steps above shift with it
         return mix(_controlSolid, text,
             pressed ? 0.19 : hovered ? 0.135 : 0.085)
     }

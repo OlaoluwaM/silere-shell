@@ -16,8 +16,8 @@ Singleton {
         for (const k in b) if (a[k] !== b[k]) return false
         return true
     }
-    // packageFamily left out on purpose: it fed the removed updater (see
-    // docs/upstream-divergences.md), and nothing else reads it
+    // no packageFamily: only upstream's updater reads it, and the fork keeps that
+    // stack removed (see docs/upstream-divergences.md)
     // ready stays true during a refresh so controls do not disappear. Consumers
     // that need to redo work after a coherent scan use this completion edge.
     property int _scanRevision: 0
@@ -115,7 +115,7 @@ Singleton {
     function refresh(): void {
         if (_checkProc.running) return
         _retryTimer.stop()
-        // keep the last confirmed capability set while refreshing. Features no longer disappear briefly when Settings triggers a fresh probe
+        // keep the last confirmed capability set while refreshing, so features stay put while Settings triggers a fresh probe
         checking = true
         lastError = ""
         _checkProc.exec(["bash", "-c",

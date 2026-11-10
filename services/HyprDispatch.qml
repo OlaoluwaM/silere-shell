@@ -46,9 +46,9 @@ Singleton {
     }
 
     // Hyprland.dispatch(request) writes straight to the compositor's IPC socket
-    // in-process, so there's no argv to assemble — _text() already builds the exact
-    // same "dispatcher [args]" (or quoted lua-framework call) string a forked
-    // `hyprctl dispatch <that text>` used to receive as its one request argument.
+    // in-process, so there's no argv to assemble — _text() builds the exact
+    // "dispatcher [args]" (or quoted lua-framework call) string that
+    // `hyprctl dispatch <that text>` takes as its one request argument.
     function dispatch(dispatcher, args): void {
         Hyprland.dispatch(root._text(dispatcher, args))
     }
@@ -79,10 +79,9 @@ Singleton {
         return root.sessionEndCommand("logout", [])
     }
 
-    // two sequential in-process dispatches instead of a forked sh + two hyprctls:
-    // the socket serializes writes, so back-to-back calls land in the same order the
-    // sh chain existed to guarantee, without needing a shell to sequence detached
-    // processes or --batch, which mangled the quoted lua-framework calls
+    // two sequential in-process dispatches: the socket serializes writes, so
+    // back-to-back calls land in order without a shell to sequence detached
+    // processes, or hyprctl's --batch, which mangles the quoted lua-framework calls
     function dispatchPair(d1, a1, d2, a2): void {
         Hyprland.dispatch(root._text(d1, a1))
         Hyprland.dispatch(root._text(d2, a2))

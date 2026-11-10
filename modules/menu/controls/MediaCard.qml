@@ -31,9 +31,8 @@ ClippingRectangle {
     visible: opacity > 0.01
 
     // art-retry-on-reopen below needs to know when THIS card last became visible again --
-    // MenuState.open used to double as that signal because the menu was the only host, but
-    // modules/mediapopup/MediaPopupWindow.qml now hosts the same card off MediaPopupState
-    // instead, so the host tells us here rather than the card assuming which singleton it is
+    // the menu and modules/mediapopup/MediaPopupWindow.qml (off MediaPopupState) both host
+    // this card, so the host tells us here rather than the card assuming which singleton it is
     property bool hostOpen: MenuState.open
 
     function _focusPlayer(): void {
@@ -58,8 +57,8 @@ ClippingRectangle {
     // MediaButton's transport-row scale but sharing its hover/press language (fill + outline
     // + scale), so it still reads as the same control family instead of a plain flat toggle.
     // Idle fill is opaque (Theme.menuHint, the same chip tone the eyebrow label sits on)
-    // rather than transparent -- it used to ride bare on the art like the scrim it sat
-    // beside, and washed out the same way; it now wins over any cover for the same reason.
+    // rather than transparent: a bare stepper on the art washes out on a bright cover,
+    // and an opaque one wins over any cover, as the eyebrow chip does.
     component SourceStepButton: Item {
         id: _step
         property string glyph: ""
@@ -306,10 +305,9 @@ ClippingRectangle {
     }
 
     // the veil above protects only the lower half, and the eyebrow row sits on raw art
-    // above it -- this used to get its own scrim gradient to keep the micro label legible,
-    // but a gradient strong enough for a bright cover washed out a dark one and vice versa:
-    // it punished every cover to save the worst case. The eyebrow chip below wins over any
-    // cover by being opaque instead, so there is nothing left for a scrim here to do.
+    // above it with no scrim of its own: a gradient strong enough for a bright cover
+    // washes out a dark one and vice versa, punishing every cover to save the worst case.
+    // The eyebrow chip below wins over any cover by being opaque instead.
 
     // a privacy-protected player with no cover gets a lock where the art would sit
     Rectangle {
@@ -599,10 +597,10 @@ ClippingRectangle {
                 anchors.fill: parent
                 radius: Theme.radiusControl
                 antialiasing: true
-                // press-only feedback by request: the hover tint read as a flash against
-                // the button's already-visible idle fill (the skip buttons hover fine --
+                // press-only feedback: a hover tint reads as a flash against the
+                // button's already-visible idle fill (the skip buttons hover fine --
                 // they start from nothing). The cursor and the glyph brightening still
-                // say "hoverable"; only a real press changes the surface now, so the
+                // say "hoverable"; only a real press changes the surface, so the
                 // shared emphasisButtonFill (hover-tinting by design) stays out on purpose.
                 color: _playT.pressed ? Theme.controlFill(Theme.accent, 0.18)
                     : Theme.menuControl

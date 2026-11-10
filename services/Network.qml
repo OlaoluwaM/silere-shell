@@ -190,8 +190,8 @@ Singleton {
         _setScannerEnabled(false)
         wifiError = ""
         wifiErrorReason = ConnectionFailReason.Unknown
-        // wifiNetworks is now a polled snapshot, not a live binding, so closing
-        // the list has to blank it explicitly instead of that following for free
+        // wifiNetworks is a polled snapshot, not a live binding, so closing the
+        // list has to blank it explicitly
         root.wifiNetworks = []
         root._wifiListKeySnapshot = ""
     }
@@ -291,15 +291,14 @@ Singleton {
         if (!frozen) root._refreshWifiNetworks()
     }
 
-    // wifiNetworks used to be `readonly property var: _wifiList()`, a binding that
-    // reruns — new array, new row objects, every entry — the instant any single
+    // wifiNetworks is a polled snapshot rather than a binding on _wifiList(): such a
+    // binding reruns — new array, new row objects, every entry — the instant any single
     // AP's signalStrength notifies, which Quickshell's Networking does continuously
     // while the scanner is enabled. ListView's plain-array model has no diffing: a
-    // new array reference means every delegate is destroyed and rebuilt, which is
-    // what actually produced the jumpiness (the ordering itself was already made
-    // stable by the tier sort above). Polling on a bounded timer and only
-    // publishing when the structural key changes keeps the list from rebuilding
-    // on every sample while leaving the underlying data collection untouched.
+    // new array reference means every delegate is destroyed and rebuilt, and the
+    // list jumps (the tier sort above already keeps the ordering stable). Polling on
+    // a bounded timer and only publishing when the structural key changes keeps the
+    // list from rebuilding on every sample while the data underneath stays live.
     function _refreshWifiNetworks(): void {
         if (root._wifiListFrozen) return
         const next = root._wifiList()
