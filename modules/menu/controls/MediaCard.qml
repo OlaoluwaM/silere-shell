@@ -288,16 +288,16 @@ ClippingRectangle {
         visible: _art.shownAlpha > 0.01
         // the floor has to be the SAME opaque solid-on-glass tone RailNavItem's hover
         // tooltip uses (Theme.menuHint), not a translucent wash: a wash floor would let
-        // the cover bleed through behind the seek bar and transport row exactly like the
-        // old scrim did, and menuHint is already opaque in glass, non-glass, and HC (HC
-        // forces _glass off in Theme, so it falls through to the same opaque menuCard mix)
+        // the cover bleed through behind the seek bar and transport row, and menuHint is
+        // already opaque in glass, non-glass, and HC (HC forces _glass off in Theme, so it
+        // falls through to the same opaque menuCard mix)
         gradient: Gradient {
             GradientStop { position: 0.00; color: "transparent" }
             GradientStop { position: 0.34; color: "transparent" }
-            // 0.72, up from 0.55: the artist line lives at this stop in dimmed
-            // subtext, and a bright cover shone through the lighter half-tone and
-            // washed it out. Firmer ground here keeps the dim-artist hierarchy
-            // voice without brightening the ink or moving the text block.
+            // 0.72: the artist line lives at this stop in dimmed subtext, and a
+            // bright cover shines through a lighter half-tone and washes it out.
+            // Firm ground here keeps the dim-artist hierarchy voice without
+            // brightening the ink or moving the text block.
             GradientStop { position: 0.55; color: Theme.withAlpha(Theme.menuHint, 0.72) }
             GradientStop { position: 0.76; color: Theme.menuHint }
             GradientStop { position: 1.00; color: Theme.menuHint }
@@ -341,10 +341,10 @@ ClippingRectangle {
         onClicked: root._focusPlayer()
     }
 
-    // pinned to the card's top edge, over raw art (the veil is transparent up here) --
-    // moved off its old mid-card spot so nothing textual competes with the title for the
-    // gradient's half-tone band, and so the source stepper reads as chrome pinned to the
-    // card frame rather than as part of the dissolving text block beneath it
+    // pinned to the card's top edge, over raw art (the veil is transparent up here), so
+    // nothing textual competes with the title for the gradient's half-tone band, and the
+    // source stepper reads as chrome pinned to the card frame rather than as part of the
+    // dissolving text block beneath it
     Item {
         id: _identityRow
         anchors {
