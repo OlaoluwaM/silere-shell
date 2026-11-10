@@ -37,7 +37,6 @@ All this while keeping upstream's token architecture and restraint intact.
 - **`custom-branch`** is where all our custom work lies. It is what `nixos-config`
   pins and where every feature lands. Agents never rewrite its history;
   selected upstream changes land as new commits.
-- **`custom-branch-testing`** for experimental stuff
 - **`upstream/main`** is upstream's development branch. We read it to select
   useful changes. We never write to it.
 - **`main`** (this fork's, on origin) is a clean mirror of `upstream/main`.
@@ -204,10 +203,11 @@ other way outside the wrapper, `lock.qml` refuses to lock and exits 3.
 
 The history and the menu's grouping of it log under the `silere.notifications`
 category, which `journalctl --user -u silere-shell -g silere.notifications`
-shows. Every removal the user asks for logs four lines: the row and the run
+shows. Removing one row or one run logs four lines: the row and the run
 the delegate thought it held, the rows the model actually removed, and the
 page's runs before and after, each as app, length, and whether a stack stands
-open or folded. A row lost from the model shows in the removal line; a row only
+open or folded. The page header's Clear logs one line with the row count.
+A row lost from the model shows in the removal line; a row only
 hidden shows as a run that folded in the after line. A row the list took back
 mid-exit, or one left faded once every exit ended, logs as well. Notification
 text is never logged.
