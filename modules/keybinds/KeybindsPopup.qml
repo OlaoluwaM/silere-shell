@@ -17,6 +17,17 @@ OverlayPopupWindow {
     layerNamespace: "silere-keybinds"
     popupCard: card
 
+    // the base's application-wide Escape shortcut takes the key before the field's Keys
+    // handlers run, so backing out of a typed filter happens here
+    function handleEscape(): void {
+        if (_search.text.length > 0) {
+            _search.text = ""
+            _search.forceActiveFocus()
+        } else {
+            KeybindsPopupState.close()
+        }
+    }
+
     component GroupHeader: Item {
         id: _hdr
         property string label: ""
@@ -163,11 +174,6 @@ OverlayPopupWindow {
                     font.pixelSize: Settings.fontSize
                     renderType: Text.NativeRendering
                     clip: true
-                    // first Escape clears an active filter; a second (now-empty) press
-                    // falls through unaccepted to the window base's Escape Shortcut
-                    Keys.onEscapePressed: (event) => {
-                        if (_search.text.length > 0) { _search.text = ""; event.accepted = true }
-                    }
 
                     // the search field keeps focus for type-to-filter, so arrow keys land
                     // here rather than on the list; forward them as quarter-viewport
