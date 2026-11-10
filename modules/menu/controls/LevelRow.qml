@@ -47,6 +47,10 @@ Item {
     implicitHeight: _slider.height + _options.height
     height: implicitHeight
     readonly property bool _optionsShown: root.open || _options.height > 0.5
+    function _optionFilled(index: int): bool {
+        const item = index >= 0 && index < _optRepeater.count ? _optRepeater.itemAt(index) : null
+        return item ? item.fillShowing === true : false
+    }
 
     function closeInline(): bool {
         if (!root.open) return false
@@ -84,10 +88,20 @@ Item {
                 x: 14
                 width: parent.width - 28
                 color: Theme.menuDivider
+                // the fade SelectRow gives its list's first line beside a filled option
+                opacity: root._optionFilled(0) ? 0 : 1
+                MotionBehavior on opacity {
+                    id: _hairlineFade
+                    NumberAnimation {
+                        duration: _hairlineFade.targetValue < 0.5 ? Motion.hoverIn : Motion.hoverOut
+                        easing.type: Easing.OutCubic
+                    }
+                }
             }
             Item { width: parent.width; height: 1 }
 
             Repeater {
+                id: _optRepeater
                 model: root._optionsShown ? root.options : []
 
                 delegate: InlineOptionRow {

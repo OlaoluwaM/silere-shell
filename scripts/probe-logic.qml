@@ -79,6 +79,16 @@ ShellRoot {
         }
     }
     Component {
+        id: levelRowFactory
+        LevelRow {
+            width: 320
+            open: true
+            currentValue: "a"
+            options: [{ value: "a", label: "A" },
+                      { value: "b", label: "B" }]
+        }
+    }
+    Component {
         id: dividerCardFactory
         Item {
             width: 300
@@ -877,6 +887,19 @@ ShellRoot {
             root._check(kept(1) && kept(2),
                 "a disabled wrapped slider leaves the dividers alone")
             wrapperCard.destroy()
+        }
+
+        const levelRow = levelRowFactory.createObject(root)
+        root._check(levelRow !== null, "a level row with an open list builds")
+        if (levelRow) {
+            root._check(levelRow._optionFilled(0) && !levelRow._optionFilled(1),
+                "the divider above a level row's list fades beside a current first option")
+            levelRow.currentValue = "b"
+            root._check(!levelRow._optionFilled(0) && levelRow._optionFilled(1),
+                "the divider above a level row's list stays when the first option is not filled")
+            root._check(!levelRow._optionFilled(-1) && !levelRow._optionFilled(2),
+                "an option index outside a level row's list is never filled")
+            levelRow.destroy()
         }
 
         const groupCard = dividerGroupCardFactory.createObject(root)
