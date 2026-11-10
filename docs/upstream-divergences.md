@@ -434,10 +434,10 @@ outside issues or pull requests.
   Defer the Repeater-count reveal-all reset until the model update completes,
   then recheck the current count and cap. The service count can change earlier
   and briefly hide a retained visible card before it reindexes.
-  The history page's stacked runs are the
-  fork's own: an upstream history grouping lands under that fold or not at all.
-  Popup and history dismiss icons center their measured ink horizontally,
+- Popup and history dismiss icons center their measured ink horizontally,
   with fractional positioning retained for fonts such as Berkeley Mono.
+- The history page's stacked runs are the fork's own: an upstream history
+  grouping lands under that fold or not at all.
   A run is a label each history row carries (`run`, from
   `services/HistoryRuns.js`), given when the service files the row and saved
   with it in `notifications.json`, which stays at `__version` 1 since older
@@ -458,14 +458,15 @@ outside issues or pull requests.
   History edits and the grouping log under the fork's `silere.notifications`
   category (`historyLog`, `historyRowLabel`); keep the removal lines on an
   import of the history removals, which are how a lost row is told from a hidden one.
-  The fork's duration-picker DND replaces
-  upstream's scheduled quiet hours; keep `dndSchedule`, `dndFrom`, `dndTo`,
-  their settings rows, and their service logic removed. The `quickActions dnd`
-  IPC toggle goes through that picker's `toggleDnd`, so turning DND on arms a
-  timed run from the saved duration; do not route it to upstream's quiet-hours
-  path or a plain `dnd` flip. Notification history
-  retains `sessionCurrent` through `PersistentProperties`, which survives QML
-  reloads but not process exits. Restore on its `loaded` signal, before the
+- The fork's duration-picker DND replaces upstream's scheduled quiet hours;
+  keep `dndSchedule`, `dndFrom`, `dndTo`, their settings rows, and their
+  service logic removed. The `quickActions dnd` IPC toggle goes through that
+  picker's `toggleDnd`, so turning DND on arms a timed run from the saved
+  duration; do not route it to upstream's quiet-hours path or a plain `dnd`
+  flip.
+- Notification history retains `sessionCurrent` through
+  `PersistentProperties`, which survives QML reloads but not process exits.
+  Restore on its `loaded` signal, before the
   server re-emits kept notifications; defer pruning until those arrivals have
   rebuilt the live list, including cleanup triggered by settings changes.
   Until settings are ready, restore and trim against the schema maximum;
