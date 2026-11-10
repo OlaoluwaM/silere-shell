@@ -23,6 +23,8 @@ Singleton {
     readonly property real pct: root.normalizedPercent(_raw)
     readonly property bool onBattery: available ? UPower.onBattery : false
     readonly property int  _critPct: Math.max(5, Math.round(ShellSettings.batteryLowThreshold / 2))
+    // the critical threshold, for readers outside this file such as SystemAlerts' re-arm margin
+    readonly property int  criticalPct: _critPct
     // pct==0 is UPower's uninitialised reading at startup; would fire a bogus critical alert
     readonly property bool _validReading: available && pct > 0
     readonly property bool low: _validReading && pct < ShellSettings.batteryLowThreshold && onBattery

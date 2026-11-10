@@ -10,6 +10,8 @@ Singleton {
     // high contrast's guarantees are alpha-based (see focusRingAlpha, outline, etc. below);
     // stacking glass's translucency on top would dilute every one of those ratios, so HC wins
     readonly property bool _glass: ShellSettings.glassSurfaces && !_hc
+    // whether surfaces paint as glass, for views that pick a different fill under it
+    readonly property bool glassActive: _glass
     readonly property color depthSink: "#000000"
     readonly property color thumbnailScrim: "#000000"
     readonly property color thumbnailText: "#ffffff"

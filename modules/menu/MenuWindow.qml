@@ -74,7 +74,7 @@ OverlayPopupWindow {
         // the rail and content pane below already paint Theme.menuPane edge to edge, so this
         // card's own fill would stack a second translucent layer under theirs; in glass mode
         // that compounds toward opaque and kills the frost, so leave the card itself unpainted
-        color: Theme._glass ? "transparent" : Theme.popup
+        color: Theme.glassActive ? "transparent" : Theme.popup
 
         // the rail cap and the detail pane are both px while a category label scales with
         // uiScale, so each end takes the same growth: the pane keeps its width and the
@@ -491,7 +491,7 @@ OverlayPopupWindow {
                     // pane-alpha fill here (popupHover included) stacks a second layer and frosts the
                     // drawer near-opaque; menuCard's glass wash lifts it off the pane the way cards
                     // lift, and mix() outside glass is opaque, so it stacks nothing
-                    color: Theme._glass ? Theme.menuCard : Theme.mix(Theme.menuPane, Theme.menuControl, 0.14)
+                    color: Theme.glassActive ? Theme.menuCard : Theme.mix(Theme.menuPane, Theme.menuControl, 0.14)
                     visible: parent.width > panel.railCollapsedW + 0.5
                 }
 

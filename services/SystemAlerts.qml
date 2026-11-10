@@ -100,7 +100,7 @@ Singleton {
         const margin = 2
         const plugged = !Battery.onBattery
         if (plugged || Battery.pct >= ShellSettings.batteryLowThreshold + margin) root._battLowSent = false
-        if (plugged || Battery.pct >= Battery._critPct + margin) root._battCritSent = false
+        if (plugged || Battery.pct >= Battery.criticalPct + margin) root._battCritSent = false
     }
 
     Connections {
