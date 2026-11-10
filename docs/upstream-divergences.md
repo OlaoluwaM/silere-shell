@@ -505,7 +505,8 @@ outside issues or pull requests.
 - The bar media widget opens that card on click and focuses the player on
   right-click; its accessible press action and name follow the click. Keep
   upstream's play/pause click and press action, middle-click focus, and
-  wheel-to-skip out of it.
+  wheel-to-skip out of it. The card's anchor is measured when it opens, as
+  the clock's calendar does, not read from the cache the widget's x keeps.
 - The bar clock keeps text-only hover feedback, with no hover, pressed, or
   calendar-open background. Drop any highlight cap or `_calendarOpen` fill
   an import brings back.

@@ -222,6 +222,8 @@ Item {
     }
 
     function _toggleCard(): void {
+        // measured at click time: the widget's own x does not change when its zone reflows around it
+        root._syncMenuAnchor()
         if (Media.available) MediaPopupState.toggleAt(root.menuAnchorX, root.screen, root)
     }
 
