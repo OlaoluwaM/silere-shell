@@ -2687,6 +2687,11 @@ ShellRoot {
         root._check(/^\d{1,2}:\d\d [AP]M$/.test(NightLight.sunriseLabel),
             "night light sun times follow the 12h clock setting")
         ShellSettings.clock12h = clock12hForSun
+        root._check(NightLight._dur(65) === "1h 5m" && NightLight._dur(545) === "9h 5m"
+                && NightLight._dur(70) === "1h 10m" && NightLight._dur(120) === "2h 0m",
+            "night light writes the minutes of a duration over an hour without a leading zero")
+        root._check(NightLight._dur(45) === "45m" && NightLight._dur(0) === "0m",
+            "night light writes a duration under an hour as bare minutes")
         NightLight._geoResolved = geoResolvedWas
         NightLight._autoLat = autoLatWas
         NightLight._autoLon = autoLonWas
