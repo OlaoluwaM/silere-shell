@@ -244,7 +244,50 @@ ShellRoot {
                     return
                 root.check(root.toggledOnce("start"), "the next keybind toggle sends one start")
                 break
-            case 12: {
+            case 12:
+                // a keybind queues behind a slow check, a row tap settles it, and a second
+                // keybind comes while that check, which read the unit before the tap, still runs
+                if (++root.paused < 2) return
+                root.paused = 0
+                root.markCalls()
+                root.setFile(_slowCheck, "3")
+                root.check(NightLight.toggleFresh() === "queued",
+                    "a keybind toggle queues behind a slow check")
+                break
+            case 13:
+                // the stand-in reads the unit before its slow answer
+                if (++root.paused < 2) return
+                root.paused = 0
+                QuickActionsState.open = true
+                NightLight.toggle()
+                QuickActionsState.close()
+                root.check(!NightLight.enabled, "a row tap settles the waiting keybind by turning the unit off")
+                break
+            case 14: {
+                const calls = root.lines(_systemctlCalls)
+                if (!root.ready(root.count(calls, "stop") === root.stopsBefore + 1
+                        && root.lines(_unitState)[0] === "inactive",
+                        "the row tap stops the unit", 20))
+                    return
+                if (++root.paused < 2) return
+                root.paused = 0
+                root.setFile(_slowCheck, "0")
+                root.check(NightLight.toggleFresh() === "queued",
+                    "a second keybind toggle queues once the tap's stop has returned")
+                break
+            }
+            case 15: {
+                const calls = root.lines(_systemctlCalls)
+                if (!root.ready(root.settled() && NightLight.enabled
+                        && root.lines(_unitState)[0] === "active"
+                        && root.count(calls, "start") === root.startsBefore + 1,
+                        "the second keybind toggle starts the unit the tap stopped", 40))
+                    return
+                root.check(root.count(calls, "stop") === root.stopsBefore + 1,
+                    "a check that read the unit before a row tap does not decide a later keybind toggle")
+                break
+            }
+            case 16: {
                 // the start's confirm push answers first
                 if (++root.paused < 4) return
                 root.paused = 0
@@ -256,7 +299,7 @@ ShellRoot {
                 ShellSettings.nightLightTemp = 3700
                 break
             }
-            case 13: {
+            case 17: {
                 const pushes = root.lines(_hyprctlCalls).slice(root.pushesBefore)
                 if (!root.ready(pushes.length > 0 && pushes[pushes.length - 1] === "temperature 3700",
                         "a burst of temperature changes ends on its final value", 20))
@@ -270,7 +313,7 @@ ShellRoot {
                     "no temperature push starts while another is running")
                 break
             }
-            case 14: {
+            case 18: {
                 // the burst's last push is still running when its line lands
                 if (++root.paused < 3) return
                 root.paused = 0
@@ -283,7 +326,7 @@ ShellRoot {
                 ShellSettings.nightLightTemp = 4700
                 break
             }
-            case 15: {
+            case 19: {
                 if (++root.paused < 6) return
                 if (!root.ready(root.settled() && !NightLight.enabled,
                         "the unit stops under the pending push", 20))
@@ -299,7 +342,7 @@ ShellRoot {
                 ShellSettings.nightLightTemp = 4100
                 break
             }
-            case 16: {
+            case 20: {
                 const pushes = root.lines(_hyprctlCalls).slice(root.pushesBefore)
                 if (!root.ready(pushes.length === 2 && root.settled() && NightLight.enabled,
                         "the start's confirm push follows the slider's push", 20))

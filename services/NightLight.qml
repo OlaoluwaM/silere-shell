@@ -256,8 +256,10 @@ Singleton {
     function toggle(): void {
         if (!toolAvailable || _toggleProc.running) return
         const goingOn = !root.enabled
-        // a toggle from anywhere settles the one a waiting keybind asked for, so it must not toggle again
+        // a toggle from anywhere settles the one a waiting keybind asked for, so it must not toggle again;
+        // a check already running read the unit before this toggle and speaks for no later request
         root._toggleQueued = false
+        _checkProc._forToggle = false
         root._checkError = false
         root.lastError = ""
         // set the target temperature before flipping `enabled`: onTemperatureChanged
@@ -287,8 +289,8 @@ Singleton {
     // a check begun before the latest toggle's systemctl call returned cannot
     // speak for that start, so only one stamped with the current generation confirms it
     property int _toggleGeneration: 0
-    // the check runs on every wake, when the user manager can be slow, so its error is cleared
-    // by the next check that answers; a toggle error is not, so the two cannot share a string test
+    // a check can time out while the user manager is slow, so its error is cleared by the next
+    // check that answers; a toggle error is not, so the two cannot share a string test
     property bool _checkError: false
     // a keybind toggle waiting on a fresh check; it counts as busy, so later presses never stack
     property bool _toggleQueued: false

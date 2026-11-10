@@ -79,7 +79,7 @@ PATH="$probe_root/bin:$PATH" SILERE_NIGHTLIGHT_PROBE_ROOT="$probe_root" \
     QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen \
     QT_NO_XDG_DESKTOP_PORTAL=1 setsid qs -p "$probe_root/project/probe-nightlight.qml" --no-color >"$probe_root/probe.log" 2>&1 &
 probe_pid=$!
-_probe_wait "$probe_root/probe.log" "$probe_pid" 'PROBE-NIGHTLIGHT' 240 0.25 || true
+_probe_wait "$probe_root/probe.log" "$probe_pid" 'PROBE-NIGHTLIGHT' 320 0.25 || true
 
 errs="$(_probe_errors "$probe_root/probe.log")"
 if ! grep -q 'PROBE-NIGHTLIGHT passed' "$probe_root/probe.log" \
@@ -92,9 +92,14 @@ fi
 # steps from passing on nothing
 calls="$(cat "$probe_root/systemctl-calls" 2>/dev/null || true)"
 if ! grep -qx 'is-active' <<< "$calls" || ! grep -qx 'stop' <<< "$calls" \
-        || [ "$(grep -cx 'start' <<< "$calls")" -ne 4 ]; then
+        || [ "$(grep -cx 'start' <<< "$calls")" -ne 5 ] || [ "$(grep -cx 'stop' <<< "$calls")" -ne 5 ]; then
     printf '%s\n' "$calls" >&2
-    echo 'FAIL: the stand-in systemctl did not see the checks, the stops and the four starts' >&2
+    echo 'FAIL: the stand-in systemctl did not see the checks, the five stops and the five starts' >&2
+    exit 1
+fi
+if [ -e "$probe_root/systemctl-other" ]; then
+    cat "$probe_root/systemctl-other" >&2
+    echo 'FAIL: the stand-in systemctl saw a call the probe does not expect' >&2
     exit 1
 fi
 if [ -e "$probe_root/hyprctl-overlap" ] || ! grep -qx 'temperature 3700' "$probe_root/hyprctl-calls" \
