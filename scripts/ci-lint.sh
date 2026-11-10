@@ -1,16 +1,6 @@
 #!/usr/bin/env bash
 # Structural lint — runs anywhere, no Qt/Quickshell or compositor needed.
-# Deeper QML type-checking needs Quickshell installed (not feasible on stock
-# CI runners), so this catches the common, cheap-to-detect breakages:
-#   - merge conflict markers left in code
-#   - a declaration inserted into the middle of a multi-line binding
-#   - broken shell scripts
-#   - qmldir entries pointing at files that don't exist
-#   - required Quickshell service imports and local module packaging
-#   - non-portable Keys attached handlers rejected by the live QML engine
-#   - ShellSettings properties and schema drifting apart
-#   - settings navigation entries and detail components drifting apart
-#   - shell helper, probe-isolation, and lint-tool regressions
+# scripts/README.md describes what it checks.
 set -u
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT" || exit 1

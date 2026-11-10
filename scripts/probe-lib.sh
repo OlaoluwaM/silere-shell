@@ -1,6 +1,6 @@
 # shellcheck shell=bash
-# Shared by scripts/test-{logic,mutate,surfaces,layout-fit}.sh: one Quickshell
-# probe harness instead of four copies that drift apart.
+# Shared by the scripts/test-*.sh probe runners: one Quickshell probe harness
+# instead of a copy in each runner, where the copies drift apart.
 
 # Qt reports these non-fatally — the object is still created and qs exits 0 — so a
 # probe log has to be scanned as well as its sentinel checked. One copy because

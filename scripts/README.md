@@ -1,7 +1,7 @@
 # Scripts
 
-Validation, development probes, benchmarks, and manual-install tools. Run the
-commands below from the repository root. Fork and deployment rules live in
+Validation, development probes, and `hypr-session-end.sh`, which the shell runs
+to end a Hyprland session. Run the commands below from the repository root. Fork and deployment rules live in
 [AGENTS.md](../AGENTS.md) and the [root README](../README.md).
 
 ## Usual checks
@@ -105,7 +105,8 @@ This option applies only to `test-notification-stack.sh`.
 - `lib/` contains shared shell XDG-path, QML-module, and smoke-configuration helpers.
 - [check-connections.py](check-connections.py) and
   [check-text-scale.py](check-text-scale.py), plus
-  [check-internal-types.py](check-internal-types.py), are standalone source diagnostics.
+  [check-internal-types.py](check-internal-types.py), are standalone source diagnostics,
+  which `ci-lint.sh` also runs when `python3` is available.
   Run them with `python3 scripts/<name>.py` from the repository root; they are
   not substitutes for the full checks.
 

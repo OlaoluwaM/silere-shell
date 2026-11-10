@@ -254,9 +254,10 @@ fi
 _autostart_hit=""
 for _cdir in "$_cfg_home/hypr" "$_cfg_home/niri"; do
   [ -n "$_cfg_home" ] && [ -d "$_cdir" ] || continue
-  # A theme rule or comment may mention Silere without launching it. Accept the
-  # installer's marker or a real Hyprland/niri/Lua startup directive whose command
-  # names the launcher (packaged install) or the shell.qml path (checkout install).
+  # A theme rule or comment may mention Silere without launching it. Accept a
+  # "silere-shell begin" marker comment or a real Hyprland/niri/Lua startup
+  # directive whose command names the launcher (packaged install) or the
+  # shell.qml path (checkout install).
   _autostart_hit="$(grep -rliE \
     '^[[:space:]]*(#|//|--)[[:space:]]*silere-shell begin[[:space:]]*$|^[[:space:]]*(exec-once[[:space:]]*=|spawn-at-startup([[:space:]]|")|hl\.exec_cmd\().*(silere-shell|silere-shell/shell\.qml)' \
     "$_cdir" 2>/dev/null | head -n 1 || true)"
