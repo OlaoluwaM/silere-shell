@@ -1,13 +1,14 @@
 import QtQuick
-import Quickshell
 
 // Generic launch mechanics for a user-declared command template (e.g.
 // "nm-connection-editor --edit {uuid}" or plain "blueman-manager"): whitespace
 // split, {name}-style placeholder substitution, an argv[0] PATH probe, and a
-// detached exec. WifiProfile's editor launch and the Bluetooth manager escape
-// hatch each own one instance pointed at their own template/cooldown instead
-// of reimplementing probing and substitution twice. QtObject, not Item: this
-// never needs geometry or a scene-graph node, only child Timer/Process state.
+// launch through Compositor, so the app starts in the session and survives a
+// restart of this service. WifiProfile's editor launch and the Bluetooth
+// manager escape hatch each own one instance pointed at their own
+// template/cooldown instead of reimplementing probing and substitution twice.
+// QtObject, not Item: this never needs geometry or a scene-graph node, only
+// child Timer/Process state.
 QtObject {
     id: root
 
@@ -54,7 +55,7 @@ QtObject {
         }
         root._cooling = true
         root._cooldown.restart()
-        Quickshell.execDetached(out)
+        Compositor.launch(out)
         return true
     }
 
