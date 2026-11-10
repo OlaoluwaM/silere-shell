@@ -1,9 +1,11 @@
 # Lock screen: design and plan
 
-Status: design locked on 2026-10-26; architecture reworked the same day after
-five adversarial reviews; steps 1 to 11 implemented on 2026-10-27 and reviewed
-since, step 12 and the manual QA still to come. Work happens on the
-`lock-screen` branch here and on a matching branch in nixos-config. The
+Status: shipped, and kept for its rationale. Design locked on 2026-10-26;
+architecture reworked the same day after five adversarial reviews; steps 1 to
+11 implemented on 2026-10-27. The `lock-screen` branch is merged into
+`custom-branch`, and the code is the reference for how the lock behaves now.
+Step 12 and the dev shell's JetBrains Mono remain open, recorded in
+[TODO.md](../TODO.md). The
 interactive mockup is the "Silere Lock Screen" canvas
 (<https://claude.ai/artifact/NQR3Fy1xRWXEJahSaHNo7P>, private to the maintainer).
 Versions checked: Quickshell 0.3.1, Hyprland 0.55.4, hypridle 0.1.8.
@@ -129,10 +131,8 @@ session is unlocked:
   frame later the process exits 0 (`Qt.exit` sets the process status), so the
   unlock request is flushed first. Exit 0 means exactly that: the user
   unlocked.
-- **Any other end exits non-zero.** The compositor ending the lock (`finished`,
-  which Quickshell turns into an unlock it did not ask for) exits 2, a lock that
-  could not even be requested (no ext-session-lock-v1) exits 1, and a refusal to
-  lock exits 3. A QML load error makes `qs` exit 255 on its own.
+- **Any other end exits non-zero.** `lock.qml`'s header comment lists each exit
+  code and what it means.
 - **Settings are read, never written.** `//@ pragma Env
   SILERE_SETTINGS_READ_ONLY=1` in `lock.qml` turns on a read-only mode, applied
   before the engine starts. Loading settings writes in more places than
@@ -340,12 +340,10 @@ prints the category in each line (`WARN scene: …`). So:
   power actions with their exit codes, font fallback, and wallpaper load
   errors. Its lines all arrive at one priority; filter with `-g 'WARN'` for its
   warnings.
-- **Debug detail** (PAM message text, timings) is off by default. Set
-  `QT_LOGGING_RULES="silere.lock.debug=true"` with `systemctl --user
-  set-environment` and restart hypridle; the wrapper passes it through, and
-  Quickshell applies `QT_LOGGING_RULES` to categories outside its own. It
-  reaches the hypridle route only (idle, Super+L, suspend), not the menu's Lock,
-  which runs in Hyprland's environment.
+- **Debug detail** (PAM message text, timings) is off by default. README.md's
+  "Debugging the lock" says how to turn it on. That works because the wrapper
+  passes `QT_LOGGING_RULES` through, and Quickshell applies it to categories
+  outside its own.
 - **Never logged:** the typed password, its length, or any PAM response.
 
 The README gains a short "Debugging the lock" section with these commands, plus

@@ -17,7 +17,7 @@ and report it before moving on.
   undone: `cp -a ~/.config/silere-shell ~/silere-shell-config.qa-backup`.
 - [ ] Note the current system generation (`nixos-rebuild list-generations |
   tail -n 1`), so you know what `--rollback` returns to.
-- [ ] Both repositories are on their `lock-screen` branches with clean trees.
+- [ ] Both repositories are on the branches under test, with clean trees.
 - [ ] nixos-config is built against the local fork, never a re-lock to an
   unpushed branch:
 
@@ -192,11 +192,9 @@ escape hatch 1 hands the session to hyprlock.
   with no colour codes.
 - [ ] Nothing in it contains the password, its length, or PAM's prompt text
   (`journalctl --user -t silere-lock -g 'Password'` finds nothing).
-- [ ] Debug: `systemctl --user set-environment
-  QT_LOGGING_RULES="silere.lock.debug=true"`, restart hypridle, Super+L: debug
-  lines appear. Then `systemctl --user unset-environment QT_LOGGING_RULES` and
-  another hypridle restart turn them off; don't leave debug on, since it logs
-  PAM's message text.
+- [ ] Debug: turn debug logging on as README.md's "Debugging the lock"
+  describes, then Super+L: debug lines appear. Turn it off the same way; don't
+  leave debug on, since it logs PAM's message text.
 
 ### Settings and font
 
@@ -218,8 +216,8 @@ escape hatch 1 hands the session to hyprlock.
 ## After it passes
 
 1. Decide whether to keep `"follow-shell"` set for daily use until step 12.
-2. Bring `lock-screen` into `custom-branch` and push it, then merge
-   nixos-config's `lock-screen` branch and re-lock it in the same rebuild, as
-   README.md's "Pinning from nixos-config" describes. The new settings keys tie
-   the two together.
+2. Bring the branch under test into `custom-branch` and push it, then merge
+   nixos-config's matching branch and re-lock it in the same rebuild, as
+   README.md's "Pinning from nixos-config" describes. Settings keys the change
+   adds or removes tie the two together.
 3. Step 12 of the plan, once the lock has proven itself.

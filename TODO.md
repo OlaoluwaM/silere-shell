@@ -50,3 +50,24 @@ fix to the reread had turned up a smaller edge in its own new state. The gaps:
 The probe checks only that a rebuild sets the mark. The reread itself runs in
 `_vpnProc`'s exit handler, which the probe cannot reach without test-only
 aliases.
+
+## Lock screen step 12
+
+Make the shell's lock the only lock. Step 12 of the
+[lock screen plan](docs/lock-screen-plan.md) removes nixos-config's
+`local.hyprland.lockScreen` switch, so `"follow-shell"` is the only behaviour,
+and updates the README lines that describe hyprlock as the lock screen. hyprlock, its PAM service and its wallpaper copy stay as the fallback.
+
+Deferred on 2026-10-27 because it waits until the lock is proven on the NixOS
+install, which the [manual QA checklist](docs/lock-screen-qa.md) checks. Until
+then the switch keeps rollback to one line.
+
+## JetBrains Mono in the dev shell
+
+Add `pkgs.jetbrains-mono` to the dev shell's fonts in `flake.nix`, so
+`check.sh` measures the lock font's real default face (step 2 of the
+[lock screen plan](docs/lock-screen-plan.md)).
+
+Deferred on 2026-10-27 because at the fork's pinned nixpkgs that package builds
+from source and one of its fixed-output inputs fails its hash, so it waits for
+a nixpkgs bump.

@@ -184,8 +184,8 @@ own decisions and the lock process's output under one journal tag:
 
 The lock's exit status says how it ended: 0 the user unlocked, 1 the
 compositor has no session-lock support, 2 the lock ended without an unlock,
-3 it refused to lock because the wrapper did not start it, 255 a QML load
-error. Anything but 0 hands the session to hyprlock.
+3 it refused to lock because the wrapper did not start it or it runs
+sandboxed, 255 a QML load error. Anything but 0 hands the session to hyprlock.
 
 Debug detail (PAM message text, timings) is off by default. To turn it on, run
 `systemctl --user set-environment QT_LOGGING_RULES="silere.lock.debug=true"` and
