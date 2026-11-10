@@ -86,28 +86,8 @@ in areas we previously adapted. Record the reviewed upstream SHA and selected,
 deferred, or rejected change groups with brief reasons in a dated integration
 record under `docs/`. Reviewing a release does not mark it as imported.
 
-The [September 16 staged integration plan](docs/upstream-picks-2026-09-16.md)
-records the post-v1.0.0 picks, confirmed decisions, and acceptance checks.
-Stages 1–8 supply the reviewed integration baseline. Stage 9 consolidates
-common popup state while retaining the confirmed placement policies.
-The [follow-up record](docs/upstream-picks-2026-09-16-followup.md) covers
-startup smoke-test isolation and the bounded Bluetooth pairing guard.
-The [September 18 record](docs/upstream-picks-2026-09-18.md) covers calendar
-write protection, fullscreen detection, notification stack motion, and panel
-construction checks.
-The [October 1 record](docs/upstream-picks-2026-10-01.md) covers the v1.2.0
-review: notification, tray, Hyprland, settings and IPC fixes, the calendar
-week settings, log out, and motion timing.
-The [October 4 record](docs/upstream-picks-2026-10-04.md) covers test-shell
-isolation and the slider, brightness, scroll, system-reading and notification
-fixes, and records the declined protocol blur.
-The [October 10 record](docs/upstream-picks-2026-10-10.md) covers the 1.3.0
-and 1.4.0 review: the lock screen launch, Hyprland workspace snapshots,
-notification, battery, audio, Wi-Fi and media fixes, slider grabs and the
-calendar's locale labels.
-The [October 16 record](docs/upstream-picks-2026-10-16.md) covers the 1.4.1
-and 1.4.2 review: clock-step deadlines, helper timeouts, hidden controls,
-night light, brightness, Wi-Fi, Niri and notification fixes.
+The [docs index](docs/README.md#integration-records) summarises each dated
+integration record.
 
 History stays intact because nixos-config pins this branch by commit. Undo a
 landed selective import with a revert, accounting for any dependent follow-ups.
@@ -136,13 +116,8 @@ revert first; the original merge remains in history.
 
 ### Historical integrations
 
-The [v0.9.0 resolution record](docs/upstream-merge-v0.9.0.md),
-[September 4 selective integration record](docs/upstream-picks-2026-09-04.md),
-[September 9 selective integration record](docs/upstream-picks-2026-09-09.md),
-and [v1.0.0 resolution record](docs/upstream-merge-v1.0.0.md) describe work
-under the previous release-tag policy. Their historical approvals do not
-authorize new imports. Upstream's `v1.0.0` and the older fork tag with that
-name identify different commits; the v1.0.0 record gives the exact source.
+The [docs index](docs/README.md#historical-integrations) summarises the
+records made under the previous release-tag policy.
 
 ## Pinning from nixos-config
 
@@ -167,54 +142,11 @@ works until `nixos-config`'s silere module
 the re-lock have to reach the machine in the same rebuild. Never
 piecemeal.
 
-## Debugging the lock
+## Other documents
 
-Every lock goes through nixos-config's `silere-lock` wrapper, which logs its
-own decisions and the lock process's output under one journal tag:
-
-- `journalctl --user -t silere-lock` shows each lock: the wrapper's decisions,
-  the lock process's `silere.lock` lines, and hyprlock's output after a
-  fallback.
-- `journalctl --user -t silere-lock -p warning` lists only the wrapper's
-  warnings: every fallback to hyprlock, with its reason, and every exit other
-  than an unlock. The lock process's own lines all arrive at one priority, so
-  filter those with `-g WARN`.
-- `journalctl --user -u hypridle.service` shows the requests that reached the
-  wrapper through hypridle (idle, Super+L, suspend). The menu's Lock asks
-  Hyprland to run the wrapper instead, so those requests show only under the
-  `silere-lock` tag.
-
-The lock's exit status says how it ended: 0 the user unlocked, 1 the
-compositor has no session-lock support, 2 the lock ended without an unlock,
-3 it refused to lock because the wrapper did not start it or it runs
-sandboxed, 255 a QML load error. Anything but 0 hands the session to hyprlock.
-
-Debug detail (PAM message text, timings) is off by default. To turn it on, run
-`systemctl --user set-environment QT_LOGGING_RULES="silere.lock.debug=true"` and
-restart hypridle, which starts the wrapper for idle, Super+L and suspend; lock
-with Super+L to see them. The menu's Lock starts the wrapper through Hyprland
-instead, in Hyprland's environment, which that setting never reaches. `systemctl
---user unset-environment QT_LOGGING_RULES` and another hypridle restart turn it
-off. The typed password, its length and PAM's responses are never logged.
-
-To work on the layout, preview it in a window instead of locking:
-`SILERE_LOCK_PREVIEW=1 nix develop . --command qs -p lock.qml`. Started any
-other way outside the wrapper, `lock.qml` refuses to lock and exits 3.
-
-## Debugging notification history
-
-The history and the menu's grouping of it log under the `silere.notifications`
-category, which `journalctl --user -u silere-shell -g silere.notifications`
-shows. Removing one row or one run logs four lines: the row and the run
-the delegate thought it held, the rows the model actually removed, and the
-page's runs before and after, each as app, length, and whether a stack stands
-open or folded. The page header's Clear logs one line with the row count.
-A row lost from the model shows in the removal line; a row only
-hidden shows as a run that folded in the after line. A row the list took back
-mid-exit, or one left faded once every exit ended, logs as well. Notification
-text is never logged.
-
-Updates that replace a row, trims and the grouping's open-state bookkeeping
-log at Debug. To see them, run `systemctl --user set-environment
-QT_LOGGING_RULES="silere.notifications.debug=true"` and restart
-`silere-shell.service`; unset it and restart again to turn them off.
+- [docs/debugging.md](docs/debugging.md): debugging the lock and the
+  notification history from the journal.
+- [TODO.md](TODO.md): deferred work, each entry with why it waited.
+- [scripts/README.md](scripts/README.md): what the checks and probes cover.
+- [docs/README.md](docs/README.md): an index of the documents under `docs/`,
+  the integration records and the decision records.

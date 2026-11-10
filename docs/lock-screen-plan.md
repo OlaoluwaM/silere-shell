@@ -340,13 +340,13 @@ prints the category in each line (`WARN scene: …`). So:
   power actions with their exit codes, font fallback, and wallpaper load
   errors. Its lines all arrive at one priority; filter with `-g 'WARN'` for its
   warnings.
-- **Debug detail** (PAM message text, timings) is off by default. README.md's
-  "Debugging the lock" says how to turn it on. That works because the wrapper
-  passes `QT_LOGGING_RULES` through, and Quickshell applies it to categories
-  outside its own.
+- **Debug detail** (PAM message text, timings) is off by default.
+  [debugging.md](debugging.md#debugging-the-lock) says how to turn it on.
+  That works because the wrapper passes `QT_LOGGING_RULES` through, and
+  Quickshell applies it to categories outside its own.
 - **Never logged:** the typed password, its length, or any PAM response.
 
-The README gains a short "Debugging the lock" section with these commands, plus
+[debugging.md](debugging.md#debugging-the-lock) carries these commands, plus
 `journalctl --user -u hypridle.service` for the requests that started a lock.
 
 ## Plan

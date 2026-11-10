@@ -192,9 +192,10 @@ escape hatch 1 hands the session to hyprlock.
   with no colour codes.
 - [ ] Nothing in it contains the password, its length, or PAM's prompt text
   (`journalctl --user -t silere-lock -g 'Password'` finds nothing).
-- [ ] Debug: turn debug logging on as README.md's "Debugging the lock"
-  describes, then Super+L: debug lines appear. Turn it off the same way; don't
-  leave debug on, since it logs PAM's message text.
+- [ ] Debug: turn debug logging on as
+  [debugging.md](debugging.md#debugging-the-lock) describes, then Super+L:
+  debug lines appear. Turn it off the same way; don't leave debug on, since it
+  logs PAM's message text.
 
 ### Settings and font
 
