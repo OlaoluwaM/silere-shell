@@ -1970,6 +1970,24 @@ ShellRoot {
             "pressing the slider handle off centre holds its value, and a press on the rail still jumps")
         grabTrack.destroy()
 
+        // a rail position 33% along, clear of the thumb at the start and between two 5% marks
+        const seekRail = 7 + 0.33 * 86
+        const seekTrack = sliderTrackFactory.createObject(root, {
+            width: 100, value: 0, min: 0, max: 1, step: 0, animate: false
+        })
+        seekTrack._press(seekRail)
+        const seekValue = seekTrack.shownValue
+        seekTrack.destroy()
+        const gridTrack = sliderTrackFactory.createObject(root, {
+            width: 100, value: 0, min: 0, max: 1, animate: false
+        })
+        gridTrack._press(seekRail)
+        const gridSteps = gridTrack.shownValue / 0.05
+        gridTrack.destroy()
+        root._check(Math.abs(seekValue - 0.33) < 0.001
+                && Math.abs(gridSteps - Math.round(gridSteps)) < 0.000001,
+            "a slider with no step follows the press while the default step lands on the 5% grid")
+
         // a step that does not divide the range must still reach both bounds
         const offGrid = sliderTrackFactory.createObject(root, {
             width: 100, value: 4, min: 2, max: 11, step: 4

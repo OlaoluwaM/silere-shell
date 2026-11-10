@@ -548,6 +548,8 @@ ClippingRectangle {
             hoverGrow:   false
             animate:     false
             commitOnRelease: true
+            // a seek position is continuous; nudges still move by stepSize
+            step: 0
             // the card is album art under a scrim, so the groove stays translucent and unringed
             trackColor:  Theme.withAlpha(Theme.text, 0.20)
             trackOutlineColor: "transparent"
