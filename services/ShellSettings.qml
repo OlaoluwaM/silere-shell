@@ -63,25 +63,25 @@ Singleton {
     // this; the vitals tiles substitute {widget} with the clicked tile's monitor view
     property string systemMonitorCommand: GeneratedDefaults.systemMonitorCommand
     // packaging-only, like wifiEditCommand/btEditCommand above: no settings page exposes
-    // this, the Nix screenrecord wrapper is the only writer of "" vs a real path
+    // this, and the deployment declares "" or the real path the Nix screenrecord wrapper writes
     property string recordingStateFile:  GeneratedDefaults.recordingStateFile
     // packaging-only, same contract as recordingStateFile above: only the packaging knows
-    // what started the recorder, so it alone writes the command that can stop it
+    // what started the recorder, so the deployment declares the command that can stop it
     property string recordingStopCommand: GeneratedDefaults.recordingStopCommand
     // packaging-only, same contract as recordingStateFile above: no settings page exposes
-    // this, the Nix side is the only writer of "" vs a real path to a keybindings JSON file
+    // this, and the Nix side declares "" or a real path to a keybindings JSON file
     property string keybindsFile:        GeneratedDefaults.keybindsFile
     // packaging-only, same contract as recordingStopCommand above: only the packaging knows
-    // how to apply a wallpaper, so it alone writes the command the picker shells out to
+    // how to apply a wallpaper, so the deployment declares the command the picker shells out to
     property string wallpaperCommand:    GeneratedDefaults.wallpaperCommand
     // packaging-only, same contract as wallpaperCommand above: no settings page exposes
-    // this, the Nix side is the only writer of "" vs a real wallpaper directory path
+    // this, and the Nix side declares "" or a real wallpaper directory path
     property string wallpapersDir:       GeneratedDefaults.wallpapersDir
     // packaging-only, same contract as wallpapersDir above: no settings page exposes this,
-    // the Nix side is the only writer of "" vs the file the wallpaper command last wrote
+    // and the Nix side declares "" or the file the wallpaper command last wrote
     property string lockWallpaper:       GeneratedDefaults.lockWallpaper
     // packaging-only, same contract as wallpaperCommand above: only the packaging knows
-    // which wrapper starts the lock, so it alone writes the command the menu's Lock entries run
+    // which wrapper starts the lock, so the deployment declares the command the menu's Lock entries run
     property string lockCommand:         GeneratedDefaults.lockCommand
     // runtime, not packaging: the wallpaper picker writes its own last-applied pick here,
     // same as caffeinePreset above is a runtime choice rather than a packaged default
@@ -655,8 +655,9 @@ Singleton {
     property var _modifiedKeys: Object.create(null)
     // Quickshell exits hard on SIGTERM: neither Component.onDestruction nor
     // Qt.application.aboutToQuit runs, so anything still inside PersistedFile's
-    // debounce window is lost on logout. Toggles and chips change at human pace,
-    // so they write straight through; sliders and the hue strip keep the debounce.
+    // debounce window is lost on logout. Bool and enum keys (toggles, and chips on an
+    // enum) change at human pace, so they write straight through; every other key keeps
+    // the debounce, sliders, the hue strip and a chip on a number or string key alike.
     property var _discreteKeys: Object.create(null)
     // reset assigns every key at once; one write at the end, not one per toggle
     property bool _bulkAssign: false
