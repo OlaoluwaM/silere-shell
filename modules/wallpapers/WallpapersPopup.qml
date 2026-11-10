@@ -97,15 +97,20 @@ OverlayPopupWindow {
             }
             return out
         }
-        // every path that changes the model lands here: the async scan on open, each filter
-        // pause, a cleared query. Reassigning a JS-array model drops GridView's current
-        // item, so without this Enter silently does nothing until an arrow key is pressed --
-        // keeping the top entry selected is the launcher behavior the field imitates.
-        onFilteredChanged: {
+        // every path that changes the model lands here: a scan that found a different folder,
+        // each filter pause, a cleared query. Reassigning a JS-array model drops GridView's
+        // current item, so without this Enter silently does nothing until an arrow key is
+        // pressed -- keeping the top entry selected is the launcher behavior the field imitates.
+        onFilteredChanged: card.selectFirst()
+
+        // an unchanged folder keeps its model, so an open cannot rely on a model change to
+        // land on the first tile at the top; it calls this itself
+        function selectFirst(): void {
             // through -1 first: writing an unchanged index (commonly 0) early-outs in the
             // setter, and the model reset that follows would then drop currentItem anyway
             _grid.currentIndex = -1
             _grid.currentIndex = filtered.length > 0 ? 0 : -1
+            _grid.positionViewAtBeginning()
         }
 
         Timer {
@@ -163,7 +168,11 @@ OverlayPopupWindow {
         }
         radius: Theme.radiusPanel
 
-        Component.onCompleted: if (card.open) { Wallpapers.rescan(); _grid.forceActiveFocus() }
+        Component.onCompleted: if (card.open) {
+            Wallpapers.rescan()
+            card.selectFirst()
+            _grid.forceActiveFocus()
+        }
 
         // a directory scan is not free (a `find` process) -- only pay for it when the
         // popup is actually about to be looked at, same reasoning as Keybinds.reload()
@@ -174,6 +183,7 @@ OverlayPopupWindow {
                 Wallpapers.rescan()
                 card.filterVisible = false
                 _filter.text = ""
+                card.selectFirst()
                 _grid.forceActiveFocus()
             }
         }

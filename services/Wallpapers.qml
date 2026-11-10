@@ -56,6 +56,16 @@ Singleton {
         return out
     }
 
+    // same files in the same order, judged by path and mtime: the only fields a rescan can
+    // change for a file that is still there
+    function _sameEntries(a: var, b: var): bool {
+        if (a.length !== b.length) return false
+        for (let i = 0; i < a.length; i++) {
+            if (a[i].path !== b[i].path || a[i].mtimeMs !== b[i].mtimeMs) return false
+        }
+        return true
+    }
+
     property bool _rescanPending: false
     // callbacks queued to run once the scan currently in flight (or the next one, if
     // none is running yet) lands -- random() rides this instead of duplicating rescan()'s
@@ -99,10 +109,12 @@ Singleton {
             if (root._scanFor !== root._dir) { root.rescan(); return }
             if (!_scanProc.completedSuccessfully(code)) {
                 root.state = "missing"
-                root.entries = []
+                if (root.entries.length > 0) root.entries = []
             } else {
                 const parsed = root._parse(_scanOut.text)
-                root.entries = parsed
+                // a new array resets the grid's model, rebuilding every tile and decoding
+                // every thumbnail again; an unchanged folder keeps the array the grid holds
+                if (!root._sameEntries(parsed, root.entries)) root.entries = parsed
                 root.state = parsed.length === 0 ? "empty" : "ok"
             }
             // a rescan queued while this one was running wants fresher data than what

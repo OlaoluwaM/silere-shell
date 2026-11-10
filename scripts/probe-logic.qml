@@ -2104,6 +2104,21 @@ ShellRoot {
         root._check(SysInfo._parseDfLine("") === null,
             "an empty df line is not read as disk usage")
 
+        // Wallpapers does nothing on creation (a scan starts only from rescan()), so reading
+        // its pure comparison from here touches no files
+        const wpA = [{ path: "/w/a.png", mtimeMs: 3000 }, { path: "/w/b.png", mtimeMs: 2000 }]
+        root._check(Wallpapers._sameEntries(wpA, [{ path: "/w/a.png", mtimeMs: 3000 },
+                    { path: "/w/b.png", mtimeMs: 2000 }]),
+            "two scans of an unchanged folder compare equal, so the picker keeps its list")
+        root._check(!Wallpapers._sameEntries(wpA, [wpA[0]]),
+            "a scan with a different number of files compares unequal")
+        root._check(!Wallpapers._sameEntries(wpA, [wpA[0], { path: "/w/c.png", mtimeMs: 2000 }]),
+            "a scan with a different path at one index compares unequal")
+        root._check(!Wallpapers._sameEntries(wpA, [wpA[0], { path: "/w/b.png", mtimeMs: 2500 }]),
+            "a scan with a different mtime at one index compares unequal")
+        root._check(Wallpapers._sameEntries([], []),
+            "two empty scans compare equal")
+
         // hardening: counter rollback, malformed samples, and memory validation
         const cpuReadyWas = SysInfo.cpuReady
         SysInfo._active = true
