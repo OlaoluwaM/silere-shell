@@ -224,15 +224,16 @@ Singleton {
     function toggle(): void {
         if (!toolAvailable || _toggleProc.running) return
         const goingOn = !root.enabled
+        root._checkError = false
         root.lastError = ""
         // set the target temperature before flipping `enabled`: onTemperatureChanged
         // guards on `enabled`, so this update lands while it is still false and
         // never races a hyprctl push ahead of the unit actually starting — the
-        // confirmed-active branch in _checkProc.onExited below sends it instead,
+        // confirmed-active branch in _acceptCheckResult below sends it instead,
         // once the daemon can actually answer IPC
         if (goingOn && ShellSettings.nightLightAuto) root._solarTick++
         // only a start initiated here should push the target temp once confirmed;
-        // _checkProc.onExited gates on this flag so it never clobbers the unit's
+        // _acceptCheckResult gates on this flag so it never clobbers the unit's
         // own staircase when it merely observes an externally-started unit
         root._pushTempOnConfirm = goingOn
         root._toggleGeneration++
@@ -252,6 +253,9 @@ Singleton {
     // a check begun before the latest toggle's systemctl call returned cannot
     // speak for that start, so only one stamped with the current generation confirms it
     property int _toggleGeneration: 0
+    // the check runs on every wake, when the user manager can be slow, so its error is cleared
+    // by the next check that answers; a toggle error is not, so the two cannot share a string test
+    property bool _checkError: false
 
     function _checkActive(): void {
         if (!root.toolAvailable) return
@@ -297,36 +301,46 @@ Singleton {
         }
     }
 
+    function _acceptCheckResult(timedOut: bool, code: int): void {
+        const rerun = root._recheckPending
+        root._recheckPending = false
+        if (timedOut) {
+            // a toggle error names what actually failed, so a slow check does not replace it
+            if (root.lastError.length === 0 || root._checkError) {
+                root._checkError = true
+                root.lastError = "Could not check hyprsunset.service"
+            }
+        } else {
+            if (root._checkError) {
+                root._checkError = false
+                root.lastError = ""
+            }
+            root.enabled = (code === 0)
+            // the unit autostarts with the session and runs its own scheduled
+            // staircase, so merely observing it active (e.g. first menu open)
+            // must not clobber that — only push once confirmed active for a
+            // start this shell itself initiated via toggle(). toggle() already
+            // flipped enabled, so the flag and the generation mark that start
+            const confirms = _checkProc._generation === root._toggleGeneration
+            if (confirms && root.enabled && root._pushTempOnConfirm) {
+                root._pushTempOnConfirm = false
+                root._confirmPushGeneration = root._toggleGeneration
+                root._confirmPushAttempts = 0
+                root._pushConfirmedTemp()
+            }
+            // a failed start must not leave a stale flag that fires on some
+            // later external activation
+            if (confirms && !root.enabled)
+                root._pushTempOnConfirm = false
+        }
+        if (rerun) root._checkActive()
+    }
+
     BoundedProcess {
         id: _checkProc
         property int _generation: -1
         timeoutMs: 5000
-        onExited: (code) => {
-            const rerun = root._recheckPending
-            root._recheckPending = false
-            if (_checkProc.timedOut) {
-                root.lastError = "Could not check hyprsunset.service"
-            } else {
-                root.enabled = (code === 0)
-                // the unit autostarts with the session and runs its own scheduled
-                // staircase, so merely observing it active (e.g. first menu open)
-                // must not clobber that — only push once confirmed active for a
-                // start this shell itself initiated via toggle(). toggle() already
-                // flipped enabled, so the flag and the generation mark that start
-                const confirms = _checkProc._generation === root._toggleGeneration
-                if (confirms && root.enabled && root._pushTempOnConfirm) {
-                    root._pushTempOnConfirm = false
-                    root._confirmPushGeneration = root._toggleGeneration
-                    root._confirmPushAttempts = 0
-                    root._pushConfirmedTemp()
-                }
-                // a failed start must not leave a stale flag that fires on some
-                // later external activation
-                if (confirms && !root.enabled)
-                    root._pushTempOnConfirm = false
-            }
-            if (rerun) root._checkActive()
-        }
+        onExited: (code) => root._acceptCheckResult(_checkProc.timedOut, code)
     }
 
     // the unit is a simple service, so systemd calls it active once it forks,
@@ -374,6 +388,7 @@ Singleton {
         stderr: StdioCollector { id: _toggleErr }
         onExited: (code) => {
             if (!_toggleProc.completedSuccessfully(code)) {
+                root._checkError = false
                 root.lastError = SafeText.lastNonEmptyLine(
                     _toggleErr.text, "hyprsunset.service did not respond", 160)
                 // a refused start never happens, but one cut off at the deadline may

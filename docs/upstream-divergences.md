@@ -391,7 +391,9 @@ outside issues or pull requests.
   event handling.
 - Night light keeps the systemd service backend, so upstream's restore of a
   hand-chosen state after a shell restart (`nightLightOn`) stays out: the unit
-  outlives the shell. Its solar math follows upstream's. The lock action keeps
+  outlives the shell. Its solar math follows upstream's. A check error clears
+  on the next check that answers and a toggle error waits for the next toggle
+  (`_checkError`); keep that split on an import. The lock action keeps
   its existing provider selection. Additional upstream provider settings
   require a separate decision with their backend and UI consumers.
 - The floating OSD keeps its height and slide transitions. Shared bump
