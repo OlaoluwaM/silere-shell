@@ -32,8 +32,12 @@ only when running, as `X is not a type` — that one confuses everybody once.
 
 **A new bar widget** is the longest chain in the shell, seven places:
 
-1. `modules/bar/widgets/MyThing.qml` — start from `Volume.qml`, it is the smallest
-   complete one. A widget is a `Pill` exposing `show`, and `BarZone` reads that.
+1. `modules/bar/widgets/MyThing.qml` — start from `Volume.qml`, a plain `Pill` with
+   a click and a scroll action; most smaller widgets build on `StatusActionPill`. A
+   widget is a `Pill` exposing `show`, and `BarZone` reads that. A widget may also
+   expose `layoutVisible`, which `BarZone` reads in place of `show` to decide whether
+   the widget takes room in its zone, and `contentVisible`, which decides where the
+   zone's dividers go.
 2. its line in `modules/bar/widgets/qmldir`
 3. a `Component` in `modules/bar/BarContent.qml`, added to `_widgetComponents` under
    the key you want
@@ -43,8 +47,8 @@ only when running, as `X is not a type` — that one confuses everybody once.
    and the `setting` name that hides it (empty string means it cannot be hidden)
 6. that `setting` as a property plus a `_schema` entry whose `sec:` names the
    `widgets` page, if it is hideable
-7. the key appended to one of the `barWidgetOrder*` defaults, or it ships in no zone
-   and only appears once someone drags it out of the arranger
+7. the key appended to one of the `barWidgetOrder*` defaults; layout normalisation
+   puts a key missing from all three at the end of the right zone
 
 If it needs a backend that may be absent, gate it in `BarZone._widgetEnabled()` next to
 the `battery` and `brightness` cases; returning false there hides the widget rather than
@@ -52,10 +56,12 @@ drawing a dead one.
 
 **Less shell.** Surfaces don't import each other, so you can delete a `modules/`
 folder along with its `import` and loader in `shell.qml` and the rest keeps working.
+Two exceptions: `mediapopup/` imports `menu/controls/` for the media card, and
+`lock/` imports `power/` for the countdown.
 
 ## Renaming your fork
 
-The name appears a few hundred times, nearly all of it cosmetic. Three matter:
+The name appears a few hundred times, nearly all of it cosmetic. Two matter:
 
 - the **layer-shell namespaces** (`silere-bar`, `silere-menu`, …) — compositor blur
   and animation rules match those strings
