@@ -56,7 +56,8 @@ aliases.
 Make the shell's lock the only lock. Step 12 of the
 [lock screen plan](docs/lock-screen-plan.md) removes nixos-config's
 `local.hyprland.lockScreen` switch, so `"follow-shell"` is the only behaviour,
-and updates the README lines that describe hyprlock as the lock screen. hyprlock, its PAM service and its wallpaper copy stay as the fallback.
+and updates the README lines that describe hyprlock as the lock screen.
+hyprlock, its PAM service and its wallpaper copy stay as the fallback.
 
 Deferred on 2026-10-27 because it waits until the lock is proven on the NixOS
 install, which the [manual QA checklist](docs/lock-screen-qa.md) checks. Until
