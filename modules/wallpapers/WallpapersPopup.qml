@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import Quickshell.Widgets
 import "../../config"
 import "../../services"
 import "../common"
@@ -318,13 +319,14 @@ OverlayPopupWindow {
                 width: _grid.cellWidth
                 height: _grid.cellHeight
 
-                Rectangle {
+                // Item.clip cuts to the bounding rectangle, so the thumbnail and scrim round
+                // here; the outline and rings are siblings over the same box, drawn whole
+                ClippingRectangle {
                     id: _tileSurface
                     anchors.fill: parent
                     anchors.margins: card._gap / 2
                     radius: Theme.radiusInline
                     antialiasing: true
-                    clip: true
                     color: Theme.controlFill(Theme.text, 0.04)
 
                     HoverHandler { id: _tileHover; cursorShape: Qt.PointingHandCursor }
@@ -367,7 +369,6 @@ OverlayPopupWindow {
                     Item {
                         anchors.fill: parent
                         visible: _tile.hovered || _tile.kbFocused
-                        clip: true
 
                         Rectangle {
                             anchors.left: parent.left
@@ -392,6 +393,10 @@ OverlayPopupWindow {
                             font.weight: Font.DemiBold
                         }
                     }
+                }
+
+                Item {
+                    anchors.fill: _tileSurface
 
                     OutlineBorder {
                         radius: _tileSurface.radius
