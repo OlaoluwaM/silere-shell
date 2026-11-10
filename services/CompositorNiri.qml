@@ -24,7 +24,7 @@ QtObject {
     }
 
     function _title(value): string {
-        return SafeText.singleLineText(value, Compositor.maxWindowTitleChars)
+        return Compositor.windowTitle(value)
     }
 
     function monitorName(screen): string {
