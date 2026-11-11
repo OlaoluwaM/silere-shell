@@ -249,7 +249,7 @@ PageShell {
                 glyph: Network.wifiEnabled
                     ? (Network.isWifi && Network.connected ? Network.signalGlyph(Network.signalStrength) : "󰤨")
                     : "󰤭"
-                title: "Wi-Fi"
+                label: "Wi-Fi"
                 // the hardware block is why the switch is dead, so it outranks a note about
                 // a different interface: with Ethernet up it was the one thing never shown
                 status: Network.wifiEnabled && Network.isWifi && Network.connected ? Network.connectionName
@@ -290,7 +290,7 @@ PageShell {
                     property bool copied: false
                     active: true
                     glyph: "󰦝"
-                    title: "VPN"
+                    label: "VPN"
                     // the name is gone by the time the row collapses, so the exit reads as the outcome
                     status: !Network.hasVpn ? "Disconnected"
                         : copied ? "Address copied"
@@ -313,7 +313,7 @@ PageShell {
                 glyph: !Bluetooth.enabled ? "󰂲"
                     : Bluetooth.connectedCount === 1 && Bluetooth.connectedGlyph.length > 0
                         ? Bluetooth.connectedGlyph : "󰂯"
-                title: "Bluetooth"
+                label: "Bluetooth"
                 status: Bluetooth.statusText
                 statusColor: Bluetooth.hardBlocked ? Theme.warning : "transparent"
                 showSwitch: true
@@ -340,7 +340,7 @@ PageShell {
                 visible: QuickActionsState.airplaneAvailable
                 active: !QuickActionsState.radiosOn
                 glyph: "󰀝"
-                title: "Airplane Mode"
+                label: "Airplane Mode"
                 status: !QuickActionsState.radiosOn ? "On" : "Off"
                 showSwitch: true
                 onActivated: QuickActionsState.toggleAirplane()
@@ -354,7 +354,7 @@ PageShell {
                 visible: NightLight.available
                 active: NightLight.enabled
                 glyph: NightLight.enabled ? "󰖔" : "󰖙"
-                title: "Night Light"
+                label: "Night Light"
                 status: NightLight.lastError.length > 0 ? NightLight.lastError
                       : NightLight.enabled ? NightLight.temperature + "K" : NightLight.offStatus
                 accentColor: NightLight.lastError.length > 0 ? Theme.error : Theme.warning
@@ -408,7 +408,7 @@ PageShell {
                 visible: Caffeine.available
                 active: Caffeine.manualActive
                 glyph: Caffeine.manualActive ? "󰅶" : "󰛊"
-                title: "Caffeine"
+                label: "Caffeine"
                 status: Caffeine.lastError.length > 0 ? Caffeine.lastError
                       : Caffeine.manualActive ? (Caffeine.remainingMinutes >= 0
                             ? Durations.label(Caffeine.remainingMinutes) + " left" : "On")
@@ -442,7 +442,7 @@ PageShell {
                 id: _dndRow
                 active: Notifications.dnd
                 glyph: Notifications.silencingActive ? "󰂛" : "󰂚"
-                title: "Do Not Disturb"
+                label: "Do Not Disturb"
                 status: Notifications.dnd && Notifications.dndRemainingMinutes >= 0
                         ? Durations.label(Notifications.dndRemainingMinutes) + " left"
                     : Notifications.fullscreenSilenced ? "Fullscreen"
@@ -479,7 +479,7 @@ PageShell {
                 available: PowerProfiles.profile !== ""
                 active: PowerProfiles.kind !== "" && PowerProfiles.kind !== "balanced"
                 glyph: PowerProfiles.glyph
-                title: "Power Mode"
+                label: "Power Mode"
                 valueText: PowerProfiles.profile !== "" ? PowerProfiles.label
                          : PowerProfiles.syncing ? "Checking…"
                          : "Unavailable"
@@ -496,7 +496,7 @@ PageShell {
                 id: _lockRow
                 visible: SystemTools.commandAvailable(Settings.lockCommand)
                 glyph: "󰍁"
-                title: "Lock"
+                label: "Lock"
                 onActivated: {
                     MenuState.close()
                     SystemTools.runOrNotify(Settings.lockCommand, "Lock failed")

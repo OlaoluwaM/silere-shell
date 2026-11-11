@@ -28,7 +28,7 @@ Column {
     SettingsCard {
         ControlRow {
             glyph: "󰦛"
-            title: root._armed ? "Confirm reset" : "Restore defaults"
+            label: root._armed ? "Confirm reset" : "Restore defaults"
             status: ShellSettings.modifiedCount > 0
                 ? ShellSettings.modifiedCount + (ShellSettings.modifiedCount === 1
                     ? " setting changed" : " settings changed")
@@ -104,20 +104,20 @@ Column {
             visible: SystemTools.ready && !SystemTools.checking
                 && !SystemTools.probeFailed && root._issues.length === 0
             glyph: "󰗠"
-            title: "No feature issues found"
+            label: "No feature issues found"
             status: "Available controls are ready"
             passive: true
         }
         ControlRow {
             visible: !SystemTools.ready || SystemTools.checking
             glyph: "󰋼"
-            title: "Checking optional tools…"
+            label: "Checking optional tools…"
             passive: true
         }
         ControlRow {
             visible: !SystemTools.checking && SystemTools.probeFailed
             glyph: "󰀦"
-            title: "Optional tool check failed"
+            label: "Optional tool check failed"
             status: SystemTools.lastError
             passive: true
         }
@@ -126,7 +126,7 @@ Column {
             ControlRow {
                 required property var modelData
                 glyph: modelData.g
-                title: modelData.n
+                label: modelData.n
                 status: modelData.s
                 valueText: modelData.v
                 passive: true
@@ -139,7 +139,7 @@ Column {
         }
         ControlRow {
             glyph: "󰑐"
-            title: "Recheck optional tools"
+            label: "Recheck optional tools"
             status: "Refresh after tool changes"
             valueText: SystemTools.checking ? "Checking…" : "Check"
             available: !SystemTools.checking

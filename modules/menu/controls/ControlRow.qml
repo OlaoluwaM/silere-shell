@@ -6,7 +6,7 @@ import "../../common"
 MenuRow {
     id: root
 
-    property string title:       ""
+    property string label:       ""
     property string status:      ""
     property string valueText:   ""
     property color  accentColor: Theme.accent
@@ -55,7 +55,7 @@ MenuRow {
 
     Accessible.role: root.showSwitch ? Accessible.CheckBox
         : root._canTap ? Accessible.Button : Accessible.StaticText
-    Accessible.name: root.title
+    Accessible.name: root.label
     Accessible.description: root.status.length > 0 && root.valueText.length > 0
         ? root.status + " · " + root.valueText
         : root.status.length > 0 ? root.status : root.valueText
@@ -104,7 +104,7 @@ MenuRow {
 
         ShellText {
             width:          parent.width
-            text:           root.title
+            text:           root.label
             color:          root.active ? Theme.text : Theme.withAlpha(Theme.text, 0.85)
             font.pixelSize: Settings.fontSize
             font.weight:    Font.DemiBold
@@ -136,9 +136,9 @@ MenuRow {
         height: root.height
         readonly property real _chevronW: _chevron.visible ? _chevron.width + 8 : 0
         readonly property real _valNatural: Math.ceil(_valMetrics.advanceWidth)
-        // the title names the setting and the value only qualifies it, so a long value
+        // the label names the setting and the value only qualifies it, so a long value
         // gives way first: 42 of label inset + 22 of margins + the same 96 label floor
-        // SelectRow reserves. Uncapped, the value took its full width and elided the title.
+        // SelectRow reserves. Uncapped, the value took its full width and elided the label.
         readonly property real _valMax: Math.max(0, root.width - 160 - _chevronW)
         readonly property real _ctrlW: root.showSwitch ? 36
             : root.valueText.length === 0 ? 0

@@ -125,7 +125,7 @@ Column {
         visible: root._hardwareStatusVisible
         ControlRow {
             glyph: "󰋼"
-            title: "No alert hardware found"
+            label: "No alert hardware found"
             status: "Battery and temperature alerts stay hidden"
             passive: true
         }

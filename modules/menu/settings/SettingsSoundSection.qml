@@ -93,7 +93,7 @@ Column {
     SettingsCard {
         ControlRow {
             glyph: "󰒓"
-            title: "Advanced settings"
+            label: "Advanced settings"
             status: SystemTools.hasPwvucontrol
                 ? "Volumes, profiles, and ports"
                 : "pwvucontrol not installed"
