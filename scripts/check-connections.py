@@ -1,13 +1,19 @@
-import glob, re, sys
+import glob, os, re, sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# a tripwire, not a budget: the tree holds about 220 files, so fewer means the
+# globs missed it and every handler would pass unread
+MIN_FILES = 150
 
 QML = sorted(
-    glob.glob('shell.qml')
-    + glob.glob('lock.qml')
-    + glob.glob('config/*.qml')
-    + glob.glob('services/*.qml')
-    + glob.glob('modules/**/*.qml', recursive=True)
+    os.path.relpath(f, ROOT) for pattern in
+    ('shell.qml', 'lock.qml', 'config/*.qml', 'services/*.qml', 'modules/**/*.qml')
+    for f in glob.glob(os.path.join(ROOT, pattern), recursive=True)
 )
-SOURCE = {f: open(f).read() for f in QML}
+if len(QML) < MIN_FILES:
+    print(f"  scanned {len(QML)} QML files under {ROOT}, expected at least {MIN_FILES}")
+    sys.exit(1)
+SOURCE = {f: open(os.path.join(ROOT, f)).read() for f in QML}
 
 DECL = re.compile(
     r'^\s*(?:readonly\s+)?property\s+(?:alias\s+)?[\w.<>]+\s+(\w+)', re.M)
@@ -133,4 +139,6 @@ for f, text in SOURCE.items():
 
 for b in sorted(bad):
     print("  " + b)
+if not bad:
+    print(f"{len(QML)} QML files")
 sys.exit(1 if bad else 0)

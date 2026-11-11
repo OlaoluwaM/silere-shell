@@ -7,10 +7,21 @@ a `Scale {}` transform (xScale/yScale) on an item holding text, and an animated
 Both are transient bumps that settle back at 1.0 within a fraction of a second,
 so the resampling they cause never rests on a label.
 """
-import glob, re, sys
+import glob, os, re, sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# a tripwire, not a budget: modules/ holds about 150 files, so fewer means the
+# glob missed the tree and the scan would pass on nothing
+MIN_FILES = 100
+
+files = sorted(os.path.relpath(f, ROOT)
+               for f in glob.glob(os.path.join(ROOT, 'modules/**/*.qml'), recursive=True))
+if len(files) < MIN_FILES:
+    print(f"  scanned {len(files)} QML files under {ROOT}/modules, expected at least {MIN_FILES}")
+    sys.exit(1)
 bad = []
-for f in sorted(glob.glob('modules/**/*.qml', recursive=True)):
-    lines = open(f).read().split('\n')
+for f in files:
+    lines = open(os.path.join(ROOT, f)).read().split('\n')
     for i, l in enumerate(lines):
         m = re.match(r"^(\s*)scale:\s*(.+)$", l)
         if not m:
@@ -30,4 +41,6 @@ for f in sorted(glob.glob('modules/**/*.qml', recursive=True)):
             bad.append(f"{f}:{i + 1}: {m.group(2).strip()[:48]}")
 for b in bad:
     print("  " + b)
+if not bad:
+    print(f"{len(files)} QML files")
 sys.exit(1 if bad else 0)

@@ -112,8 +112,10 @@ This option applies only to `test-notification-stack.sh`.
   [check-internal-types.py](check-internal-types.py), are standalone source diagnostics,
   which `ci-lint.sh` also runs. Without `python3` it skips them, except
   under `SILERE_REQUIRE_QML_TOOLS=1` (the Nix shell sets it), where it fails.
-  Run them with `python3 scripts/<name>.py` from the repository root; they are
-  not substitutes for the full checks.
+  Run them with `python3 scripts/<name>.py` from any directory: each finds the
+  repository from its own location, reports how many files it read, and fails
+  when that falls below a floor the tree comfortably exceeds. They are not
+  substitutes for the full checks.
 
 For a new probe, follow a nearby runner, reuse `probe-lib.sh`, check both its
 sentinel and runtime errors. Probe QML in this folder needs no `qmldir`, since

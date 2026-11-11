@@ -14,12 +14,14 @@ def code_only(source):
     return TEXT.sub(lambda match: re.sub(r'[^\n]', ' ', match.group()), source)
 
 
-def check(root):
+def check(root, minimum=1):
     # Probe runners copy components into their owning module or export them in
     # a disposable qmldir. Their source-tree location is not the runtime module.
     files = sorted(path for path in root.rglob('*.qml')
                    if '.git' not in path.parts
                    and path.relative_to(root).parts[0] != 'scripts')
+    if len(files) < minimum:
+        return len(files), [f'scanned {len(files)} QML files under {root}, expected at least {minimum}']
     sources = {path: code_only(path.read_text()) for path in files}
     failures = []
     for module in sorted(root.rglob('qmldir')):
@@ -38,11 +40,21 @@ def check(root):
                 if match:
                     line = source.count('\n', 0, match.start()) + 1
                     failures.append(f'{path.relative_to(root)}:{line}: {name} is internal to {module.parent.relative_to(root)}')
-    return failures
+    return len(files), failures
 
+
+# A tripwire, not a budget: the repository holds about 220 files outside scripts/,
+# so fewer means the walk missed the tree. A root given on the command line is a
+# fixture and only has to hold one file.
+MIN_FILES = 150
 
 if __name__ == '__main__':
-    findings = check(Path(sys.argv[1] if len(sys.argv) > 1 else '.'))
+    if len(sys.argv) > 1:
+        scanned, findings = check(Path(sys.argv[1]))
+    else:
+        scanned, findings = check(Path(__file__).resolve().parent.parent, MIN_FILES)
     for finding in findings:
         print(finding)
+    if not findings:
+        print(f'{scanned} QML files')
     sys.exit(bool(findings))

@@ -155,7 +155,13 @@ EOF
 )
 
 test_internal_type_boundaries() (
-    command -v python3 >/dev/null 2>&1 || return 0
+    # the dev shell sets SILERE_REQUIRE_QML_TOOLS so a missing prerequisite fails there
+    # instead of letting this pass unchecked, as ci-lint does for its own python sections
+    if ! command -v python3 >/dev/null 2>&1; then
+        [ "${SILERE_REQUIRE_QML_TOOLS:-0}" != "1" ] \
+            || fail "internal type lint: python3 is missing and SILERE_REQUIRE_QML_TOOLS=1 requires it"
+        return 0
+    fi
     local fixture="$TMP/internal-types"
     mkdir -p "$fixture/owner" "$fixture/consumer" "$fixture/scripts"
     printf 'internal PrivateCard PrivateCard.qml\n' > "$fixture/owner/qmldir"
@@ -164,8 +170,14 @@ test_internal_type_boundaries() (
     printf 'PrivateCard {}\n' > "$fixture/scripts/Probe.qml"
     printf 'Item { /* PrivateCard */ property string path: "PrivateCard.qml" }\n' \
         > "$fixture/consumer/Legal.qml"
-    python3 "$ROOT/scripts/check-internal-types.py" "$fixture" \
-        || fail "internal type lint rejected module-local use, text, or a relocated probe"
+    local out
+    out="$(python3 "$ROOT/scripts/check-internal-types.py" "$fixture")" \
+        || { printf '%s\n' "$out" >&2; fail "internal type lint rejected module-local use, text, or a relocated probe"; }
+    # a root with nothing to read has to fail, or a mistyped path passes unchecked
+    mkdir -p "$TMP/internal-types-empty"
+    if python3 "$ROOT/scripts/check-internal-types.py" "$TMP/internal-types-empty" >/dev/null; then
+        fail "internal type lint passed a root holding no QML files"
+    fi
     local use
     for use in 'PrivateCard {}' 'Owner.PrivateCard {}' 'Item { property PrivateCard card }'; do
         printf '%s\n' "$use" > "$fixture/consumer/Illegal.qml"

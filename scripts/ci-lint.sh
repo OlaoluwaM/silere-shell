@@ -846,7 +846,7 @@ fi
 # type inherits members this cannot see.
 if command -v python3 >/dev/null 2>&1 && [ -f scripts/check-connections.py ]; then
   if orphan_handlers="$(python3 scripts/check-connections.py)"; then
-    ok "handlers" "every Connections handler and singleton member resolves"
+    ok "handlers" "every Connections handler and singleton member resolves ($orphan_handlers)"
   else
     fail "these name nothing on their singleton:"
     printf '%s\n' "$orphan_handlers"
@@ -931,7 +931,7 @@ fi
 # Internal declarations may type-check before failing when a surface loads.
 if command -v python3 >/dev/null 2>&1; then
   if internal_types="$(python3 scripts/check-internal-types.py)"; then
-    ok "qmldir" "internal types stay inside their module"
+    ok "qmldir" "internal types stay inside their module ($internal_types)"
   else
     fail "internal types are used outside their own module:"
     printf '%s\n' "$internal_types"
@@ -1695,7 +1695,7 @@ section "static text"
 # back at 1.0, so their resampling never rests on a label.
 if command -v python3 >/dev/null 2>&1 && [ -f scripts/check-text-scale.py ]; then
   if text_scaled="$(python3 scripts/check-text-scale.py)"; then
-    ok "static text" "no visible text sits under a static scale: binding"
+    ok "static text" "no visible text sits under a static scale: binding ($text_scaled)"
   else
     fail "these scale: bindings resample text; scale the surface instead:"
     printf '%s\n' "$text_scaled"
