@@ -1005,6 +1005,73 @@ else
     skip "settings" "ShellSettings.qml not found"
 fi
 
+section "generated defaults contract"
+# The packaging renders config/GeneratedDefaults.qml and ShellSettings initialises its
+# settings from it, so both files must name the same keys. Equal counts cannot see a key
+# renamed on one side, a comment that mentions one, or one key initialising two settings,
+# so this compares the names. Comments are stripped first; a string resets at each line,
+# which keeps a quote inside a regex literal from hiding more than its own line.
+generated_defaults="config/GeneratedDefaults.qml"
+_strip_qml_comments='
+  {
+    out = ""; q = ""; n = length($0)
+    for (i = 1; i <= n; i++) {
+      c = substr($0, i, 1); d = substr($0, i + 1, 1)
+      if (inblock) { if (c == "*" && d == "/") { inblock = 0; i++ }; continue }
+      if (q != "") {
+        out = out c
+        if (c == "\\") { out = out d; i++ } else if (c == q) q = ""
+        continue
+      }
+      if (c == "\"" || c == "'"'"'") { q = c; out = out c; continue }
+      if (c == "/" && d == "/") break
+      if (c == "/" && d == "*") { inblock = 1; i++; continue }
+      out = out c
+    }
+    $0 = out
+  }'
+if [ -f "$generated_defaults" ] && [ -f "$settings" ]; then
+    gd_declared="$(awk "$_strip_qml_comments"'
+      match($0, /^[[:space:]]*readonly[[:space:]]+property[[:space:]]+[^[:space:]]+[[:space:]]+[A-Za-z_][A-Za-z0-9_]*/) {
+        decl = substr($0, RSTART, RLENGTH); sub(/.*[[:space:]]/, "", decl); print decl
+      }' "$generated_defaults" | sort)"
+    # one "ref NAME" per reference, plus "init NAME" when it sits on a property declaration
+    gd_refs="$(awk "$_strip_qml_comments"'
+      {
+        init = ($0 ~ /^[[:space:]]*(readonly[[:space:]]+)?property[[:space:]]+[^[:space:]]+[[:space:]]+[A-Za-z_][A-Za-z0-9_]*[[:space:]]*:/)
+        rest = $0
+        while (match(rest, /(^|[^A-Za-z0-9_.])GeneratedDefaults\.[A-Za-z_][A-Za-z0-9_]*/)) {
+          ref = substr(rest, RSTART, RLENGTH); rest = substr(rest, RSTART + RLENGTH)
+          sub(/.*GeneratedDefaults\./, "", ref)
+          print "ref " ref
+          if (init) print "init " ref
+        }
+      }' "$settings")"
+    gd_referenced="$(printf '%s\n' "$gd_refs" | sed -n 's/^ref //p' | sort -u)"
+    gd_unreferenced="$(comm -23 <(printf '%s\n' "$gd_declared" | sort -u) <(printf '%s\n' "$gd_referenced"))"
+    gd_undeclared="$(comm -13 <(printf '%s\n' "$gd_declared" | sort -u) <(printf '%s\n' "$gd_referenced"))"
+    gd_twice="$(printf '%s\n' "$gd_refs" | sed -n 's/^init //p' | sort | uniq -d)"
+    gd_redeclared="$(printf '%s\n' "$gd_declared" | uniq -d)"
+    gd_count="$(printf '%s\n' "$gd_declared" | grep -c .)"
+    if [ "$gd_count" -eq 0 ] || [ -z "$gd_referenced" ]; then
+        fail "could not read the keys of $generated_defaults or their references in $settings; the scan is broken"
+    else
+        [ -z "$gd_unreferenced" ] \
+            || fail "$generated_defaults declares keys $settings never references: $(printf '%s' "$gd_unreferenced" | tr '\n' ' ')"
+        [ -z "$gd_undeclared" ] \
+            || fail "$settings references keys $generated_defaults does not declare: $(printf '%s' "$gd_undeclared" | tr '\n' ' ')"
+        [ -z "$gd_twice" ] \
+            || fail "$settings initialises more than one property from: $(printf '%s' "$gd_twice" | tr '\n' ' ')"
+        [ -z "$gd_redeclared" ] \
+            || fail "$generated_defaults declares these keys more than once: $(printf '%s' "$gd_redeclared" | tr '\n' ' ')"
+        if [ -z "$gd_unreferenced$gd_undeclared$gd_twice$gd_redeclared" ]; then
+            ok "defaults" "the $gd_count GeneratedDefaults keys and the ShellSettings references to them match by name, none initialising two settings"
+        fi
+    fi
+else
+    fail "$generated_defaults or $settings is missing"
+fi
+
 section "slider range coverage"
 # A slider narrower than its schema entry hides part of the range from the UI;
 # a wider one lets the row show values the setting clamps straight back off.

@@ -89,7 +89,8 @@ A cosmetic or documentation-only change skips the `ci-lint.sh` and
 - The settings contract holds:
   `grep -c 'property' config/GeneratedDefaults.qml` equals
   `grep -c 'GeneratedDefaults\.' services/ShellSettings.qml`, and both
-  match what nixos-config's silere module renders. Adding or removing a
+  match what nixos-config's silere module renders. `ci-lint.sh` checks
+  the two files against each other by name. Adding or removing a
   settings key ties the commit to nixos-config; README.md explains the
   ordering.
 - The checked-in `config/GeneratedDefaults.qml` carries upstream's
