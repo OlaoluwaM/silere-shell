@@ -15,6 +15,25 @@ PROBE_SOURCE="scripts/probe-popup-lifecycle.qml"
 
 _probe_require_qs
 
+# the trap goes first: a failed mktemp or copy below would otherwise leave the
+# directories already made behind
+log=""
+cfg=""
+reduced_cfg=""
+runtime=""
+probe_project=""
+probe_pid=""
+cleanup() {
+    _probe_stop "$probe_pid"
+    [ -z "$log" ] || rm -f "$log"
+    local dir
+    for dir in "$cfg" "$reduced_cfg" "$runtime" "$probe_project"; do
+        [ -z "$dir" ] || rm -rf "$dir"
+    done
+}
+trap cleanup EXIT
+trap 'exit 130' INT TERM
+
 log="$(mktemp "${TMPDIR:-/tmp}/silere-popup-lifecycle.XXXXXX.log")"
 cfg="$(mktemp -d "${TMPDIR:-/tmp}/silere-popup-lifecycle-cfg.XXXXXX")"
 reduced_cfg="$(mktemp -d "${TMPDIR:-/tmp}/silere-popup-lifecycle-cfg.XXXXXX")"
@@ -47,14 +66,6 @@ printf '%s\n' \
     '        root.owner = component.createObject(root)' \
     '    }' \
     '}' > "$probe_project/probe-popup-lifecycle.qml"
-probe_pid=""
-cleanup() {
-    _probe_stop "$probe_pid"
-    rm -f "$log"
-    rm -rf "$cfg" "$reduced_cfg" "$runtime" "$probe_project"
-}
-trap cleanup EXIT
-trap 'exit 130' INT TERM
 
 mkdir -p "$cfg/silere-shell"
 printf '{"__version":1}\n' > "$cfg/silere-shell/settings.json"

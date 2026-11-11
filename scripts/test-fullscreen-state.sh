@@ -13,24 +13,38 @@ shift
 
 _probe_require_qs
 
+# the trap goes first: a failed mktemp or copy below would otherwise leave the
+# directories already made behind
+log=""
+project=""
+probe_root=""
+probe_pid=""
+cleanup() {
+    _probe_stop "$probe_pid"
+    [ -z "$log" ] || rm -f "$log"
+    [ -z "$project" ] || rm -rf "$project"
+    [ -z "$probe_root" ] || rm -rf "$probe_root"
+}
+trap cleanup EXIT
+trap 'exit 130' INT TERM
+
 log="$(mktemp "${TMPDIR:-/tmp}/silere-fullscreen-state.XXXXXX.log")"
 project="$(mktemp -d "${TMPDIR:-/tmp}/silere-fullscreen-state-project.XXXXXX")"
+probe_root="$(mktemp -d "${TMPDIR:-/tmp}/silere-fullscreen-state.XXXXXX")"
 mkdir -p "$project/services"
 cp scripts/probe-fullscreen-state.qml "$project/"
 cp services/FullscreenState.qml "$project/services/"
 cp scripts/fixtures/fullscreen/Compositor.qml scripts/fixtures/fullscreen/ShellSettings.qml \
     scripts/fixtures/fullscreen/qmldir "$project/services/"
 printf '%s\n' 'singleton FullscreenState 1.0 FullscreenState.qml' >> "$project/services/qmldir"
-probe_pid=""
-cleanup() {
-    _probe_stop "$probe_pid"
-    rm -f "$log"
-    rm -rf "$project"
-}
-trap cleanup EXIT
-trap 'exit 130' INT TERM
+# the fixtures stand in for every singleton the probe reads; a private config and runtime
+# keep a later real one off the user's own directories
+mkdir -p "$probe_root/config/silere-shell" "$probe_root/runtime"
+chmod 0700 "$probe_root/runtime"
 
-QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen \
+XDG_CONFIG_HOME="$probe_root/config" XDG_STATE_HOME="$probe_root/config" \
+    XDG_CACHE_HOME="$probe_root/config/cache" XDG_RUNTIME_DIR="$probe_root/runtime" \
+    QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen \
     QT_NO_XDG_DESKTOP_PORTAL=1 setsid qs -p "$project/probe-fullscreen-state.qml" --no-color >"$log" 2>&1 &
 probe_pid=$!
 

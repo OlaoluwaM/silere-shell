@@ -13,21 +13,25 @@ shift
 _probe_require_qs
 
 probe_project="$(mktemp -d "${TMPDIR:-/tmp}/silere-history-grouping-project.XXXXXX")"
-runtime="$(mktemp -d "${TMPDIR:-/tmp}/silere-history-grouping-runtime.XXXXXX")"
+probe_root="$(mktemp -d "${TMPDIR:-/tmp}/silere-history-grouping.XXXXXX")"
 log="$(mktemp "${TMPDIR:-/tmp}/silere-history-grouping.XXXXXX.log")"
 probe_pid=""
 cleanup() {
     _probe_stop "$probe_pid"
-    rm -rf "$probe_project" "$runtime"
+    rm -rf "$probe_project" "$probe_root"
     rm -f "$log"
 }
 trap cleanup EXIT
 trap 'exit 130' INT TERM
 
-chmod 0700 "$runtime"
+# the probe loads no settings today; a private config keeps a later one that does off the
+# user's own silere-shell directory
+mkdir -p "$probe_root/config/silere-shell" "$probe_root/runtime"
+chmod 0700 "$probe_root/runtime"
 _probe_project "$ROOT" scripts/probe-history-grouping.qml "$probe_project"
 
-SILERE_PROBE_ROOT="$probe_project" XDG_RUNTIME_DIR="$runtime" \
+SILERE_PROBE_ROOT="$probe_project" XDG_CONFIG_HOME="$probe_root/config" XDG_STATE_HOME="$probe_root/config" \
+    XDG_CACHE_HOME="$probe_root/config/cache" XDG_RUNTIME_DIR="$probe_root/runtime" \
     QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen QT_NO_XDG_DESKTOP_PORTAL=1 \
     setsid qs -p "$probe_project/probe-history-grouping.qml" --no-color >"$log" 2>&1 &
 probe_pid=$!
