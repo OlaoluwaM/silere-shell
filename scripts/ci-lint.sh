@@ -23,6 +23,16 @@ skip() {
   fi
 }
 fail() { printf 'fail %s\n' "$*" >&2; status=1; }
+# The Python checkers skip on a bare host, but the dev shell exports
+# SILERE_REQUIRE_QML_TOOLS to make a missing prerequisite fail, and a skip
+# there would let a shell without python3 pass lint unchecked.
+skip_or_fail_no_python() { # $1 = label, $2 = what is missing, $3 = the check
+  if ! command -v python3 >/dev/null 2>&1 && [ "${SILERE_REQUIRE_QML_TOOLS:-0}" = "1" ]; then
+    fail "$1: $2; the $3 is required here"
+  else
+    skip "$1" "$2; $3 skipped"
+  fi
+}
 script_files=(scripts/*.sh scripts/lib/*.sh)
 
 section "merge conflict markers"
@@ -836,7 +846,7 @@ if command -v python3 >/dev/null 2>&1 && [ -f scripts/check-connections.py ]; th
     printf '%s\n' "$orphan_handlers"
   fi
 else
-  skip "handlers" "python3 or scripts/check-connections.py missing; Connections check skipped"
+  skip_or_fail_no_python "handlers" "python3 or scripts/check-connections.py missing" "Connections check"
 fi
 
 section "terminal detection"
@@ -921,7 +931,7 @@ if command -v python3 >/dev/null 2>&1; then
     printf '%s\n' "$internal_types"
   fi
 else
-  skip "internal types" "python3 missing; cross-module check skipped"
+  skip_or_fail_no_python "internal types" "python3 missing" "cross-module check"
 fi
 
 section "upstream divergence ledger"
@@ -1611,7 +1621,7 @@ if command -v python3 >/dev/null 2>&1 && [ -f scripts/check-text-scale.py ]; the
     printf '%s\n' "$text_scaled"
   fi
 else
-  skip "static text" "python3 or scripts/check-text-scale.py missing; text scale check skipped"
+  skip_or_fail_no_python "static text" "python3 or scripts/check-text-scale.py missing" "text scale check"
 fi
 
 section "inert compositor events"

@@ -108,7 +108,8 @@ This option applies only to `test-notification-stack.sh`.
 - [check-connections.py](check-connections.py) and
   [check-text-scale.py](check-text-scale.py), plus
   [check-internal-types.py](check-internal-types.py), are standalone source diagnostics,
-  which `ci-lint.sh` also runs when `python3` is available.
+  which `ci-lint.sh` also runs. Without `python3` it skips them, except
+  under `SILERE_REQUIRE_QML_TOOLS=1` (the Nix shell sets it), where it fails.
   Run them with `python3 scripts/<name>.py` from the repository root; they are
   not substitutes for the full checks.
 
