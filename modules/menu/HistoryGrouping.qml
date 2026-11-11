@@ -72,7 +72,9 @@ QtObject {
         const runs = root._runs
         if (runs.changing || !runs.table || runs.table.model !== root.model) root._tableWanted()
         const table = runs.table
-        if (runs.changing) runs.table = null
+        // Qt refuses to make an object ten creations deep, and a table kept with nothing
+        // listening under it would answer for rows that have since changed
+        if (runs.changing || !runs.hearing) runs.table = null
         return table
     }
 
