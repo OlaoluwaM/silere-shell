@@ -193,6 +193,11 @@ outside issues or pull requests.
   reports its hottest core at the instant of the poll, so a lone boost burst
   lit the TEMP chip and the alerts with a value the chip never held. Keep the
   average on an import of the sampler.
+- `services/CompositorHyprland.qml`: `_syncLiveTitles` reads a window's
+  `lastIpcObject` only when its `title` is empty, where upstream reads it for
+  every window on every sync. Each read builds a fresh JS object, and the
+  title it falls back to is the same either way. Keep the guard on an import
+  of the title sync.
 - `services/Notifications.qml`: `_prependHistory` orders by arrival as
   upstream does, but stops at rows dated after the current time, so rows from
   a clock that went back neither bury nor trim a new arrival. Keep the stop

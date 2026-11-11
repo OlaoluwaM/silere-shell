@@ -82,7 +82,8 @@ QtObject {
             // t.address/t.title land the instant hyprland reports them; lastIpcObject only
             // catches up on the next refreshToplevels() round-trip, well behind a new window
             if (!t || !t.address) continue
-            const c = t.lastIpcObject
+            // only an untitled window needs the IPC map, and every read of it builds a fresh JS object
+            const c = t.title ? null : t.lastIpcObject
             next["0x" + t.address] = root._title(t.title || (c ? c.title : ""))
         }
 
