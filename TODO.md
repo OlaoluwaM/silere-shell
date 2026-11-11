@@ -106,6 +106,55 @@ shell on a session bus of their own and still see the system bus. The helper
 should cover both, or say why not.
 
 Deferred on 2026-11-11 because nothing is broken for lack of it and it touches
-every runner at once. It costs no merge surface, since all but one runner are
-the fork's own. The runners differ in small ways, so convert them a few at a
-time and run the full check after each batch.
+every runner at once. The runners differ in small ways, so convert them a few
+at a time and run the full check after each batch.
+
+## Rename and rebrand the project
+
+Give the project a name and an identity of its own. Since
+[ADR 0006](adrs/0006-stop-reconciling-with-upstream-and-take-only-chosen-cherry-picks.md)
+it is developed in its own direction, but it still carries the fork's name:
+the README is titled "Silere-shell Fork", and README.md, AGENTS.md,
+SECURITY.md and the documents under `docs/` call it "the fork" throughout.
+
+A rename reaches past the documents. These names are contracts with things
+outside the repository, so each needs a decision on whether it changes and,
+if it does, a change on the other side in the same step:
+
+- the repository's name and the flake input that nixos-config pins;
+- nixos-config's `silere.nix` module and the options it declares;
+- the `silere-shell.service` user unit and the `silere-lock` wrapper;
+- the configuration directory, `~/.config/silere-shell`, with the settings
+  and notification history a running install already keeps there;
+- the `silere-*` layer-shell namespaces, which the compositor's blur and
+  animation rules match by exact string;
+- the `silere.*` logging categories and the `silere-shell:` message prefix,
+  which [docs/debugging.md](docs/debugging.md) tells a reader to filter on;
+- the IPC targets a keybind or script calls.
+
+Credit to the original project and its license stay whatever the new name is.
+
+Deferred on 2026-11-11 by the maintainer: the current "fork" naming stays in
+place for now.
+
+## Make `custom-branch` the main branch
+
+Move the project's work to `main`. Today `main` on origin is a clean mirror
+of `upstream/main` and `custom-branch` carries everything the project is,
+which was the right split while the two were kept reconcilable. Since
+[ADR 0006](adrs/0006-stop-reconciling-with-upstream-and-take-only-chosen-cherry-picks.md)
+nothing merges from upstream, and a cherry-pick reads `upstream/main`
+directly, so the mirror has no job left.
+
+What moves with it:
+
+- origin's `main` has to stop being the mirror before it can take
+  `custom-branch`'s history, and origin's default branch follows. The
+  maintainer does this: agents never push;
+- nixos-config pins `custom-branch`, so its flake input and its lock change
+  in the same step as the move;
+- the documents that name the branch: README.md's branch list and re-lock
+  ritual, AGENTS.md's rule that `custom-branch` history is never rewritten,
+  SECURITY.md, and the lock screen plan and its QA checklist.
+
+Deferred on 2026-11-11 by the maintainer, as a task of its own.
