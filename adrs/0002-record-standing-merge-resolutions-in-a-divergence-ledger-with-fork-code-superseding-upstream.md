@@ -1,6 +1,6 @@
 # ADR 0002: Record Standing Merge Resolutions in a Divergence Ledger with Fork Code Superseding Upstream
 
-- **Status:** Superseded by [ADR 0003](0003-integrate-upstream-changes-selectively.md)
+- **Status:** Superseded by [ADR 0003](0003-integrate-upstream-changes-selectively.md) and [ADR 0006](0006-stop-reconciling-with-upstream-and-take-only-chosen-cherry-picks.md)
 - **Date:** 2026-08-25
 
 ## Context

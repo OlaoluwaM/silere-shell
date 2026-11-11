@@ -13,7 +13,7 @@ Singleton {
         ? ConfigStore.directory + "/hooks" : ""
 
     // the scan probes these names rather than listing the directory, so a file dropped there under any other name is never a path this can execute
-    // no "update-available": the fork removed the updater (see docs/upstream-divergences.md)
+    // no "update-available": the fork removed the updater, so nothing raises it
     readonly property var events: [
         "battery-critical",
         "notification",

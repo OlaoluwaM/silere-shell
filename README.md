@@ -5,7 +5,7 @@
 
 ## What this is
 
-A personal fork of [s3rven/silere-shell](https://github.com/s3rven/silere-shell), a Quickshell/QML desktop shell. It serves as the only shell of a NixOS/Hyprland profile.
+A personal Quickshell/QML desktop shell, begun as a fork of [s3rven/silere-shell](https://github.com/s3rven/silere-shell) and now developed in its own direction. It serves as the only shell of a NixOS/Hyprland profile.
 
 The shell requires Quickshell 0.3.1 or newer, the floor that
 `SILERE_MIN_QUICKSHELL` in `scripts/lib/qml-modules.sh` sets. This repository's
@@ -45,14 +45,15 @@ All this while keeping upstream's token architecture and restraint intact.
   does not compare the current upstream and fork trees. `main` never merges
   with `custom-branch`; the two branches do different jobs.
 
-## Selective upstream integration
+## Cherry-picks from upstream
 
-Select useful upstream changes individually. Releases are review checkpoints,
-with no obligation to import the release. Prioritize applicable bug fixes,
+There is no reconciliation with upstream, at any point, and no full merge.
+An upstream idea or commit comes in only as an individual cherry-pick the
+maintainer chooses, adapted to this code. Prioritize applicable bug fixes,
 then improvements the fork actually needs. Selected commits may come from a
 release or development history; inspect exact commits and their dependencies
 before importing either. The rationale is in
-[ADR 0003](adrs/0003-integrate-upstream-changes-selectively.md).
+[ADR 0006](adrs/0006-stop-reconciling-with-upstream-and-take-only-chosen-cherry-picks.md).
 
 When the fork has no established behavior or design for a selected feature,
 preserve upstream's semantics. Adapt imports to existing fork behavior and
@@ -62,9 +63,7 @@ offers the opportunity. Propose any intentional new divergence separately.
 For each integration:
 
 1. Inspect the upstream change against the current fork. Identify its benefit,
-   prerequisites, affected fork behavior, and validation before editing. Use
-   the [divergence ledger](docs/upstream-divergences.md) to resolve collisions;
-   a design decision outside its standing rules needs maintainer judgment.
+   prerequisites, affected fork behavior, and validation before editing.
 2. Keep the scope to one coherent change and its necessary dependencies.
    Cherry-pick compatible implementations; port the relevant behavior into
    redesigned areas. A clean application is not proof of compatibility.
@@ -74,45 +73,21 @@ For each integration:
    Use `git cherry-pick -x` for direct picks and verify the provenance survives
    conflict resolution. Adapted commits name their sources and explain the
    material adaptations. Keep one commit per task item, per AGENTS.md.
-4. Review the affected ledger entries and update or retire them as the
-   ledger's [rules](docs/upstream-divergences.md#what-belongs-here) require.
-   Run the repository gates in
-   [AGENTS.md](AGENTS.md), plus checks of the affected fork behavior. Validate
-   interactive Hyprland changes in a throwaway instance and label mock or
-   static coverage accurately.
+4. Run the repository gates in [AGENTS.md](AGENTS.md), plus checks of the
+   affected fork behavior. Validate interactive Hyprland changes in a
+   throwaway instance and label mock or static coverage accurately.
 
-Periodically review upstream changes since the last review, including fixes
-in areas we previously adapted. Record the reviewed upstream SHA and selected,
-deferred, or rejected change groups with brief reasons in a dated integration
-record under `docs/`. Reviewing a release does not mark it as imported.
+When upstream is reviewed for picks, record the reviewed upstream SHA and
+selected, deferred, or rejected change groups with brief reasons in a dated
+integration record under `docs/`.
 
 The [docs index](docs/README.md#integration-records) summarises each dated
 integration record.
 
 History stays intact because nixos-config pins this branch by commit. Undo a
-landed selective import with a revert, accounting for any dependent follow-ups.
-Selective integration does not authorize rebases, amendments, or resets of
+landed cherry-pick with a revert, accounting for any dependent follow-ups.
+A cherry-pick does not authorize rebases, amendments, or resets of
 `custom-branch` history.
-
-### Exceptional full merges
-
-Full release merges require a separate, explicit maintainer decision after
-reassessing their benefit, scope, and reconciliation cost. Approval for a
-selective import does not authorize a full merge. If approved, target an exact
-upstream release commit and reconcile earlier picks and adaptations using
-their provenance and the ledger.
-
-The maintainer creates and publishes an immutable annotated
-`pre-upstream-<release-tag>` before merge work starts, then an immutable
-`post-upstream-<release-tag>` after the merge, resolution record, follow-ups,
-and gates are complete, before unrelated work resumes. These tags bracket
-the complete integration. Agents never create or publish them. Enable
-`rerere` per clone (`git config rerere.enabled true`) before resolving
-conflicts. Walk the full ledger during resolution and validation.
-
-Undo a landed merge with `git revert -m 1 <merge>`, accounting for separate
-follow-up commits. Re-merging a reverted release requires addressing the
-revert first; the original merge remains in history.
 
 ### Historical integrations
 

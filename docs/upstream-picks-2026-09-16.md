@@ -27,8 +27,9 @@ record; the confirmed design and execution record follow below.
 
 Before implementation, refresh the fork status and record the actual stage
 base. Retrieve exact source objects if necessary; do not substitute a moving
-upstream tip. Follow [README.md](../README.md#selective-upstream-integration),
-[AGENTS.md](../AGENTS.md), and the [divergence ledger](upstream-divergences.md).
+upstream tip. Follow [README.md](../README.md),
+[AGENTS.md](../AGENTS.md), and the divergence ledger (removed on 2026-11-11;
+see [ADR 0006](../adrs/0006-stop-reconciling-with-upstream-and-take-only-chosen-cherry-picks.md)).
 This plan does not authorize a full upstream merge or assign subagents.
 
 ## Confirmed decisions

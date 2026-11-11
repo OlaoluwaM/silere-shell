@@ -3,9 +3,9 @@
 Working rules for agents in this repository. What the fork *is* (branches,
 upstream integration policy, the nixos-config re-lock ritual) is in
 [README.md](README.md).
-How to change the shell (new settings, new bar widgets, renames) is
-upstream's [docs/forking.md](docs/forking.md). Each fact lives in exactly
-one of the three files, so follow the pointers instead of restating.
+How to change the shell (new settings, new bar widgets, renames) is in
+[docs/forking.md](docs/forking.md). Each fact lives in exactly one of the
+three files, so follow the pointers instead of restating.
 
 ## Boundaries
 
@@ -15,8 +15,8 @@ one of the three files, so follow the pointers instead of restating.
   instead: `nix develop . --command qs -p shell.qml`. Quickshell
   hot-reloads the checkout when a file saves.
 - Import upstream changes only when the maintainer authorizes the selected
-  scope. Read-only inspection needs no approval. Follow README.md's selective
-  integration policy and its separate authorization rule for full merges.
+  scope. Read-only inspection needs no approval. Follow README.md's
+  cherry-pick policy.
 
 ## Working with the maintainer
 
@@ -60,10 +60,6 @@ through it.
 - One commit per task item. Subjects are short, lowercase, and imperative,
   like the ones already in `git log`. No Co-Authored-By and no
   AI-attribution trailer of any kind.
-- A commit that creates, changes, or resolves a divergence from upstream
-  updates [docs/upstream-divergences.md](docs/upstream-divergences.md) in
-  the same commit. What counts as a divergence and when entries retire is
-  defined in that file, not here.
 - Code comments explain why, in the voice of the file they sit in. They
   never narrate what the change did.
 
@@ -93,11 +89,10 @@ A cosmetic or documentation-only change skips the `ci-lint.sh` and
   the two files against each other by name. Adding or removing a
   settings key ties the commit to nixos-config; README.md explains the
   ordering.
-- The checked-in `config/GeneratedDefaults.qml` carries upstream's
-  default values, the literals upstream's `services/ShellSettings.qml`
-  initializes its settings with, so someone running the fork without Nix
-  sees a stock shell. The deploying configuration swaps in its own render
-  at build time. Never edit it to carry local preferences.
+- The checked-in `config/GeneratedDefaults.qml` carries the stock
+  default values, so someone running the fork without Nix sees a stock
+  shell. The deploying configuration swaps in its own render at build
+  time. Never edit it to carry local preferences.
 
 ## QML work
 

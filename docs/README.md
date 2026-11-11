@@ -8,9 +8,6 @@ agents.
 ## Living documents
 
 - [forking.md](forking.md): forking Silere, and how to change the shell.
-- [upstream-divergences.md](upstream-divergences.md): the standing
-  differences between this fork and upstream, each with the action an
-  integration takes when they collide.
 - [debugging.md](debugging.md): finding the shell's logs in the journal,
   and debugging the lock, notifications, network, caffeine and night light.
 - [lock-screen-plan.md](lock-screen-plan.md): the lock screen's design and
@@ -24,13 +21,15 @@ agents.
   animate wallpaper-driven palette changes centrally with a leaf-fade gate.
 - [ADR 0002](../adrs/0002-record-standing-merge-resolutions-in-a-divergence-ledger-with-fork-code-superseding-upstream.md):
   record standing merge resolutions in a divergence ledger with fork code
-  superseding upstream. Superseded by ADR 0003.
+  superseding upstream. Superseded by ADR 0003 and ADR 0006.
 - [ADR 0003](../adrs/0003-integrate-upstream-changes-selectively.md):
-  integrate upstream changes selectively.
+  integrate upstream changes selectively. Superseded by ADR 0006.
 - [ADR 0004](../adrs/0004-adapt-glass-thickness-to-a-sampled-wallpaper-region.md):
   adapt glass thickness to a sampled wallpaper region.
 - [ADR 0005](../adrs/0005-tune-the-menu-glass-and-secondary-text-to-the-menus-own-corner.md):
   tune the menu glass and secondary text to the menu's own corner.
+- [ADR 0006](../adrs/0006-stop-reconciling-with-upstream-and-take-only-chosen-cherry-picks.md):
+  stop reconciling with upstream and take only chosen cherry-picks.
 
 ## Integration records
 

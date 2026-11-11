@@ -11,7 +11,8 @@ The local fixed point was `75e05ba40b12247eb44ea137524eac224cadfa57` on
 `custom-branch`. Four commits were selectively integrated with fork-specific
 resolutions; two were excluded. The picks do not import upstream ancestry.
 Future release merges still need to reconcile these changes using the
-[divergence ledger](upstream-divergences.md).
+divergence ledger (removed on 2026-11-11; see
+[ADR 0006](../adrs/0006-stop-reconciling-with-upstream-and-take-only-chosen-cherry-picks.md)).
 
 ## Upstream to local provenance
 

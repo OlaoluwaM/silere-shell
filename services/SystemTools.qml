@@ -16,8 +16,8 @@ Singleton {
         for (const k in b) if (a[k] !== b[k]) return false
         return true
     }
-    // no packageFamily: only upstream's updater reads it, and the fork keeps that
-    // stack removed (see docs/upstream-divergences.md)
+    // no packageFamily: only upstream's updater reads it, and the fork removed
+    // that stack
     // ready stays true during a refresh so controls do not disappear. Consumers
     // that need to redo work after a coherent scan use this completion edge.
     property int _scanRevision: 0

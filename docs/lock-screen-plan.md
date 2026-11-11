@@ -354,7 +354,9 @@ prints the category in each line (`WARN scene: …`). So:
 One commit per step. Fork commits follow the `type(scope): subject` style in
 `git log`. Each fork step that creates or changes a divergence from upstream
 updates `docs/upstream-divergences.md` in the same commit, as the fork's
-AGENTS.md requires. Settings keys cross repositories, so step 2 lands together
+AGENTS.md requires (the ledger was removed on 2026-11-11; see
+[ADR 0006](../adrs/0006-stop-reconciling-with-upstream-and-take-only-chosen-cherry-picks.md)).
+Settings keys cross repositories, so step 2 lands together
 with step 9, and nixos-config's steps 9 to 11 reach its main branch only
 together with the re-lock to a pushed `custom-branch` tip that contains the
 fork's steps. In the other order, the packaged shell lacks the new keys and

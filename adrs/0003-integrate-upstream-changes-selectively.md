@@ -1,6 +1,6 @@
 # ADR 0003: Integrate Upstream Changes Selectively
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR 0006](0006-stop-reconciling-with-upstream-and-take-only-chosen-cherry-picks.md)
 - **Date:** 2026-09-09
 
 ## Context
