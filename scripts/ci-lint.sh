@@ -1681,11 +1681,14 @@ section "static text"
 # pointer rests on it and a fractional resting scale softens it permanently. These
 # outputs already resample every buffer once on the way to a fractional scale; a second
 # pass on top of that is what made button labels look wrong.
+# The checker reads static `scale:` bindings only. A `Scale {}` transform and an animated
+# `scale` on a text item are not covered: the shipped ones are transient bumps that settle
+# back at 1.0, so their resampling never rests on a label.
 if command -v python3 >/dev/null 2>&1 && [ -f scripts/check-text-scale.py ]; then
   if text_scaled="$(python3 scripts/check-text-scale.py)"; then
-    ok "static text" "no visible text sits inside a scale transform"
+    ok "static text" "no visible text sits under a static scale: binding"
   else
-    fail "these transforms resample text; scale the surface instead:"
+    fail "these scale: bindings resample text; scale the surface instead:"
     printf '%s\n' "$text_scaled"
   fi
 else

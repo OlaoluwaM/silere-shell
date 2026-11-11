@@ -1,3 +1,12 @@
+"""Flag visible text inside an item that carries a static `scale:` binding.
+
+It reads `scale:` property lines and the text declared beneath them, and only
+those. Two shipped forms scale text another way and are deliberately left out:
+a `Scale {}` transform (xScale/yScale) on an item holding text, and an animated
+`scale` on a text item (NumberAnimation { target: label; property: "scale" }).
+Both are transient bumps that settle back at 1.0 within a fraction of a second,
+so the resampling they cause never rests on a label.
+"""
 import glob, re, sys
 bad = []
 for f in sorted(glob.glob('modules/**/*.qml', recursive=True)):
