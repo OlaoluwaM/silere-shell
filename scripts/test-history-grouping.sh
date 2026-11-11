@@ -12,17 +12,24 @@ fi
 shift
 _probe_require_qs
 
-probe_project="$(mktemp -d "${TMPDIR:-/tmp}/silere-history-grouping-project.XXXXXX")"
-probe_root="$(mktemp -d "${TMPDIR:-/tmp}/silere-history-grouping.XXXXXX")"
-log="$(mktemp "${TMPDIR:-/tmp}/silere-history-grouping.XXXXXX.log")"
+# the trap goes first: a failed mktemp below would otherwise leave the
+# directories already made behind
+probe_project=""
+probe_root=""
+log=""
 probe_pid=""
 cleanup() {
     _probe_stop "$probe_pid"
-    rm -rf "$probe_project" "$probe_root"
-    rm -f "$log"
+    [ -z "$probe_project" ] || rm -rf "$probe_project"
+    [ -z "$probe_root" ] || rm -rf "$probe_root"
+    [ -z "$log" ] || rm -f "$log"
 }
 trap cleanup EXIT
 trap 'exit 130' INT TERM
+
+probe_project="$(mktemp -d "${TMPDIR:-/tmp}/silere-history-grouping-project.XXXXXX")"
+probe_root="$(mktemp -d "${TMPDIR:-/tmp}/silere-history-grouping.XXXXXX")"
+log="$(mktemp "${TMPDIR:-/tmp}/silere-history-grouping.XXXXXX.log")"
 
 # the probe loads no settings today; a private config keeps a later one that does off the
 # user's own silere-shell directory
