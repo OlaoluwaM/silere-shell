@@ -55,11 +55,6 @@ release or development history; inspect exact commits and their dependencies
 before importing either. The rationale is in
 [ADR 0006](adrs/0006-stop-reconciling-with-upstream-and-take-only-chosen-cherry-picks.md).
 
-When the fork has no established behavior or design for a selected feature,
-preserve upstream's semantics. Adapt imports to existing fork behavior and
-documented decisions; do not introduce a new design solely because an import
-offers the opportunity. Propose any intentional new divergence separately.
-
 For each integration:
 
 1. Inspect the upstream change against the current fork. Identify its benefit,
