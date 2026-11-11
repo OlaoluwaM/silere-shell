@@ -15,6 +15,59 @@ QtObject {
     property var log: null
     property var _openRuns: ({})
 
+    // Every built row asks for its shape on each change, and a folded run keeps all of its
+    // rows built, so a walk of the run per row grows with the square of its length. The rows
+    // are read once per change into a table they all share. No binding observes the table:
+    // it is dropped on both sides of a change of rows, and one read while a change is under
+    // way is not kept, so a read takes the rows as they stand whichever of this and the list
+    // hears of the change first. A relabel moves no row and is reported once it is done;
+    // _relabels carries it to the bindings, which read the table rather than the rows
+    readonly property var _runs: ({ table: null, changing: false })
+    property int _relabels: 0
+
+    // A binding that read the rows itself would come to depend on each one, and Qt
+    // notifies those dependencies of a relabel before the model reports it, while the
+    // table still holds the old labels. A signal handler records no dependencies
+    signal _tableWanted()
+    on_TableWanted: {
+        const rows = root.model
+        const list = []
+        for (let i = 0; i < rows.count; i++) {
+            const row = rows.get(i)
+            list.push({ appName: row.appName, time: row.time, run: row.run,
+                urgency: row.urgency, id: row.id })
+        }
+        const runOf = []
+        let at = 0
+        while (at < list.length) {
+            let end = at
+            while (end + 1 < list.length && HistoryRuns.sameRun(list[end + 1], list[at])) end++
+            let critical = false
+            for (let i = at; i <= end && !critical; i++)
+                critical = Number(list[i].urgency) === 2
+            const run = { start: at, end: end, critical: critical }
+            for (let i = at; i <= end; i++) runOf.push(run)
+            at = end + 1
+        }
+        root._runs.table = { model: rows, rows: list, runOf: runOf }
+    }
+
+    onModelChanged: root._rowsChanging(false)
+
+    function _table(): var {
+        root._relabels
+        const runs = root._runs
+        if (runs.changing || !runs.table || runs.table.model !== root.model) root._tableWanted()
+        const table = runs.table
+        if (runs.changing) runs.table = null
+        return table
+    }
+
+    function _rowsChanging(changing: bool): void {
+        root._runs.table = null
+        root._runs.changing = changing
+    }
+
     function _trace(...parts): void {
         if (root.log) console.debug(root.log, "grouping:", ...parts)
     }
@@ -55,18 +108,10 @@ QtObject {
         const n = rows.count
         if (index < 0 || index >= n) return { start: index, length: 1, critical: false, key: "" }
 
-        const here = rows.get(index)
-        let start = index
-        while (start > 0 && HistoryRuns.sameRun(rows.get(start - 1), here)) start--
-        let end = index
-        while (end + 1 < n && HistoryRuns.sameRun(rows.get(end + 1), here)) end++
-
-        let critical = false
-        for (let i = start; i <= end && !critical; i++)
-            critical = Number(rows.get(i).urgency) === 2
-
-        return { start: start, length: end - start + 1, critical: critical,
-            key: root.runKey(here, rows.get(end)) }
+        const table = root._table()
+        const run = table.runOf[index]
+        return { start: run.start, length: run.end - run.start + 1, critical: run.critical,
+            key: root.runKey(table.rows[index], table.rows[run.end]) }
     }
 
     // A pooled row keeps its last index, and a Binding's value still evaluates while
@@ -76,8 +121,9 @@ QtObject {
         if (index < 0 || index >= rows.count)
             return { first: index === 0, section: true, header: true,
                 length: 1, critical: false, key: "", open: false }
-        const row = rows.get(index)
-        const previous = index > 0 ? rows.get(index - 1) : null
+        const table = root._table()
+        const row = table.rows[index]
+        const previous = index > 0 ? table.rows[index - 1] : null
         const section = !previous || root.dayKey(row.time) !== root.dayKey(previous.time)
         // a run of the same app right under another starts with its own header, so its
         // stack and its Clear take only its own rows
@@ -125,6 +171,20 @@ QtObject {
 
     property Connections _modelChanges: Connections {
         target: root.model
+        function onRowsAboutToBeInserted() { root._rowsChanging(true) }
+        function onRowsInserted() { root._rowsChanging(false) }
+        function onRowsAboutToBeRemoved() { root._rowsChanging(true) }
+        function onRowsRemoved() { root._rowsChanging(false) }
+        function onRowsAboutToBeMoved() { root._rowsChanging(true) }
+        function onRowsMoved() { root._rowsChanging(false) }
+        function onModelAboutToBeReset() { root._rowsChanging(true) }
+        function onModelReset() { root._rowsChanging(false) }
+        function onLayoutAboutToBeChanged() { root._rowsChanging(true) }
+        function onLayoutChanged() { root._rowsChanging(false) }
+        function onDataChanged() {
+            root._runs.table = null
+            root._relabels++
+        }
         function onCountChanged() { root._pruneOpenRuns() }
     }
 }
