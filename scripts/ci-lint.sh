@@ -1595,6 +1595,21 @@ else
     ok "Markdown" "heading names are unique within each file"
   fi
 fi
+# A moved file or a renamed heading leaves every link to it dead, and nothing renders
+# that as an error. The link check reads git's list of tracked files, so a plain source
+# tree without one has nothing for it to read.
+if [ -n "$tracked_err" ]; then
+  skip "Markdown links" "git lists no tracked files; link check skipped"
+elif command -v python3 >/dev/null 2>&1 && [ -f scripts/check-doc-links.py ]; then
+  if doc_links="$(python3 scripts/check-doc-links.py)"; then
+    ok "Markdown" "every relative link reaches its file and heading ($doc_links)"
+  else
+    fail "these Markdown links point at a missing file or heading:"
+    printf '%s\n' "$doc_links"
+  fi
+else
+  skip_or_fail_no_python "Markdown links" "python3 or scripts/check-doc-links.py missing" "link check"
+fi
 
 section "high-contrast alpha coverage"
 # every other Theme token re-bases onto white text under high contrast. An alpha that
