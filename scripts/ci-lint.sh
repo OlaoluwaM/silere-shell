@@ -383,6 +383,8 @@ section "loader lifetime bindings"
 # Loader.item only exists while Loader.active is true. Feeding item visibility
 # or status back into active creates a runtime binding loop that qmlcachegen
 # does not diagnose, so keep lifetime state outside the Loader instead.
+# It matches an active: line, or a line opening with || or &&, that reads item.opacity,
+# item.visible or item.status; a read on any other continuation line is not seen.
 loader_item_cycles="$(grep -RInE --include='*.qml' \
   '^[[:space:]]*(active:|\|\||&&).*(^|[^A-Za-z0-9_.])item(\?)?\.(opacity|visible|status)([^A-Za-z0-9_]|$)' \
   shell.qml lock.qml modules config services || true)"
@@ -390,13 +392,15 @@ if [ -n "$loader_item_cycles" ]; then
   fail "Loader.active must not depend on its own item:"
   printf '%s\n' "$loader_item_cycles"
 else
-  ok "Loaders" "lifetime does not depend on Loader.item"
+  ok "Loaders" "no active: line or ||/&& continuation reads item.opacity/visible/status"
 fi
 
 section "coordinate mapping in bindings"
 # mapToItem()/mapFromItem() read ancestor geometry in C++, so a binding that
 # calls them captures no dependency and keeps its first, pre-layout answer
 # forever. Call them from a function when the position is needed instead.
+# It matches a binding whose call sits on the line that names the property; a call on a
+# continuation line below it is not seen.
 mapped_bindings="$(grep -RInE --include='*.qml' \
   '^[[:space:]]*(readonly[[:space:]]+)?(property[[:space:]]+[A-Za-z_][A-Za-z0-9_]*[[:space:]]+)?[A-Za-z_][A-Za-z0-9_.]*:.*map(To|From)Item\(' \
   shell.qml lock.qml modules config services | grep -vE ':[[:space:]]*on[A-Z][A-Za-z0-9_]*:' || true)"
@@ -404,7 +408,7 @@ if [ -n "$mapped_bindings" ]; then
   fail "mapToItem()/mapFromItem() must not be used in a property binding:"
   printf '%s\n' "$mapped_bindings"
 else
-  ok "mapping" "coordinate mapping stays out of bindings"
+  ok "mapping" "no one-line property binding calls mapToItem()/mapFromItem()"
 fi
 
 section "pooled delegate motion"
@@ -1375,7 +1379,8 @@ fi
 
 section "widget theme tokens"
 # Literal widget colours bypass the shared palette and cannot participate in theme
-# changes. Theme.qml owns literal definitions; every visual component consumes a token.
+# changes. Theme.qml owns literal definitions. This matches quoted hex literals under
+# modules/; a Qt.rgba() literal, which a few shadows and highlights use, is not matched.
 widget_hex="$(grep -RInE --include='*.qml' \
   '"#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3}|[0-9A-Fa-f]{5})?"' modules || true)"
 if [ -n "$widget_hex" ]; then
@@ -1634,12 +1639,14 @@ section "process timeout derivation"
 # A Timer gated on a Process's own running flag is a hand-rolled BoundedProcess: it has
 # to reset its flag, stop itself on exit and kill the process by hand, and three copies
 # had drifted into three different shapes.
+# It scans services/ only, and ids that start with an underscore, the naming the services
+# give their processes; a binding elsewhere or on another id is not seen.
 hand_rolled="$(grep -rln 'running: _[A-Za-z0-9_]*\.running' --include='*.qml' services || true)"
 if [ -n "$hand_rolled" ]; then
   fail "process timeouts belong to BoundedProcess.timeoutMs, not a Timer on Process.running:"
   while IFS= read -r m; do printf '  %s\n' "$m"; done <<< "$hand_rolled"
 else
-  ok "process" "every process timeout derives from BoundedProcess"
+  ok "process" "nothing in services/ binds running: to an underscore id's .running"
 fi
 
 section "unbounded process opt-out"
@@ -1873,12 +1880,14 @@ section "row height derivation"
 # Metrics.rowHeightFor already snaps a design height to the 4px grid using the measured
 # base cap height. Hand-rolled "capHeight + 12" hardcodes a base of 20; the real one is
 # 16, so every copy came out 4px short of its neighbours above uiScale 1.0.
+# It matches that literal form, the one every copy took; another hand-rolled formula is
+# not seen.
 row_formulas="$(grep -rln 'capHeight + 12' --include='*.qml' . || true)"
 if [ -n "$row_formulas" ]; then
   fail "row heights must come from Metrics.rowHeightFor(design), not a hand-rolled cap height:"
   while IFS= read -r m; do printf '  %s\n' "$m"; done <<< "$row_formulas"
 else
-  ok "row height" "every design row height derives from the shared grid"
+  ok "row height" "no QML hand-rolls a row height as capHeight + 12"
 fi
 
 section "supervised give-up path"
