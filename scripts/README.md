@@ -24,8 +24,12 @@ Qt tools and makes missing QML prerequisites, or a missing shipped font, fail
 instead of skip. Run the full
 check from a graphical session for its Wayland coverage. Temporary instances
 run on a private session bus, so none can claim the desktop's notification or
-tray names, but they still reach the compositor and system services; this is
-not an entirely headless suite.
+tray names. A runner launched through `probe-lib.sh` also gets a system bus
+address nothing listens on, so its probe cannot reach the machine's
+NetworkManager, UPower or BlueZ; one that needs the real system bus sets
+`SILERE_PROBE_SYSTEM_BUS=1` before `_probe_private_bus` and says why. They
+still reach the compositor, and the startup smoke cases still see the system
+bus; this is not an entirely headless suite.
 The startup smoke case copies Silere's configuration into a private directory,
 including materializing symlink targets. Copy failures fail that check. This
 protects shell-owned settings and history from probe writes; configured external

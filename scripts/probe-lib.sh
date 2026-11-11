@@ -52,9 +52,18 @@ _probe_standalone() { # $1 = directory
 # their cleanup. The runner goes into a group of its own with its bus, the launcher forwards
 # what it receives to that group, and it waits for the runner's cleanup to finish. A run that
 # ends on its own reports the runner's status; a forwarded signal reports the bus's.
+#
+# A session bus of its own still leaves the machine's system bus in reach, and a probe that
+# mounts a real service then talks to the machine's NetworkManager, UPower or BlueZ: the
+# divider probe's Wi-Fi list started a scan and held the machine's own networks. So the
+# runner and its probe also get a system bus address nothing listens on. A runner that
+# needs the real one sets SILERE_PROBE_SYSTEM_BUS=1 before calling this, and says why.
 _probe_private_bus() { # $1 = runner, $@ = its arguments; never returns
     local runner="$1" bus status=0 forwarded=0
     shift
+    if [ "${SILERE_PROBE_SYSTEM_BUS:-0}" != "1" ]; then
+        export DBUS_SYSTEM_BUS_ADDRESS="unix:path=/nonexistent/silere-probe-system-bus"
+    fi
     setsid dbus-run-session -- bash "$runner" --private-bus "$@" &
     bus=$!
     trap 'forwarded=1; kill -TERM -- "-$bus" 2>/dev/null || true' INT TERM

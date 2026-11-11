@@ -80,3 +80,32 @@ Add `pkgs.jetbrains-mono` to the dev shell's fonts in `flake.nix`, so
 Deferred on 2026-10-27 because at the fork's pinned nixpkgs that package builds
 from source and one of its fixed-output inputs fails its hash, so it waits for
 a nixpkgs bump.
+
+## One shared setup for the probe runners
+
+Move the setup that every `scripts/test-*.sh` runner repeats into one helper in
+`scripts/probe-lib.sh`: the scratch directories with their cleanup trap
+installed first, the private config, state, cache and runtime directories, the
+offscreen launch with its environment, the wait for the done line, and the
+error scan. Each runner then keeps only what is its own: its probe, its
+stand-in tools and any extra checks. This was finding TEST-8 of the 2026-11-10
+review.
+
+Of the 36 runners, 32 relaunch on a private session bus, set the private
+directories and define their own cleanup, and 28 launch Quickshell offscreen,
+each by hand. Every setup bug that review turned up came from a copy that had
+drifted: two runners with no private config directory, three that made their
+temporary directories before installing the trap, and one whose probe reached
+the machine's own Wi-Fi through the system bus. Those are fixed one by one, and
+`_probe_private_bus` now withholds the system bus from every runner that uses
+it.
+
+Still outside that: `test-qml-headless.sh` does not go through
+`_probe_private_bus`, and the startup smoke cases in `check.sh` start the real
+shell on a session bus of their own and still see the system bus. The helper
+should cover both, or say why not.
+
+Deferred on 2026-11-11 because nothing is broken for lack of it and it touches
+every runner at once. It costs no merge surface, since all but one runner are
+the fork's own. The runners differ in small ways, so convert them a few at a
+time and run the full check after each batch.

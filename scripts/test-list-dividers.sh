@@ -39,12 +39,12 @@ cp "$ROOT/scripts/probe-list-dividers.qml" "$probe_project/probe-list-dividers.q
 
 # The probe mounts the real WifiList, which starts a scan on a machine that has a Wi-Fi
 # adapter and then publishes that machine's networks over the rows the probe feeds it,
-# whenever the scan answers before the probe is done. With no system bus there is no
-# NetworkManager to list an adapter, so the list holds only the probe's rows
+# whenever the scan answers before the probe is done. The private-bus launcher leaves the
+# probe no system bus, so there is no NetworkManager to list an adapter and the list holds
+# only the probe's rows
 XDG_CONFIG_HOME="$probe_root/config" XDG_STATE_HOME="$probe_root/config" \
     XDG_CACHE_HOME="$probe_root/cache" XDG_RUNTIME_DIR="$probe_root/runtime" \
     HYPRLAND_INSTANCE_SIGNATURE="" NIRI_SOCKET="" QT_NO_XDG_DESKTOP_PORTAL=1 \
-    DBUS_SYSTEM_BUS_ADDRESS="unix:path=$probe_root/no-system-bus" \
     QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen \
     setsid qs -p "$probe_project/probe-list-dividers.qml" --no-color >"$log" 2>&1 &
 probe_pid=$!
