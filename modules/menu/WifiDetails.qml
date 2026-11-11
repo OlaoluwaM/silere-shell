@@ -32,7 +32,7 @@ Column {
     ChoiceChipRow {
         width: root.width
         label: "Band"
-        enabled: WifiProfile.toolAvailable && WifiProfile.profileUuid.length > 0
+        enabled: WifiProfile.available && WifiProfile.profileUuid.length > 0
         currentValue: WifiProfile.bandSetting
         model: [
             { value: "",   label: "Auto" },

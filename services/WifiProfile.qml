@@ -13,7 +13,7 @@ import Quickshell.Io
 Singleton {
     id: root
 
-    readonly property bool toolAvailable: SystemTools.hasNmcli
+    readonly property bool available: SystemTools.hasNmcli
 
     // pushed by the details view while its disclosure is open; nothing here
     // polls unless someone is actually looking at it
@@ -23,7 +23,7 @@ Singleton {
         root.active = next
     }
 
-    readonly property bool _wanted: root.active && root.toolAvailable
+    readonly property bool _wanted: root.active && root.available
         && Network.connected && Network.isWifi && !Idle.isIdle
 
     property int _frequencyMHz: 0
@@ -57,7 +57,7 @@ Singleton {
     property string lastError: ""
 
     function setBand(value: string): void {
-        if (!root.toolAvailable || root.profileUuid.length === 0) return
+        if (!root.available || root.profileUuid.length === 0) return
         if (value === root.bandSetting) return
         if (_modifyProc.running || _activateProc.running) return
         root.lastError = ""
@@ -274,7 +274,7 @@ Singleton {
         // (root._wanted), so a bar-pill click can otherwise substitute a stale uuid or
         // silently no-op on an empty one; force a fresh read here regardless of that
         // gate and launch once it lands rather than trusting whatever profileUuid holds
-        if (!root.toolAvailable || Network.deviceName.length === 0) {
+        if (!root.available || Network.deviceName.length === 0) {
             root.lastError = "no active connection to edit"
             return
         }
