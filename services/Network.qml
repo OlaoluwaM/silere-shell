@@ -10,6 +10,13 @@ import "../config"
 Singleton {
     id: root
 
+    // QML categories default to Debug; the link watcher's per-event detail stays there and the
+    // lifecycle lines at Info. Interface names and counts only: never an address, SSID or profile name
+    readonly property LoggingCategory log: LoggingCategory {
+        name: "silere.network"
+        defaultLogLevel: LoggingCategory.Info
+    }
+
     readonly property bool toolAvailable: Networking.backend !== NetworkBackendType.None
     readonly property var _devices: Networking.devices.values || []
 
@@ -97,6 +104,7 @@ Singleton {
 
     property var _vpnState: ({ active: false, name: "", uuid: "" })
     readonly property bool hasVpn: _vpnState.active === true
+    onHasVpnChanged: console.info(root.log, "silere-shell: vpn indicator", root.hasVpn ? "on" : "off")
     readonly property string vpnName: _vpnState.name || ""
     property bool _vpnCandidateActive: false
     property string _vpnCandidateName: ""
@@ -105,6 +113,8 @@ Singleton {
     property string _vpnAddressFor: ""
     // a rebuilt interface can keep its profile's uuid and name yet hand out a new address
     property bool _vpnAddressStale: false
+    on_VpnAddressStaleChanged: console.debug(root.log, "silere-shell: vpn address stale mark",
+        root._vpnAddressStale ? "set" : "cleared")
     property bool _vpnRefreshPending: false
     readonly property bool _vpnWanted: !Idle.isIdle && available
         && ShellSettings.barShowNetwork && SystemTools.hasNmcli
@@ -600,6 +610,10 @@ Singleton {
             }
         }
         onExited: (code) => {
+            // going idle kills the listing on purpose, which is no failure
+            if (!_vpnProc.completedSuccessfully(code) && root._vpnWanted)
+                console.warn(root.log, "silere-shell: nmcli connection listing failed: exit", code,
+                    "timed out:", _vpnProc.timedOut)
             // hold the last known state through transient nmcli failures and publish one coherent update
             if (_vpnProc.completedSuccessfully(code) && (root.hasVpn !== root._vpnCandidateActive
                     || root.vpnName !== root._vpnCandidateName
@@ -632,6 +646,9 @@ Singleton {
         command: ["nmcli", "-t", "-g", "IP4.ADDRESS", "connection", "show", "uuid", root._vpnAddressFor]
         stdout: StdioCollector { id: _vpnAddressOut }
         onExited: (code) => {
+            if (!_vpnAddressProc.completedSuccessfully(code))
+                console.warn(root.log, "silere-shell: nmcli address read failed: exit", code,
+                    "timed out:", _vpnAddressProc.timedOut)
             if (root._vpnAddressFor !== root._activeVpnUuid()) {
                 Qt.callLater(root.refreshVpnAddress)
                 return
@@ -692,6 +709,8 @@ Singleton {
         if (next.length === 0) return
         const rx = root.interfaceRx(raw)
         const restarted = root._countersRestarted(rx) || root._linksReturned(rx)
+        if (restarted) console.debug(root.log, "silere-shell: counter restart or returned link;",
+            "every link treated as gone:", root._linksAllGone)
         root._interfaceRx = rx
         root._linksGone = Object.create(null)
         root._linksGoneCount = 0
@@ -699,6 +718,8 @@ Singleton {
         if (restarted) root._vpnAddressStale = true
         if (next === root._interfaceNames && !restarted) return
         const first = root._interfaceNames.length === 0
+        console.debug(root.log, "silere-shell: interface list read:", root._interfaceNames || "(none)",
+            "->", next, "rebuilt:", restarted)
         root._interfaceNames = next
         if (first) return
         root._queueVpnRefresh()
@@ -750,8 +771,11 @@ Singleton {
     property int _linksGoneCount: 0
     property bool _linksAllGone: false
     function _noteLinkGone(names: var): void {
+        console.debug(root.log, "silere-shell: link deleted:", names.join(" "))
         if (names.length === 0 || root._linksGoneCount + names.length > 32) {
             root._linksAllGone = true
+            console.debug(root.log, "silere-shell: every link treated as rebuilt:",
+                names.length === 0 ? "no name or events dropped" : "more than 32 names")
         } else if (!root._linksAllGone) {
             const gone = root._linksGone
             for (let i = 0; i < names.length; i++) {
@@ -782,6 +806,7 @@ Singleton {
         interval: 9000
         onTriggered: {
             if (!root._vpnWanted || !root.hasVpn) return
+            console.debug(root.log, "silere-shell: late vpn address reread after a link deletion")
             root._vpnAddressStale = false
             root.refreshVpnAddress()
         }
@@ -799,6 +824,8 @@ Singleton {
     }
 
     function _readLinksNow(): void {
+        console.debug(root.log, "silere-shell: link-event read due; deferred by the cooldown:",
+            root._linkEventsWaiting, "wanted:", root._vpnWanted)
         root._linkEventsWaiting = false
         if (!root._vpnWanted) return
         _linkCooldown.restart()
@@ -843,6 +870,8 @@ Singleton {
         stderr: SplitParser {
             onRead: line => {
                 if (!line.startsWith("netlink receive error")) return
+                console.warn(root.log,
+                    "silere-shell: link watcher overran its receive buffer; events were dropped")
                 root._noteLinkGone([])
                 root._readLinksSoon()
             }
@@ -853,9 +882,26 @@ Singleton {
         // edge reads too: the poll takes over then, and its counter check needs a recent
         // sample to compare with, not one up to two minutes old
         onRunningChanged: {
+            if (running) console.info(root.log, "silere-shell: link watcher up")
             if (!root._vpnWanted) return
             _interfaceFile.reload()
             if (running) root._readLinksSoon()
+        }
+        // exit is its own signal because the code is only known there; whether the run was
+        // kept or retired is told by onGaveUpChanged
+        onExited: (code, status) => console.info(root.log, "silere-shell: link watcher exited with code", code,
+            "status", status)
+        onGaveUpChanged: if (gaveUp) console.info(root.log,
+            "silere-shell: link watcher gave up; the 5s interface poll is the only reader")
+    }
+
+    // hasIp is false until the first scan lands, so the verdict waits for a scan
+    Connections {
+        target: SystemTools
+        function onScanRevisionChanged() {
+            if (!SystemTools.hasIp)
+                console.info(root.log,
+                    "silere-shell: ip is not available; the 5s interface poll is the only reader")
         }
     }
 

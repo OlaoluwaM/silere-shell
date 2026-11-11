@@ -241,7 +241,9 @@ outside issues or pull requests.
   make, so an address NetworkManager hands out within 9 s of the deletion
   reaches the bar, as does one handed out before a tunnel away for less than
   that returns. The watcher runs through idle, where a deletion only marks.
-  `SystemTools` scans `ip` (`hasIp`). Keep all of it on an import of the
+  `SystemTools` scans `ip` (`hasIp`). The service logs the watcher and the
+  VPN reader under `silere.network`, a few lines of it inside upstream's
+  interface-list and VPN-reader handlers. Keep all of it on an import of the
   interface watch, the VPN reader or the tool scan.
 - `services/Network.qml`: the VPN reader retries a missing address only after
   a listing that succeeded while detection is wanted. Upstream retries after

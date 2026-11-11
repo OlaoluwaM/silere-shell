@@ -22,7 +22,7 @@ QtObject {
     // way is not kept, so a read takes the rows as they stand whichever of this and the list
     // hears of the change first. A relabel moves no row and is reported once it is done;
     // _relabels carries it to the bindings, which read the table rather than the rows
-    readonly property var _runs: ({ table: null, changing: false, hearing: null })
+    readonly property var _runs: ({ table: null, changing: false, hearing: null, warned: false })
     property int _relabels: 0
 
     // A Connections declared here would connect only as it completes, which comes after
@@ -32,6 +32,12 @@ QtObject {
     // the model is heard from the moment it is given, and always before a table is built
     function _hear(): void {
         if (!root._runs.hearing) root._runs.hearing = root._rowChanges.createObject(root)
+        // each read retries while the listener is missing, so the flag rides in the holder no binding observes
+        if (!root._runs.hearing && !root._runs.warned) {
+            root._runs.warned = true
+            if (root.log) console.warn(root.log,
+                "silere-shell: grouping has no row listener; every read rebuilds its table")
+        }
     }
 
     // A binding that read the rows itself would come to depend on each one, and Qt

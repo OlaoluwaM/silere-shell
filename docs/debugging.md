@@ -1,5 +1,36 @@
 # Debugging
 
+## Finding the shell's logs
+
+The deployed shell is the user unit `silere-shell.service`, so
+`journalctl --user -u silere-shell` shows everything it prints, Qt's and
+Quickshell's own messages included. `journalctl --user -u silere-shell -g
+'silere[-.]'` keeps only the shell's own lines: each names a `silere.` category
+or starts with `silere-shell: `. The lock, network, caffeine and night light
+lines do both, so `-g silere-shell` alone finds those; the notification
+history's lines start with `history:` or `grouping:` under their category. A
+line reads `INFO silere.network: silere-shell: link watcher up`: the level,
+the category, then the message.
+
+Each area logs under a category of its own:
+
+- `silere.lock`: the lock screen, below.
+- `silere.notifications`: the history and the menu's grouping of it.
+- `silere.network`: the VPN indicator and the kernel link watcher.
+- `silere.caffeine`: the idle inhibitor unit and its stop timer.
+- `silere.nightlight`: the hyprsunset unit and its temperature pushes.
+
+`journalctl --user -u silere-shell -g 'silere\.network'` shows one category.
+Warnings mean something failed or timed out, Info a state change someone may
+ask about later, and Debug the detail of single events. Debug is off by
+default. To turn one category's Debug lines on, run `systemctl --user
+set-environment QT_LOGGING_RULES="silere.network.debug=true"` and restart
+`silere-shell.service`; unset it and restart again to turn them off. A dev
+instance (`nix develop . --command qs -p shell.qml`) prints the same lines to
+its terminal, and `QT_LOGGING_RULES=silere.network.debug=true` in front of the
+command turns Debug on there. The lock logs under its own journal tag as well,
+which the next section covers.
+
 ## Debugging the lock
 
 Every lock goes through nixos-config's `silere-lock` wrapper, which logs its
@@ -51,3 +82,42 @@ Updates that replace a row, trims and the grouping's open-state bookkeeping
 log at Debug. To see them, run `systemctl --user set-environment
 QT_LOGGING_RULES="silere.notifications.debug=true"` and restart
 `silere-shell.service`; unset it and restart again to turn them off.
+
+Two more lines come from the start-up and the page. A `notifications.json`
+that still carries the `seen` and `times` of an older version logs one Info
+line, since that state is ignored and goes at the next save. A grouping that
+could not make its row listener logs one Warn, because every read then rebuilds
+its table.
+
+## Debugging the network watcher
+
+The VPN indicator follows `nmcli`, and the interface list follows kernel link
+events read from `ip -o monitor link`; the 5 s poll reads the list whenever
+that watcher is down. Warn shows an `nmcli` listing or address read that
+failed or timed out, with its exit code, and the watcher losing kernel events
+to a receive-buffer overrun. Info shows the VPN indicator turning on or off,
+the watcher coming up, exiting with its code, or giving up, and `ip` being
+absent. Debug shows each deleted link by name, the fallback that treats every
+link as rebuilt and why, each read of the interface list and whether the
+cooldown deferred it, the list changing, the VPN address's stale mark being
+set and cleared, and the late reread after a deletion. Addresses, SSIDs, VPN
+profile names and uuids are never logged.
+
+## Debugging caffeine
+
+Warn shows an `is-active` check that timed out and a step of the toggle chain
+that failed, named by its first words (for example `systemctl --user start`),
+with its exit code. Info shows each toggle request (on with its minutes, or
+off), a run the `is-active` check found started or ended outside a toggle, and
+the inhibitor watcher giving up. Debug shows queued and run reschedules and
+the number of idle inhibitors changing. Inhibitor names and command output are
+never logged.
+
+## Debugging night light
+
+Warn shows a check that timed out, a start or stop that failed or timed out,
+a temperature push that hyprsunset did not accept, and the tool going missing.
+Each carries the exit code. Info shows each toggle request and how a keybind
+toggle was answered, a check that changed the state, and a start confirmed.
+Debug shows temperature pushes, pushes queued behind another, and the drift
+poll starting and stopping. Command output is never logged.

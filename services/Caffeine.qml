@@ -28,6 +28,13 @@ import "../config"
 Singleton {
     id: root
 
+    // QML categories default to Debug; requests and state changes stay at Info, the rest at Debug.
+    // Unit names and exit codes only: never an inhibitor's WHO or any command output
+    readonly property LoggingCategory log: LoggingCategory {
+        name: "silere.caffeine"
+        defaultLogLevel: LoggingCategory.Info
+    }
+
     readonly property string unit: ShellSettings.caffeineUnit
     readonly property bool available: unit.length > 0 && SystemTools.hasSystemctl
 
@@ -49,6 +56,8 @@ Singleton {
     function toggle(): void {
         if (!available || _toggleProc.running) return
         const goingOn = !root.manualActive
+        console.info(root.log, "silere-shell: toggle requested:",
+            goingOn ? "on, minutes " + ShellSettings.caffeinePreset + " (0 is no stop)" : "off")
         root._checkError = false
         root.lastError = ""
         // optimistic: the row/pill flips the moment it's tapped, and _checkActive
@@ -76,7 +85,12 @@ Singleton {
         // a chain (toggle-on, or an earlier reschedule) is already mid-flight: queue
         // this one rather than dropping it, same as _recheckPending queues a
         // reconciliation that arrived while _checkProc was already running
-        if (_toggleProc.running) { root._pendingPresetMinutes = minutes; return }
+        if (_toggleProc.running) {
+            console.debug(root.log, "silere-shell: reschedule queued behind a running chain, minutes", minutes)
+            root._pendingPresetMinutes = minutes
+            return
+        }
+        console.debug(root.log, "silere-shell: reschedule run, minutes", minutes)
         root._startTimed(minutes)
     }
 
@@ -165,6 +179,7 @@ Singleton {
         const rerun = root._recheckPending
         root._recheckPending = false
         if (timedOut) {
+            console.warn(root.log, "silere-shell: is-active check timed out")
             // a toggle error names what actually failed, so a slow check does not replace it
             if (root.lastError.length === 0 || root._checkError) {
                 root._checkError = true
@@ -175,6 +190,9 @@ Singleton {
                 root._checkError = false
                 root.lastError = ""
             }
+            if (root.manualActive !== (code === 0))
+                console.info(root.log, "silere-shell: is-active check found the run",
+                    code === 0 ? "started" : "ended")
             root.manualActive = (code === 0)
             // the run was just discovered here rather than armed by us (a shell
             // restarted mid-run, or an external re-arm the drift poll caught) --
@@ -200,6 +218,8 @@ Singleton {
         onExited: (code) => {
             const failed = !_toggleProc.completedSuccessfully(code)
             if (failed && !root._chainIgnoreCurrent) {
+                console.warn(root.log, "silere-shell: toggle step failed:",
+                    _toggleProc.command.slice(0, 3).join(" "), "exit", code, "timed out:", _toggleProc.timedOut)
                 // a hard failure mid-chain (systemd-run rejected, unit missing, ...)
                 // abandons the rest of the chain rather than starting a unit whose
                 // scheduled stop never got armed, or leaving a stop-timer stray
@@ -232,7 +252,11 @@ Singleton {
             if (root._pendingPresetMinutes >= 0) {
                 const nextPreset = root._pendingPresetMinutes
                 root._pendingPresetMinutes = -1
-                if (root.manualActive) { root._startTimed(nextPreset); return }
+                if (root.manualActive) {
+                    console.debug(root.log, "silere-shell: queued reschedule run, minutes", nextPreset)
+                    root._startTimed(nextPreset)
+                    return
+                }
             }
             // chain finished: reconcile with the unit, same as toggle() always did
             root._checkActive()
@@ -266,6 +290,8 @@ Singleton {
     }
 
     property bool _inhibitCheckPending: false
+    // only for the log: the count the last answered check found
+    property int _inhibitorCount: 0
 
     function _checkInhibitors(): void {
         if (!root.available) return
@@ -314,6 +340,10 @@ Singleton {
             root._inhibitCheckPending = false
             if (_inhibitProc.completedSuccessfully(code)) {
                 const who = root._parseIdleInhibitors(_inhibitOut.text)
+                if (who.length !== root._inhibitorCount) {
+                    console.debug(root.log, "silere-shell: idle inhibitors:", root._inhibitorCount, "->", who.length)
+                    root._inhibitorCount = who.length
+                }
                 root.inhibited = who.length > 0
                 root.inhibitorLabel = who.length === 0 ? ""
                     : who.length === 1 ? who[0]
@@ -377,6 +407,8 @@ Singleton {
         // reconciles any gap opened by a crash/restart cycle the instant the watcher is
         // back, same restat-on-restart idiom Recording.qml's inotifywait watcher uses
         onRunningChanged: if (running) root._checkInhibitors()
+        onGaveUpChanged: if (gaveUp) console.info(root.log,
+            "silere-shell: inhibitor watcher gave up; the 15s poll is the only reader")
     }
 
     // the countdown's source of truth for display: an epoch-ms mirror of the stop

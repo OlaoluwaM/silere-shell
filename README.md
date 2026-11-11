@@ -144,8 +144,9 @@ piecemeal.
 
 ## Other documents
 
-- [docs/debugging.md](docs/debugging.md): debugging the lock and the
-  notification history from the journal.
+- [docs/debugging.md](docs/debugging.md): finding the shell's logs in the
+  journal, and debugging the lock, notifications, network, caffeine and
+  night light.
 - [TODO.md](TODO.md): deferred work, each entry with why it waited.
 - [scripts/README.md](scripts/README.md): what the checks and probes cover.
 - [docs/README.md](docs/README.md): an index of the documents under `docs/`,

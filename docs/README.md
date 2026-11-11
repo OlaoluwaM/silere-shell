@@ -11,8 +11,8 @@ agents.
 - [upstream-divergences.md](upstream-divergences.md): the standing
   differences between this fork and upstream, each with the action an
   integration takes when they collide.
-- [debugging.md](debugging.md): debugging the lock and the notification
-  history from the journal.
+- [debugging.md](debugging.md): finding the shell's logs in the journal,
+  and debugging the lock, notifications, network, caffeine and night light.
 - [lock-screen-plan.md](lock-screen-plan.md): the lock screen's design and
   plan, shipped and kept for its rationale.
 - [lock-screen-qa.md](lock-screen-qa.md): the hand-run checklist for the lock

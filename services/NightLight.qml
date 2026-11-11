@@ -13,6 +13,13 @@ import Quickshell.Io
 Singleton {
     id: root
 
+    // QML categories default to Debug; requests and state changes stay at Info, pushes and polls at Debug.
+    // Temperatures, exit codes and unit names only: never command output
+    readonly property LoggingCategory log: LoggingCategory {
+        name: "silere.nightlight"
+        defaultLogLevel: LoggingCategory.Info
+    }
+
     readonly property string _unit: "hyprsunset.service"
 
     property bool enabled:        false
@@ -234,12 +241,14 @@ Singleton {
         }
         // a start's confirm push sends the same temperature, so the two never run at once
         if (_pushProc.running || _confirmPushProc.running) {
+            console.debug(root.log, "silere-shell: temperature push queued behind a running one")
             root._pushQueued = true
             return
         }
         root._pushQueued = false
         if (root.temperature === root._sentTemp) return
         root._sentTemp = root.temperature
+        console.debug(root.log, "silere-shell: temperature push:", root.temperature)
         _pushProc.exec(root.temperatureArgv(root.temperature))
     }
 
@@ -247,6 +256,9 @@ Singleton {
         id: _pushProc
         timeoutMs: 3000
         onExited: (code) => {
+            if (!_pushProc.completedSuccessfully(code))
+                console.warn(root.log, "silere-shell: temperature push failed: exit", code,
+                    "timed out:", _pushProc.timedOut)
             // a failed nudge is no row error, but the daemon may not have it, so the next is sent
             if (!_pushProc.completedSuccessfully(code)) root._sentTemp = -1
             // a start's confirm push waited for this run; one already retrying keeps its own pace
@@ -259,6 +271,7 @@ Singleton {
     function toggle(): void {
         if (!toolAvailable || _toggleProc.running) return
         const goingOn = !root.enabled
+        console.info(root.log, "silere-shell: toggle requested:", goingOn ? "on" : "off")
         // a toggle from anywhere settles the one a waiting keybind asked for, so it must not toggle again;
         // a check already running read the unit before this toggle and speaks for no later request
         root._toggleQueued = false
@@ -298,6 +311,7 @@ Singleton {
     // a keybind toggle waiting on a fresh check; it counts as busy, so later presses never stack
     property bool _toggleQueued: false
     onToolAvailableChanged: if (!root.toolAvailable) {
+        console.warn(root.log, "silere-shell: hyprsunset is no longer available")
         root._toggleQueued = false
         // a check still running read the unit for the dropped request, so it settles no later one
         _checkProc._forToggle = false
@@ -319,8 +333,14 @@ Singleton {
     // of a poll. "" means it toggled now and `enabled` names the request, "queued" that the
     // toggle follows the check, and "busy" or "unavailable" that nothing was asked
     function toggleFresh(): string {
-        if (!root.toolAvailable) return "unavailable"
-        if (_toggleProc.running || root._toggleQueued) return "busy"
+        if (!root.toolAvailable) {
+            console.info(root.log, "silere-shell: keybind toggle answered: unavailable")
+            return "unavailable"
+        }
+        if (_toggleProc.running || root._toggleQueued) {
+            console.info(root.log, "silere-shell: keybind toggle answered: busy")
+            return "busy"
+        }
         if (root._watched) {
             root.toggle()
             return ""
@@ -329,6 +349,7 @@ Singleton {
         // a check already running when the keybind came cannot see a change made after it
         // started, so it is followed by another instead of counting
         root._checkActive()
+        console.info(root.log, "silere-shell: keybind toggle answered: queued behind a fresh check")
         return "queued"
     }
 
@@ -377,6 +398,7 @@ Singleton {
         const rerun = root._recheckPending
         root._recheckPending = false
         if (timedOut) {
+            console.warn(root.log, "silere-shell: is-active check timed out")
             // a toggle error names what actually failed, so a slow check does not replace it
             if (root.lastError.length === 0 || root._checkError) {
                 root._checkError = true
@@ -389,6 +411,9 @@ Singleton {
                 root._checkError = false
                 root.lastError = ""
             }
+            if (root.enabled !== (code === 0))
+                console.info(root.log, "silere-shell: is-active check changed the state to",
+                    code === 0 ? "on" : "off")
             root.enabled = (code === 0)
             // the unit autostarts with the session and runs its own scheduled
             // staircase, so merely observing it active (e.g. first menu open)
@@ -397,6 +422,7 @@ Singleton {
             // flipped enabled, so the flag and the generation mark that start
             const confirms = _checkProc._generation === root._toggleGeneration
             if (confirms && root.enabled && root._pushTempOnConfirm) {
+                console.info(root.log, "silere-shell: start confirmed active")
                 root._pushTempOnConfirm = false
                 root._confirmPushGeneration = root._toggleGeneration
                 root._confirmPushAttempts = 0
@@ -432,6 +458,8 @@ Singleton {
         if (_confirmPushProc.running || _pushProc.running || !root.enabled
                 || root._confirmPushGeneration !== root._toggleGeneration) return
         root._confirmPushAttempts++
+        console.debug(root.log, "silere-shell: confirm push, attempt", root._confirmPushAttempts,
+            "temperature", root.temperature)
         _confirmPushProc._generation = root._confirmPushGeneration
         root._sentTemp = root.temperature
         _confirmPushProc.exec(root.temperatureArgv(root.temperature))
@@ -448,6 +476,8 @@ Singleton {
                     && _confirmPushOut.text.trim().toLowerCase() === "ok") {
                 root._confirmPushGeneration = -1
             } else {
+                console.warn(root.log, "silere-shell: confirm push not accepted: exit", code,
+                    "timed out:", _confirmPushProc.timedOut, "current run:", current)
                 root._sentTemp = -1
                 // a newer start skipped its push while this run held the process; it starts a
                 // tick later so it arms a timeout of its own, which BoundedProcess does on the running edge
@@ -472,6 +502,8 @@ Singleton {
         stderr: StdioCollector { id: _toggleErr }
         onExited: (code) => {
             if (!_toggleProc.completedSuccessfully(code)) {
+                console.warn(root.log, "silere-shell: unit command failed:",
+                    _toggleProc.command.slice(0, 3).join(" "), "exit", code, "timed out:", _toggleProc.timedOut)
                 root._checkError = false
                 root.lastError = SafeText.lastNonEmptyLine(
                     _toggleErr.text, "hyprsunset.service did not respond", 160)
@@ -495,6 +527,7 @@ Singleton {
     Timer {
         interval: 60000; repeat: true
         running: root.toolAvailable && root._pollWanted && !Idle.isIdle
+        onRunningChanged: console.debug(root.log, "silere-shell: drift poll", running ? "started" : "stopped")
         onTriggered: root._checkActive()
     }
 }

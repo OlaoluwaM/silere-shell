@@ -483,6 +483,10 @@ Singleton {
             // over it would replace whatever the field really holds
             if (!fromFuture && parsed.history !== undefined && !Array.isArray(parsed.history))
                 throw new Error("notification history must be an array")
+            // a newer version's file is never saved over, so nothing goes from that one
+            if (!fromFuture && (parsed.seen !== undefined || parsed.times !== undefined))
+                console.info(root.historyLog, "silere-shell: notifications.json carries seen/times state from",
+                    "an older version; it was ignored and goes at the next save")
             if (fromFuture) {
                 _diskStore.writeAllowed = false
                 _diskStore.lastSavedText = trimmed
