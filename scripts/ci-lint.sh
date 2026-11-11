@@ -412,6 +412,8 @@ section "pooled delegate motion"
 # new subject in from them as the row scrolls into view. Scan every file that pools rows,
 # plus the component each pooling list names as its delegate: turning reuseItems on for a
 # list whose delegate lives in another file is exactly how this regressed.
+# Only those files are read. A component the delegate instantiates (ExpandableBody inside
+# RecentPage's inline delegate, say) lives in a file of its own that is not opened here.
 _pooled_file_list() {
   local f type cand
   while IFS= read -r f; do
@@ -473,7 +475,7 @@ if [ -n "$pooled_ungated" ] || [ -n "$pooled_unhooked" ]; then
     printf '%s' "$pooled_unhooked"
   fi
 else
-  ok "pooling" "every animation in a pooled delegate is gated"
+  ok "pooling" "every animation in a pooling file or its named delegate file is gated"
 fi
 
 section "pooled view transitions"
