@@ -55,6 +55,8 @@
               brightnessctl # Brightness.qml backend
               libnotify # notify-send paths in SystemTools.qml
               dbus # isolated notification reload probes
+              glib # gdbus, which scripts/test-notification-stack.sh drives the notification daemon with
+              python3 # ci-lint.sh's checkers and the probe runners' inline assertions
               inotify-tools # Screenshot.qml's file watcher
               shellcheck # for edits under scripts/
             ];
