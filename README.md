@@ -72,12 +72,9 @@ For each integration:
    affected fork behavior. Validate interactive Hyprland changes in a
    throwaway instance and label mock or static coverage accurately.
 
-When upstream is reviewed for picks, record the reviewed upstream SHA and
-selected, deferred, or rejected change groups with brief reasons in a dated
-integration record under `docs/`.
-
-The [docs index](docs/README.md#integration-records) summarises each dated
-integration record.
+A pick's commit message is its record. The dated integration records under
+`docs/` are history from the time upstream was reviewed on a schedule; the
+[docs index](docs/README.md#integration-records) summarises each.
 
 History stays intact because nixos-config pins this branch by commit. Undo a
 landed cherry-pick with a revert, accounting for any dependent follow-ups.
