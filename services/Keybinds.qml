@@ -24,14 +24,9 @@ Singleton {
 
     property bool _parsed: false
     property var entries: []
-    // first-seen order, not alphabetical -- the Nix side controls display order by how
-    // it writes the array, this just mirrors that into a de-duplicated group list
-    property var groups: []
 
     function _applyEntries(raw: var): void {
         const list = []
-        const seenGroups = []
-        const groupSeen = ({})
         for (let i = 0; i < raw.length; i++) {
             const e = raw[i]
             if (!e || typeof e !== "object") continue
@@ -41,16 +36,13 @@ Singleton {
                 ? e.group.trim() : "Other"
             if (keys.length === 0 || desc.length === 0) continue
             list.push({ keys: keys, desc: desc, group: group })
-            if (!groupSeen[group]) { groupSeen[group] = true; seenGroups.push(group) }
         }
         root.entries = list
-        root.groups = seenGroups
     }
 
     function _clear(): void {
         root._parsed = false
         root.entries = []
-        root.groups = []
     }
 
     function _applyText(text: string): void {

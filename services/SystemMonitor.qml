@@ -20,7 +20,6 @@ Singleton {
     }
 
     readonly property bool available: _launcher.available
-    readonly property string lastError: _launcher.lastError
 
     function launch(widget: string): void {
         _launcher.launch("widget", widget, /^(cpu|mem|temp|disk|battery)$/)
