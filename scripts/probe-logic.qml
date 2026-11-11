@@ -163,6 +163,9 @@ ShellRoot {
     Component { id: workspaceUrgentTickFactory; WorkspaceUrgentTick {} }
     Component { id: pillFactory; Pill { visible: true; glyph: "a" } }
     Component { id: rollingTextFactory; RollingText { visible: true; text: "one" } }
+    Component { id: mediaWidgetFactory; MediaWidget {} }
+    Component { id: clockFactory; Clock {} }
+    Component { id: hintTextFactory; HintText { width: 300; text: "Fits on one line." } }
     Component {
         id: windowTitleFactory
         WindowTitle {
@@ -618,6 +621,39 @@ ShellRoot {
         root._check(!rolling.clip && rolling._shown === "two",
             "a sleeping readout drops the roll and lands on the value")
         rolling.destroy()
+
+        // a standing clip breaks batching, so each of these clips only while its content overruns it
+        const media = mediaWidgetFactory.createObject(root)
+        const mediaFull = media.children[1].implicitWidth + media._pillPad * 2
+        media.width = mediaFull
+        const mediaRest = media.clip
+        media.width = mediaFull - 1
+        root._check(!mediaRest && media.clip,
+            "the media widget clips only while its width is short of its content")
+        media.destroy()
+
+        // reduce-motion lands the reveal at once, so the probe reads the date at rest
+        const clockReduceWas = ShellSettings.reduceMotion
+        ShellSettings.reduceMotion = true
+        const clock = clockFactory.createObject(root)
+        const dateSection = clock.children.find(c => c.layoutDirection !== undefined).children[0]
+        dateSection._shown = 1
+        const dateRest = dateSection.clip
+        dateSection._shown = 0.5
+        root._check(!dateRest && dateSection.clip,
+            "the clock's date clips only while it eases in or out")
+        clock.destroy()
+        ShellSettings.reduceMotion = clockReduceWas
+
+        const hint = hintTextFactory.createObject(root)
+        const hintRest = hint.clip
+        hint.text = "x".repeat(400)
+        const hintWide = hint.clip
+        hint.text = "Fits on one line."
+        hint.height = 4
+        root._check(!hintRest && hintWide && hint.clip,
+            "a hint clips only when a word or an outside height overruns it")
+        hint.destroy()
 
         const underline = barUnderlineFactory.createObject(root)
         root._check(underline !== null, "the reactive underline builds")

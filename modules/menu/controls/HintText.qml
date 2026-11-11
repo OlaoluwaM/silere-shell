@@ -18,7 +18,9 @@ Item {
     width: parent ? parent.width : 0
     // snapped to 4 so rows below stay on the divider grid
     implicitHeight: 4 * Math.ceil((_text.implicitHeight + _topPad + _bottomPad) / 4)
-    clip: true
+    // only while a word too long to wrap, or a height set from outside, would paint past the box;
+    // a standing clip node breaks batching
+    clip: _text.x + _text.contentWidth > width || _text.y + _text.contentHeight > height
 
     ShellText {
         id: _text

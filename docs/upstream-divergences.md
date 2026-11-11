@@ -136,6 +136,14 @@ outside issues or pull requests.
 - `modules/common/ActionButton.qml`: a `fontFamily` input for the label,
   defaulting to `Settings.font`, so the lock's power card can draw its buttons
   in the lock's font. Every other caller leaves it alone; keep it on an import.
+- `modules/bar/widgets/MediaWidget.qml`, `modules/bar/widgets/Clock.qml` and
+  `modules/menu/controls/HintText.qml`: the media widget, the clock's date
+  section and the hint clip only while their content overruns them, where
+  upstream clips all three always. The media widget gates on its width
+  against the content's, the date on its reveal and on its date readout's
+  eased width, the hint on its text's painted size against its own. A standing
+  clip node keeps the renderer from batching their children with their
+  neighbours. Keep the gates on an import of any of these clips.
 - `qmldir` files, `BarContent`'s widget registry, `barWidgetMeta`, and the
   zone-order defaults: unions — keep both sides' entries.
 - `scripts/check.sh` keeps sequential smoke cases and their shared launcher.

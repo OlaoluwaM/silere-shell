@@ -11,7 +11,8 @@ Item {
     property bool compact: ShellSettings.barCompact
     implicitWidth: root.show ? _content.implicitWidth + root._pillPad * 2 : 0
     implicitHeight: parent ? parent.height : ShellSettings.barHeight
-    clip: true
+    // only while the width eases toward the content or away from it; a standing clip node breaks batching
+    clip: _content.implicitWidth + root._pillPad * 2 > root.width
     enabled: root.show
 
     readonly property bool show: ShellSettings.barShowMedia && Media.shown

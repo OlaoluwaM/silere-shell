@@ -124,7 +124,9 @@ Item {
             width:   (_dateRow.implicitWidth + Metrics.clockDateGapFor(root.compact)) * _shown
             opacity: _shown
             visible: _shown > 0.001
-            clip:    true
+            // only while the date eases in or out, or its own width eases after a font change and
+            // the text overruns it; a standing clip node breaks batching
+            clip:    _shown < 1 || _dateCore.width < _dateCore.implicitWidth
 
             Row {
                 id: _dateRow
@@ -139,6 +141,7 @@ Item {
                     expanded: !ShellSettings.compactDate && !root.compact
                 }
                 RollingText {
+                    id: _dateCore
                     text:    DateTime.cachedDateCore
                     color:   root._cSub
                     animate: root._animatable
