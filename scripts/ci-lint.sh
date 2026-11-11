@@ -855,6 +855,43 @@ else
   skip_or_fail_no_python "handlers" "python3 or scripts/check-connections.py missing" "Connections check"
 fi
 
+section "private singleton members"
+# A leading underscore marks a member private to its file, so its owner renames or
+# reshapes it without looking further. A read of a singleton's _member from another
+# file then turns undefined with no warning, the same silence as a misspelt member.
+# Members other files need take a public name. Probes and fixtures under scripts/
+# test internals on purpose and are not scanned; a comment may still name one.
+# The qmldir paths ride ahead of every xargs batch, so each awk run knows the owners.
+singleton_qmldirs=(services/qmldir config/qmldir)
+while IFS= read -r -d '' q; do singleton_qmldirs+=("$q"); done \
+  < <(find modules -name qmldir -print0)
+if ! private_reads="$(find shell.qml lock.qml modules config services -name '*.qml' -print0 \
+  | xargs -0 -r awk '
+  FILENAME ~ /(^|\/)qmldir$/ {
+    if ($1 == "singleton") { dir = FILENAME; sub(/qmldir$/, "", dir); owner[$2] = dir $NF; owners++ }
+    next
+  }
+  {
+    line = " " $0
+    sub(/\/\/.*/, "", line)
+    while (match(line, /[^[:alnum:]_.$][[:upper:]][[:alnum:]_]*\._[[:alnum:]_]+/)) {
+      read = substr(line, RSTART + 1, RLENGTH - 1)
+      line = substr(line, RSTART + RLENGTH)
+      name = read
+      sub(/\..*/, "", name)
+      if ((name in owner) && owner[name] != FILENAME) print FILENAME ":" FNR ": " read
+    }
+  }
+  END { if (owners == 0) exit 1 }
+' "${singleton_qmldirs[@]}")"; then
+  fail "could not check private singleton member reads"
+elif [ -n "$private_reads" ]; then
+  fail "only a singleton's own file may read its underscore members:"
+  printf '%s\n' "$private_reads"
+else
+  ok "singletons" "no file under shell.qml, lock.qml, modules, config or services reads another file's singleton _member"
+fi
+
 section "terminal detection"
 # `[ -r /dev/tty ]` only stats the device node — it succeeds in a session with no
 # controlling terminal, where the following read fails with ENXIO and leaves the

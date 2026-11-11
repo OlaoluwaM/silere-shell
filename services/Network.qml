@@ -482,7 +482,7 @@ Singleton {
     // colon-delimited nmcli terse output escapes both the field separator and
     // its own escape character with a leading backslash. WifiProfile parses the
     // same terse format and calls this rather than carrying its own copy.
-    function _splitNmcliLine(line: string): var {
+    function splitNmcliLine(line: string): var {
         const fields = []
         let cur = ""
         let escaped = false
@@ -599,7 +599,7 @@ Singleton {
         stdout: SplitParser {
             onRead: line => {
                 if (root._vpnCandidateActive) return
-                const fields = root._splitNmcliLine(line)
+                const fields = root.splitNmcliLine(line)
                 if (fields.length >= 3
                         && (fields[0] === "vpn" || fields[0] === "wireguard" || fields[0] === "tun")) {
                     root._vpnCandidateActive = true

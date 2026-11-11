@@ -2351,14 +2351,14 @@ ShellRoot {
         niri.destroy()
 
         // nmcli -t escapes a colon inside a name; the VPN row is the only reader left
-        const nmFields = Network._splitNmcliLine("home\\:vpn:vpn:activated")
+        const nmFields = Network.splitNmcliLine("home\\:vpn:vpn:activated")
         root._check(nmFields.length === 3 && nmFields[0] === "home:vpn"
                 && nmFields[1] === "vpn" && nmFields[2] === "activated",
             "an escaped colon stays inside one nmcli field")
-        const nmSlash = Network._splitNmcliLine("back\\\\slash:vpn")
+        const nmSlash = Network.splitNmcliLine("back\\\\slash:vpn")
         root._check(nmSlash.length === 2 && nmSlash[0] === "back\\slash",
             "an escaped backslash ends its own escape")
-        const nmEmpty = Network._splitNmcliLine("a::b")
+        const nmEmpty = Network.splitNmcliLine("a::b")
         root._check(nmEmpty.length === 3 && nmEmpty[1] === "",
             "an empty nmcli field is kept in place")
 

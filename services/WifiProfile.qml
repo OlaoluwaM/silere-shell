@@ -118,7 +118,7 @@ Singleton {
         stdout: SplitParser {
             onRead: line => {
                 if (_freqProc._candidateFound) return
-                const fields = Network._splitNmcliLine(line)
+                const fields = Network.splitNmcliLine(line)
                 if (fields.length < 3 || fields[0] !== "yes") return
                 const m = /^(\d+)/.exec(fields[1].trim())
                 if (!m) return
@@ -150,7 +150,7 @@ Singleton {
         }
         stdout: SplitParser {
             onRead: line => {
-                const fields = Network._splitNmcliLine(line)
+                const fields = Network.splitNmcliLine(line)
                 if (fields.length < 2) return
                 const key = fields[0]
                 const value = fields.slice(1).join(":")
@@ -204,7 +204,7 @@ Singleton {
         stdout: SplitParser {
             onRead: line => {
                 if (_bandProc._found) return
-                const fields = Network._splitNmcliLine(line)
+                const fields = Network.splitNmcliLine(line)
                 if (fields.length < 1 || fields[0] !== "802-11-wireless.band") return
                 _bandProc._value = fields.slice(1).join(":").trim()
                 _bandProc._found = true
