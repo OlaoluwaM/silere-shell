@@ -1,0 +1,3 @@
+[1;32mDEBUG [0m]: Skipping fork due to --no-fork option
+[1;32mDEBUG [0m]: Detected config provider: lua
+[1;32mDEBUG [0m]: Parsed 0 apps from socket

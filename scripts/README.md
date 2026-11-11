@@ -14,7 +14,8 @@ nix develop . --command bash scripts/check.sh
 
 `ci-lint.sh` checks source structure, shell syntax, module registrations,
 settings coverage, and repository conventions. It also runs ShellCheck when
-available and the portability regressions (shell helpers, probe isolation, and lint tools).
+available and the portability regressions (shell helpers, probe isolation, lint tools, and
+the session end log parser).
 
 `check.sh` includes that lint pass, checks dependencies, compiles QML, runs
 behavioral probes, starts disposable shell instances, and checks settings and
@@ -75,6 +76,7 @@ The full check already includes the runners below, directly or through
 | [test-tooling.sh](test-tooling.sh) | XDG path fallbacks, QML import-root and Quickshell version lookup, headless QML tools receiving every import root, hook timeout containment, and the internal-type lint |
 | [test-smoke-config.sh](test-smoke-config.sh) | Private startup configuration copying, symlink isolation, failure handling, launcher wiring, and cleanup; run by `ci-lint.sh` with the other portability regressions |
 | [test-probe-stop.sh](test-probe-stop.sh) | Probe group stop: helpers die with their leader, a reaped leader's helpers still go, a stop without `ps` ends a TERM-ignoring probe, and foreign, plain-child and malformed pids are left alone; run by `ci-lint.sh` with the other portability regressions |
+| [test-session-end-outcome.sh](test-session-end-outcome.sh) | How `hypr-session-end.sh` reads hyprshutdown's log: a finished run, a cancel, a force quit, nothing to close, an empty or unfinished log, and app classes that read as status lines. It evaluates only the parser functions' text against `fixtures/session-end/`, never the script; run by `ci-lint.sh` with the other portability regressions |
 
 The Bluetooth regression does not pair or disconnect real hardware. Its fixture
 replaces the Bluetooth service while exercising the real menu list. Hardware

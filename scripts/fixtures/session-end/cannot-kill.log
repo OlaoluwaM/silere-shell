@@ -1,0 +1,6 @@
+[1;32mDEBUG [0m]: Skipping fork due to --no-fork option
+[1;32mDEBUG [0m]: Parsed 1 apps from socket
+[1;34mTRACE [0m]: CApp::quit: using SIGTERM for chat, pid 1007
+[1;32mDEBUG [0m]: Found 1 output(s)
+[1;32mDEBUG [0m]: Updated state: apps size 1
+[1;34mTRACE [0m]: Can't kill chat

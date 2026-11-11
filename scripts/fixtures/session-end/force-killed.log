@@ -1,0 +1,8 @@
+[1;32mDEBUG [0m]: Skipping fork due to --no-fork option
+[1;32mDEBUG [0m]: Parsed 2 apps from socket
+[1;34mTRACE [0m]: CApp::quit: using close for browser
+[1;34mTRACE [0m]: CApp::quit: using close for terminal
+[1;32mDEBUG [0m]: Found 1 output(s)
+[1;32mDEBUG [0m]: Updated state: apps size 2
+[1;32mDEBUG [0m]: Updated state: apps size 1
+[1;34mTRACE [0m]: CApp::kill: killing browser

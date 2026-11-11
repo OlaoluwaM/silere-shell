@@ -1,0 +1,17 @@
+[1;32mDEBUG [0m]: Skipping fork due to --no-fork option
+[1;32mDEBUG [0m]: Detected config provider: lua
+[1;32mDEBUG [0m]: Parsed 8 apps from socket
+[1;34mTRACE [0m]: CApp::quit: using close for cards
+[1;34mTRACE [0m]: CApp::quit: using close for org.example.Notes
+[1;34mTRACE [0m]: CApp::quit: using close for browser
+[1;34mTRACE [0m]: CApp::quit: using close for terminal
+[1;34mTRACE [0m]: CApp::quit: using SIGTERM for idle-inhibit-helper, pid 1001
+[1;34mTRACE [0m]: CApp::quit: using SIGTERM for wallpaper-daemon, pid 1002
+[1;34mTRACE [0m]: CApp::quit: using SIGTERM for silere-bar, pid 1003
+[1;34mTRACE [0m]: CApp::quit: using SIGTERM for silere-power, pid 1003
+[1;34mTRACE [0m]: CApp::quit: using SIGTERM for .browser-wrappe, pid 1004
+[1;34mTRACE [0m]: CApp::quit: using SIGTERM for .terminal-wrap, pid 1005
+[1;34mTRACE [0m]: CApp::quit: using SIGTERM for editor, pid 1006
+[1;34mTRACE [0m]: CApp::quit: using SIGTERM for chat, pid 1007
+[1;32mDEBUG [0m]: Found 1 output(s)
+[1;32mDEBUG [0m]: Updated state: apps size 0

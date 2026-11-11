@@ -1910,7 +1910,8 @@ section "portability regressions"
 portability_log="$(mktemp "${TMPDIR:-/tmp}/silere-portability.XXXXXX.log")"
 if { bash scripts/test-tooling.sh \
     && bash scripts/test-smoke-config.sh \
-    && bash scripts/test-probe-stop.sh; } 2>&1 | tee "$portability_log"; [ "${PIPESTATUS[0]}" -eq 0 ]; then
+    && bash scripts/test-probe-stop.sh \
+    && bash scripts/test-session-end-outcome.sh; } 2>&1 | tee "$portability_log"; [ "${PIPESTATUS[0]}" -eq 0 ]; then
   if grep -q '^SKIP' "$portability_log"; then
     skip "portability" "$(sed -n 's/^SKIP: //p' "$portability_log" | head -1)"
   else

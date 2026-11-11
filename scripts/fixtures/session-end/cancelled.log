@@ -1,0 +1,9 @@
+DEBUG ]: Skipping fork due to --no-fork option
+DEBUG ]: Parsed 3 apps from socket
+TRACE ]: CApp::quit: using close for browser
+TRACE ]: CApp::quit: using close for terminal
+TRACE ]: CApp::quit: using SIGTERM for chat, pid 1007
+DEBUG ]: Found 1 output(s)
+DEBUG ]: Updated state: apps size 3
+DEBUG ]: Updated state: apps size 2
+DEBUG ]: Updated state: apps size 1
