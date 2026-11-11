@@ -39,7 +39,7 @@ through it.
   looks, moves, reads or responds goes through, showcase the options in an
   artifact and wait for the maintainer's pick. A bug fix that alters a
   shape, a label, motion or input counts. When it is unclear whether a
-  change touches the design, treat it as one.
+  change touches the design, ask.
 
 ## Compositor priority
 
