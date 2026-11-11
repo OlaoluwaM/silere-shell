@@ -2,10 +2,10 @@ import QtQuick
 import "../../../config"
 import "../../common"
 
-// A chip row with a subtitle under its label. It wraps upstream's ChoiceChipRow instead
-// of changing it, since upstream reworks that file often, and uses only its public
-// surface: given no label or glyph, the base draws just its chips across the width it is
-// handed, so this row sizes that width and draws the glyph and text as ToggleRow does.
+// A chip row with a subtitle under its label, for choices that need a line of
+// explanation. It draws the glyph and text as ToggleRow does and hosts a ChoiceChipRow
+// for the chips through its public surface alone: given no label or glyph, the base
+// draws just its chips across the width it is handed, and this row sizes that width.
 MenuRow {
     id: root
 
