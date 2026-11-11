@@ -2,12 +2,8 @@
 
 ## Reporting
 
-Report a vulnerability privately through
-[GitHub Security Advisories](https://github.com/s3rven/silere-shell/security/advisories/new).
-Please don't open a public issue for anything exploitable.
-
-Expect a first reply within a week. Accepted fixes land on `custom-branch`, credited
-unless you'd rather not be.
+This is a personal fork with one user. It takes no outside issues, pull
+requests or vulnerability reports. Fixes land on `custom-branch`.
 
 ## Scope
 
