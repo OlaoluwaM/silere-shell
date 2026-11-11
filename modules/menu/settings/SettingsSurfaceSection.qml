@@ -11,22 +11,20 @@ Column {
     SettingsCard {
         ChoiceChipRow {
             glyph: "󰍹"; label: "Position"
-            currentValue: ShellSettings.barPosition
+            key: "barPosition"
             model: [
                 { value: "top",    label: "Top"    },
                 { value: "bottom", label: "Bottom" }
             ]
-            onChosen: (v) => ShellSettings.barPosition = v
         }
         ChoiceChipRow {
             glyph: "󰲏"; label: "Height"
-            currentValue: ShellSettings.barHeight
+            key: "barHeight"
             model: [
                 { value: 28, label: "Compact" },
                 { value: 36, label: "Normal"  },
                 { value: 44, label: "Tall"    }
             ]
-            onChosen: (v) => ShellSettings.barHeight = v
         }
         // docked pins the bar's own corners to zero; the hover capsule and OSD pill still take
         // this radius, and they round at half a row rather than half the bar

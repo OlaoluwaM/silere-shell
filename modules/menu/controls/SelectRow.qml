@@ -12,7 +12,8 @@ Item {
     property string label:       ""
     property string description: ""
     property var    model:       []
-    property var    currentValue
+    property string key:         ""
+    property var    currentValue: root.key.length > 0 ? ShellSettings[root.key] : undefined
     property color  accentColor: Theme.accent
     // one component serves the header and every option; each reads its subject off its own Loader
     property Component optionPreview: null
@@ -108,6 +109,14 @@ Item {
         interval: 0
         onTriggered: {
             root._revealActiveOption()
+        }
+    }
+
+    // Connections, not an onChosen handler: a handler here would be replaced by one written at the use site instead of running alongside it
+    Connections {
+        target: root
+        function onChosen(value) {
+            if (root.key.length > 0) ShellSettings.setValue(root.key, value)
         }
     }
 

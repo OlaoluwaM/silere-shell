@@ -51,7 +51,7 @@ Column {
         SelectRow {
             label: "Style"
             description: "Divider between widgets"
-            currentValue: ShellSettings.dotStyle
+            key: "dotStyle"
             optionPreview: _dividerPreview
             model: [
                 { value: "line",  label: "Line"       },
@@ -62,18 +62,16 @@ Column {
                 { value: "slash", label: "Slash"     },
                 { value: "none",  label: "None"      }
             ]
-            onChosen: (v) => ShellSettings.dotStyle = v
         }
         CollapsibleSection {
             expanded: ShellSettings.dotStyle !== "none"
             ChoiceChipRow {
                 glyph: "󰕯"; label: "Placement"
-                currentValue: ShellSettings.barSeparatorMode
+                key: "barSeparatorMode"
                 model: [
                     { value: "groups",  label: "Groups" },
                     { value: "widgets", label: "Every"  }
                 ]
-                onChosen: (v) => ShellSettings.barSeparatorMode = v
             }
         }
         // the window title separator takes this alpha under the None style too

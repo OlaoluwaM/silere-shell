@@ -47,13 +47,12 @@ Column {
             }
             ChoiceChipRow {
                 glyph: "󰈶"; label: "Feedback for"
-                currentValue: ShellSettings.osdKindFilter
+                key: "osdKindFilter"
                 model: [
                     { value: "both",       glyph: "󰓎", label: "Both" },
                     { value: "volume",     glyph: "󰕾", label: "Vol"  },
                     { value: "brightness", glyph: "󰃟", label: "Brt"  }
                 ]
-                onChosen: (v) => ShellSettings.osdKindFilter = v
             }
         }
     }

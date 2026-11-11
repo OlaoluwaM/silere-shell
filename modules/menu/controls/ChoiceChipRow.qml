@@ -10,13 +10,22 @@ MenuRow {
 
     property string label: ""
     property var    model: []
-    property var    currentValue
+    property string key: ""
+    property var    currentValue: root.key.length > 0 ? ShellSettings[root.key] : undefined
     property color  accentColor: Theme.accent
 
     rowHovered:     _rowHover.hovered
     rowInteractive: root.enabled
 
     signal chosen(var value)
+
+    // Connections, not an onChosen handler: a handler here would be replaced by one written at the use site instead of running alongside it
+    Connections {
+        target: root
+        function onChosen(value) {
+            if (root.key.length > 0) ShellSettings.setValue(root.key, value)
+        }
+    }
 
     readonly property int _optionCount: Math.max(1, root.model.length)
     readonly property int _controlH: Metrics.rowHeightFor(28)

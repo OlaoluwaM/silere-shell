@@ -34,23 +34,21 @@ Column {
             }
             ChoiceChipRow {
                 glyph: "󰍹"; label: "Position"
-                currentValue: ShellSettings.notifPosition
+                key: "notifPosition"
                 model: [
                     { value: "top-left",   label: "Left"   },
                     { value: "top-center", label: "Center" },
                     { value: "top-right",  label: "Right"  }
                 ]
-                onChosen: (v) => ShellSettings.notifPosition = v
             }
             ChoiceChipRow {
                 glyph: "󰽘"; label: "Max shown"
-                currentValue: ShellSettings.notifMaxVisible
+                key: "notifMaxVisible"
                 model: [
                     { value: 3, label: "3"   },
                     { value: 5, label: "5"   },
                     { value: 0, label: "All" }
                 ]
-                onChosen: (v) => ShellSettings.notifMaxVisible = v
             }
         }
     }

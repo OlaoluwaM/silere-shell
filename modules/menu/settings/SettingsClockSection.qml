@@ -36,13 +36,12 @@ Column {
         }
         ChoiceChipRow {
             glyph: "󰨴"; label: "Week starts"
-            currentValue: ShellSettings.calendarWeekStart
+            key: "calendarWeekStart"
             model: [
                 { value: "monday", label: "Mon" },
                 { value: "sunday", label: "Sun" },
                 { value: "locale", label: "System" }
             ]
-            onChosen: (v) => ShellSettings.calendarWeekStart = v
         }
         ToggleRow {
             glyph: "󰨲"; label: "Week numbers"

@@ -59,13 +59,12 @@ Column {
     SettingsCard {
         SelectRow {
             glyph: "󰛖"; label: "Font"
-            currentValue: ShellSettings.fontFamily
+            key: "fontFamily"
             model: root._fontChoices(ShellSettings.fontFamily, GeneratedDefaults.fontFamily,
                 GeneratedDefaults.fontFamily.length > 0
                     ? GeneratedDefaults.fontFamily.replace(/ Nerd Font( Mono)?$/, "")
                     : "JetBrainsMono",
                 "JetBrainsMono Nerd Font")
-            onChosen: (v) => ShellSettings.fontFamily = v
         }
         // the list is a small slice of what fc-list reports, and an installed font missing
         // from it reads as a broken scan rather than a deliberate filter
@@ -79,7 +78,7 @@ Column {
         }
         SelectRow {
             glyph: "󰍉"; label: "UI scale"
-            currentValue: ShellSettings.uiScale
+            key: "uiScale"
             fallbackLabel: Math.round(ShellSettings.uiScale * 100) + "%"
             model: [
                 { value: 0.8,  label: "80%"  },
@@ -88,19 +87,17 @@ Column {
                 { value: 1.1,  label: "110%" },
                 { value: 1.15, label: "115%" }
             ]
-            onChosen: (v) => ShellSettings.uiScale = v
         }
         SelectRow {
             glyph: "󰀻"; label: "Icon size"
             description: "Tray and workspace app icons"
-            currentValue: ShellSettings.barIconSize
+            key: "barIconSize"
             fallbackLabel: ShellSettings.barIconSize + "px"
             model: [
                 { value: 12, label: "Normal" },
                 { value: 15, label: "Large"  },
                 { value: 18, label: "XL"     }
             ]
-            onChosen: (v) => ShellSettings.barIconSize = v
         }
         ToggleRow {
             glyph: "󰆖"; label: "High contrast"
@@ -131,13 +128,12 @@ Column {
     SettingsCard {
         SelectRow {
             glyph: "󰛖"; label: "Font"
-            currentValue: ShellSettings.lockFontFamily
+            key: "lockFontFamily"
             model: root._fontChoices(ShellSettings.lockFontFamily, GeneratedDefaults.lockFontFamily,
                 GeneratedDefaults.lockFontFamily.length > 0
                     ? GeneratedDefaults.lockFontFamily.replace(/ Nerd Font( Mono)?$/, "")
                     : "JetBrains Mono",
                 "JetBrains Mono")
-            onChosen: (v) => ShellSettings.lockFontFamily = v
         }
         ToggleRow {
             glyph: "󰌾"; label: "Power button"
@@ -166,7 +162,7 @@ Column {
                 SelectRow {
                     glyph: "󰍹"; label: "Overlay display"
                     description: "Follow focus or choose a display"
-                    currentValue: ShellSettings.overlayMonitor
+                    key: "overlayMonitor"
                     fallbackLabel: ShellSettings.overlayMonitor.length > 0
                         ? ShellSettings.overlayMonitor + " (unavailable)" : "Follow focus"
                     model: {
@@ -178,7 +174,6 @@ Column {
                         }
                         return choices
                     }
-                    onChosen: (v) => ShellSettings.overlayMonitor = v
                 }
 
                 Repeater {

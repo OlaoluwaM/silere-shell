@@ -78,6 +78,8 @@ ShellRoot {
                     { value: "b", label: "B" }]
         }
     }
+    Component { id: keyedSelectRowFactory; SelectRow { width: 320; label: "Probe keyed select" } }
+    Component { id: choiceChipRowFactory; ChoiceChipRow { width: 320; label: "Probe chips" } }
     Component {
         id: levelRowFactory
         LevelRow {
@@ -1151,6 +1153,67 @@ ShellRoot {
             "a path-bearing device name is refused")
         root._checkCoerce("fontFamily", "A\u0007B", "", "a control character in a font name is refused")
         root._checkCoerce("notifHistoryLimit", -1, 5, "a negative history limit clamps up")
+
+        // a row given a key reads and writes its setting itself, as ToggleRow and SliderRow do;
+        // without one the caller owns both, which the rows with mapped values rely on
+        const chipKeyWas = ShellSettings.calendarWeekStart
+        const selectKeyWas = ShellSettings.osdKindFilter
+        ShellSettings.calendarWeekStart = "monday"
+        ShellSettings.osdKindFilter = "both"
+        const keyedChips = choiceChipRowFactory.createObject(root, {
+            key: "calendarWeekStart",
+            model: [{ value: "monday", label: "Mon" }, { value: "sunday", label: "Sun" },
+                    { value: "locale", label: "System" }]
+        })
+        const keyedSelect = keyedSelectRowFactory.createObject(root, {
+            key: "osdKindFilter",
+            model: [{ value: "both", label: "Both" }, { value: "volume", label: "Vol" },
+                    { value: "brightness", label: "Brt" }]
+        })
+        let keyedAnnounced = 0
+        keyedChips.chosen.connect(() => keyedAnnounced++)
+        keyedSelect.chosen.connect(() => keyedAnnounced++)
+        root._check(keyedChips.currentValue === "monday" && keyedChips._activeIndex === 0
+                && keyedSelect.currentValue === "both" && keyedSelect._activeLabel === "Both",
+            "a keyed chip row and select show their setting's current value")
+        ShellSettings.calendarWeekStart = "sunday"
+        ShellSettings.osdKindFilter = "volume"
+        root._check(keyedChips._activeIndex === 1 && keyedSelect._activeLabel === "Vol",
+            "a keyed chip row and select follow a change made outside them")
+        keyedChips.chosen("locale")
+        keyedSelect.chosen("brightness")
+        root._check(ShellSettings.calendarWeekStart === "locale"
+                && ShellSettings.osdKindFilter === "brightness"
+                && keyedChips._activeIndex === 2 && keyedSelect._activeLabel === "Brt"
+                && keyedAnnounced === 2,
+            "a keyed chip row and select write the chosen value and still announce it")
+        const plainChips = choiceChipRowFactory.createObject(root, {
+            currentValue: "a",
+            model: [{ value: "a", label: "A" }, { value: "b", label: "B" }]
+        })
+        const plainSelect = selectRowFactory.createObject(root)
+        const plainAnnounced = []
+        plainChips.chosen.connect(v => plainAnnounced.push(v))
+        plainSelect.chosen.connect(v => plainAnnounced.push(v))
+        plainChips.chosen("b")
+        plainSelect.chosen("b")
+        root._check(plainChips.currentValue === "a" && plainChips._activeIndex === 0
+                && plainSelect.currentValue === "a" && plainAnnounced.join(",") === "b,b"
+                && ShellSettings.calendarWeekStart === "locale"
+                && ShellSettings.osdKindFilter === "brightness",
+            "a chip row and select without a key show their caller's value and only announce a choice")
+        const strayChips = choiceChipRowFactory.createObject(root, {
+            key: "noSuchSetting",
+            model: [{ value: "a", label: "A" }]
+        })
+        strayChips.chosen("a")
+        root._check(strayChips.currentValue === undefined && strayChips._activeIndex === -1
+                && ShellSettings["noSuchSetting"] === undefined,
+            "a chip row keyed to an unknown setting shows no choice and writes nothing")
+        for (const row of [keyedChips, keyedSelect, plainChips, plainSelect, strayChips])
+            row.destroy()
+        ShellSettings.calendarWeekStart = chipKeyWas
+        ShellSettings.osdKindFilter = selectKeyWas
 
         // "settings written by a newer version than you run keep their unknown values
         // instead of being stripped" — a downgrade silently losing config is invisible

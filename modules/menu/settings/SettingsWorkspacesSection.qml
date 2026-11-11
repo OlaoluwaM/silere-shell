@@ -25,13 +25,12 @@ Column {
             glyph: ShellSettings.wsActiveMarker === "bar" ? "━"
                 : ShellSettings.wsActiveMarker === "dot" ? "●" : "◆"
             label: "Active marker"
-            currentValue: ShellSettings.wsActiveMarker
+            key: "wsActiveMarker"
             model: [
                 { value: "gem", label: "Gem" },
                 { value: "dot", label: "Dot" },
                 { value: "bar", label: "Line" }
             ]
-            onChosen: (v) => ShellSettings.wsActiveMarker = v
         }
     }
 

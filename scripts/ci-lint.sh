@@ -1459,6 +1459,7 @@ if [ -f "$shell_settings" ] && [ -f "$settings_nav" ]; then
     # a key can name a real page and still miss the page it is edited on, which drops
     # the changed dot from the one nav entry the user just used
     own_bad=""
+    own_unknown=""
     own_seen=0
     for sec_file in modules/menu/settings/Settings*Section.qml; do
         [ -f "$sec_file" ] || continue
@@ -1473,7 +1474,11 @@ if [ -f "$shell_settings" ] && [ -f "$settings_nav" ]; then
         for own_key in $own_keys; do
             own_sec=$(printf '%s\n' "$schema_block" | grep -E "\{ k: \"$own_key\"," \
                       | grep -oE 'sec: "[^"]*"' | sed -E 's/.*"([^"]*)"/\1/')
-            [ -z "$own_sec" ] && continue
+            # a row's key: is a string no type-check resolves, so a misspelt one shows nothing and saves nothing
+            if [ -z "$own_sec" ]; then
+                own_unknown="$own_unknown  $own_key on $own_page is not a settings key"$'\n'
+                continue
+            fi
             [ "$own_sec" = "-" ] && continue
             own_seen=$((own_seen + 1))
             case ",$own_sec," in
@@ -1482,12 +1487,16 @@ if [ -f "$shell_settings" ] && [ -f "$settings_nav" ]; then
             esac
         done
     done
+    if [ -n "$own_unknown" ]; then
+        fail "settings rows bound to keys the schema does not define:"
+        printf '%s' "$own_unknown"
+    fi
     if [ -n "$own_bad" ]; then
         fail "settings rows not attributed to the page they are edited on:"
         printf '%s' "$own_bad"
     elif [ "$own_seen" -lt 60 ]; then
         fail "settings attribution scan matched only $own_seen rows; the harvest is broken"
-    else
+    elif [ -z "$own_unknown" ]; then
         ok "attribution" "$own_seen rows are attributed to the page that edits them"
     fi
 else
