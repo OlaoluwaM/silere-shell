@@ -99,7 +99,7 @@ ShellRoot {
             switch (root.step) {
             case 0:
                 // the tool scan has to find the stand-in, and the first check has to land
-                if (!root.ready(SystemTools.ready && NightLight.toolAvailable && NightLight.enabled,
+                if (!root.ready(SystemTools.ready && NightLight.available && NightLight.enabled,
                         "the stand-in tools are detected and the first check reads the unit active", 40))
                     return
                 root.check(NightLight.lastError === "", "a check that answers leaves no error")
@@ -487,7 +487,7 @@ ShellRoot {
                 SystemTools.refresh()
                 break
             case 32:
-                if (!root.ready(!NightLight.toolAvailable, "the tool scan loses hyprsunset", 12))
+                if (!root.ready(!NightLight.available, "the tool scan loses hyprsunset", 12))
                     return
                 root.check(NightLight.toggleFresh() === "unavailable",
                     "without hyprsunset a keybind toggle is refused")
@@ -499,7 +499,7 @@ ShellRoot {
                 SystemTools.refresh()
                 break
             case 34:
-                if (!root.ready(NightLight.toolAvailable, "the tool scan finds hyprsunset again", 12))
+                if (!root.ready(NightLight.available, "the tool scan finds hyprsunset again", 12))
                     return
                 root.check(root.lines(_systemctlDone).length === root.doneBefore,
                     "hyprsunset comes back while the check that read the unit active still runs")

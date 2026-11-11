@@ -24,7 +24,7 @@ Singleton {
 
     property bool enabled:        false
     property string lastError:    ""
-    readonly property bool toolAvailable: SystemTools.hasHyprsunset
+    readonly property bool available: SystemTools.hasHyprsunset
     // auto is a mode, not a value: nightLightTemp stays whatever the user last chose by hand,
     // so turning auto off restores it instead of leaving the last solar step behind
     readonly property int  temperature: ShellSettings.nightLightAuto ? root.suggestedTemp
@@ -196,7 +196,7 @@ Singleton {
 
     Timer {
         interval: 60000; repeat: true
-        running: root.toolAvailable && ShellSettings.nightLightAuto && root.enabled && !Idle.isIdle
+        running: root.available && ShellSettings.nightLightAuto && root.enabled && !Idle.isIdle
         onTriggered: root._solarTick++
     }
     Connections {
@@ -223,7 +223,7 @@ Singleton {
     // covers the auto-mode recompute above and a manual slider edit, so this is
     // a plain IPC call rather than anything that touches the unit's lifecycle.
     onTemperatureChanged: {
-        if (!root.enabled || !root.toolAvailable) return
+        if (!root.enabled || !root.available) return
         root._pushTemp()
     }
 
@@ -235,7 +235,7 @@ Singleton {
     onEnabledChanged: if (!root.enabled) { root._pushQueued = false; root._sentTemp = -1 }
 
     function _pushTemp(): void {
-        if (!root.enabled || !root.toolAvailable) {
+        if (!root.enabled || !root.available) {
             root._pushQueued = false
             return
         }
@@ -269,7 +269,7 @@ Singleton {
     }
 
     function toggle(): void {
-        if (!toolAvailable || _toggleProc.running) return
+        if (!available || _toggleProc.running) return
         const goingOn = !root.enabled
         console.info(root.log, "silere-shell: toggle requested:", goingOn ? "on" : "off")
         // a toggle from anywhere settles the one a waiting keybind asked for, so it must not toggle again;
@@ -310,7 +310,7 @@ Singleton {
     property bool _checkError: false
     // a keybind toggle waiting on a fresh check; it counts as busy, so later presses never stack
     property bool _toggleQueued: false
-    onToolAvailableChanged: if (!root.toolAvailable) {
+    onAvailableChanged: if (!root.available) {
         console.warn(root.log, "silere-shell: hyprsunset is no longer available")
         root._toggleQueued = false
         // a check still running read the unit for the dropped request, so it settles no later one
@@ -319,7 +319,7 @@ Singleton {
     }
 
     function _checkActive(): void {
-        if (!root.toolAvailable) return
+        if (!root.available) return
         if (_checkProc.running) { root._recheckPending = true; return }
         _checkProc._generation = _toggleProc.running ? -1 : root._toggleGeneration
         _checkProc._forToggle = root._toggleQueued
@@ -333,7 +333,7 @@ Singleton {
     // of a poll. "" means it toggled now and `enabled` names the request, "queued" that the
     // toggle follows the check, and "busy" or "unavailable" that nothing was asked
     function toggleFresh(): string {
-        if (!root.toolAvailable) {
+        if (!root.available) {
             console.info(root.log, "silere-shell: keybind toggle answered: unavailable")
             return "unavailable"
         }
@@ -357,7 +357,7 @@ Singleton {
     Component.onCompleted: { _checkActive(); _startGeo() }
 
     property bool _geoStarted: false
-    readonly property bool _geoWanted: toolAvailable && (ShellSettings.nightLightAuto || MenuState.open)
+    readonly property bool _geoWanted: available && (ShellSettings.nightLightAuto || MenuState.open)
     function _startGeo(): void {
         if (_geoStarted || !_geoWanted) return
         _geoStarted = true
@@ -526,7 +526,7 @@ Singleton {
     readonly property bool _pollWanted: root._watched || root._pushTempOnConfirm
     Timer {
         interval: 60000; repeat: true
-        running: root.toolAvailable && root._pollWanted && !Idle.isIdle
+        running: root.available && root._pollWanted && !Idle.isIdle
         onRunningChanged: console.debug(root.log, "silere-shell: drift poll", running ? "started" : "stopped")
         onTriggered: root._checkActive()
     }

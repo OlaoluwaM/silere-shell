@@ -351,7 +351,7 @@ PageShell {
         SettingsCard {
             ControlRow {
                 id: _nightRow
-                visible: NightLight.toolAvailable
+                visible: NightLight.available
                 active: NightLight.enabled
                 glyph: NightLight.enabled ? "󰖔" : "󰖙"
                 title: "Night Light"

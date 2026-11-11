@@ -52,7 +52,7 @@ AnchoredPopupState {
     function _nightLightReply(): string {
         // the optional-tool scan runs at startup; before it lands no tool looks installed
         if (!SystemTools.ready) return "error: still looking for a night light tool"
-        if (!NightLight.toolAvailable)
+        if (!NightLight.available)
             return "error: night light needs hyprsunset"
         // a toggle that waits on a fresh check cannot name its target, so it only says one is under way
         switch (NightLight.toggleFresh()) {

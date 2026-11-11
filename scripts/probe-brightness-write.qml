@@ -45,7 +45,7 @@ ShellRoot {
             if (root.phase === 0) {
                 // the tool scan has to find the stand-in first; one more tick then lets the
                 // host's own device listing land before the stand-in replaces it
-                if (!SystemTools.ready || !Brightness.toolAvailable) {
+                if (!SystemTools.ready || !Brightness.available) {
                     if (++root.waited < 20) return
                     root.check(false, "the stand-in brightnessctl is detected on PATH")
                     root.finish()

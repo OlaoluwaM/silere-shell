@@ -12,8 +12,8 @@ Singleton {
     property string _device:        ""
     property var devices:           []
     property bool ready:            false
-    readonly property bool toolAvailable:  SystemTools.hasBrightnessctl
-    readonly property bool controllable: toolAvailable && ready
+    readonly property bool available: SystemTools.hasBrightnessctl
+    readonly property bool controllable: available && ready
         && maxBrightness > 0 && _device.length > 0
     // brightnessctl needs its udev rule or video-group membership to write sysfs; without
     // it the write fails, refresh() snaps the value back, and nothing else says why
@@ -89,13 +89,13 @@ Singleton {
     }
 
     function refresh(): void {
-        if (!toolAvailable || !_device || _applyDebounce.running || _setProc.running) return
+        if (!available || !_device || _applyDebounce.running || _setProc.running) return
         _brightnessFile.reload()
     }
 
     function _syncToolAvailability(): void {
         if (!SystemTools.ready) return
-        if (root.toolAvailable) {
+        if (root.available) {
             root._init()
             return
         }
@@ -121,7 +121,7 @@ Singleton {
 
     function _init(): void {
         if (_listed || !SystemTools.ready) return
-        if (!toolAvailable) {
+        if (!available) {
             ready = false
             maxBrightness = 0
             return
@@ -144,7 +144,7 @@ Singleton {
     Connections {
         target: MenuState
         function onOpenChanged() {
-            if (MenuState.open && root.toolAvailable) {
+            if (MenuState.open && root.available) {
                 // backlight devices can appear after login (dock/GPU hot-plug). Relist on the user-driven menu edge instead of polling while idle
                 root._reprobeAttempts = 0
                 _reprobe.restart()
@@ -326,7 +326,7 @@ Singleton {
             error: string): void {
         // the display can change mid-write; the old write's result must not touch the new
         // display's status or queue
-        if (device !== root._device || !root.toolAvailable) return
+        if (device !== root._device || !root.available) return
         if (timedOut) root.lastError = "Brightness write timed out"
         else root.lastError = code === 0 ? ""
             : SafeText.lastNonEmptyLine(error, "Could not set brightness")
@@ -339,7 +339,7 @@ Singleton {
         timeoutMs: 5000
         stderr: StdioCollector { id: _setErr }
         onExited: code => {
-            if (!root.toolAvailable) {
+            if (!root.available) {
                 root.lastError = ""
                 root._applyQueued = false
                 return

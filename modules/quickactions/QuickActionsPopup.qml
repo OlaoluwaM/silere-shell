@@ -163,7 +163,7 @@ OverlayPopupWindow {
                 onTriggered: Notifications.toggleDnd()
             }
             QuickActionRow {
-                visible: NightLight.toolAvailable
+                visible: NightLight.available
                 glyph: "󰖔"
                 label: "Night Light"
                 active: NightLight.enabled
