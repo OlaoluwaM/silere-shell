@@ -14,7 +14,9 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
 
-    # We're updating Hyprland to v0.57+ so the shell's quickshell ver needs to upgrade as well for compatibility and to take advantage of certain things
+    # Pinned past the 0.3.1 floor: this commit follows Hyprland's workspace id
+    # changes and emits WlSessionLock.locked on unlock, the signal the lock
+    # exits on.
     quickshell = {
       url = "git+https://git.outfoxxed.me/quickshell/quickshell.git?rev=18c95fae4aec2f9da465c5f42d7ae13fe65f2aba";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -44,7 +46,7 @@
         {
           default = pkgs.mkShell {
             packages = with pkgs; [
-              quickshellPackage # qs — v0.9.0 requires 0.3.1
+              quickshellPackage # qs, the runtime the shell and its checks run on; pinned by the input above
               qt6.qtdeclarative # qmllint and qmlcachegen for the headless type-check
               fontconfig # fc-match validates layout text metrics
               jetbrainsMonoNerdFont # the shell's default UI font
