@@ -75,9 +75,33 @@ history="$probe_root/config-home/silere-shell/notifications.json"
 [[ -f "$history" ]] || { echo "FAIL: seed did not create notifications.json" >&2; exit 1; }
 [[ "$(stat -c %a "$history")" == "600" ]] \
     || { echo "FAIL: notifications.json permissions are not 600" >&2; exit 1; }
+# the seed set seen and times for id 1, which stay in memory. An older shell saved them
+# beside the rows, so the restore below reads that format and must ignore them
+python3 - "$history" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1]) as source:
+    saved = json.load(source)
+assert sorted(saved) == ['__version', 'history'] and saved['__version'] == 1, \
+    f'the seed saved {sorted(saved)}, expected only __version and history'
+saved['seen'] = {'1': True}
+saved['times'] = {'1': 1001}
+with open(sys.argv[1], 'w') as out:
+    json.dump(saved, out)
+PY
 
 settings 5 true
 run_phase restore
+python3 - "$history" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1]) as source:
+    saved = json.load(source)
+assert 'seen' not in saved and 'times' not in saved, \
+    f'the save after an older file kept {sorted(saved)}'
+PY
 
 settings 5 false
 run_phase off
@@ -91,6 +115,15 @@ run_phase clear-reload
 grep -q '"history":\[\]' "$history" \
     || { echo "FAIL: reload restored cleared disk history" >&2; exit 1; }
 run_phase live-markers
+
+# the rows as this shell saves them, so the load itself has nothing to write; a new
+# inode would mean an atomic write landed with the same text
+printf '{"__version":1,"history":[{"id":21,"appName":"Quiet","appIcon":"","desktopEntry":"","summary":"kept","body":"","urgency":1,"time":2100,"sessionCurrent":false,"run":"quiet-run"}]}\n' > "$history"
+cp "$history" "$history.expected"
+quiet_inode="$(stat -c %i "$history")"
+run_phase quiet
+cmp -s "$history" "$history.expected" && [[ "$(stat -c %i "$history")" == "$quiet_inode" ]] \
+    || { echo "FAIL: an arrival and its first sight rewrote notifications.json" >&2; exit 1; }
 
 settings 100 true
 run_phase runs-seed

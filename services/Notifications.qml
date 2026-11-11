@@ -333,8 +333,8 @@ Singleton {
         }
     }
 
-    on_SeenChanged:   if (_persistentReady) { _persist.seenJson = JSON.stringify(_seen); root._queueDiskSave() }
-    on_TimesChanged:  if (_persistentReady) { _persist.timesJson = JSON.stringify(_times); root._queueDiskSave() }
+    on_SeenChanged:   if (_persistentReady) _persist.seenJson = JSON.stringify(_seen)
+    on_TimesChanged:  if (_persistentReady) _persist.timesJson = JSON.stringify(_times)
 
     function _cloneMap(map): var {
         const out = Object.create(null)
@@ -455,19 +455,11 @@ Singleton {
         }
     }
 
+    // seen and times describe notifications the server still owns, and no server outlives a
+    // restart; persisting them only lets a reissued id inherit a dead session's flags
     function _serializeDisk(): string {
-        return JSON.stringify({
-            __version: 1,
-            history: root._parsePersistentJson(_persist.historyJson, []),
-            seen: root._parsePersistentJson(_persist.seenJson, {}),
-            times: root._parsePersistentJson(_persist.timesJson, {})
-        })
-    }
-
-    function _mergeStateMap(base, live): var {
-        const out = root._cloneMap(base)
-        for (const key in live) out[key] = live[key]
-        return out
+        // historyJson is already compact JSON of the rows; splicing it in skips a parse and a re-stringify
+        return '{"__version":1,"history":' + (_persist.historyJson || "[]") + '}'
     }
 
     function _tryRestoreDisk(): void {
@@ -501,6 +493,8 @@ Singleton {
             const present = Object.create(null)
             for (let i = 0; i < _history.count; i++)
                 present[root._historyIdentity(_history.get(i))] = true
+            // A new engine can read the file before the old engine flushes its
+            // debounce. Reload state is authoritative, including deletions.
             if (!root._reloadStateAuthoritative && root._diskHistoryMayRestore
                     && ShellSettings.notifHistoryPersistent
                     && Array.isArray(parsed.history)) {
@@ -519,21 +513,6 @@ Singleton {
                 }
                 HistoryRuns.labelMissing(_history)
                 HistoryRuns.joinAt(_history, liveCount)
-            }
-            const diskSeen = root._normalizeSeenMap(parsed.seen)
-            const diskTimes = root._normalizeTimesMap(parsed.times)
-            // A fresh server id can arrive before an asynchronous file read finishes.
-            // Its state is current even when it is still unread, so a missing live map
-            // entry must not let an archival row set it seen or change its timestamp.
-            for (const key in root._liveIds) {
-                delete diskSeen[key]
-                delete diskTimes[key]
-            }
-            // A new engine can read the file before the old engine flushes its
-            // debounce. Reload state is authoritative, including deletions.
-            if (!root._reloadStateAuthoritative) {
-                root._seen = root._mergeStateMap(diskSeen, root._seen)
-                root._times = root._mergeStateMap(diskTimes, root._times)
             }
             root._ensurePersistentState()
             root._trimHistory()

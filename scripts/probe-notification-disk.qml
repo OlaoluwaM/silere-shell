@@ -14,6 +14,7 @@ ShellRoot {
     property bool started: false
     property bool senderStarted: false
     property bool sawWriteFailure: false
+    property string savedDiskText: ""
     readonly property int historyCount: Notifications.historyCount
 
     PersistentProperties {
@@ -144,15 +145,16 @@ ShellRoot {
                     root.started = true
                     root.check(Notifications.historyCount === 5,
                         "configured limit bounds prior-process disk history")
+                    // the runner writes an older file's seen and times for id 1 beside its row
                     let foundOld = false
                     for (let i = 0; i < Notifications.historyCount; i++) {
                         const entry = Notifications.historyModel.get(i)
                         if (entry.id === 1) {
-                            foundOld = !entry.sessionCurrent && Notifications.isSeen(1)
-                                    && Notifications.timeFor(1) === 1001
+                            foundOld = !entry.sessionCurrent && entry.time === 1009
+                                    && !("1" in Notifications._seen) && !("1" in Notifications._times)
                         }
                     }
-                    root.check(foundOld, "disk rows are archived and retain their stored state before id reuse")
+                    root.check(foundOld, "disk rows are archived with their own time and no prior-process state")
                     sender.running = true
                     root.senderStarted = true
                     return
@@ -257,6 +259,28 @@ ShellRoot {
                 return
             }
 
+            // seen and arrival state stay in memory, so a card that arrives and is seen
+            // leaves the file alone; the runner checks the file itself after the debounce
+            if (root.phase === "quiet") {
+                if (!root.started) {
+                    root.started = true
+                    root.savedDiskText = Notifications._serializeDisk()
+                    sender.running = true
+                    root.senderStarted = true
+                    return
+                }
+                if (root.senderStarted && Notifications.activeCount === 1) {
+                    const live = Notifications.list[0]
+                    Notifications.markSeen(live.id)
+                    root.check(Notifications.isSeen(live.id)
+                            && Notifications._serializeDisk() === root.savedDiskText,
+                        "an arrival and its first sight leave the disk text unchanged")
+                    finishTimer.start()
+                    poll.running = false
+                }
+                return
+            }
+
             if ((root.phase === "future" || root.phase === "future-off") && !root.started) {
                 root.started = true
                 const enabled = root.phase === "future"
@@ -264,9 +288,9 @@ ShellRoot {
                     "compatible future rows restore only when persistence is enabled")
                 if (enabled && Notifications.historyCount === 1) {
                     const entry = Notifications.historyModel.get(0)
-                    root.check(entry.summary === "future" && !entry.sessionCurrent
-                            && Notifications.isSeen(1) && Notifications.timeFor(1) === 1001,
-                        "future rows retain compatible fields and prior-process identity")
+                    root.check(entry.summary === "future" && !entry.sessionCurrent && entry.time === 1001
+                            && !("1" in Notifications._seen) && !("1" in Notifications._times),
+                        "future rows retain compatible fields and prior-process identity, not its read state")
                     Notifications.removeFromHistory(0)
                 }
                 root.check(Notifications.historyPersistenceError.indexOf("newer version") >= 0,

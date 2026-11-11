@@ -472,6 +472,9 @@ outside issues or pull requests.
   Until settings are ready, restore and trim against the schema maximum;
   apply the configured limit and retention only after the settings read.
   Disk history uses `ConfigStore.notificationsPath` and `PersistedFile`.
+  As upstream's does, the file holds `__version` and `history` only: seen and
+  time state lives in `PersistentProperties` alone, and the `seen` and `times`
+  an older file carries are ignored and dropped by the next save.
   Rows restored from disk have `sessionCurrent: false`; reload restoration
   retains current-session identity. A reused server ID must not inherit an
   earlier process's read state or target its live notification through an
@@ -482,7 +485,7 @@ outside issues or pull requests.
   per-read reset is not ported. Keep that restore the only place history is
   restored; `onLoadFailed` is the only other setter of the permission. For
   newer-format files,
-  restore compatible history/state into memory while leaving the file untouched;
+  restore compatible history into memory while leaving the file untouched;
   writes stay blocked, including after in-memory edits or persistence changes.
   Disabling persistence clears existing history and queues an empty disk
   archive; later arrivals remain in memory until reload or process exit.
