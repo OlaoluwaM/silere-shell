@@ -34,7 +34,7 @@ Item {
         NumberAnimation { duration: Motion.fast; easing.type: Easing.OutCubic }
     }
 
-    signal picked(real position)
+    signal moved(real position)
 
     Accessible.role: Accessible.Slider
     Accessible.name: root.accessibleName
@@ -58,7 +58,7 @@ Item {
     function _nudge(dir: int, mult: int): void {
         if (!root.enabled || !root.interactive) return
         const next = root.position + dir * root.stepSize * mult / root.displayScale
-        root.picked(root.wraps ? root._wrapped(next) : root._clamped(next))
+        root.moved(root.wraps ? root._wrapped(next) : root._clamped(next))
     }
     MotionBehavior on opacity {
         NumberAnimation { duration: Motion.fast }
@@ -125,7 +125,7 @@ Item {
         }
 
         function _set(mx: real): void {
-            root.picked(root._clamped(
+            root.moved(root._clamped(
                 (mx - _track.x) / Math.max(1, _track.width)))
         }
 

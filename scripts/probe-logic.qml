@@ -2149,8 +2149,8 @@ ShellRoot {
         const gradient = gradientSliderFactory.createObject(root, {
             width: 100, position: 0.5, displayScale: 360, wraps: true
         })
-        let picked = -1
-        gradient.picked.connect(value => picked = value)
+        let moved = -1
+        gradient.moved.connect(value => moved = value)
         root._check(gradient._wrapped(1.0) === 0
                 && Math.abs(gradient._wrapped(-0.25) - 0.75) < 0.000001,
             "wrapping colour slider folds a step past either end")
@@ -2158,9 +2158,9 @@ ShellRoot {
                 && gradient._clamped(-1) === 0,
             "wrapping colour slider clamps to its last distinct value")
         gradient.interactive = false
-        picked = -1
+        moved = -1
         gradient._nudge(1, 1)
-        root._check(picked === -1,
+        root._check(moved === -1,
             "non-interactive colour slider ignores scroll steps")
         gradient.destroy()
 

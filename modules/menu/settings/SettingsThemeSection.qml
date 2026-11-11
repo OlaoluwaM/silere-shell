@@ -279,7 +279,7 @@ Column {
                                     GradientStop { position: 0.833; color: Theme.lchColor(_accentPicker._accentL, _accentPicker._railC, 300) }
                                     GradientStop { position: 1.000; color: Theme.lchColor(_accentPicker._accentL, _accentPicker._railC, 360) }
                                 }
-                                onPicked: hue => _accentPicker._writeStrips(hue, _accentPicker._satMemo)
+                                onMoved: hue => _accentPicker._writeStrips(hue, _accentPicker._satMemo)
                             }
                         }
 
@@ -304,7 +304,7 @@ Column {
                                     GradientStop { position: 0.0; color: Theme.lchColor(_accentPicker._accentL, 0, _accentPicker._curHue * 360) }
                                     GradientStop { position: 1.0; color: Theme.lchColor(_accentPicker._accentL, _accentPicker._accentCMax, _accentPicker._curHue * 360) }
                                 }
-                                onPicked: sat => _accentPicker._writeStrips(_accentPicker._hueMemo, sat)
+                                onMoved: sat => _accentPicker._writeStrips(_accentPicker._hueMemo, sat)
                             }
                         }
                     }
