@@ -2,7 +2,7 @@ pragma Singleton
 
 import QtQuick
 
-// State for MediaPopupWindow (modules/mediapopup), the anchored MediaCard popup the
+// State for MediaPopup (modules/mediapopup), the anchored MediaCard popup the
 // bar's media widget opens on left-click -- GNOME media-controller style, a small
 // panel hung off the bar tile instead of a full menu open.
 AnchoredPopupState {

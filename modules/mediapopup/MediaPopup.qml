@@ -9,7 +9,7 @@ import "../menu/controls"
 
 // GNOME media-controller style: left-clicking the bar's media widget hangs this small
 // panel off the tile instead of opening the full menu. Built like
-// modules/traypopup/TrayPopupWindow.qml (an OverlayPopupWindow around FloatingPopupCard
+// modules/traypopup/TrayPopup.qml (an OverlayPopupWindow around FloatingPopupCard
 // chrome) since both are single-window popups toggled from one bar tile -- the only real
 // difference is the payload, MediaCard instead of a row list.
 OverlayPopupWindow {

@@ -3,14 +3,14 @@ pragma Singleton
 import QtQuick
 import Quickshell.Services.SystemTray
 
-// State for TrayPopupWindow (modules/traypopup), the minimalist tray list this fork
+// State for TrayPopup (modules/traypopup), the minimalist tray list this fork
 // shows from the bar instead of upstream's inline SNI icon row (TrayWidget.qml,
 // gated behind ShellSettings.trayWidget which stays false at this site).
 AnchoredPopupState {
     id: root
 
     anchorRecoveryMs: 0
-    // TrayPopupWindow's card, in coordinates a tray menu opened from one of its rows shares
+    // TrayPopup's card, in coordinates a tray menu opened from one of its rows shares
     // (both windows cover the same output edge to edge). That menu's window sits over this
     // one and takes every tap, so it needs the card to tell a tap on the list from one outside both.
     property rect cardRect: Qt.rect(0, 0, 0, 0)

@@ -9,7 +9,7 @@ AnchoredPopupState {
     property bool barBottom: false
     // QtObject (not var) so the reference auto-nulls when the SNI item dies with the menu open
     property QtObject menuHandle: null
-    // true when this menu was opened from a row inside TrayPopupWindow rather than the
+    // true when this menu was opened from a row inside TrayPopup rather than the
     // inline bar row (TrayWidget.qml) -- OverlayCoordinator reads this to know the popup
     // is this menu's parent, not a sibling overlay, so opening one must not kill the other
     property bool popupSourced: false

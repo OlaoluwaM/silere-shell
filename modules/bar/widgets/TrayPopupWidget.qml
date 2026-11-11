@@ -3,7 +3,7 @@ import Quickshell.Services.SystemTray
 import "../../../services"
 
 // StatusActionPill, not the inline SNI row TrayWidget.qml draws (this site keeps
-// ShellSettings.trayWidget false) -- a click here opens TrayPopupWindow, a
+// ShellSettings.trayWidget false) -- a click here opens TrayPopup, a
 // minimalist text-driven list of the same SystemTray items, instead of icons
 // inline on the bar. The pill carries no icon roster itself, just a quiet glyph,
 // so all it needs to know is whether the tray has anything to show.

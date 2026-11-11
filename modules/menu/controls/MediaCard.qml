@@ -31,7 +31,7 @@ ClippingRectangle {
     visible: opacity > 0.01
 
     // art-retry-on-reopen below needs to know when THIS card last became visible again --
-    // the menu and modules/mediapopup/MediaPopupWindow.qml (off MediaPopupState) both host
+    // the menu and modules/mediapopup/MediaPopup.qml (off MediaPopupState) both host
     // this card, so the host tells us here rather than the card assuming which singleton it is
     property bool hostOpen: MenuState.open
 

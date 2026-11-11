@@ -236,14 +236,14 @@ ShellRoot {
         id: _trayListPopup
         wantOpen: TrayPopupState.open
         requestedScreen: TrayPopupState.triggerScreen ?? root.anchoredPopupScreen
-        surface: Component { TrayPopupWindow { targetScreen: _trayListPopup.latchedScreen } }
+        surface: Component { TrayPopup { targetScreen: _trayListPopup.latchedScreen } }
     }
 
     PopupLoader {
         id: _mediaPopup
         wantOpen: MediaPopupState.open
         requestedScreen: MediaPopupState.triggerScreen ?? root.anchoredPopupScreen
-        surface: Component { MediaPopupWindow { targetScreen: _mediaPopup.latchedScreen } }
+        surface: Component { MediaPopup { targetScreen: _mediaPopup.latchedScreen } }
     }
 
     PopupLoader {
