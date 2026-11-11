@@ -49,6 +49,7 @@ Singleton {
     function toggle(): void {
         if (!available || _toggleProc.running) return
         const goingOn = !root.manualActive
+        root._checkError = false
         root.lastError = ""
         // optimistic: the row/pill flips the moment it's tapped, and _checkActive
         // (run from the chain's tail below) reconciles it with the unit if the call failed
@@ -143,6 +144,9 @@ Singleton {
     // a check already in flight when a reconciliation is requested would otherwise
     // just drop it; queue it instead so a post-toggle recheck is never lost
     property bool _recheckPending: false
+    // a check can time out while the user manager is slow, so its error is cleared by the next
+    // check that answers; a toggle error is not, so the two cannot share a string test
+    property bool _checkError: false
 
     function _checkActive(): void {
         if (!root.available) return
@@ -157,25 +161,36 @@ Singleton {
         function onReadyChanged() { root._checkActive(); root._checkInhibitors() }
     }
 
+    function _acceptCheckResult(timedOut: bool, code: int): void {
+        const rerun = root._recheckPending
+        root._recheckPending = false
+        if (timedOut) {
+            // a toggle error names what actually failed, so a slow check does not replace it
+            if (root.lastError.length === 0 || root._checkError) {
+                root._checkError = true
+                root.lastError = "could not check " + root.unit
+            }
+        } else {
+            if (root._checkError) {
+                root._checkError = false
+                root.lastError = ""
+            }
+            root.manualActive = (code === 0)
+            // the run was just discovered here rather than armed by us (a shell
+            // restarted mid-run, or an external re-arm the drift poll caught) --
+            // no chain tail ever ran to commit a deadline, so ask systemd for one
+            if (root.manualActive && root._stopDeadlineMs <= 0 && root._armedMinutes < 0 && !_toggleProc.running) {
+                root._pollRemaining()
+            }
+        }
+        // a tick later, so the rerun arms a timeout of its own: BoundedProcess arms it on the running edge
+        if (rerun) Qt.callLater(root._checkActive)
+    }
+
     BoundedProcess {
         id: _checkProc
         timeoutMs: 5000
-        onExited: (code) => {
-            const rerun = root._recheckPending
-            root._recheckPending = false
-            if (_checkProc.timedOut) {
-                root.lastError = "could not check " + root.unit
-            } else {
-                root.manualActive = (code === 0)
-                // the run was just discovered here rather than armed by us (a shell
-                // restarted mid-run, or an external re-arm the drift poll caught) --
-                // no chain tail ever ran to commit a deadline, so ask systemd for one
-                if (root.manualActive && root._stopDeadlineMs <= 0 && root._armedMinutes < 0 && !_toggleProc.running) {
-                    root._pollRemaining()
-                }
-            }
-            if (rerun) root._checkActive()
-        }
+        onExited: (code) => root._acceptCheckResult(_checkProc.timedOut, code)
     }
 
     BoundedProcess {
@@ -188,6 +203,7 @@ Singleton {
                 // a hard failure mid-chain (systemd-run rejected, unit missing, ...)
                 // abandons the rest of the chain rather than starting a unit whose
                 // scheduled stop never got armed, or leaving a stop-timer stray
+                root._checkError = false
                 root.lastError = SafeText.lastNonEmptyLine(
                     _toggleErr.text, root.unit + " did not respond", 160)
                 root._chainQueue = []
@@ -303,7 +319,8 @@ Singleton {
                     : who.length === 1 ? who[0]
                     : who.length + " inhibitors"
             }
-            if (rerun) root._checkInhibitors()
+            // a tick later, so the rerun arms a timeout of its own: BoundedProcess arms it on the running edge
+            if (rerun) Qt.callLater(root._checkInhibitors)
         }
     }
 
