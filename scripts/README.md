@@ -114,6 +114,8 @@ This option applies only to `test-notification-stack.sh`.
   not substitutes for the full checks.
 
 For a new probe, follow a nearby runner, reuse `probe-lib.sh`, check both its
-sentinel and runtime errors, and register new QML files in their folder's
-`qmldir`. Add the runner to the appropriate suite so the full check reaches it.
+sentinel and runtime errors. Probe QML in this folder needs no `qmldir`, since
+each runner copies it into a throwaway project; a QML file added anywhere else
+registers in its folder's `qmldir`. Add the runner to the appropriate suite so
+the full check reaches it.
 Keep generated logs and temporary instrumentation out of the committed source.
