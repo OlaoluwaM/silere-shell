@@ -230,13 +230,19 @@ outside issues or pull requests.
 - `services/Network.qml` and `services/SystemTools.qml`: the interface list
   is read on the kernel's link events, which an `ip -o monitor link` watcher
   reports, half a second after the first event of a burst and no more than
-  every 5 s after that. Upstream's 5 s poll stretches to 120 s while the
-  watcher runs and keeps 5 s without it. A deleted link marks the VPN
-  address stale and voids that name's receive counter, so a tunnel rebuilt
-  under its name is rechecked whatever its new counter reads, since reads
-  can now be two minutes apart. The watcher runs through idle, where a
-  deletion only marks. `SystemTools` scans `ip` (`hasIp`). Keep all of it on
-  an import of the interface watch, the VPN reader or the tool scan.
+  every 5 s after that, and once more half a second after the watcher
+  starts, since `ip` opens its socket only after it is running. Upstream's
+  5 s poll stretches to 120 s while the watcher runs and keeps 5 s without
+  it. A deleted link marks the VPN address stale and counts its name as
+  restarted at the next read, so a tunnel rebuilt under its name is
+  rechecked whatever its new counter reads, since reads can now be two
+  minutes apart. While a VPN is up, a deletion also holds the mark for 9 s
+  and rereads the address then, past the last reread the 5 s poll could
+  make, so an address NetworkManager hands out within 9 s of the deletion
+  reaches the bar, as does one handed out before a tunnel away for less than
+  that returns. The watcher runs through idle, where a deletion only marks.
+  `SystemTools` scans `ip` (`hasIp`). Keep all of it on an import of the
+  interface watch, the VPN reader or the tool scan.
 - `services/Network.qml`: the VPN reader retries a missing address only after
   a listing that succeeded while detection is wanted. Upstream retries after
   any exit, so going idle, which kills the listing, spawns nmcli on an idle

@@ -617,8 +617,10 @@ Singleton {
             }
             const refreshAgain = root._vpnRefreshPending && root._vpnWanted
             root._vpnRefreshPending = false
-            // the settle run still rereads, for an address handed out after the rebuild was seen
-            if (_vpnProc.completedSuccessfully(code) && !refreshAgain && !_vpnSettle.running) root._vpnAddressStale = false
+            // the settle run still rereads, for an address handed out after the rebuild was seen;
+            // so does the late reread after a deletion, which keeps the mark until it lands
+            if (_vpnProc.completedSuccessfully(code) && !refreshAgain && !_vpnSettle.running
+                    && !_vpnRebuildCheck.running) root._vpnAddressStale = false
             if (refreshAgain) _vpnRefresh.restart()
         }
     }
@@ -689,8 +691,11 @@ Singleton {
         const next = root.interfaceNames(raw)
         if (next.length === 0) return
         const rx = root.interfaceRx(raw)
-        const restarted = root._countersRestarted(rx)
+        const restarted = root._countersRestarted(rx) || root._linksReturned(rx)
         root._interfaceRx = rx
+        root._linksGone = Object.create(null)
+        root._linksGoneCount = 0
+        root._linksAllGone = false
         if (restarted) root._vpnAddressStale = true
         if (next === root._interfaceNames && !restarted) return
         const first = root._interfaceNames.length === 0
@@ -714,7 +719,7 @@ Singleton {
     // only needs to catch what it might miss, so it stretches out to 120s. Without it (ip
     // absent, or the watcher down or given up) this is the only reader and holds 5s.
     readonly property bool _watcherHealthy: SystemTools.hasIp && _linkWatcher.running
-    Timer {
+    property Timer _interfacePollTimer: Timer {
         interval: root._watcherHealthy ? 120000 : 5000
         repeat: true
         running: root._vpnWanted
@@ -736,15 +741,50 @@ Singleton {
     }
 
     // a deleted link is how a tunnel rebuild starts, and the tunnel's own name is not known
-    // here, so every deletion marks the address. The name's counter can only have restarted
-    // after it, which makes the next read recheck the VPN even when the name is back by then,
-    // however far apart the reads are. No name, or events the kernel dropped, void them all.
+    // here, so every deletion marks the address. A name deleted since the last read can only
+    // have restarted its counter, which makes the next read recheck the VPN even when the
+    // name is back by then, however far apart the reads are. No name, events the kernel
+    // dropped, or more names than are worth keeping count every name as restarted. Link
+    // names are external strings, hence the prototype-free holder.
+    property var _linksGone: Object.create(null)
+    property int _linksGoneCount: 0
+    property bool _linksAllGone: false
     function _noteLinkGone(names: var): void {
-        const rx = Object.assign({}, root._interfaceRx)
-        const gone = names.length > 0 ? names : Object.keys(rx)
-        for (let i = 0; i < gone.length; i++) rx[gone[i]] = Infinity
-        root._interfaceRx = rx
+        if (names.length === 0 || root._linksGoneCount + names.length > 32) {
+            root._linksAllGone = true
+        } else if (!root._linksAllGone) {
+            const gone = root._linksGone
+            for (let i = 0; i < names.length; i++) {
+                if (gone[names[i]]) continue
+                gone[names[i]] = true
+                root._linksGoneCount++
+            }
+        }
         root._vpnAddressStale = true
+        if (root.hasVpn) _vpnRebuildCheck.restart()
+    }
+
+    function _linksReturned(next: var): bool {
+        if (root._linksAllGone) return true
+        for (const name in next) {
+            if (root._linksGone[name]) return true
+        }
+        return false
+    }
+
+    // The 5s poll saw a rebuild up to 5s after it and reread the address then and again after
+    // the settle listing, so in its latest phase an address NetworkManager hands out about 8s
+    // after the deletion still reached the bar. A deletion is seen at once, so the rereads it starts come
+    // that much earlier; this one rereads once more past that, while the mark it holds lets a
+    // tunnel that comes back after the settle listing reread on its return as well.
+    property Timer _vpnRebuildCheckTimer: Timer {
+        id: _vpnRebuildCheck
+        interval: 9000
+        onTriggered: {
+            if (!root._vpnWanted || !root.hasVpn) return
+            root._vpnAddressStale = false
+            root.refreshVpnAddress()
+        }
     }
 
     // a tunnel coming up is several events within milliseconds, a container's veth a few
@@ -765,13 +805,13 @@ Singleton {
         _interfaceFile.reload()
     }
 
-    Timer {
+    property Timer _linkBurstTimer: Timer {
         id: _linkBurst
         interval: 500
         onTriggered: root._readLinksNow()
     }
 
-    Timer {
+    property Timer _linkCooldownTimer: Timer {
         id: _linkCooldown
         interval: 5000
         onTriggered: if (root._linkEventsWaiting) root._readLinksNow()
@@ -807,10 +847,16 @@ Singleton {
                 root._readLinksSoon()
             }
         }
-        // the restat-on-restart idiom of Caffeine's watcher, for the gap while it was down. The
-        // down edge reads too: the poll takes over then, and its counter check needs a recent
+        // the restat-on-restart idiom of Caffeine's watcher, for the gap while it was down. ip is
+        // running before it has opened its netlink socket, so a change in between reaches
+        // neither that read nor the stream; a burst read after the start covers it. The down
+        // edge reads too: the poll takes over then, and its counter check needs a recent
         // sample to compare with, not one up to two minutes old
-        onRunningChanged: if (root._vpnWanted) _interfaceFile.reload()
+        onRunningChanged: {
+            if (!root._vpnWanted) return
+            _interfaceFile.reload()
+            if (running) root._readLinksSoon()
+        }
     }
 
     property Timer _vpnSettleTimer: Timer {

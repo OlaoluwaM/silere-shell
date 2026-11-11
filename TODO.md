@@ -38,18 +38,26 @@ pill's hover text shows the old address.
 Deferred on 2026-10-15 because neither reaches this machine's VPN, and each
 fix to the reread had turned up a smaller edge in its own new state. The gaps:
 
-- a tunnel that is gone at one 5 s read of `/proc/net/dev` and back at the
-  next has no earlier counter to compare, so `_countersRestarted` never sees
-  it and the address is never marked stale. Marking it stale on any change
-  to the interface list would cover it;
+- without `ip`, a tunnel that is gone at one 5 s read of `/proc/net/dev`
+  and back at the next has no earlier counter to compare, so
+  `_countersRestarted` never sees it and the address is never marked stale.
+  With the `ip` watcher up, the deletion marks it and, while a VPN is up,
+  holds the mark for 9 s and rereads the address then, so a tunnel back
+  within those 9 s, or an address handed out within them, reaches the bar
+  (probed with the tunnel away 4.2 s and 8 s, and the address 4.5 s to
+  8.5 s late). A tunnel away longer, or an address handed out later, while
+  NetworkManager keeps listing the uuid with the old address, still does
+  not (probed at 10 s and 9.5 s). Marking it stale on any change to the
+  interface list would cover a tunnel away for longer, with or without
+  `ip`; the 5 s poll missed an address handed out that late as well;
 - the mark clears after the settle listing even when a read was still in
   flight, so a read that started before the rebuild can settle on the old
   address. A failed read marks it again. Clearing it only while no read is
   running would cover the rest.
 
-The probe checks only that a rebuild sets the mark. The reread itself runs in
-`_vpnProc`'s exit handler, which the probe cannot reach without test-only
-aliases.
+The logic probe checks only that a rebuild sets the mark. The reread itself
+runs in `_vpnProc`'s exit handler; `scripts/test-network-links.sh` drives it
+through a stand-in `nmcli`, with the watcher up only.
 
 ## Lock screen step 12
 

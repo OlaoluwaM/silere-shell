@@ -2338,7 +2338,8 @@ ShellRoot {
 
         // lines `ip -o monitor link` printed for real: add, up, down and delete of a dummy, a
         // rename, a veth pair, wireguard and tun links, a veth peer leaving for another
-        // namespace, a same-name rebuild, and a Wi-Fi driver's short notice
+        // namespace, a same-name rebuild, and a Wi-Fi driver's short notice (iproute2 7.0.0),
+        // then a bridge whose port leaves and joins again before it goes (7.1.0)
         const linkLines = linkFixture.text().split("\n").filter(l => l.length > 0)
         const linkEvents = linkLines.map(l => Network.linkEvent(l))
         const linkFirst = text => linkEvents[linkLines.findIndex(l => l.indexOf(text) >= 0)]
@@ -2356,6 +2357,10 @@ ShellRoot {
                 && linkFirst("7: tun0:").names.join(" ") === "tun0"
                 && wifiLink.names.join(" ") === "wlp55s0" && !wifiLink.deleted,
             "a link event names the link, every reading of a name holding @, and a peer moved away as deleted")
+        // the bridge's own notice that a port left it, while the link stays, reads as a deletion
+        const portLeft = linkEvents[linkLines.findIndex(l => l.startsWith("Deleted ") && l.indexOf(" master br0 ") >= 0)]
+        root._check(portLeft && portLeft.deleted && portLeft.names.indexOf("vb0") >= 0,
+            "a bridge port leaving reads as a deletion of the port")
         const oddLinks = ["", "garbage", "Deleted 7: ", "Deleted ???", "12:", "x".repeat(5000),
             "3: : <UP>", "9: @x@y: <UP> mtu 1", "4: a@b@c: <UP> mtu 1", "OVERRUN"]
             .map(l => Network.linkEvent(l))
@@ -2386,15 +2391,32 @@ ShellRoot {
         Network._vpnAddressStale = false
         Network._noteLinkGone(linkFirst("Deleted 5: veth0@NONE:").names)
         const vethStale = Network._vpnAddressStale
+        const vethHeld = Network._linksGone["veth0"] === true && Network._linksGoneCount === 2
         Network._applyInterfaceNames("  wlo1: 7\n  lo: 8\n  tun9: 10\n")
         const vethArmed = Network._vpnSettleTimer.running
+        const vethConsumed = Network._linksGoneCount === 0 && !Network._linksGone["veth0"]
         Network._vpnSettleTimer.stop()
         Network._vpnAddressStale = false
         Network._noteLinkGone([])
-        const allVoid = Network._interfaceRx.lo === Infinity && Network._interfaceRx.tun9 === Infinity
-            && Network._interfaceRx.wlo1 === Infinity && Network._vpnAddressStale
-        root._check(vethStale && !vethArmed && allVoid,
-            "an unrelated deletion only marks the address, and a deletion without a name voids every counter")
+        const voidStale = Network._vpnAddressStale
+        Network._applyInterfaceNames("  wlo1: 9\n  lo: 10\n  tun9: 11\n")
+        const voidArmed = Network._vpnSettleTimer.running
+        Network._vpnSettleTimer.stop()
+        root._check(vethStale && vethHeld && !vethArmed && vethConsumed && voidStale && voidArmed,
+            "an unrelated deletion only marks the address, the next read drops it, and a deletion without a name counts every name as restarted")
+        // a deletion is constant work and the names kept are bounded, read or no read
+        Network._vpnAddressStale = false
+        const goneStart = Date.now()
+        for (let i = 0; i < 2000; i++) Network._noteLinkGone(["veth" + i + "@if" + i, "veth" + i])
+        const goneMs = Date.now() - goneStart
+        const goneBounded = Network._linksGoneCount <= 32 && Network._linksAllGone
+            && Object.keys(Network._linksGone).length <= 32
+        Network._applyInterfaceNames("  wlo1: 12\n  lo: 13\n  tun9: 14\n")
+        const goneArmed = Network._vpnSettleTimer.running
+        Network._vpnSettleTimer.stop()
+        root._check(goneBounded && goneArmed && !Network._linksAllGone && Network._linksGoneCount === 0
+                && goneMs < 100,
+            "2000 deletions keep at most 32 names, count every name as restarted, and take " + goneMs + " ms")
         // before the first read there is no list to compare, so the deletion starts nothing
         Network._interfaceNames = ""
         Network._interfaceRx = ({})
@@ -2404,6 +2426,7 @@ ShellRoot {
         root._check(!firstArmed && Network._interfaceNames === "lo tun9",
             "a deletion before the first read neither rechecks the VPN nor holds back the first list")
         Network._vpnSettleTimer.stop()
+        Network._vpnRebuildCheckTimer.stop()
         Network._interfaceNames = interfacesWas
         Network._interfaceRx = rxWas
         Network._vpnAddressStale = staleWas

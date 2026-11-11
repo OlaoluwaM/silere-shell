@@ -40,9 +40,10 @@ rm "$probe_root/project/services"
 cp -a "$ROOT/services" "$probe_root/project/services"
 cp "$ROOT/scripts/fixtures/coordinator/Idle.qml" "$probe_root/project/services/Idle.qml"
 
-# The stand-in ip follows ip-events, which the probe appends to, unless ip-mode says fail,
-# when it refuses its netlink socket the way ip does. The stand-in nmcli lists one tunnel and
-# answers its address from nm-address; both log what they were asked.
+# The stand-in ip follows ip-events, which the probe appends to, and prints a line that starts
+# "ERR " on stderr, as ip prints its receive errors; when ip-mode says fail it refuses its
+# netlink socket the way ip does. The stand-in nmcli lists one tunnel and answers its address
+# from nm-address; both log what they were asked.
 printf 'watch\n' > "$probe_root/ip-mode"
 : > "$probe_root/ip-events"
 printf '10.66.0.2/32\n' > "$probe_root/nm-address"
@@ -58,7 +59,24 @@ if [ "\$(cat "$probe_root/ip-mode")" = fail ]; then
     echo "Cannot open netlink socket: Permission denied" >&2
     exit 1
 fi
-exec tail -n 0 -F "$probe_root/ip-events" 2>/dev/null
+exec python3 -u -c '
+import sys, time
+events = open(sys.argv[1])
+events.seek(0, 2)
+pending = ""
+while True:
+    chunk = events.readline()
+    if not chunk:
+        time.sleep(0.01)
+        continue
+    pending += chunk
+    if not pending.endswith("\\n"):
+        continue
+    line, pending = pending, ""
+    out = sys.stderr if line.startswith("ERR ") else sys.stdout
+    out.write(line[4:] if out is sys.stderr else line)
+    out.flush()
+' "$probe_root/ip-events"
 EOF2
 cat > "$probe_root/bin/nmcli" <<EOF2
 #!/usr/bin/env bash
@@ -85,7 +103,7 @@ PATH="$probe_root/bin:$PATH" SILERE_LINKS_PROBE_ROOT="$probe_root" \
     QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen \
     QT_NO_XDG_DESKTOP_PORTAL=1 setsid qs -p "$probe_root/project/probe-network-links.qml" --no-color >"$probe_root/probe.log" 2>&1 &
 probe_pid=$!
-_probe_wait "$probe_root/probe.log" "$probe_pid" 'PROBE-LINKS [pf]a[si][sl]ed' 900 0.1 || true
+_probe_wait "$probe_root/probe.log" "$probe_pid" 'PROBE-LINKS [pf]a[si][sl]ed' 600 0.1 || true
 
 errs="$(_probe_errors "$probe_root/probe.log")"
 if ! grep -q 'PROBE-LINKS passed' "$probe_root/probe.log" \
@@ -101,5 +119,5 @@ for stray in ip-other nmcli-other; do
         exit 1
     fi
 done
-grep -oE 'PROBE-LINKS (event|deletion|quiet|deleting|stream|wake|fallback).*' "$probe_root/probe.log" || true
+grep -oE 'PROBE-LINKS (event|late|quiet|deleting|stream|wake|fallback).*' "$probe_root/probe.log" || true
 grep -oE 'PROBE-LINKS passed [0-9]+ checks' "$probe_root/probe.log" | tail -1
