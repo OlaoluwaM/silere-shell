@@ -19,7 +19,7 @@ Item {
     onEnabledChanged: if (!enabled) root.hoveredIndex = -1
     property string accessiblePrefix: ""
 
-    signal picked(int index)
+    signal chosen(int index)
 
     implicitHeight: Metrics.rowHeightFor(32)
     implicitWidth: edgePadding * 2 + options.length * 26
@@ -68,7 +68,7 @@ Item {
                 spectrum:  modelData.spectrum === true
                 outlined:  root.outlined
                 active:    index === root.activeIndex
-                onPicked:  root.picked(index)
+                onChosen:  root.chosen(index)
                 onHoverChanged: (n, h) => {
                     if (h) root.hoveredIndex = index
                     else if (root.hoveredIndex === index) root.hoveredIndex = -1

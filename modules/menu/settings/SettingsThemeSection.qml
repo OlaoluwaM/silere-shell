@@ -214,7 +214,7 @@ Column {
                             interval: 0
                             onTriggered: _swatchViewport.revealIndex(_swatchRow.activeIndex)
                         }
-                        onPicked: (i) => {
+                        onChosen: (i) => {
                             const opt = _accentPicker._options[i]
                             _accentPicker._customPinned = !!opt.custom
                             ShellSettings.batch(() => {
@@ -327,7 +327,7 @@ Column {
                 colors: [MatugenTheme.accent, MatugenTheme.success, MatugenTheme.warning]
                 activeIndex: options.findIndex(o => o.value === ShellSettings.matugenAccentRole)
                 tintedReadout: true
-                onPicked: (i) => ShellSettings.matugenAccentRole = options[i].value
+                onChosen: (i) => ShellSettings.matugenAccentRole = options[i].value
             }
         }
 
@@ -374,7 +374,7 @@ Column {
                 (_neutral ? ShellSettings.baseTone : ShellSettings.matugenDepth))
             outlined: true
             ringColor: Theme.accent
-            onPicked: (i) => {
+            onChosen: (i) => {
                 if (_neutral) ShellSettings.baseTone = options[i].value
                 else ShellSettings.matugenDepth = options[i].value
             }

@@ -13,11 +13,11 @@ Item {
     property string accessiblePrefix: ""
     default property alias content: _chip.data
 
-    signal picked()
+    signal chosen()
     signal hoverChanged(string name, bool hovered)
 
     readonly property bool _canActivate: root.enabled && root.visible
-    function _activate(): void { if (root._canActivate) root.picked() }
+    function _activate(): void { if (root._canActivate) root.chosen() }
 
     implicitWidth: 26
     implicitHeight: 32

@@ -15,7 +15,7 @@ Item {
     property alias ringColor: _sr.ringColor
     property bool tintedReadout: false
 
-    signal picked(int index)
+    signal chosen(int index)
 
     readonly property real _inlineNeededW: 14
         + (root.glyph.length > 0 ? 28 : 0)
@@ -90,6 +90,6 @@ Item {
             : Math.round((root.height - height) / 2)
         width: implicitWidth
         height: implicitHeight
-        onPicked: (i) => root.picked(i)
+        onChosen: (i) => root.chosen(i)
     }
 }
