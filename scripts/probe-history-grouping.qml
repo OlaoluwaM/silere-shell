@@ -669,6 +669,53 @@ ShellRoot {
         root.comparing = false
     }
 
+    // A grouping takes hold of its model's signals among the last steps of the page being
+    // made, after the objects made after it have completed, and the page is made over
+    // several turns of the event loop. A row that has read its shape by then, and a row filed
+    // before the hold is taken, leave a change the grouping never hears of
+    ListModel { id: lateRows }
+    function checkChangeBeforeTheGroupingHears(): void {
+        lateRows.clear()
+        for (let i = 0; i < 3; i++)
+            lateRows.append({ appName: "Late", id: i, time: root.day - i, urgency: 1, run: "late" })
+        const project = Quickshell.env("SILERE_PROBE_ROOT") || ""
+        // made as a file of the menu module, the one place the grouping's type is known. The
+        // list is made last, so it completes first, and its row files a history row as it does
+        const source = `
+            import QtQuick
+            Item {
+                id: page
+                width: 100; height: 100
+                readonly property HistoryGrouping grouping: HistoryGrouping { model: lateRows; foldAt: 3 }
+                property var early: page.grouping.model ? page.grouping.shapeAt(0) : null
+                ListView {
+                    width: 100; height: 100
+                    model: 1
+                    delegate: Item {
+                        width: 10; height: 10
+                        Component.onCompleted: lateRows.insert(0, { appName: "Other", id: 9,
+                            time: ${root.day + 9}, urgency: 1, run: "other" })
+                    }
+                }
+            }`
+        let same = false
+        try {
+            const page = Qt.createQmlObject(source, root,
+                "file://" + project + "/modules/menu/ProbeLateHearing.qml")
+            same = lateRows.count === 4
+            for (let i = -1; i <= lateRows.count && same; i++)
+                same = root.shapeText(page.grouping.shapeAt(i))
+                        === root.shapeText(root.referenceShape(lateRows, i))
+                    && root.boundsText(page.grouping.runBounds(i))
+                        === root.boundsText(root.referenceBounds(lateRows, i))
+            page.destroy()
+        } catch (e) {
+            console.warn("PROBE-NOTE " + e)
+            same = false
+        }
+        root.check(same, "a row filed before the grouping hears its model is read with the rest")
+    }
+
     // the history model as the grouping sees it, counting every row read
     ListModel { id: bigHistory }
     QtObject {
@@ -812,6 +859,7 @@ ShellRoot {
         root.checkDayBoundaryAndBoundShape()
         root.checkReadsMatchTheWalk()
         root.checkModelReplaced()
+        root.checkChangeBeforeTheGroupingHears()
         root.checkCostOfAChange()
         if (root.failures === 0)
             console.warn("PROBE-HISTORY passed " + root.checks + " checks")

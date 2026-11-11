@@ -22,14 +22,24 @@ QtObject {
     // way is not kept, so a read takes the rows as they stand whichever of this and the list
     // hears of the change first. A relabel moves no row and is reported once it is done;
     // _relabels carries it to the bindings, which read the table rather than the rows
-    readonly property var _runs: ({ table: null, changing: false })
+    readonly property var _runs: ({ table: null, changing: false, hearing: null })
     property int _relabels: 0
+
+    // A Connections declared here would connect only as it completes, which comes after
+    // the objects made after this one have completed: the list has built its rows by then,
+    // they have read their shapes, and a row filed in between would be a change this
+    // object never heard of, under a table it kept. Made on demand it connects at once, so
+    // the model is heard from the moment it is given, and always before a table is built
+    function _hear(): void {
+        if (!root._runs.hearing) root._runs.hearing = root._rowChanges.createObject(root)
+    }
 
     // A binding that read the rows itself would come to depend on each one, and Qt
     // notifies those dependencies of a relabel before the model reports it, while the
     // table still holds the old labels. A signal handler records no dependencies
     signal _tableWanted()
     on_TableWanted: {
+        root._hear()
         const rows = root.model
         const list = []
         for (let i = 0; i < rows.count; i++) {
@@ -52,7 +62,10 @@ QtObject {
         root._runs.table = { model: rows, rows: list, runOf: runOf }
     }
 
-    onModelChanged: root._rowsChanging(false)
+    onModelChanged: {
+        root._hear()
+        root._rowsChanging(false)
+    }
 
     function _table(): var {
         root._relabels
@@ -169,22 +182,28 @@ QtObject {
         root._openRuns = keep
     }
 
+    property Component _rowChanges: Component {
+        Connections {
+            target: root.model
+            function onRowsAboutToBeInserted() { root._rowsChanging(true) }
+            function onRowsInserted() { root._rowsChanging(false) }
+            function onRowsAboutToBeRemoved() { root._rowsChanging(true) }
+            function onRowsRemoved() { root._rowsChanging(false) }
+            function onRowsAboutToBeMoved() { root._rowsChanging(true) }
+            function onRowsMoved() { root._rowsChanging(false) }
+            function onModelAboutToBeReset() { root._rowsChanging(true) }
+            function onModelReset() { root._rowsChanging(false) }
+            function onLayoutAboutToBeChanged() { root._rowsChanging(true) }
+            function onLayoutChanged() { root._rowsChanging(false) }
+            function onDataChanged() {
+                root._runs.table = null
+                root._relabels++
+            }
+        }
+    }
+
     property Connections _modelChanges: Connections {
         target: root.model
-        function onRowsAboutToBeInserted() { root._rowsChanging(true) }
-        function onRowsInserted() { root._rowsChanging(false) }
-        function onRowsAboutToBeRemoved() { root._rowsChanging(true) }
-        function onRowsRemoved() { root._rowsChanging(false) }
-        function onRowsAboutToBeMoved() { root._rowsChanging(true) }
-        function onRowsMoved() { root._rowsChanging(false) }
-        function onModelAboutToBeReset() { root._rowsChanging(true) }
-        function onModelReset() { root._rowsChanging(false) }
-        function onLayoutAboutToBeChanged() { root._rowsChanging(true) }
-        function onLayoutChanged() { root._rowsChanging(false) }
-        function onDataChanged() {
-            root._runs.table = null
-            root._relabels++
-        }
         function onCountChanged() { root._pruneOpenRuns() }
     }
 }
