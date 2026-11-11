@@ -358,7 +358,7 @@ Singleton {
             }
             // a set since this read started has already settled any waiting cycle
             if (_set.running || _gen !== root._writeGen) return
-            if (code === 0) {
+            if (_get.completedSuccessfully(code)) {
                 const p = root._parseCurrent(_getOut.text)
                 if (p.length > 0) {
                     root.profile = p
