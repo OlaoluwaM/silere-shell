@@ -111,88 +111,129 @@ ShellRoot {
         }
     }
 
+    // The window polishes on the machine's clock, not on this timer's. A step that read the
+    // list a fixed two ticks after changing it failed whenever a loaded machine took longer
+    // than that to lay the rows out, so each step waits for its outcome instead, and still
+    // fails if the outcome has not come by the end of its patience
+    readonly property int patience: 60
+    property int waited: 0
+
+    function due(ok: bool): bool {
+        if (!ok && root.waited < root.patience) {
+            root.waited++
+            return false
+        }
+        root.waited = 0
+        return true
+    }
+
+    // for an outcome that is also the state before the change, which only time can show
+    function held(ticks: int): bool {
+        if (root.waited < ticks) {
+            root.waited++
+            return false
+        }
+        root.waited = 0
+        return true
+    }
+
     Timer {
-        interval: 100
+        interval: 50
         running: true
         repeat: true
         onTriggered: {
             const list = root.findList(picker)
-            switch (root.phase++) {
+            let ok = true
+            switch (root.phase) {
             case 0:
                 root.reduceMotionWas = ShellSettings.reduceMotion
                 ShellSettings.reduceMotion = true
                 break
-            case 2:
+            case 1:
                 Network.wifiNetworks = root.networks(3, -1)
                 break
-            case 4:
-                root.check(list !== null && list.count === 3 && !list.scrollable
-                        && wifiLines.count === 3 && root.kept(wifiLines, 1) && root.kept(wifiLines, 2),
-                    "a list of plain rows keeps the card's lines above and below it")
+            case 2:
+                ok = list !== null && list.count === 3 && !list.scrollable
+                    && wifiLines.count === 3 && root.kept(wifiLines, 1) && root.kept(wifiLines, 2)
+                if (!root.due(ok)) return
+                root.check(ok, "a list of plain rows keeps the card's lines above and below it")
                 root.check(otherLines.count === 3 && root.kept(otherLines, 1)
                         && root.kept(otherLines, 2),
                     "a picker without the edge contract keeps its lines beside a selected row")
                 Network.wifiNetworks = root.networks(3, 0)
                 break
-            case 6:
-                root.check(root.faded(wifiLines, 1) && root.kept(wifiLines, 2),
-                    "a connected first row hides the line above the list, and only that one")
+            case 3:
+                ok = root.faded(wifiLines, 1) && root.kept(wifiLines, 2)
+                if (!root.due(ok)) return
+                root.check(ok, "a connected first row hides the line above the list, and only that one")
                 Network.wifiNetworks = root.networks(3, 2)
                 break
-            case 8:
-                root.check(root.kept(wifiLines, 1) && root.faded(wifiLines, 2),
-                    "a connected last row hides the line below the list, and the top one returns")
+            case 4:
+                ok = root.kept(wifiLines, 1) && root.faded(wifiLines, 2)
+                if (!root.due(ok)) return
+                root.check(ok, "a connected last row hides the line below the list, and the top one returns")
                 Network.wifiNetworks = root.networks(12, 0)
                 break
-            case 10:
-                root.check(list.scrollable && list.atYBeginning && root.faded(wifiLines, 1),
-                    "a list resting at its top answers to its connected first row")
+            case 5:
+                ok = list.count === 12 && list.scrollable && list.atYBeginning
+                    && root.faded(wifiLines, 1)
+                if (!root.due(ok)) return
+                root.check(ok, "a list resting at its top answers to its connected first row")
                 list.contentY = 40
                 break
-            case 11:
-                root.check(!list.atYBeginning && root.kept(wifiLines, 1),
-                    "the line returns once the first row is scrolled off it")
+            case 6:
+                ok = !list.atYBeginning && root.kept(wifiLines, 1)
+                if (!root.due(ok)) return
+                root.check(ok, "the line returns once the first row is scrolled off it")
                 list.contentY = 0
                 break
-            case 12:
-                root.check(root.faded(wifiLines, 1),
-                    "the line fades again with the list back at its top")
+            case 7:
+                ok = list.atYBeginning && root.faded(wifiLines, 1)
+                if (!root.due(ok)) return
+                root.check(ok, "the line fades again with the list back at its top")
                 Network.wifiNetworks = root.networks(12, -1)
                 break
-            case 14:
-                root.check(root.kept(wifiLines, 1) && root.kept(wifiLines, 2),
-                    "the line returns once the first row loses its fill")
+            case 8:
+                ok = root.kept(wifiLines, 1) && root.kept(wifiLines, 2)
+                if (!root.due(ok)) return
+                root.check(ok, "the line returns once the first row loses its fill")
                 Network.wifiNetworks = root.networks(12, 11)
                 break
-            case 16:
+            case 9:
+                // the line below was kept before the last row connected, so this waits
+                if (!root.held(4)) return
                 root.check(root.kept(wifiLines, 2),
                     "a connected last row out of view leaves the line below alone")
                 list.positionViewAtEnd()
                 break
-            case 18:
-                root.check(list.atYEnd && root.faded(wifiLines, 2) && root.kept(wifiLines, 1),
-                    "scrolled to its end, the list's connected last row hides the line below")
+            case 10:
+                ok = list.atYEnd && root.faded(wifiLines, 2) && root.kept(wifiLines, 1)
+                if (!root.due(ok)) return
+                root.check(ok, "scrolled to its end, the list's connected last row hides the line below")
                 root.check(root.kept(otherLines, 1) && root.kept(otherLines, 2),
                     "the other card's lines never moved")
                 // the same rows, kept by ssid, so a reorder moves delegates instead of rebuilding them
                 Network.wifiNetworks = root.ordered(["net0", "net1", "net2"], "")
                 break
-            case 20:
-                root.check(root.kept(wifiLines, 1) && root.kept(wifiLines, 2),
-                    "a reordered list starts with both lines")
+            case 11:
+                ok = list.count === 3 && root.kept(wifiLines, 1) && root.kept(wifiLines, 2)
+                if (!root.due(ok)) return
+                root.check(ok, "a reordered list starts with both lines")
                 // net2 connects and sorts to the front
                 Network.wifiNetworks = root.ordered(["net2", "net0", "net1"], "net2")
                 break
-            case 22:
-                root.check(root.faded(wifiLines, 1) && root.kept(wifiLines, 2),
-                    "a network that connects and sorts to the top hides the line above it")
+            case 12:
+                ok = root.faded(wifiLines, 1) && root.kept(wifiLines, 2)
+                if (!root.due(ok)) return
+                root.check(ok, "a network that connects and sorts to the top hides the line above it")
                 // still connected, it sorts to the end: only the order changes, so the line
                 // below now answers to the filled row and the line above comes back
                 Network.wifiNetworks = root.ordered(["net0", "net1", "net2"], "net2")
                 break
-            case 24:
-                root.check(root.kept(wifiLines, 1) && root.faded(wifiLines, 2),
-                    "a filled row sorted to the bottom moves the fade from the top line to the bottom one")
+            case 13:
+                ok = root.kept(wifiLines, 1) && root.faded(wifiLines, 2)
+                if (!root.due(ok)) return
+                root.check(ok, "a filled row sorted to the bottom moves the fade from the top line to the bottom one")
                 Network.wifiNetworks = []
                 ShellSettings.reduceMotion = root.reduceMotionWas
                 console.log("PROBE-LIST-DIVIDERS " + (root.failures ? "failed" : "passed")
@@ -201,6 +242,7 @@ ShellRoot {
                 stop()
                 break
             }
+            root.phase++
         }
     }
 }
