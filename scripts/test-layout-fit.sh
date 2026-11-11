@@ -117,13 +117,20 @@ for scale in 1.0 1.15; do
         status=1
     fi
     done_line="$(grep -o 'FIT-DONE.*' "$log" | tail -1)"
+    fit_texts="$(printf '%s' "$done_line" | sed -n 's/.*texts \([0-9][0-9]*\).*/\1/p')"
+    fit_clipped="$(printf '%s' "$done_line" | sed -n 's/.*clipped \([0-9][0-9]*\).*/\1/p')"
+    # a count the line no longer carries would make the comparisons below error, and an
+    # if reads that error as false, so the floors would pass on nothing
+    if ! [[ "$fit_texts" =~ ^[0-9]+$ && "$fit_clipped" =~ ^[0-9]+$ ]]; then
+        echo "FAIL: layout fit probe's FIT-DONE line has no texts or clipped count at scale $scale: $done_line" >&2
+        status=1
     # a scan that reaches no text reports zero findings for the wrong reason
-    if [ "$(printf '%s' "$done_line" | sed -n 's/.*texts \([0-9]*\).*/\1/p')" -lt 200 ]; then
+    elif [ "$fit_texts" -lt 200 ]; then
         echo "FAIL: layout fit probe scanned too little text at scale $scale: $done_line" >&2
         status=1
     # likewise for the clip check: no item measured against a clipping ancestor
     # means the overflow scan reported clean because it never ran
-    elif [ "$(printf '%s' "$done_line" | sed -n 's/.*clipped \([0-9]*\).*/\1/p')" -lt 500 ]; then
+    elif [ "$fit_clipped" -lt 500 ]; then
         echo "FAIL: layout fit probe measured too few clipped items at scale $scale: $done_line" >&2
         status=1
     fi
