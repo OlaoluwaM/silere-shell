@@ -2336,6 +2336,78 @@ ShellRoot {
         root._check(!growingArmed && !growingStale && rebuiltArmed && rebuiltStale,
             "a tunnel rebuilt under the same name rechecks the VPN and its address, growing counters do not")
 
+        // lines `ip -o monitor link` printed for real: add, up, down and delete of a dummy, a
+        // rename, a veth pair, wireguard and tun links, a veth peer leaving for another
+        // namespace, a same-name rebuild, and a Wi-Fi driver's short notice
+        const linkLines = linkFixture.text().split("\n").filter(l => l.length > 0)
+        const linkEvents = linkLines.map(l => Network.linkEvent(l))
+        const linkFirst = text => linkEvents[linkLines.findIndex(l => l.indexOf(text) >= 0)]
+        root._check(linkLines.length >= 30 && linkEvents.every(e => e !== null)
+                && linkEvents.filter(e => e.deleted).length
+                    === linkLines.filter(l => l.startsWith("Deleted ")).length,
+            "every captured link event parses, and only the Deleted ones read as deletions")
+        const vethLink = linkFirst("5: veth0@veth1:")
+        const movedLink = linkFirst("new-netnsid")
+        const renamedLink = linkFirst("wg-odd.x")
+        const wifiLink = linkFirst("wlp55s0")
+        root._check(vethLink.names.join(" ") === "veth0@veth1 veth0" && !vethLink.deleted
+                && movedLink.deleted && movedLink.names.indexOf("veth1") >= 0
+                && renamedLink.names[0] === "wg-odd.x" && linkFirst("6: wg0:").names.join(" ") === "wg0"
+                && linkFirst("7: tun0:").names.join(" ") === "tun0"
+                && wifiLink.names.join(" ") === "wlp55s0" && !wifiLink.deleted,
+            "a link event names the link, every reading of a name holding @, and a peer moved away as deleted")
+        const oddLinks = ["", "garbage", "Deleted 7: ", "Deleted ???", "12:", "x".repeat(5000),
+            "3: : <UP>", "9: @x@y: <UP> mtu 1", "4: a@b@c: <UP> mtu 1", "OVERRUN"]
+            .map(l => Network.linkEvent(l))
+        root._check(oddLinks[0] === null && oddLinks[1] === null && oddLinks[4] === null
+                && oddLinks[5] === null && oddLinks[6] === null && oddLinks[9] === null
+                && oddLinks[2].deleted && oddLinks[2].names.length === 0
+                && oddLinks[3].deleted && oddLinks[3].names.length === 0
+                && oddLinks[7].names.join(" ") === "@x@y @x"
+                && oddLinks[8].names.join(" ") === "a@b@c a a@b",
+            "a line of another shape parses to nothing, and a deletion without a name to no names")
+
+        // the rebuilt tunnel's counter has already passed its old, small sample by the read,
+        // so only the deletion line can tell
+        Network._interfaceNames = "lo tun9 wlo1"
+        Network._interfaceRx = ({ lo: 2, tun9: 5, wlo1: 1 })
+        Network._vpnAddressStale = false
+        Network._applyInterfaceNames("  wlo1: 3\n  lo: 4\n  tun9: 7\n")
+        const passedArmed = Network._vpnSettleTimer.running
+        Network._noteLinkGone(linkFirst("Deleted 4: tun9:").names)
+        const goneStale = Network._vpnAddressStale
+        Network._applyInterfaceNames("  wlo1: 5\n  lo: 6\n  tun9: 9\n")
+        const backArmed = Network._vpnSettleTimer.running
+        const backStale = Network._vpnAddressStale
+        const backRx = Network._interfaceRx.tun9
+        Network._vpnSettleTimer.stop()
+        root._check(!passedArmed && goneStale && backArmed && backStale && backRx === 9,
+            "a tunnel deleted and back under its name by the next read rechecks the VPN and its address")
+        Network._vpnAddressStale = false
+        Network._noteLinkGone(linkFirst("Deleted 5: veth0@NONE:").names)
+        const vethStale = Network._vpnAddressStale
+        Network._applyInterfaceNames("  wlo1: 7\n  lo: 8\n  tun9: 10\n")
+        const vethArmed = Network._vpnSettleTimer.running
+        Network._vpnSettleTimer.stop()
+        Network._vpnAddressStale = false
+        Network._noteLinkGone([])
+        const allVoid = Network._interfaceRx.lo === Infinity && Network._interfaceRx.tun9 === Infinity
+            && Network._interfaceRx.wlo1 === Infinity && Network._vpnAddressStale
+        root._check(vethStale && !vethArmed && allVoid,
+            "an unrelated deletion only marks the address, and a deletion without a name voids every counter")
+        // before the first read there is no list to compare, so the deletion starts nothing
+        Network._interfaceNames = ""
+        Network._interfaceRx = ({})
+        Network._noteLinkGone(["tun9"])
+        Network._applyInterfaceNames("  lo: 1\n  tun9: 3\n")
+        const firstArmed = Network._vpnSettleTimer.running
+        root._check(!firstArmed && Network._interfaceNames === "lo tun9",
+            "a deletion before the first read neither rechecks the VPN nor holds back the first list")
+        Network._vpnSettleTimer.stop()
+        Network._interfaceNames = interfacesWas
+        Network._interfaceRx = rxWas
+        Network._vpnAddressStale = staleWas
+
         const vpnStateWas = Network._vpnState
         Network._vpnState = ({ active: true, name: "stale probe VPN" })
         Network._vpnCandidateActive = true
@@ -3857,6 +3929,14 @@ ShellRoot {
     property var _niriFocusCases: []
     property int _niriFocusCase: 0
     property var _niriExpectedDispatches: []
+
+    // test-logic.sh copies the captured events beside the probe
+    FileView {
+        id: linkFixture
+        path: Quickshell.shellDir + "/ip-monitor-link.txt"
+        blockLoading: true
+        printErrors: false
+    }
 
     FileView {
         id: niriFocusLog

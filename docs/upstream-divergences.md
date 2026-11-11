@@ -227,6 +227,16 @@ outside issues or pull requests.
   the address stale, so the next listings reread it even when the uuid and
   name stayed the same. Keep both on an import of the interface watch or the
   VPN reader.
+- `services/Network.qml` and `services/SystemTools.qml`: the interface list
+  is read on the kernel's link events, which an `ip -o monitor link` watcher
+  reports, half a second after the first event of a burst and no more than
+  every 5 s after that. Upstream's 5 s poll stretches to 120 s while the
+  watcher runs and keeps 5 s without it. A deleted link marks the VPN
+  address stale and voids that name's receive counter, so a tunnel rebuilt
+  under its name is rechecked whatever its new counter reads, since reads
+  can now be two minutes apart. The watcher runs through idle, where a
+  deletion only marks. `SystemTools` scans `ip` (`hasIp`). Keep all of it on
+  an import of the interface watch, the VPN reader or the tool scan.
 - `services/Network.qml`: the VPN reader retries a missing address only after
   a listing that succeeded while detection is wanted. Upstream retries after
   any exit, so going idle, which kills the listing, spawns nmcli on an idle

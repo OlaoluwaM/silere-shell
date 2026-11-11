@@ -20,6 +20,7 @@ runtime="$(mktemp -d "${TMPDIR:-/tmp}/silere-logic-runtime.XXXXXX")"
 probe_project="$(mktemp -d "${TMPDIR:-/tmp}/silere-logic-project.XXXXXX")"
 chmod 0700 "$runtime"
 _probe_project "$ROOT" "$PROBE_SOURCE" "$probe_project"
+cp "$ROOT/scripts/fixtures/network/ip-monitor-link.txt" "$probe_project/"
 probe_pid=""
 cleanup() {
     _probe_stop "$probe_pid"
@@ -81,6 +82,7 @@ bash scripts/test-power-profile-recovery.sh
 bash scripts/test-brightness-write.sh
 bash scripts/test-nightlight.sh
 bash scripts/test-caffeine.sh
+bash scripts/test-network-links.sh
 bash scripts/test-audio-switch.sh
 bash scripts/test-notification-disk.sh
 bash scripts/test-upstream-connectivity.sh

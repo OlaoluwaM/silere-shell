@@ -44,6 +44,7 @@ Singleton {
     readonly property bool hasTimeout:       _tools.timeout ?? false
     readonly property bool hasWpctl:         _tools.wpctl ?? false
     readonly property bool hasPwDump:        _tools["pw-dump"] ?? false
+    readonly property bool hasIp:            _tools.ip ?? false
 
     function _shq(s: string): string {
         return "'" + String(s).replace(/'/g, "'\\''") + "'"
@@ -120,7 +121,7 @@ Singleton {
         lastError = ""
         _checkProc.exec(["bash", "-c",
             "for t in brightnessctl inotifywait nmcli matugen hyprsunset hyprlock systemctl loginctl hyprctl notify-send " +
-            "busctl powerprofilesctl asusctl fc-list dbus-monitor pwvucontrol timeout wpctl pw-dump; do " +
+            "busctl powerprofilesctl asusctl fc-list dbus-monitor pwvucontrol timeout wpctl pw-dump ip; do " +
             "  command -v \"$t\" >/dev/null 2>&1 && echo \"$t\"; " +
             // the last lookup is optional; do not inherit its `command -v` status and discard every tool found before it
             "done; exit 0"])

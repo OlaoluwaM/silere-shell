@@ -5,6 +5,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Networking
+import "../config"
 
 Singleton {
     id: root
@@ -709,11 +710,107 @@ Singleton {
         onLoaded: root._applyInterfaceNames(_interfaceFile.text())
     }
 
+    // the link watcher below reads the list as the kernel changes it; while it is up this
+    // only needs to catch what it might miss, so it stretches out to 120s. Without it (ip
+    // absent, or the watcher down or given up) this is the only reader and holds 5s.
+    readonly property bool _watcherHealthy: SystemTools.hasIp && _linkWatcher.running
     Timer {
-        interval: 5000
+        interval: root._watcherHealthy ? 120000 : 5000
         repeat: true
         running: root._vpnWanted
         onTriggered: _interfaceFile.reload()
+    }
+
+    // `ip -o monitor link` prints one event a line: "[Deleted ]<index>: <name>[@<peer>]: ...".
+    // A name may itself hold "@", so each reading of it is a candidate. null is a line of
+    // another shape, which still earns a read and marks nothing.
+    function linkEvent(line: string): var {
+        const text = String(line || "")
+        const deleted = text.startsWith("Deleted ")
+        const m = /^(?:Deleted )?\d+: ([^\s:]+):/.exec(text)
+        if (!m) return deleted ? { deleted: true, names: [] } : null
+        const names = [m[1]]
+        for (let at = m[1].indexOf("@"); at >= 0; at = m[1].indexOf("@", at + 1))
+            if (at > 0) names.push(m[1].slice(0, at))
+        return { deleted: deleted, names: names }
+    }
+
+    // a deleted link is how a tunnel rebuild starts, and the tunnel's own name is not known
+    // here, so every deletion marks the address. The name's counter can only have restarted
+    // after it, which makes the next read recheck the VPN even when the name is back by then,
+    // however far apart the reads are. No name, or events the kernel dropped, void them all.
+    function _noteLinkGone(names: var): void {
+        const rx = Object.assign({}, root._interfaceRx)
+        const gone = names.length > 0 ? names : Object.keys(rx)
+        for (let i = 0; i < gone.length; i++) rx[gone[i]] = Infinity
+        root._interfaceRx = rx
+        root._vpnAddressStale = true
+    }
+
+    // a tunnel coming up is several events within milliseconds, a container's veth a few
+    // more: the first event after a quiet spell reads half a second later, covering its
+    // burst. Events after that read wait out 5s, the pace of the poll this stands in for,
+    // so a stream of them never reads more often than that poll did.
+    property bool _linkEventsWaiting: false
+    function _readLinksSoon(): void {
+        if (!root._vpnWanted) return
+        if (_linkCooldown.running) root._linkEventsWaiting = true
+        else if (!_linkBurst.running) _linkBurst.start()
+    }
+
+    function _readLinksNow(): void {
+        root._linkEventsWaiting = false
+        if (!root._vpnWanted) return
+        _linkCooldown.restart()
+        _interfaceFile.reload()
+    }
+
+    Timer {
+        id: _linkBurst
+        interval: 500
+        onTriggered: root._readLinksNow()
+    }
+
+    Timer {
+        id: _linkCooldown
+        interval: 5000
+        onTriggered: if (root._linkEventsWaiting) root._readLinksNow()
+    }
+
+    // Not gated on Idle: a deletion seen while idle still marks the address, and the read
+    // waits for the session to wake. Link events are rare at rest, so watching costs little.
+    //
+    // command stays a plain constant, not a function of anything superviseWhen depends on,
+    // for the same reason Caffeine's and Recording's watchers do: gating command on the same
+    // condition that flips superviseWhen would race two independent bindings off one signal.
+    property SupervisedProcess _linkWatcherProcess: SupervisedProcess {
+        id: _linkWatcher
+        superviseWhen: root.available && ShellSettings.barShowNetwork
+            && SystemTools.hasNmcli && SystemTools.hasIp
+        restartDelay: 5000
+        // 1 is a netlink socket ip cannot open or bind, 255 arguments it rejects; a respawn
+        // fixes neither, and the 5s poll above carries the list without the watcher
+        giveUpCodes: [1, 255]
+        command: ["ip", "-o", "monitor", "link"]
+        stdout: SplitParser {
+            onRead: line => {
+                const event = root.linkEvent(line)
+                if (event && event.deleted) root._noteLinkGone(event.names)
+                root._readLinksSoon()
+            }
+        }
+        // ip survives a receive-buffer overrun but drops the events in it, a deletion among them
+        stderr: SplitParser {
+            onRead: line => {
+                if (!line.startsWith("netlink receive error")) return
+                root._noteLinkGone([])
+                root._readLinksSoon()
+            }
+        }
+        // the restat-on-restart idiom of Caffeine's watcher, for the gap while it was down. The
+        // down edge reads too: the poll takes over then, and its counter check needs a recent
+        // sample to compare with, not one up to two minutes old
+        onRunningChanged: if (root._vpnWanted) _interfaceFile.reload()
     }
 
     property Timer _vpnSettleTimer: Timer {
