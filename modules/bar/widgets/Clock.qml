@@ -16,8 +16,17 @@ Item {
     // a keybind opens with no trigger widget, so the state's fallback x has to stay fresh
     readonly property bool _anchorFallbackBar: !!root.screen && root.screen.name === Monitors.overlayBarName
 
+    // The calendar hangs from the clock as it rests. A date shown only while the pointer is on
+    // the clock widens it away from the time, which keeps its place in a side zone, so there
+    // the time is what stays put. A centred clock widens about its own middle, and a date that
+    // is always shown is part of the clock at rest
+    readonly property Item _anchorItem: ShellSettings.clockShowDate
+        || ShellSettings.barWidgetOrderCenterKeys.indexOf("clock") !== -1 ? root : _time
+    on_AnchorItemChanged: _anchorSettle.restart()
+
     function _syncMenuAnchor(): void {
-        const pt = root.mapToItem(null, root.width / 2, 0)
+        const item = root._anchorItem
+        const pt = item.mapToItem(null, item.width / 2, 0)
         if (!isFinite(pt.x)) return
         root.menuAnchorX = pt.x
         CalendarState.publishFallbackAnchor(root.screen, pt.x)
@@ -31,10 +40,19 @@ Item {
         }
     }
 
-    onXChanged: root._syncMenuAnchor()
-    onYChanged: root._syncMenuAnchor()
+    // A resize reaches these handlers partway through a layout pass, before the zone has moved
+    // the clock to make room, and mapToItem reads those stale positions: each frame of the date
+    // easing open measured the time a frame's growth away from where it stood. A turn later
+    // the pass is done, and the time has not moved
+    Timer {
+        id: _anchorSettle
+        interval: 0
+        onTriggered: root._syncMenuAnchor()
+    }
+    onXChanged: _anchorSettle.restart()
+    onYChanged: _anchorSettle.restart()
     onWidthChanged: {
-        root._syncMenuAnchor()
+        _anchorSettle.restart()
         // seconds and the date are toggled from here, so the clock resizes under the pointer
         if (_hover.hovered) root._syncHint()
     }
@@ -150,6 +168,7 @@ Item {
         }
 
         Row {
+            id: _time
             anchors.verticalCenter: parent.verticalCenter
             spacing: 0
 

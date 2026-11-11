@@ -555,6 +555,15 @@ outside issues or pull requests.
 - The bar clock keeps text-only hover feedback, with no hover, pressed, or
   calendar-open background. Drop any highlight cap or `_calendarOpen` fill
   an import brings back.
+- The calendar hangs from the clock as it rests, where upstream hangs it from
+  the whole widget: in a side zone with the date shown only on hover, the
+  anchor is the time (`_anchorItem` in `modules/bar/widgets/Clock.qml`), so the
+  date peek opening and closing no longer slides an open calendar sideways. A
+  centred clock, or one whose date is always shown, anchors on the whole
+  widget as before. The anchor is also measured a turn after a resize
+  (`_anchorSettle`), since a resize handler runs before the zone has moved
+  the clock and read a position a frame's growth off. Keep both on an import
+  of the clock's anchor code.
 - `RowDividers` fades the lines either side of a hovered or pressed row, so
   the edge-to-edge `RowHoverBg` fill reads as one band. Keep the fade on a
   collision, along with the `row*` hover contract it reads from `SelectRow`
