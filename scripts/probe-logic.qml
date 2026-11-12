@@ -674,6 +674,16 @@ ShellRoot {
         clock._peekOnHover(false)
         root._check(dateOutBeforeLeave && !clock._datePeek && !clock._dateFolding,
             "the clock's peeked date folds at once when its hover ends with the pointer already on another widget")
+        // the calendar closing is the clock's other way to start a fold, and asks the same question
+        clock._peekOnHover(true)
+        clock._datePeek = true
+        CalendarState.openAt(0, null, clock)
+        clock._peekOnHover(false)
+        BarHover.widget = root
+        const dateHeldElsewhere = clock._dateRevealed && !clock._dateFolding
+        CalendarState.close()
+        root._check(dateHeldElsewhere && !clock._datePeek && !clock._dateFolding,
+            "the clock's peeked date folds at once when its calendar closes with the pointer already on another widget")
         const hoverPill = pillFactory.createObject(root)
         hoverPill.hoverActive = true
         hoverPill._revealOnHover(true)
@@ -690,6 +700,8 @@ ShellRoot {
         root._check(pillOutBeforeLeave && !hoverPill.expanded,
             "a pill's reveal closes at once when its hover ends with the pointer already on another widget")
         hoverPill.destroy()
+        // later sections play a hover ending with no entry before it
+        BarHover.widget = null
         clock.destroy()
         ShellSettings.reduceMotion = clockReduceWas
 
