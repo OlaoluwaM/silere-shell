@@ -102,13 +102,18 @@ Item {
         cursorShape: Qt.PointingHandCursor
         onHoveredChanged: {
             root._syncHint()
-            if (hovered) {
-                _datePeekRelease.stop()
-                if (!root._datePeek) _datePeekDelay.restart()
-            } else {
-                _datePeekDelay.stop()
-                if (root._datePeek && !root._calendarHeld) _datePeekRelease.restart()
-            }
+            root._peekOnHover(hovered)
+        }
+    }
+
+    // the pointer's side of the date peek. An argument, not the handler's state, so it is testable
+    function _peekOnHover(hovered: bool): void {
+        if (hovered) {
+            _datePeekRelease.stop()
+            if (!root._datePeek) _datePeekDelay.restart()
+        } else {
+            _datePeekDelay.stop()
+            if (root._datePeek && !root._calendarHeld) _datePeekRelease.restart()
         }
     }
 
@@ -143,6 +148,8 @@ Item {
         interval: Motion.hoverLinger
         onTriggered: root._datePeek = false
     }
+    // read by the logic probe alone: whether the date is on its way in
+    readonly property bool _dateFolding: _datePeekRelease.running
     Component.onDestruction: BarHintState.release(root)
 
     function _openCalendar(): void {

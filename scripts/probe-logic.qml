@@ -644,13 +644,20 @@ ShellRoot {
         dateSection._shown = 0.5
         root._check(!dateRest && dateSection.clip,
             "the clock's date clips only while it eases in or out")
-        // no pointer exists here, which is how the calendar's full-screen surface leaves the clock
+        // no pointer exists here, so the probe plays its part: the calendar's full-screen
+        // surface takes it off the clock as it opens
         clock._datePeek = true
         CalendarState.openAt(0, null, clock)
-        const dateHeld = CalendarState.open && clock._dateRevealed
+        clock._peekOnHover(false)
+        const dateHeld = CalendarState.open && clock._dateRevealed && !clock._dateFolding
         CalendarState.close()
-        root._check(dateHeld && clock._dateRevealed,
-            "the clock's peeked date stays out under its own calendar and does not fold the moment that closes")
+        root._check(dateHeld && clock._dateRevealed && clock._dateFolding,
+            "the clock's peeked date holds while its own calendar has the pointer and starts to fold once that closes")
+        clock._peekOnHover(true)
+        const dateKept = clock._dateRevealed && !clock._dateFolding
+        clock._peekOnHover(false)
+        root._check(dateKept && clock._dateRevealed && clock._dateFolding,
+            "a pointer back on the clock stops the fold, and one that leaves with no calendar up starts it")
         clock.destroy()
         ShellSettings.reduceMotion = clockReduceWas
 
