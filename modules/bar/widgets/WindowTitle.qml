@@ -481,6 +481,9 @@ Item {
 
     HoverHandler {
         id: _titleHover
-        onHoveredChanged: root._syncTitleHint()
+        onHoveredChanged: {
+            if (hovered) BarHover.widget = root
+            root._syncTitleHint()
+        }
     }
 }

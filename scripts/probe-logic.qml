@@ -658,6 +658,38 @@ ShellRoot {
         clock._peekOnHover(false)
         root._check(dateKept && clock._dateRevealed && clock._dateFolding,
             "a pointer back on the clock stops the fold, and one that leaves with no calendar up starts it")
+        // the wait is for a slip: a pointer that has landed on another widget ends it
+        clock._peekOnHover(true)
+        clock._peekOnHover(false)
+        const dateWaits = BarHover.widget === clock && clock._dateRevealed && clock._dateFolding
+        BarHover.widget = root
+        root._check(dateWaits && !clock._datePeek && !clock._dateFolding,
+            "the clock's peeked date waits out a slip and folds at once when the pointer lands on another widget")
+        // one move that carries the pointer across reaches the new widget before the clock
+        // hears it left, so the fold has to come from the clock's own leave as well
+        clock._peekOnHover(true)
+        clock._datePeek = true
+        BarHover.widget = root
+        const dateOutBeforeLeave = clock._dateRevealed && !clock._dateFolding
+        clock._peekOnHover(false)
+        root._check(dateOutBeforeLeave && !clock._datePeek && !clock._dateFolding,
+            "the clock's peeked date folds at once when its hover ends with the pointer already on another widget")
+        const hoverPill = pillFactory.createObject(root)
+        hoverPill.hoverActive = true
+        hoverPill._revealOnHover(true)
+        hoverPill._revealOnHover(false)
+        const pillWaits = BarHover.widget === hoverPill && hoverPill.expanded
+        BarHover.widget = root
+        root._check(pillWaits && !hoverPill.expanded,
+            "a pill's reveal waits out a slip and closes at once when the pointer lands on another widget")
+        hoverPill._revealOnHover(true)
+        hoverPill.hoverActive = true
+        BarHover.widget = root
+        const pillOutBeforeLeave = hoverPill.expanded
+        hoverPill._revealOnHover(false)
+        root._check(pillOutBeforeLeave && !hoverPill.expanded,
+            "a pill's reveal closes at once when its hover ends with the pointer already on another widget")
+        hoverPill.destroy()
         clock.destroy()
         ShellSettings.reduceMotion = clockReduceWas
 

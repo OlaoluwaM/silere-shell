@@ -139,6 +139,15 @@ Item {
                     interval: Motion.hoverLinger
                     onTriggered: _tile._dwelled = false
                 }
+                // the wait is for a slip; a pointer now on another icon or widget is not coming back
+                Connections {
+                    target: BarHover
+                    function onWidgetChanged() {
+                        if (!BarHover.elsewhere(_tile) || !_labelLinger.running) return
+                        _labelLinger.stop()
+                        _tile._dwelled = false
+                    }
+                }
 
                 Rectangle {
                     id: _hoverCap
@@ -233,6 +242,7 @@ Item {
                     id: _iconHover
                     onHoveredChanged: {
                         if (hovered && root.barActive) {
+                            BarHover.widget = _tile
                             _labelLinger.stop()
                             _labelDwell.restart()
                             const point = _tile.mapToItem(null, root.iconSize / 2, 0)
@@ -243,7 +253,10 @@ Item {
                                 primary + menu + " · middle-click secondary · scroll action")
                         } else {
                             _labelDwell.stop()
-                            if (_tile._dwelled) _labelLinger.restart()
+                            if (_tile._dwelled) {
+                                if (BarHover.elsewhere(_tile)) _tile._dwelled = false
+                                else _labelLinger.restart()
+                            }
                             BarHintState.release(_tile)
                         }
                     }

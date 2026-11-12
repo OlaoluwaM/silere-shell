@@ -37,7 +37,12 @@ Item {
     Accessible.focusable: root.canActivate
     Accessible.onPressAction: root._jump()
 
-    HoverHandler { id: _tickHover; enabled: root.canActivate; cursorShape: Qt.PointingHandCursor }
+    HoverHandler {
+        id: _tickHover
+        enabled: root.canActivate
+        cursorShape: Qt.PointingHandCursor
+        onHoveredChanged: if (hovered) BarHover.widget = root
+    }
     TapHandler   { enabled: root.canActivate; onTapped: root._jump() }
 
     property real _pulse: 1.0

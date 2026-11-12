@@ -109,12 +109,19 @@ Item {
     // the pointer's side of the date peek. An argument, not the handler's state, so it is testable
     function _peekOnHover(hovered: bool): void {
         if (hovered) {
+            BarHover.widget = root
             _datePeekRelease.stop()
             if (!root._datePeek) _datePeekDelay.restart()
         } else {
             _datePeekDelay.stop()
-            if (root._datePeek && !root._calendarHeld) _datePeekRelease.restart()
+            if (root._datePeek && !root._calendarHeld) root._foldDate()
         }
+    }
+
+    // at once when the pointer is already on another widget, after the wait when it only slipped off
+    function _foldDate(): void {
+        if (BarHover.elsewhere(root)) root._datePeek = false
+        else _datePeekRelease.restart()
     }
 
     // the date reads on hover when it is not already shown; only meaningful with clockShowDate off
@@ -131,7 +138,7 @@ Item {
             _datePeekDelay.stop()
             _datePeekRelease.stop()
         } else if (root._datePeek && !_hover.hovered) {
-            _datePeekRelease.restart()
+            root._foldDate()
         }
     }
 
@@ -150,6 +157,15 @@ Item {
     }
     // read by the logic probe alone: whether the date is on its way in
     readonly property bool _dateFolding: _datePeekRelease.running
+    // the wait is for a slip; a pointer now on another widget is not coming straight back
+    Connections {
+        target: BarHover
+        function onWidgetChanged() {
+            if (!BarHover.elsewhere(root) || !_datePeekRelease.running) return
+            _datePeekRelease.stop()
+            root._datePeek = false
+        }
+    }
     Component.onDestruction: BarHintState.release(root)
 
     function _openCalendar(): void {

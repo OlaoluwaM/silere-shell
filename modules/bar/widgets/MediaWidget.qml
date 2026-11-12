@@ -247,7 +247,10 @@ Item {
     HoverHandler {
         id: _rootHover
         cursorShape: Qt.PointingHandCursor
-        onHoveredChanged: root._syncHint()
+        onHoveredChanged: {
+            if (hovered) BarHover.widget = root
+            root._syncHint()
+        }
     }
     Component.onDestruction: BarHintState.release(root)
 

@@ -119,6 +119,7 @@ Item {
     }
     HoverHandler { id: _hover; cursorShape: Qt.PointingHandCursor }
     onHoveredChanged: {
+        if (root.hovered) BarHover.widget = root
         root.hoverReported(root.wsId, root.hovered)
         root._syncHint()
     }

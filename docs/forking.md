@@ -50,6 +50,11 @@ only when running, as `X is not a type` — that one confuses everybody once.
 7. the key appended to one of the `barWidgetOrder*` defaults; layout normalisation
    puts a key missing from all three at the end of the right zone
 
+A widget that is not a `Pill` and has a `HoverHandler` of its own sets
+`BarHover.widget` to itself as the pointer arrives, as `MediaWidget.qml` does. `Pill`
+does this already. The other widgets' hover reveals read it to close at once when the
+pointer moves on to yours, and keep waiting if it does not.
+
 If it needs a backend that may be absent, gate it in `BarZone._widgetEnabled()` next to
 the `battery` and `brightness` cases; returning false there hides the widget rather than
 drawing a dead one.

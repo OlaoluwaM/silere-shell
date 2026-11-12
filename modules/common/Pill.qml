@@ -411,17 +411,25 @@ Item {
         margin: 0
         cursorShape: root.interactive ? Qt.PointingHandCursor : Qt.ArrowCursor
         onHoveredChanged: {
-            if (hovered) {
-                _hoverLinger.stop()
-                _hoverRevealTimer.restart()
-                // the handler's signal fires before root.hovered's binding observes
-                // the new value, so pass the event state instead of reading it back
-                root._requestBarHint(true)
-            } else {
-                _hoverRevealTimer.stop()
-                if (root.hoverActive) _hoverLinger.restart()
-                BarHintState.release(root)
-            }
+            root._revealOnHover(hovered)
+            // the handler's signal fires before root.hovered's binding observes
+            // the new value, so pass the event state instead of reading it back
+            if (hovered) root._requestBarHint(true)
+            else BarHintState.release(root)
+        }
+    }
+
+    // the pointer's side of the reveal. An argument, not the handler's state, so it is testable
+    function _revealOnHover(hovered: bool): void {
+        if (hovered) {
+            BarHover.widget = root
+            _hoverLinger.stop()
+            _hoverRevealTimer.restart()
+        } else {
+            _hoverRevealTimer.stop()
+            if (!root.hoverActive) return
+            if (BarHover.elsewhere(root)) root.hoverActive = false
+            else _hoverLinger.restart()
         }
     }
 
@@ -431,6 +439,15 @@ Item {
         id: _hoverLinger
         interval: Motion.hoverLinger
         onTriggered: root.hoverActive = false
+    }
+    // the wait is for a slip; a pointer now on another widget is not coming straight back
+    Connections {
+        target: BarHover
+        function onWidgetChanged() {
+            if (!BarHover.elsewhere(root) || !_hoverLinger.running) return
+            _hoverLinger.stop()
+            root.hoverActive = false
+        }
     }
 
     Timer {
