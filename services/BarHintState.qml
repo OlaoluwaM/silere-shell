@@ -30,7 +30,7 @@ Singleton {
 
     // how long the pointer rests before a hint shows. A widget whose click opens a surface
     // may ask for longer, so a deliberate click lands before the hint and never under it
-    readonly property int showDelay: 520
+    readonly property int showDelay: 800
     property int _pendingDelay: 0
 
     function request(owner, screen, x: real, label: string, delay: int): void {
