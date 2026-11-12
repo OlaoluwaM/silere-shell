@@ -95,6 +95,7 @@ Item {
     onShrinkDelayChanged: if (shrinkDelay <= 0) { _shrinkDelay.stop(); _minW = rowWidth }
     onHoverEnabledChanged: if (!hoverEnabled) {
         _hoverRevealTimer.stop()
+        _hoverLinger.stop()
         _shrinkDelay.stop()
         hoverActive = false
         _minW = rowWidth
@@ -411,16 +412,25 @@ Item {
         cursorShape: root.interactive ? Qt.PointingHandCursor : Qt.ArrowCursor
         onHoveredChanged: {
             if (hovered) {
+                _hoverLinger.stop()
                 _hoverRevealTimer.restart()
                 // the handler's signal fires before root.hovered's binding observes
                 // the new value, so pass the event state instead of reading it back
                 root._requestBarHint(true)
             } else {
                 _hoverRevealTimer.stop()
-                root.hoverActive = false
+                if (root.hoverActive) _hoverLinger.restart()
                 BarHintState.release(root)
             }
         }
+    }
+
+    // a pointer that slips off the pill and comes straight back finds the value still out,
+    // where closing at once would fold it away only to open it again
+    Timer {
+        id: _hoverLinger
+        interval: Motion.hoverLinger
+        onTriggered: root.hoverActive = false
     }
 
     Timer {

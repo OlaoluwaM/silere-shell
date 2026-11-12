@@ -101,6 +101,7 @@ Item {
                 // previous app's fallback and label dwell must not leak onto the new one
                 onModelDataChanged: {
                     _tile._fallbackDue = false
+                    _labelLinger.stop()
                     _tile._dwelled = false
                     if (!_icon.ready) _fallbackTimer.restart()
                 }
@@ -131,6 +132,12 @@ Item {
                     id: _labelDwell
                     interval: 80
                     onTriggered: _tile._dwelled = true
+                }
+                // the label outlasts a pointer that slips off the icon and comes straight back
+                Timer {
+                    id: _labelLinger
+                    interval: Motion.hoverLinger
+                    onTriggered: _tile._dwelled = false
                 }
 
                 Rectangle {
@@ -226,6 +233,7 @@ Item {
                     id: _iconHover
                     onHoveredChanged: {
                         if (hovered && root.barActive) {
+                            _labelLinger.stop()
                             _labelDwell.restart()
                             const point = _tile.mapToItem(null, root.iconSize / 2, 0)
                             const primary = _tile.modelData.onlyMenu ? "Click menu" : "Click open"
@@ -235,7 +243,7 @@ Item {
                                 primary + menu + " · middle-click secondary · scroll action")
                         } else {
                             _labelDwell.stop()
-                            _tile._dwelled = false
+                            if (_tile._dwelled) _labelLinger.restart()
                             BarHintState.release(_tile)
                         }
                     }
