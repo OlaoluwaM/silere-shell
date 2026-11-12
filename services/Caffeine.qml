@@ -161,6 +161,9 @@ Singleton {
     // a check can time out while the user manager is slow, so its error is cleared by the next
     // check that answers; a toggle error is not, so the two cannot share a string test
     property bool _checkError: false
+    // the last check did not answer. Not the same as _checkError, which is about whose
+    // words lastError holds: a toggle error keeps the row while a later check times out
+    property bool _checkUnanswered: false
 
     // what asked for the check in flight, and for the one queued behind it. For the log alone:
     // a run found ended by the bus signal and one found ended by the first key press after an
@@ -193,6 +196,7 @@ Singleton {
         const rerun = root._recheckPending
         const rerunWhy = root._recheckWhy
         root._recheckPending = false
+        root._checkUnanswered = timedOut
         if (timedOut) {
             console.warn(root.log, "silere-shell: is-active check timed out, asked by", root._checkWhy)
             // a toggle error names what actually failed, so a slow check does not replace it
@@ -321,7 +325,7 @@ Singleton {
     // pill is lit; with it they would only spend a process a minute on what the bus tells.
     // A check that timed out is the other case: the bus will not say it again, so the polls
     // ask until one answers
-    readonly property bool _pollThroughIdle: root._checkError
+    readonly property bool _pollThroughIdle: root._checkUnanswered
         || (!root._watcherHealthy && (root.manualActive || root.inhibited))
 
     property bool _inhibitCheckPending: false

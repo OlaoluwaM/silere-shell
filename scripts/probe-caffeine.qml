@@ -113,8 +113,8 @@ ShellRoot {
                     return
                 root.check(Caffeine.lastError === root.checkError && !Caffeine.manualActive,
                     "a timed-out check reports the error and leaves the state alone")
-                root.check(Idle.isIdle && Caffeine._driftPoll.running,
-                    "a check that timed out keeps the drift poll up through idle until one answers")
+                root.check(Idle.isIdle && Caffeine._driftPoll.running && Caffeine._inhibitPoll.running,
+                    "a check that timed out keeps both polls up through idle until one answers")
                 root.check(root.lines(_systemctlDone).length === root.doneBefore,
                     "the stand-in's slow check was cut off at its deadline")
                 // started outside the shell, so the next check reads it active
@@ -128,7 +128,8 @@ ShellRoot {
                         "the next check reads the unit active", 20))
                     return
                 root.check(Caffeine.lastError === "", "the next check that answers clears the check error")
-                root.check(!Caffeine._driftPoll.running, "and the drift poll goes back to sleep with it")
+                root.check(!Caffeine._driftPoll.running && !Caffeine._inhibitPoll.running,
+                    "and both polls go back to sleep with it")
 
                 root.setFile(_toggleMode, "fail")
                 root.markCalls()
@@ -161,6 +162,8 @@ ShellRoot {
                     "the slow check after the toggle error was cut off at its deadline")
                 root.check(Caffeine.lastError === root.toggleError && Caffeine.manualActive,
                     "a check that times out does not replace a toggle error")
+                root.check(Caffeine._driftPoll.running && Caffeine._inhibitPoll.running,
+                    "a check that timed out under a toggle error keeps both polls up through idle all the same")
 
                 root.setFile(_slowCheck, "0")
                 root.setFile(_toggleMode, "ok")
@@ -299,26 +302,46 @@ ShellRoot {
                 if (!root.ready(!Caffeine.manualActive && !Caffeine.inhibited
                         && root.lines(_unitState)[0] === "inactive"
                         && root.count(root.lines(_systemctlCalls), "stop") > root.stopsBefore,
-                        "the chain's tail reads the unit and the list off", 30))
+                        "the chain's tail reads the unit and the emptied list off", 30))
                     return
-                root.setFile(_unitState, "active")
+                // a plain run, toggled on beside another app's inhibitor
                 root.setFile(_inhibitors, root.idleInhibitor)
-                Caffeine._checkActive()
+                Caffeine.toggle()
                 break
             case 16:
+                if (!root.ready(Caffeine.manualActive && Caffeine.inhibited
+                        && root.lines(_unitState)[0] === "active",
+                        "a toggle-on starts the unit and reads the list", 20))
+                    return
+                root.markCalls()
+                Caffeine.toggle()
+                root.check(!Caffeine.manualActive && !Caffeine.inhibited,
+                    "a toggle-off clears the row and its inhibitor at once, with no check in flight either")
+                break
+            case 17:
+                if (!root.ready(!Caffeine.manualActive && Caffeine.inhibited
+                        && Caffeine.inhibitorLabel === "probe-who"
+                        && root.lines(_unitState)[0] === "inactive"
+                        && root.count(root.lines(_systemctlCalls), "stop") > root.stopsBefore,
+                        "a toggle-off's tail rereads the list, so another app's inhibitor comes back on the row", 20))
+                    return
+                root.setFile(_unitState, "active")
+                Caffeine._checkActive()
+                break
+            case 18:
                 if (!root.ready(Caffeine.manualActive && Caffeine.inhibited,
                         "a second run started outside the shell reads on", 20))
                     return
                 root.setFile(_busSignal, "crash")
                 break
-            case 17:
+            case 19:
                 if (!root.ready(!Caffeine._watcherHealthy, "the stand-in watcher goes down when told to crash", 20))
                     return
                 // the stop lands while the watcher is down, announced to nobody
                 root.setFile(_unitState, "inactive")
                 root.setFile(_inhibitors, "")
                 break
-            case 18:
+            case 20:
                 if (!root.ready(Caffeine._watcherHealthy && !Caffeine.manualActive && !Caffeine.inhibited,
                         "a run that ended while the watcher was restarting is found when it comes back", 48))
                     return
@@ -326,7 +349,7 @@ ShellRoot {
                 root.setFile(_inhibitors, root.idleInhibitor)
                 Caffeine._checkActive()
                 break
-            case 19:
+            case 21:
                 if (!root.ready(Caffeine.manualActive && Caffeine.inhibited,
                         "a third run started outside the shell reads on", 20))
                     return
@@ -337,7 +360,7 @@ ShellRoot {
                 root.markCalls()
                 root.setFile(_busSignal, "stopped")
                 break
-            case 20:
+            case 22:
                 if (!root.ready(!Caffeine.manualActive && !Caffeine.inhibited
                         && root.count(root.lines(_systemctlCalls), "is-active") > root.checksBefore,
                         "an inhibitor change on the bus rechecks the unit and the list while idle", 20))
@@ -345,7 +368,7 @@ ShellRoot {
                 // from here the watcher is gone, as on a system with no dbus-monitor
                 root.setFile(_busSignal, "down")
                 break
-            case 21:
+            case 23:
                 if (!root.ready(!Caffeine._watcherHealthy, "the stand-in watcher gives up when told to", 20))
                     return
                 root.check(!Caffeine._driftPoll.running && !Caffeine._inhibitPoll.running,
@@ -353,7 +376,7 @@ ShellRoot {
                 root.setFile(_unitState, "active")
                 Caffeine._checkActive()
                 break
-            case 22:
+            case 24:
                 if (!root.ready(Caffeine.manualActive && !Caffeine.inhibited,
                         "a run with no inhibitor on the list reads on", 20))
                     return
@@ -364,7 +387,7 @@ ShellRoot {
                 root.setFile(_unitState, "inactive")
                 Caffeine._checkActive()
                 break
-            case 23:
+            case 25:
                 if (!root.ready(!Caffeine.manualActive, "the run reads off again", 20))
                     return
                 root.check(!Caffeine._driftPoll.running && !Caffeine._inhibitPoll.running,
@@ -373,7 +396,7 @@ ShellRoot {
                 root.setFile(_inhibitors, root.idleInhibitor)
                 Caffeine._checkInhibitors()
                 break
-            case 24:
+            case 26:
                 if (!root.ready(Caffeine.inhibited && !Caffeine.manualActive,
                         "another app's idle inhibitor reads on", 20))
                     return
@@ -382,7 +405,7 @@ ShellRoot {
                 root.setFile(_unitState, "active")
                 Caffeine._checkActive()
                 break
-            case 25:
+            case 27:
                 if (!root.ready(Caffeine.manualActive && Caffeine.inhibited,
                         "a run started beside that inhibitor reads on", 20))
                     return
@@ -391,7 +414,7 @@ ShellRoot {
                 root.setFile(_inhibitors, "")
                 Caffeine._checkActive()
                 break
-            case 26:
+            case 28:
                 if (!root.ready(!Caffeine.manualActive && !Caffeine.inhibited,
                         "a run found ended while idle takes its inhibitor off the pill with it", 20))
                     return

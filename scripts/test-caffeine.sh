@@ -32,7 +32,8 @@ printf '{"__version":1,"caffeineUnit":"hypr-shell-caffeine.service"}\n' \
 _probe_project "$ROOT" scripts/probe-caffeine.qml "$probe_root/project"
 # the probe holds the session idle to keep the drift and inhibitor polls out of its call
 # counts, which the real singleton would take from the compositor. They stay up through
-# idle only once the probe takes the watcher down, in its last steps
+# idle after a check times out and while the watcher is down, and in both their first
+# ticks are 15 s and 60 s out, longer than any step holds either state
 rm "$probe_root/project/services"
 cp -a "$ROOT/services" "$probe_root/project/services"
 cp "$ROOT/scripts/fixtures/coordinator/Idle.qml" "$probe_root/project/services/Idle.qml"
