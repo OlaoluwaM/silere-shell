@@ -105,13 +105,24 @@ profile names and uuids are never logged.
 
 ## Debugging caffeine
 
-Warn shows an `is-active` check that timed out and a step of the toggle chain
+Warn shows an `is-active` check that timed out, a step of the toggle chain
 that failed, named by its first words (for example `systemctl --user start`),
-with its exit code. Info shows each toggle request (on with its minutes, or
-off), a run the `is-active` check found started or ended outside a toggle, and
-the inhibitor watcher giving up. Debug shows queued and run reschedules and
-the number of idle inhibitors changing. Inhibitor names and command output are
-never logged.
+with its exit code, and an inhibitor list that could not be read, once per run
+of failures. Info shows each toggle request (on with its minutes, or off), a
+run the `is-active` check found started or ended outside a toggle, and the
+inhibitor watcher giving up. Debug shows queued and run reschedules, the
+number of idle inhibitors changing, the session going idle and waking, the
+inhibitor watcher starting and stopping, each inhibitor change it hears on
+the bus, and the stop deadline being set, passing and read back from systemd.
+Inhibitor names and command output are never logged.
+
+Every `is-active` line names what asked for the check: startup, the tool scan,
+a toggle chain, the drift poll, the bus signal, the wake from idle, or the stop
+deadline. The Info line for a run found ended also says whether the session was
+idle. A run that ended on its own is asked for by the bus signal, at the moment
+the unit stopped. One asked for by the wake from idle, minutes after the unit's
+own stop line in the journal, means the shell slept through the stop and the
+pill stayed lit until the next key press.
 
 ## Debugging night light
 

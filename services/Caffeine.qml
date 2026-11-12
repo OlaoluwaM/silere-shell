@@ -148,7 +148,7 @@ Singleton {
     property bool _chainIgnoreCurrent: false
 
     function _runChain(commands: var): void {
-        if (commands.length === 0) { root._checkActive(); root._checkInhibitors(); root._pollRemaining(); return }
+        if (commands.length === 0) { root._checkActive("an empty chain"); root._checkInhibitors(); root._pollRemaining(); return }
         root._chainQueue = commands.slice(1)
         const first = commands[0]
         root._chainIgnoreCurrent = first.ignoreFailure === true
@@ -162,24 +162,39 @@ Singleton {
     // check that answers; a toggle error is not, so the two cannot share a string test
     property bool _checkError: false
 
-    function _checkActive(): void {
+    // what asked for the check in flight, and for the one queued behind it. For the log alone:
+    // a run found ended by the bus signal and one found ended by the first key press after an
+    // idle hour are the same line otherwise, and only the second is a stale pill
+    property string _checkWhy: ""
+    property string _recheckWhy: ""
+
+    function _checkActive(why: var): void {
         if (!root.available) return
-        if (_checkProc.running) { root._recheckPending = true; return }
+        const asker = String(why || "a direct call")
+        if (_checkProc.running) {
+            console.debug(root.log, "silere-shell: is-active check queued, asked by", asker)
+            root._recheckPending = true
+            root._recheckWhy = asker
+            return
+        }
+        console.debug(root.log, "silere-shell: is-active check, asked by", asker)
+        root._checkWhy = asker
         _checkProc.exec(["systemctl", "--user", "is-active", "--quiet", root.unit])
     }
 
-    Component.onCompleted: { root._checkActive(); root._checkInhibitors(); root._pollRemaining() }
+    Component.onCompleted: { root._checkActive("startup"); root._checkInhibitors(); root._pollRemaining() }
 
     Connections {
         target: SystemTools
-        function onReadyChanged() { root._checkActive(); root._checkInhibitors() }
+        function onReadyChanged() { root._checkActive("the tool scan"); root._checkInhibitors() }
     }
 
     function _acceptCheckResult(timedOut: bool, code: int): void {
         const rerun = root._recheckPending
+        const rerunWhy = root._recheckWhy
         root._recheckPending = false
         if (timedOut) {
-            console.warn(root.log, "silere-shell: is-active check timed out")
+            console.warn(root.log, "silere-shell: is-active check timed out, asked by", root._checkWhy)
             // a toggle error names what actually failed, so a slow check does not replace it
             if (root.lastError.length === 0 || root._checkError) {
                 root._checkError = true
@@ -192,7 +207,7 @@ Singleton {
             }
             if (root.manualActive !== (code === 0)) {
                 console.info(root.log, "silere-shell: is-active check found the run",
-                    code === 0 ? "started" : "ended")
+                    code === 0 ? "started," : "ended,", "asked by", root._checkWhy + ", session idle:", Idle.isIdle)
                 // found rather than done here, so no chain tail follows to reread the list the
                 // unit just joined or left, and the list's own poll may be asleep with the session
                 root._checkInhibitors()
@@ -206,7 +221,7 @@ Singleton {
             }
         }
         // a tick later, so the rerun arms a timeout of its own: BoundedProcess arms it on the running edge
-        if (rerun) Qt.callLater(root._checkActive)
+        if (rerun) Qt.callLater(root._checkActive, rerunWhy)
     }
 
     BoundedProcess {
@@ -237,7 +252,7 @@ Singleton {
                 // ditto the uncommitted deadline: whatever this chain was arming is
                 // now unknown, so ask systemd instead of believing it
                 root._armedMinutes = -1
-                root._checkActive()
+                root._checkActive("a failed toggle")
                 root._checkInhibitors()
                 root._pollRemaining()
                 return
@@ -263,7 +278,7 @@ Singleton {
                 }
             }
             // chain finished: reconcile with the unit, same as toggle() always did
-            root._checkActive()
+            root._checkActive("the toggle chain")
             // reflects our own flip in the shared inhibitor list immediately, rather
             // than waiting out the rest of the poll interval below
             root._checkInhibitors()
@@ -277,6 +292,8 @@ Singleton {
             if (root._armedMinutes >= 0) {
                 root._stopDeadlineMs = root.manualActive && root._armedMinutes > 0
                     ? Date.now() + root._armedMinutes * 60000 : 0
+                console.debug(root.log, "silere-shell: stop deadline",
+                    root._stopDeadlineMs > 0 ? "set, minutes " + root._armedMinutes : "cleared")
                 root._armedMinutes = -1
             }
             root._syncRemaining()
@@ -294,10 +311,12 @@ Singleton {
     Timer {
         interval: 60000; repeat: true
         running: root._driftPollRuns
-        onTriggered: root._checkActive()
+        onTriggered: root._checkActive("the drift poll")
     }
 
     property bool _inhibitCheckPending: false
+    // only for the log: a list that keeps failing to read warns once, not on every poll
+    property bool _inhibitReadFailed: false
     // only for the log: the count the last answered check found
     property int _inhibitorCount: 0
 
@@ -346,7 +365,13 @@ Singleton {
         onExited: (code) => {
             const rerun = root._inhibitCheckPending
             root._inhibitCheckPending = false
-            if (_inhibitProc.completedSuccessfully(code)) {
+            if (!_inhibitProc.completedSuccessfully(code)) {
+                // once per run of failures: without the watcher the poll comes round every 15s
+                if (!root._inhibitReadFailed) console.warn(root.log,
+                    "silere-shell: inhibitor list read failed, exit", code, "timed out:", _inhibitProc.timedOut)
+                root._inhibitReadFailed = true
+            } else {
+                root._inhibitReadFailed = false
                 const who = root._parseIdleInhibitors(_inhibitOut.text)
                 if (who.length !== root._inhibitorCount) {
                     console.debug(root.log, "silere-shell: idle inhibitors:", root._inhibitorCount, "->", who.length)
@@ -378,8 +403,9 @@ Singleton {
     Connections {
         target: Idle
         function onIsIdleChanged() {
+            console.debug(root.log, "silere-shell: session idle:", Idle.isIdle, "run on:", root.manualActive)
             if (!Idle.isIdle && root.available) {
-                root._checkActive()
+                root._checkActive("the wake from idle")
                 root._checkInhibitors()
             }
         }
@@ -417,13 +443,17 @@ Singleton {
         stdout: SplitParser {
             onRead: line => {
                 if (line.indexOf("BlockInhibited") < 0) return
+                console.debug(root.log, "silere-shell: inhibitor change on the bus, session idle:", Idle.isIdle)
                 root._checkInhibitors()
-                root._checkActive()
+                root._checkActive("the bus signal")
             }
         }
         // reconciles any gap opened by a crash/restart cycle the instant the watcher is
         // back, same restat-on-restart idiom Recording.qml's inotifywait watcher uses
-        onRunningChanged: if (running) root._checkInhibitors()
+        onRunningChanged: {
+            console.debug(root.log, "silere-shell: inhibitor watcher running:", running)
+            if (running) root._checkInhibitors()
+        }
         onGaveUpChanged: if (gaveUp) console.info(root.log,
             "silere-shell: inhibitor watcher gave up; the 15s poll is the only reader")
     }
@@ -454,9 +484,10 @@ Singleton {
             // zeroed, so the poll's own no-match branch would skip that check),
             // and list-timers refills one merely slept through with the true
             // deadline systemd re-projects onto the realtime clock.
+            console.debug(root.log, "silere-shell: stop deadline passed, asking systemd for the unit and the timer")
             root._stopDeadlineMs = 0
             root._remainingMinutes = -1
-            root._checkActive()
+            root._checkActive("the passed deadline")
             root._pollRemaining()
             return
         }
@@ -532,7 +563,10 @@ Singleton {
             // a result that raced a toggle or an arm is stale by definition -- the
             // chain tail is the authoritative source for this run now, so touch
             // nothing and let it land instead
-            if (!root.manualActive || _toggleProc.running || root._armedMinutes >= 0) return
+            if (!root.manualActive || _toggleProc.running || root._armedMinutes >= 0) {
+                console.debug(root.log, "silere-shell: stop timer read dropped, the run is off or a chain is in flight")
+                return
+            }
             const wasTimed = root._stopDeadlineMs > 0
             // C locale fixes the timestamp shape systemd prints (e.g. "Thu 2024-05-02
             // 14:00:00 UTC"); pulling the date+time out by pattern rather than trusting
@@ -545,9 +579,10 @@ Singleton {
             // no match covers both "n/a" (no timer scheduled: an untimed run) and a
             // process failure; either way there is nothing to count down
             if (!m) {
+                console.debug(root.log, "silere-shell: stop timer read found none listed, exit", code)
                 root._stopDeadlineMs = 0
                 root._syncRemaining()
-                if (wasTimed) root._checkActive()
+                if (wasTimed) root._checkActive("the stop timer going")
                 return
             }
             const target = new Date(m[1] + "T" + m[2])
@@ -555,11 +590,13 @@ Singleton {
             // <=0 means the timer already fired but the unit hasn't been reaped from
             // is-active yet — treat it as gone now instead of waiting for the next poll
             if (!isFinite(target.getTime()) || diffMs <= 0) {
+                console.debug(root.log, "silere-shell: stop timer read found it already elapsed")
                 root._stopDeadlineMs = 0
                 root._syncRemaining()
-                if (wasTimed) root._checkActive()
+                if (wasTimed) root._checkActive("the stop timer going")
                 return
             }
+            console.debug(root.log, "silere-shell: stop timer read found it due in seconds:", Math.round(diffMs / 1000))
             root._stopDeadlineMs = target.getTime()
             root._syncRemaining()
         }
