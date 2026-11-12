@@ -158,3 +158,22 @@ What moves with it:
   SECURITY.md, and the lock screen plan and its QA checklist.
 
 Deferred on 2026-11-11 by the maintainer, as a task of its own.
+
+## Notification stack probe: a missed height frame
+
+Find out why `scripts/test-notification-stack.sh` can report `FAIL: expand
+lower card missed height frames`, with one frame listed.
+
+It happened once, on 2026-11-12, inside a `scripts/test-logic.sh` run, and
+the next full `scripts/check.sh` run passed with no change to the
+notification code in between. A dev instance of the shell was running on
+the same compositor at the time. Nothing else is known: the cause was not
+looked into, and load from the dev instance is a guess, not a finding.
+
+To pick it up, run the script on its own in a loop for a failure rate, with
+and without a second shell instance running, and read what the check counts
+as an uncovered frame before deciding whether the probe or the stack is at
+fault.
+
+Deferred on 2026-11-12 by the maintainer, who asked for it to be noted for
+later.
