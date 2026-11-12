@@ -4,8 +4,8 @@ import Quickshell.Io
 import "services"
 
 // the stand-in systemctl, systemd-inhibit, systemd-run and dbus-monitor on PATH are the only
-// commands Caffeine can reach; this probe steers the stand-in unit through files and reads back
-// what it was asked
+// commands Caffeine can reach; this probe steers the stand-in unit and bus through files and
+// reads back what it was asked
 ShellRoot {
     id: root
 
@@ -68,7 +68,8 @@ ShellRoot {
         root.doneBefore = root.lines(_systemctlDone).length
     }
 
-    // the drift and inhibitor polls sleep through idle, so their calls stay out of the counts
+    // the drift and inhibitor polls sleep through idle, so their calls stay out of the counts;
+    // the last steps are about what still reaches the unit from there
     Component.onCompleted: Idle.isIdle = true
 
     FileView { id: _systemctlCalls; path: root.base + "/systemctl-calls"; blockAllReads: true; printErrors: false }
@@ -79,6 +80,7 @@ ShellRoot {
     FileView { id: _inhibitors; path: root.base + "/inhibitors"; blockWrites: true; printErrors: false }
     FileView { id: _inhibitDone; path: root.base + "/inhibit-done"; blockAllReads: true; printErrors: false }
     FileView { id: _slowInhibit; path: root.base + "/slow-inhibit"; blockWrites: true; printErrors: false }
+    FileView { id: _busSignal; path: root.base + "/bus-signal"; blockWrites: true; printErrors: false }
 
     Timer {
         id: _ticks
@@ -251,9 +253,48 @@ ShellRoot {
                 root.check(done.length === 2 && root.count(done, "list 3.2") === 2
                         && Caffeine.inhibited && Caffeine.inhibitorLabel === "probe-who",
                     "an inhibitor read that follows a slow one gets a deadline of its own")
+
+                // a run started outside the shell, holding the one idle inhibitor on the list
+                root.setFile(_slowCheck, "0")
+                root.setFile(_slowInhibit, "0")
+                root.setFile(_unitState, "active")
+                Caffeine._checkActive()
+                break
+            }
+            case 13:
+                if (!root.ready(Caffeine.manualActive && Caffeine.inhibited,
+                        "a run started outside the shell reads on", 20))
+                    return
+                root.check(Idle.isIdle && Caffeine._driftPollRuns,
+                    "the drift poll stays up through idle while a run is on")
+                // its scheduled stop lands with the session idle, and the poll is what finds it
+                root.setFile(_unitState, "inactive")
+                root.setFile(_inhibitors, "")
+                Caffeine._checkActive()
+                break
+            case 14:
+                if (!root.ready(!Caffeine.manualActive && !Caffeine.inhibited,
+                        "a run found ended while idle takes its inhibitor off the pill with it", 20))
+                    return
+                root.check(!Caffeine._driftPollRuns, "the drift poll sleeps through idle with no run on")
+                root.setFile(_unitState, "active")
+                Caffeine._checkActive()
+                break
+            case 15:
+                if (!root.ready(Caffeine.manualActive, "a second run started outside the shell reads on", 20))
+                    return
+                // this time the stop is only announced on the bus, as logind does for the real unit
+                root.setFile(_unitState, "inactive")
+                root.markCalls()
+                root.setFile(_busSignal, "stopped")
+                break
+            case 16:
+                if (!root.ready(!Caffeine.manualActive
+                        && root.count(root.lines(_systemctlCalls), "is-active") > root.checksBefore,
+                        "an inhibitor change on the bus rechecks the unit while idle", 20))
+                    return
                 root.finish()
                 return
-            }
             }
             root.step++
         }

@@ -31,7 +31,8 @@ printf '{"__version":1,"caffeineUnit":"hypr-shell-caffeine.service"}\n' \
     > "$probe_root/config/silere-shell/settings.json"
 _probe_project "$ROOT" scripts/probe-caffeine.qml "$probe_root/project"
 # the probe holds the session idle to keep the drift and inhibitor polls out of its call
-# counts, which the real singleton would take from the compositor
+# counts, which the real singleton would take from the compositor. With a run on the drift
+# poll stays up, but its first tick is a minute out and no step holds a run that long
 rm "$probe_root/project/services"
 cp -a "$ROOT/services" "$probe_root/project/services"
 cp "$ROOT/scripts/fixtures/coordinator/Idle.qml" "$probe_root/project/services/Idle.qml"
@@ -100,8 +101,21 @@ cat > "$probe_root/bin/systemd-run" <<EOF2
 printf '%s\\n' "\$*" >> "$probe_root/systemd-run-calls"
 exit 1
 EOF2
-# exit 1 is the code the watcher gives up on, so the probe never reaches the system bus
-printf '#!/usr/bin/env bash\nexit 1\n' > "$probe_root/bin/dbus-monitor"
+# stands in for the system bus: one changed-inhibitor line each time the probe rewrites
+# bus-signal, and nothing otherwise. It ends with the run's directory, so a watcher the
+# probe's exit left behind cannot outlive the cleanup
+cat > "$probe_root/bin/dbus-monitor" <<EOF2
+#!/usr/bin/env bash
+last=""
+while [ -d "$probe_root" ]; do
+    current="\$(cat "$probe_root/bus-signal" 2>/dev/null || true)"
+    if [ "\$current" != "\$last" ]; then
+        last="\$current"
+        printf '         string "BlockInhibited"\\n'
+    fi
+    sleep 0.1
+done
+EOF2
 chmod +x "$probe_root/bin/systemctl" "$probe_root/bin/systemd-inhibit" \
     "$probe_root/bin/systemd-run" "$probe_root/bin/dbus-monitor"
 

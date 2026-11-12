@@ -190,9 +190,13 @@ Singleton {
                 root._checkError = false
                 root.lastError = ""
             }
-            if (root.manualActive !== (code === 0))
+            if (root.manualActive !== (code === 0)) {
                 console.info(root.log, "silere-shell: is-active check found the run",
                     code === 0 ? "started" : "ended")
+                // found rather than done here, so no chain tail follows to reread the list the
+                // unit just joined or left, and the list's own poll may be asleep with the session
+                root._checkInhibitors()
+            }
             root.manualActive = (code === 0)
             // the run was just discovered here rather than armed by us (a shell
             // restarted mid-run, or an external re-arm the drift poll caught) --
@@ -281,11 +285,15 @@ Singleton {
 
     // catches drift from outside the shell (a manual systemctl call, the unit
     // failing on its own) since only systemd — not this singleton — decides
-    // when the unit actually starts or stops. The state is invisible while idle,
-    // so sleep there and reconcile as soon as the session returns below.
+    // when the unit actually starts or stops. An idle session has blanked or locked
+    // the screen, so the poll sleeps there and the wake below reconciles. A run of
+    // ours is the exception: it is what keeps that screen lit, and its scheduled
+    // stop lands with nobody at the keyboard, so the poll stays up for as long as
+    // one is on.
+    readonly property bool _driftPollRuns: root.available && (!Idle.isIdle || root.manualActive)
     Timer {
         interval: 60000; repeat: true
-        running: root.available && !Idle.isIdle
+        running: root._driftPollRuns
         onTriggered: root._checkActive()
     }
 
@@ -384,6 +392,11 @@ Singleton {
     // an inhibitor change while idle still matters for state correctness once the
     // session wakes, and events are rare enough that watching through idle costs nothing.
     //
+    // The unit takes its inhibitor as it starts and drops it as it stops, so the same signal
+    // is also the moment a run began or ended behind the shell's back: its own scheduled stop
+    // most of all, which systemd fires with no word to anyone. The unit is rechecked with the
+    // list, or the pill would sit lit over a run that is over until the next key press.
+    //
     // command stays a plain constant, not a function of _watcherHealthy or anything else
     // superviseWhen depends on, for the same reason Recording.qml's watcher does: gating
     // command on the same condition that flips superviseWhen would race two independent
@@ -402,7 +415,11 @@ Singleton {
         command: ["dbus-monitor", "--system",
             "type='signal',interface='org.freedesktop.DBus.Properties',member='PropertiesChanged',path='/org/freedesktop/login1'"]
         stdout: SplitParser {
-            onRead: line => { if (line.indexOf("BlockInhibited") >= 0) root._checkInhibitors() }
+            onRead: line => {
+                if (line.indexOf("BlockInhibited") < 0) return
+                root._checkInhibitors()
+                root._checkActive()
+            }
         }
         // reconciles any gap opened by a crash/restart cycle the instant the watcher is
         // back, same restat-on-restart idiom Recording.qml's inotifywait watcher uses
