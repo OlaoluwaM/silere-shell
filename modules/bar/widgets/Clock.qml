@@ -102,21 +102,46 @@ Item {
         cursorShape: Qt.PointingHandCursor
         onHoveredChanged: {
             root._syncHint()
-            root._datePeek = false
-            if (hovered) _datePeekDelay.restart()
-            else _datePeekDelay.stop()
+            if (hovered) {
+                _datePeekRelease.stop()
+                if (!root._datePeek) _datePeekDelay.restart()
+            } else {
+                _datePeekDelay.stop()
+                if (root._datePeek && !root._calendarHeld) _datePeekRelease.restart()
+            }
         }
     }
 
     // the date reads on hover when it is not already shown; only meaningful with clockShowDate off
     property bool _datePeek: false
-    readonly property bool _dateRevealed: root._datePeek && root._hoverEnabled && _hover.hovered
+    readonly property bool _dateRevealed: root._datePeek && root._hoverEnabled
         && ShellSettings.valuesOnHover
+
+    // The calendar's surface covers the screen to catch the closing tap, so opening it from the
+    // clock takes the pointer away although it has not moved. A date that was out stays out
+    // until that calendar closes; one the click beat stays in, so the bar holds still either way
+    readonly property bool _calendarHeld: CalendarState.open && CalendarState.anchorSource === root
+    on_CalendarHeldChanged: {
+        if (root._calendarHeld) {
+            _datePeekDelay.stop()
+            _datePeekRelease.stop()
+        } else if (root._datePeek && !_hover.hovered) {
+            _datePeekRelease.restart()
+        }
+    }
 
     Timer {
         id: _datePeekDelay
         interval: 80
         onTriggered: root._datePeek = true
+    }
+    // The clock ends a few pixels past its last digit, so a pointer thrown at it overshoots
+    // and comes back, and a closing calendar hands the pointer back a moment after it closes.
+    // Closing at once on either would fold the date away only to open it again
+    Timer {
+        id: _datePeekRelease
+        interval: Motion.hoverLinger
+        onTriggered: root._datePeek = false
     }
     Component.onDestruction: BarHintState.release(root)
 
@@ -229,6 +254,7 @@ Item {
         acceptedButtons: Qt.MiddleButton
         onTapped: {
             // a peeked date would hide the step that turns the date off
+            _datePeekRelease.stop()
             root._datePeek = false
             ShellSettings.batch(() => {
                 const s = ShellSettings.showSeconds

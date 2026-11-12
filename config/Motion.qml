@@ -29,6 +29,10 @@ Singleton {
     readonly property int press:    _rm ? 0 : 90
     readonly property real hoverScale: 1.018
     readonly property real pressScale: 0.965
+    // how long a bar widget that opened out under the pointer stays open once the pointer has
+    // left, so one that slips off and comes straight back finds it as it was. A wait rather
+    // than motion, so reduce-motion does not scale it
+    readonly property int hoverLinger: 200
 
     // one tactile acknowledgement for the whole shell; surfaces vary the amplitude, never the timing
     readonly property int bumpRise:   _rm ? 0 : 70

@@ -644,6 +644,13 @@ ShellRoot {
         dateSection._shown = 0.5
         root._check(!dateRest && dateSection.clip,
             "the clock's date clips only while it eases in or out")
+        // no pointer exists here, which is how the calendar's full-screen surface leaves the clock
+        clock._datePeek = true
+        CalendarState.openAt(0, null, clock)
+        const dateHeld = CalendarState.open && clock._dateRevealed
+        CalendarState.close()
+        root._check(dateHeld && clock._dateRevealed,
+            "the clock's peeked date stays out under its own calendar and does not fold the moment that closes")
         clock.destroy()
         ShellSettings.reduceMotion = clockReduceWas
 
