@@ -209,8 +209,11 @@ Singleton {
                 console.info(root.log, "silere-shell: is-active check found the run",
                     code === 0 ? "started," : "ended,", "asked by", root._checkWhy + ", session idle:", Idle.isIdle)
                 // found rather than done here, so no chain tail follows to reread the list the
-                // unit just joined or left, and the list's own poll may be asleep with the session
-                root._checkInhibitors()
+                // unit just joined or left, and the list's own poll may be asleep with the session.
+                // An answer that lands mid-chain reads the same here but has a tail coming, and
+                // the unit still holds the inhibitor a toggle-off just cleared from the row, so
+                // the reread is left to that tail
+                if (!_toggleProc.running) root._checkInhibitors()
             }
             root.manualActive = (code === 0)
             // the run was just discovered here rather than armed by us (a shell
@@ -303,16 +306,23 @@ Singleton {
     // catches drift from outside the shell (a manual systemctl call, the unit
     // failing on its own) since only systemd — not this singleton — decides
     // when the unit actually starts or stops. An idle session has blanked or locked
-    // the screen, so the poll sleeps there and the wake below reconciles. A run of
-    // ours is the exception: it is what keeps that screen lit, and its scheduled
-    // stop lands with nobody at the keyboard, so the poll stays up for as long as
-    // one is on.
-    readonly property bool _driftPollRuns: root.available && (!Idle.isIdle || root.manualActive)
-    Timer {
+    // the screen, so the poll sleeps there and the wake below reconciles, unless
+    // the pill is lit with no watcher to hear it go out (_pollThroughIdle).
+    property Timer _driftPoll: Timer {
         interval: 60000; repeat: true
-        running: root._driftPollRuns
+        running: root.available && (!Idle.isIdle || root._pollThroughIdle)
         onTriggered: root._checkActive("the drift poll")
     }
+
+    // Whatever lights the pill is also what keeps the screen lit, so an idle session is not
+    // an unwatched one while it shows: a run's scheduled stop, or another app dropping its
+    // inhibitor, lands with nobody at the keyboard. The watcher below hears both through
+    // idle. Without it the two polls are all there is, and they stay up for as long as the
+    // pill is lit; with it they would only spend a process a minute on what the bus tells.
+    // A check that timed out is the other case: the bus will not say it again, so the polls
+    // ask until one answers
+    readonly property bool _pollThroughIdle: root._checkError
+        || (!root._watcherHealthy && (root.manualActive || root.inhibited))
 
     property bool _inhibitCheckPending: false
     // only for the log: a list that keeps failing to read warns once, not on every poll
@@ -391,13 +401,13 @@ Singleton {
     // to catch what it might miss (a signal dropped between a crash and its respawn), so
     // it stretches out to 120s. Without it (tool absent, or the watcher unit down) this
     // is the only thing driving `inhibited` at all, so it holds the original 15s. Paused
-    // while idle since nothing is watching the pill then, and re-armed the instant the
-    // session goes active again below.
+    // while idle on the drift poll's terms, and re-armed the instant the session goes
+    // active again below.
     readonly property bool _watcherHealthy: SystemTools.hasDbusMonitor && _inhibitWatcher.running
-    Timer {
+    property Timer _inhibitPoll: Timer {
         interval: root._watcherHealthy ? 120000 : 15000
         repeat: true
-        running: root.available && !Idle.isIdle
+        running: root.available && (!Idle.isIdle || root._pollThroughIdle)
         onTriggered: root._checkInhibitors()
     }
     Connections {
@@ -452,7 +462,12 @@ Singleton {
         // back, same restat-on-restart idiom Recording.qml's inotifywait watcher uses
         onRunningChanged: {
             console.debug(root.log, "silere-shell: inhibitor watcher running:", running)
-            if (running) root._checkInhibitors()
+            // the unit as well as the list: a run that ended while the watcher was down
+            // was announced to nobody, and with it back the polls go to sleep again
+            if (running) {
+                root._checkInhibitors()
+                root._checkActive("the watcher starting")
+            }
         }
         onGaveUpChanged: if (gaveUp) console.info(root.log,
             "silere-shell: inhibitor watcher gave up; the 15s poll is the only reader")

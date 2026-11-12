@@ -81,6 +81,7 @@ ShellRoot {
     FileView { id: _inhibitDone; path: root.base + "/inhibit-done"; blockAllReads: true; printErrors: false }
     FileView { id: _slowInhibit; path: root.base + "/slow-inhibit"; blockWrites: true; printErrors: false }
     FileView { id: _busSignal; path: root.base + "/bus-signal"; blockWrites: true; printErrors: false }
+    FileView { id: _slowToggle; path: root.base + "/slow-toggle"; blockWrites: true; printErrors: false }
 
     Timer {
         id: _ticks
@@ -112,6 +113,8 @@ ShellRoot {
                     return
                 root.check(Caffeine.lastError === root.checkError && !Caffeine.manualActive,
                     "a timed-out check reports the error and leaves the state alone")
+                root.check(Idle.isIdle && Caffeine._driftPoll.running,
+                    "a check that timed out keeps the drift poll up through idle until one answers")
                 root.check(root.lines(_systemctlDone).length === root.doneBefore,
                     "the stand-in's slow check was cut off at its deadline")
                 // started outside the shell, so the next check reads it active
@@ -125,6 +128,7 @@ ShellRoot {
                         "the next check reads the unit active", 20))
                     return
                 root.check(Caffeine.lastError === "", "the next check that answers clears the check error")
+                root.check(!Caffeine._driftPoll.running, "and the drift poll goes back to sleep with it")
 
                 root.setFile(_toggleMode, "fail")
                 root.markCalls()
@@ -265,33 +269,131 @@ ShellRoot {
                 if (!root.ready(Caffeine.manualActive && Caffeine.inhibited,
                         "a run started outside the shell reads on", 20))
                     return
-                root.check(Idle.isIdle && Caffeine._driftPollRuns,
-                    "the drift poll stays up through idle while a run is on")
-                // its scheduled stop lands with the session idle, and the poll is what finds it
+                root.check(Idle.isIdle && Caffeine._watcherHealthy
+                        && !Caffeine._driftPoll.running && !Caffeine._inhibitPoll.running,
+                    "with the watcher up both polls sleep through idle with a run on")
+                // a check is in flight when the row is tapped off, and the stop takes long
+                // enough for that check to answer while the chain still runs
+                root.setFile(_slowCheck, "1.2")
+                root.setFile(_slowToggle, "3.5")
+                root.markCalls()
+                Caffeine._checkActive()
+                Caffeine.toggle()
+                root.check(!Caffeine.manualActive && !Caffeine.inhibited,
+                    "a toggle-off clears the row and its inhibitor at once")
+                break
+            case 14:
+                if (!root.ready(root.lines(_systemctlDone).length > root.doneBefore && Caffeine.manualActive,
+                        "the check in flight answers mid-chain for the unit it read", 20))
+                    return
+                // the answer lands from the stand-in's exit, and a reread would follow it at once
+                if (++root.paused < 2) return
+                root.paused = 0
+                root.check(!Caffeine.inhibited && Caffeine.inhibitorLabel === "",
+                    "an answer that lands mid-chain leaves the inhibitor the toggle-off cleared to the chain's tail")
+                root.setFile(_inhibitors, "")
+                root.setFile(_slowCheck, "0")
+                root.setFile(_slowToggle, "0")
+                break
+            case 15:
+                if (!root.ready(!Caffeine.manualActive && !Caffeine.inhibited
+                        && root.lines(_unitState)[0] === "inactive"
+                        && root.count(root.lines(_systemctlCalls), "stop") > root.stopsBefore,
+                        "the chain's tail reads the unit and the list off", 30))
+                    return
+                root.setFile(_unitState, "active")
+                root.setFile(_inhibitors, root.idleInhibitor)
+                Caffeine._checkActive()
+                break
+            case 16:
+                if (!root.ready(Caffeine.manualActive && Caffeine.inhibited,
+                        "a second run started outside the shell reads on", 20))
+                    return
+                root.setFile(_busSignal, "crash")
+                break
+            case 17:
+                if (!root.ready(!Caffeine._watcherHealthy, "the stand-in watcher goes down when told to crash", 20))
+                    return
+                // the stop lands while the watcher is down, announced to nobody
+                root.setFile(_unitState, "inactive")
+                root.setFile(_inhibitors, "")
+                break
+            case 18:
+                if (!root.ready(Caffeine._watcherHealthy && !Caffeine.manualActive && !Caffeine.inhibited,
+                        "a run that ended while the watcher was restarting is found when it comes back", 48))
+                    return
+                root.setFile(_unitState, "active")
+                root.setFile(_inhibitors, root.idleInhibitor)
+                Caffeine._checkActive()
+                break
+            case 19:
+                if (!root.ready(Caffeine.manualActive && Caffeine.inhibited,
+                        "a third run started outside the shell reads on", 20))
+                    return
+                // its scheduled stop lands with the session idle, announced only on the bus,
+                // as logind does for the real unit
+                root.setFile(_unitState, "inactive")
+                root.setFile(_inhibitors, "")
+                root.markCalls()
+                root.setFile(_busSignal, "stopped")
+                break
+            case 20:
+                if (!root.ready(!Caffeine.manualActive && !Caffeine.inhibited
+                        && root.count(root.lines(_systemctlCalls), "is-active") > root.checksBefore,
+                        "an inhibitor change on the bus rechecks the unit and the list while idle", 20))
+                    return
+                // from here the watcher is gone, as on a system with no dbus-monitor
+                root.setFile(_busSignal, "down")
+                break
+            case 21:
+                if (!root.ready(!Caffeine._watcherHealthy, "the stand-in watcher gives up when told to", 20))
+                    return
+                root.check(!Caffeine._driftPoll.running && !Caffeine._inhibitPoll.running,
+                    "with nothing lit both polls sleep through idle even without the watcher")
+                root.setFile(_unitState, "active")
+                Caffeine._checkActive()
+                break
+            case 22:
+                if (!root.ready(Caffeine.manualActive && !Caffeine.inhibited,
+                        "a run with no inhibitor on the list reads on", 20))
+                    return
+                root.check(Caffeine._driftPoll.running && Caffeine._inhibitPoll.running,
+                    "without the watcher both polls stay up through idle while a run alone lights the pill")
+                // the stop lands again; the check is asked for here as the drift poll would
+                // ask, a minute being longer than the probe waits
+                root.setFile(_unitState, "inactive")
+                Caffeine._checkActive()
+                break
+            case 23:
+                if (!root.ready(!Caffeine.manualActive, "the run reads off again", 20))
+                    return
+                root.check(!Caffeine._driftPoll.running && !Caffeine._inhibitPoll.running,
+                    "both polls go back to sleep once the pill is out")
+                // another app's inhibitor lights the pill with no run of ours
+                root.setFile(_inhibitors, root.idleInhibitor)
+                Caffeine._checkInhibitors()
+                break
+            case 24:
+                if (!root.ready(Caffeine.inhibited && !Caffeine.manualActive,
+                        "another app's idle inhibitor reads on", 20))
+                    return
+                root.check(Caffeine._driftPoll.running && Caffeine._inhibitPoll.running,
+                    "without the watcher both polls stay up through idle while another app's inhibitor alone lights the pill")
+                root.setFile(_unitState, "active")
+                Caffeine._checkActive()
+                break
+            case 25:
+                if (!root.ready(Caffeine.manualActive && Caffeine.inhibited,
+                        "a run started beside that inhibitor reads on", 20))
+                    return
+                // both go at once, and only the unit is asked about
                 root.setFile(_unitState, "inactive")
                 root.setFile(_inhibitors, "")
                 Caffeine._checkActive()
                 break
-            case 14:
+            case 26:
                 if (!root.ready(!Caffeine.manualActive && !Caffeine.inhibited,
                         "a run found ended while idle takes its inhibitor off the pill with it", 20))
-                    return
-                root.check(!Caffeine._driftPollRuns, "the drift poll sleeps through idle with no run on")
-                root.setFile(_unitState, "active")
-                Caffeine._checkActive()
-                break
-            case 15:
-                if (!root.ready(Caffeine.manualActive, "a second run started outside the shell reads on", 20))
-                    return
-                // this time the stop is only announced on the bus, as logind does for the real unit
-                root.setFile(_unitState, "inactive")
-                root.markCalls()
-                root.setFile(_busSignal, "stopped")
-                break
-            case 16:
-                if (!root.ready(!Caffeine.manualActive
-                        && root.count(root.lines(_systemctlCalls), "is-active") > root.checksBefore,
-                        "an inhibitor change on the bus rechecks the unit while idle", 20))
                     return
                 root.finish()
                 return

@@ -31,8 +31,8 @@ printf '{"__version":1,"caffeineUnit":"hypr-shell-caffeine.service"}\n' \
     > "$probe_root/config/silere-shell/settings.json"
 _probe_project "$ROOT" scripts/probe-caffeine.qml "$probe_root/project"
 # the probe holds the session idle to keep the drift and inhibitor polls out of its call
-# counts, which the real singleton would take from the compositor. With a run on the drift
-# poll stays up, but its first tick is a minute out and no step holds a run that long
+# counts, which the real singleton would take from the compositor. They stay up through
+# idle only once the probe takes the watcher down, in its last steps
 rm "$probe_root/project/services"
 cp -a "$ROOT/services" "$probe_root/project/services"
 cp "$ROOT/scripts/fixtures/coordinator/Idle.qml" "$probe_root/project/services/Idle.qml"
@@ -40,7 +40,8 @@ cp "$ROOT/scripts/fixtures/coordinator/Idle.qml" "$probe_root/project/services/I
 # The service starts and stops the real unit and reads the real inhibitor list, so every
 # command it can reach is a stand-in here. The probe steers them through files it writes:
 # unit-state (active or inactive), toggle-mode (ok or fail), inhibitors (the list
-# systemd-inhibit prints), and slow-check and slow-inhibit, the seconds each read takes.
+# systemd-inhibit prints), slow-check and slow-inhibit, the seconds each read takes, and
+# slow-toggle, the seconds a start or stop takes.
 printf 'inactive\n' > "$probe_root/unit-state"
 printf 'ok\n' > "$probe_root/toggle-mode"
 : > "$probe_root/inhibitors"
@@ -66,6 +67,10 @@ case "\$*" in
             echo "Job for hypr-shell-caffeine.service failed: probe" >&2
             exit 1
         fi
+        # a slow start or stop keeps the toggle chain running while a check answers
+        delay=0
+        [ -e "$probe_root/slow-toggle" ] && delay="\$(cat "$probe_root/slow-toggle")"
+        sleep "\$delay" || exit 143
         if [ "\$2" = start ]; then printf 'active\\n' > "\$state"; else printf 'inactive\\n' > "\$state"; fi
         ;;
     # no preset is timed here, so there is never a stop timer to clear or list
@@ -102,13 +107,20 @@ printf '%s\\n' "\$*" >> "$probe_root/systemd-run-calls"
 exit 1
 EOF2
 # stands in for the system bus: one changed-inhibitor line each time the probe rewrites
-# bus-signal, and nothing otherwise. It ends with the run's directory, so a watcher the
-# probe's exit left behind cannot outlive the cleanup
+# bus-signal, and nothing otherwise, a restart included. Writing "down" makes it exit 1,
+# the code the watcher gives up on, and "crash" makes it exit 2 once, which the watcher
+# restarts from. It ends with the run's directory, so a watcher the probe's exit left
+# behind cannot outlive the cleanup
 cat > "$probe_root/bin/dbus-monitor" <<EOF2
 #!/usr/bin/env bash
-last=""
+last="\$(cat "$probe_root/bus-signal" 2>/dev/null || true)"
 while [ -d "$probe_root" ]; do
     current="\$(cat "$probe_root/bus-signal" 2>/dev/null || true)"
+    [ "\$current" = down ] && exit 1
+    if [ "\$current" = crash ]; then
+        printf 'crashed\\n' > "$probe_root/bus-signal"
+        exit 2
+    fi
     if [ "\$current" != "\$last" ]; then
         last="\$current"
         printf '         string "BlockInhibited"\\n'

@@ -116,9 +116,12 @@ inhibitor watcher starting and stopping, each inhibitor change it hears on
 the bus, and the stop deadline being set, passing and read back from systemd.
 Inhibitor names and command output are never logged.
 
-Every `is-active` line names what asked for the check: startup, the tool scan,
-a toggle chain, the drift poll, the bus signal, the wake from idle, or the stop
-deadline. The Info line for a run found ended also says whether the session was
+Every `is-active` line names what asked for the check, in these words:
+`startup`, `the tool scan`, `the toggle chain`, `a failed toggle`, `an empty
+chain`, `the drift poll`, `the bus signal`, `the watcher starting`, `the wake
+from idle`, `the passed deadline`, `the stop timer going`, or `a direct call`
+from a probe. The Info
+line for a run found ended also says whether the session was
 idle. A run that ended on its own is asked for by the bus signal, at the moment
 the unit stopped. One asked for by the wake from idle, minutes after the unit's
 own stop line in the journal, means the shell slept through the stop and the
