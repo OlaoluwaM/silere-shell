@@ -379,6 +379,27 @@ else
   ok "bar gap" "Metrics derives bar geometry from normalized compositor facts"
 fi
 
+section "bar pointer record"
+# A hover reveal closes at once when the pointer reaches another bar widget, which it
+# learns from BarHover.widget. A widget with a HoverHandler of its own that never writes
+# itself there leaves its neighbours' reveals waiting out the slip delay instead, and no
+# probe has a pointer to catch that with. A file whose root is a Pill is covered by Pill's
+# own handler; a HoverHandler it adds only sets the cursor.
+# It finds a write anywhere in the file, not that the write sits in the hover handler.
+bar_hover_unrecorded=""
+while IFS= read -r bar_hover_file; do
+  grep -qE '^Pill \{' "$bar_hover_file" && continue
+  grep -qF 'BarHover.widget = ' "$bar_hover_file" || bar_hover_unrecorded+="$bar_hover_file"$'\n'
+done < <(grep -RlE --include='*.qml' '(^|[^A-Za-z0-9_])HoverHandler[[:space:]]*\{' modules/bar | sort)
+if [ -n "$bar_hover_unrecorded" ]; then
+  fail "a bar widget with a HoverHandler of its own must set BarHover.widget as the pointer arrives (docs/forking.md):"
+  printf '%s' "$bar_hover_unrecorded"
+elif ! grep -qF 'BarHover.widget = root' modules/common/Pill.qml; then
+  fail "Pill must set BarHover.widget as the pointer arrives"
+else
+  ok "bar pointer" "every bar widget with a HoverHandler of its own records itself in BarHover"
+fi
+
 section "loader lifetime bindings"
 # Loader.item only exists while Loader.active is true. Feeding item visibility
 # or status back into active creates a runtime binding loop that qmlcachegen

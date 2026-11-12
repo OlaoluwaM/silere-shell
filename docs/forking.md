@@ -53,7 +53,8 @@ only when running, as `X is not a type` — that one confuses everybody once.
 A widget that is not a `Pill` and has a `HoverHandler` of its own sets
 `BarHover.widget` to itself as the pointer arrives, as `MediaWidget.qml` does. `Pill`
 does this already. The other widgets' hover reveals read it to close at once when the
-pointer moves on to yours, and keep waiting if it does not.
+pointer moves on to yours, and keep waiting if it does not. `scripts/ci-lint.sh` fails
+a bar file that has a `HoverHandler` and never writes it.
 
 If it needs a backend that may be absent, gate it in `BarZone._widgetEnabled()` next to
 the `battery` and `brightness` cases; returning false there hides the widget rather than
