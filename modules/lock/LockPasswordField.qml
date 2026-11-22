@@ -104,10 +104,15 @@ Item {
             onTextEdited: LockState.typed = _input.text
             onAccepted: LockState.submit()
 
-            // the state behind the chip changes only on this key, so the press is the cue to
-            // ask again; the event carries on to the field untouched
+            // the state behind the chip changes only on this key, so it is the cue to ask again.
+            // xkb locks Caps Lock on the press but unlocks it only on the release, so the press
+            // shows the chip at once and the release clears it. The event carries on to the
+            // field untouched
             Keys.onPressed: (event) => {
                 if (event.key === Qt.Key_CapsLock) LockState.refreshCapsLock()
+            }
+            Keys.onReleased: (event) => {
+                if (event.key === Qt.Key_CapsLock && !event.isAutoRepeat) LockState.refreshCapsLock()
             }
 
             Connections {

@@ -49,7 +49,7 @@ Item {
     Component.onCompleted: if (root.primary) _field.claimFocus()
 
     // the field stands down while the power card is up, so Enter answers the card. A disabled
-    // field misses Caps Lock presses and the window never left active, so its state is re-read
+    // field misses the Caps Lock key and the window never left active, so its state is re-read
     Connections {
         target: LockPower
         function onOpenChanged() {

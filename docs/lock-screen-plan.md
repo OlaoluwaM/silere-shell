@@ -453,7 +453,8 @@ all fork work.
   `hyprctl devices -j`. It is Hyprland's own xkb state, the one the typed text
   gets, where the `/sys/class/leds` LED exists only on keyboards that have one
   and is a copy Hyprland pushes to each device. Never polled: the lock asks at
-  start, on every Caps Lock press it receives, and whenever a surface takes the
+  start, on every Caps Lock press and release it receives (xkb locks on the
+  press but unlocks only on the release), and whenever a surface takes the
   keyboard (resume, hotplug). Niri has no such query, so the chip stays hidden
   there.
 - **The focused output while locked.** Resolved in step 5. Hyprland 0.55.4's

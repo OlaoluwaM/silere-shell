@@ -157,8 +157,8 @@ Singleton {
 
     // Quickshell exposes no modifier state, and a Caps Lock keypress alone misses the state
     // the lock started in. Hyprland's main keyboard reports its locked caps modifier, which
-    // is the state the typed text gets, so it is asked at start, whenever Caps Lock is
-    // pressed, and whenever a surface takes the keyboard (resume, hotplug): never polled.
+    // is the state the typed text gets, so it is asked at start, whenever the Caps Lock
+    // key goes down or up, and whenever a surface takes the keyboard (resume, hotplug): never polled.
     // Other compositors have no such query; the chip stays hidden there.
     property bool capsLock: false
     property bool _capsQueued: false
