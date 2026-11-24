@@ -3,6 +3,25 @@
 Deferred work worth revisiting. Each entry records why it waited, so it can be
 picked up without redoing the analysis.
 
+## Apps that ignore DND
+
+Let chosen apps through DND, as Android's "app exceptions" do: their
+notifications still pop up while every other app's go straight to history.
+
+Deferred on 2026-11-23 because it is a new feature, not a fix. The gate is
+one check in `onNotification` (`services/Notifications.qml`), beside the
+existing `notifCriticalBypass` one. The open questions are:
+
+- how an app is named: the sender's `appName`, its desktop entry, or both,
+  since some apps send a different `appName` from the one users know them by;
+- where the list lives: a settings key (which ties the change to nixos-config,
+  see README.md) or a runtime list picked from the menu;
+- whether fullscreen silencing honours the same list.
+
+The list cannot cover sounds an app plays itself. Slack, for one, plays its
+own notification sound (`notificationSound` in its local state), so the
+notification server never sees it, and DND does not stop it today either.
+
 ## Notification actions in history
 
 Keep a notification's action buttons usable from the Recent page while the
