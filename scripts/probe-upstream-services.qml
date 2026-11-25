@@ -43,6 +43,14 @@ ShellRoot {
         check(WindowActions._appMatches({ cls: "firefox", initialClass: "" }, "firefox")
                 && !WindowActions._appMatches({ cls: "firefox", initialClass: "" }, "ox"),
             "short app names require an exact window-class match")
+        const named = cls => ({ cls: cls, initialClass: cls })
+        check(!WindowActions._appMatches(named("code"), "Claude Code")
+                && !WindowActions._appMatches(named("send"), "notify-send")
+                && WindowActions._appMatches(named("chrome"), "Google Chrome")
+                && WindowActions._appMatches(named("org.mozilla.firefox"), "Firefox")
+                && WindowActions._appMatches(named("dev.zed.Zed"), "Zed")
+                && WindowActions._appMatches(named("code"), "Code"),
+            "a word in front of a short class is not its vendor: Claude Code never matches VS Code's window")
         const kittyGuess = { pid: 1638, cls: "kitty", ref: "c" }
         check(WindowActions.focusIsSourceApp(kittyGuess, [
                     { pid: 1638, cls: "kitty", ref: "a", focused: false },
