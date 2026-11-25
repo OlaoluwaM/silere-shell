@@ -75,6 +75,14 @@ A cosmetic or documentation-only change skips the `ci-lint.sh` and
 - When a task has no precedent in the codebase to copy or work from, rely
   on standard QML best practices, patterns, and idioms before reaching for
   something clever or bespoke.
+- New behaviour can be debugged from the journal. A change that adds a
+  decision, a state change or a failure path logs it, so that someone asking
+  later why the shell did something can read the answer instead of
+  reproducing it. Log under the area's `silere.` category, at the level
+  [docs/debugging.md](docs/debugging.md) gives each kind of line, and add
+  what the change logs to that document. Log names and ids, never a
+  notification's text or other private content. A change with nothing a
+  later reader would ask about needs no logging.
 - `bash scripts/ci-lint.sh` passes.
 - `nix develop . --command bash scripts/check.sh` reports zero failures. A
   small, stable set of environmental warnings is normal; investigate when
