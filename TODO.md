@@ -3,24 +3,39 @@
 Deferred work worth revisiting. Each entry records why it waited, so it can be
 picked up without redoing the analysis.
 
-## Apps that ignore DND
+## An editor for the apps that ignore DND
 
-Let chosen apps through DND, as Android's "app exceptions" do: their
-notifications still pop up while every other app's go straight to history.
+Edit the list of apps that pop up through DND from inside the shell. Today
+the list is the packaging key `dndBypassApps`, which the deploying
+configuration declares, so a lasting change to it takes a rebuild.
 
-Deferred on 2026-11-23 because it is a new feature, not a fix. The gate is
-one check in `onNotification` (`services/Notifications.qml`), beside the
-existing `notifCriticalBypass` one. The open questions are:
+Deferred on 2026-11-25 by the maintainer: the declared list does the job
+with no new interface, and an editor waits until one is wanted. Three
+placements were sketched and none was picked:
 
-- how an app is named: the sender's `appName`, its desktop entry, or both,
-  since some apps send a different `appName` from the one users know them by;
-- where the list lives: a settings key (which ties the change to nixos-config,
-  see README.md) or a runtime list picked from the menu;
-- whether fullscreen silencing honours the same list.
+- a card under the Do Not Disturb card on its settings page, one switch per
+  app;
+- a button on a Recent row's header;
+- chips in the Home page's DND picker.
 
-The list cannot cover sounds an app plays itself. Slack, for one, plays its
-own notification sound (`notificationSound` in its local state), so the
-notification server never sees it, and DND does not stop it today either.
+What an editor has to settle, whichever it is:
+
+- the apps it offers. The shell knows only the senders still in history, so
+  an app that notifies rarely can drop off before it is allowed. The
+  `settings` IPC target's `set` can still list it, but it writes the whole
+  list, not one entry;
+- the saved list then wins over the declared one. A value saved to
+  `settings.json` replaces the packaging default, so later changes to the
+  declared list do nothing until the key is set back. No settings page's
+  reset covers a packaging key;
+- the row. The per-monitor "Bar on" switches on the interface page already
+  flip one entry of a comma list (`Monitors.setBarEnabled`), and are the
+  pattern to copy.
+
+Neither the list nor DND has a say over a sound an app plays itself. Slack,
+for one, plays its own notification sound (`notificationSound` in its local
+state), so the notification server never sees it. An editor's wording should
+not suggest otherwise.
 
 ## Notification actions in history
 
