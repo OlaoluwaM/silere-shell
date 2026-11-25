@@ -31,6 +31,7 @@ for retention in true false; do
     log="$probe_root/$retention.log"
     XDG_CONFIG_HOME="$probe_root/config-home" XDG_STATE_HOME="$probe_root/config-home" XDG_CACHE_HOME="$probe_root/config-home/cache" \
         XDG_RUNTIME_DIR="$probe_root/runtime" QT_FORCE_STDERR_LOGGING=1 \
+        QT_LOGGING_RULES="silere.notifications.debug=true" \
         QT_QPA_PLATFORM=offscreen QT_NO_XDG_DESKTOP_PORTAL=1 \
         setsid qs -p "$probe_root/project/probe-notification-reload.qml" --no-color >"$log" 2>&1 &
     probe_pid=$!
@@ -39,6 +40,28 @@ for retention in true false; do
             || [[ -n "$(_probe_errors "$log")" ]]; then
         cat "$log" >&2
         echo "FAIL: notification reload probe (retention=$retention)" >&2
+        exit 1
+    fi
+    # the delivery lines are how a held notification is explained afterwards, and the held
+    # line is where the text to list an app by is read from, so their wording is checked too
+    for line in \
+        'delivery: apps let through DND: (none)' \
+        'delivery: apps let through DND: first app, bypass app, last app' \
+        'delivery: held by DND, name "Someone Else" entry "org.example.Else" id ' \
+        'delivery: let through as a listed app, name "Other Name" entry "org.example.Bypass" id ' \
+        'delivery: let through as critical, name ' \
+        'delivery: held, popups are off, name "Bypass App" entry "" id '; do
+        if ! grep -qF -- "$line" "$log"; then
+            cat "$log" >&2
+            echo "FAIL: notification reload probe logged no line with: $line" >&2
+            exit 1
+        fi
+    done
+    # every later list line follows a held one, so only a first line that is the list proves
+    # the start-up one
+    if ! grep -m1 -F 'delivery:' "$log" | grep -qF 'delivery: apps let through DND: (none)'; then
+        cat "$log" >&2
+        echo "FAIL: notification reload probe did not log the list at start-up" >&2
         exit 1
     fi
     grep -oE 'PROBE-RELOAD passed [0-9]+ checks' "$log" | tail -1

@@ -36,6 +36,11 @@ Singleton {
     readonly property string caffeineUnit:        ""
     readonly property string caffeinePresets:     "15,30,60,0"
     readonly property string dndPresets:          "15,30,60,0"
+    // "" = feature dormant, same contract as the keys below: only the packaging knows which
+    // apps must still pop up under DND or fullscreen silence. Comma-separated; each entry is
+    // a sender name or a desktop entry, matched whole and without regard to case, so an app
+    // whose name holds a comma is listed by its entry
+    readonly property string dndBypassApps:       ""
     readonly property string wifiEditCommand:     "nm-connection-editor --edit {uuid}"
     readonly property string btEditCommand:       "blueman-manager"
     // "" = feature dormant, same contract as the recording keys below: no packaging

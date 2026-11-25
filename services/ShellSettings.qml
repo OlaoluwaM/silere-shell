@@ -57,6 +57,8 @@ Singleton {
     // the custom slider's remembered position; dndPreset above stays the single
     // source of what is actually armed -- picking Custom copies this value into it
     property int    dndCustomMinutes:    45
+    // packaging-only, like wifiEditCommand/btEditCommand below: no settings page exposes it
+    property string dndBypassApps:       GeneratedDefaults.dndBypassApps
     property string wifiEditCommand:     GeneratedDefaults.wifiEditCommand
     property string btEditCommand:       GeneratedDefaults.btEditCommand
     // packaging-only, like wifiEditCommand/btEditCommand above: no settings page exposes
@@ -404,6 +406,7 @@ Singleton {
         { k: "dndPresets",          t: "re",   re: /^[0-9]*(,[0-9]+)*$/, sec: "-" },
         { k: "dndPreset",           t: "int",  min: 0, max: 1440, sec: "-" },
         { k: "dndCustomMinutes",    t: "int",  min: 5, max: 480,  sec: "-" },
+        { k: "dndBypassApps",       t: "re",   re: /^[^\u0000-\u001F\u007F]{0,512}$/, sec: "-" },
         { k: "wifiEditCommand",     t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "btEditCommand",       t: "re",   re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },
         { k: "systemMonitorCommand", t: "re",  re: /^[^\u0000-\u001F\u007F]{0,256}$/, sec: "-" },

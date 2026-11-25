@@ -8,14 +8,16 @@ Quickshell's own messages included. `journalctl --user -u silere-shell -g
 'silere[-.]'` keeps only the shell's own lines: each names a `silere.` category
 or starts with `silere-shell: `. The lock, network, caffeine and night light
 lines do both, so `-g silere-shell` alone finds those; the notification
-history's lines start with `history:` or `grouping:` under their category. A
+history's lines start with `history:` or `grouping:` under their category, and
+the delivery gate's with `delivery:`. A
 line reads `INFO silere.network: silere-shell: link watcher up`: the level,
 the category, then the message.
 
 Each area logs under a category of its own:
 
 - `silere.lock`: the lock screen, below.
-- `silere.notifications`: the history and the menu's grouping of it.
+- `silere.notifications`: the history, the menu's grouping of it, and which
+  notifications were held back or let through.
 - `silere.network`: the VPN indicator and the kernel link watcher.
 - `silere.caffeine`: the idle inhibitor unit and its stop timer.
 - `silere.nightlight`: the hyprsunset unit and its temperature pushes.
@@ -88,6 +90,22 @@ that still carries the `seen` and `times` of an older version logs one Info
 line, since that state is ignored and goes at the next save. A grouping that
 could not make its row listener logs one Warn, because every read then rebuilds
 its table.
+
+## Debugging what DND holds back
+
+The same category says why a notification did or did not pop up. Each one
+that arrives while something silences it logs a `delivery:` line at Debug:
+`held by DND`, `held by fullscreen` or `held, popups are off`, or `let through
+as critical` or `let through as a listed app`. The line ends with the
+sender's name and its desktop entry, each quoted, and the notification's id,
+never its text.
+
+`dndBypassApps` lists the apps let through, and an entry has to equal one of
+those two fields, whatever the case. To find what to list an app by, turn
+Debug on as above, have the app notify while DND is on, and read its `held by
+DND` line. When the list loads or changes, one Info line gives the entries as
+the shell parsed them, trimmed and in lower case, so a list that reads
+`(none)` was empty or never arrived.
 
 ## Debugging the network watcher
 

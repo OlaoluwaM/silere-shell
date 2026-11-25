@@ -108,9 +108,7 @@ ShellRoot {
 
     function _nextUrgencyCase(): void {
         if (root.urgencyCase >= root.urgencyCases.length) {
-            if (progress.failures === 0)
-                console.warn("PROBE-RELOAD passed " + progress.checks + " checks")
-            console.warn("PROBE-RELOAD-DONE")
+            root._nextBypassCase()
             return
         }
         const test = root.urgencyCases[root.urgencyCase]
@@ -134,6 +132,86 @@ ShellRoot {
             }
             root.urgencyCase++
             Qt.callLater(root._nextUrgencyCase)
+        }
+    }
+
+    // Every case runs at normal urgency with DND on and the critical bypass off, so only the
+    // app list can let a sender through. The fullscreen gate shares that one constant, but the
+    // real Compositor derives its fullscreen flag from a live toplevel, which this private-bus
+    // run has none of; it stays unprobed here rather than gaining a test-only hook.
+    property int bypassCase: 0
+    readonly property var bypassCases: [
+        { label: "sender name listed", list: "Bypass App", name: "Bypass App", entry: "", active: 1 },
+        { label: "desktop entry listed under a different name", list: "org.example.Bypass",
+            name: "Other Name", entry: "org.example.Bypass", active: 1 },
+        { label: "desktop entry listed with no usable name", list: "org.example.Bypass",
+            name: "", entry: "org.example.Bypass", active: 1 },
+        { label: "list entry and sender differ in case", list: "BYPASS app", name: "bypass APP", entry: "", active: 1 },
+        { label: "desktop entry differs in case", list: "ORG.Example.Bypass",
+            name: "Other Name", entry: "org.example.bypass", active: 1 },
+        { label: "sender not on the list", list: "Bypass App", name: "Someone Else", entry: "org.example.Else", active: 0 },
+        { label: "entry is only a prefix of the sender", list: "Bypass", name: "Bypass App", entry: "", active: 0 },
+        { label: "entry is only a prefix of the desktop entry", list: "org.example",
+            name: "Other Name", entry: "org.example.Bypass", active: 0 },
+        { label: "sender is only a prefix of the entry", list: "Bypass App Pro", name: "Bypass App", entry: "", active: 0 },
+        { label: "spaces and empty entries around a listed sender", list: " , Bypass App ,, ",
+            name: "Bypass App", entry: "", active: 1 },
+        { label: "sender listed between two others", list: "First App,Bypass App,Last App",
+            name: "Bypass App", entry: "", active: 1 },
+        { label: "doubled space inside a list entry", list: "Bypass  App", name: "Bypass App", entry: "", active: 1 },
+        { label: "doubled space inside the sender name", list: "Bypass App", name: "Bypass  App", entry: "", active: 1 },
+        { label: "empty list", list: "", name: "Bypass App", entry: "org.example.Bypass", active: 0 },
+        { label: "separators alone", list: " , ,,", name: "Bypass App", entry: "", active: 0 },
+        { label: "popups off hides a listed sender", list: "Bypass App", name: "Bypass App", entry: "",
+            popup: false, active: 0 }
+    ]
+
+    function _nextBypassCase(): void {
+        if (root.bypassCase === 0) {
+            root._check(root._parsedBypass(" , Foo ,, ") === '["foo"]'
+                    && root._parsedBypass("") === "[]"
+                    && root._parsedBypass(" , ,,") === "[]"
+                    && root._parsedBypass("A,B") === '["a","b"]',
+                "app list parses to trimmed lowercase entries without empties")
+        }
+        if (root.bypassCase >= root.bypassCases.length) {
+            ShellSettings.dndBypassApps = ""
+            ShellSettings.notifPopupEnabled = true
+            Notifications.dnd = false
+            if (progress.failures === 0)
+                console.warn("PROBE-RELOAD passed " + progress.checks + " checks")
+            console.warn("PROBE-RELOAD-DONE")
+            return
+        }
+        const test = root.bypassCases[root.bypassCase]
+        Notifications.dnd = true
+        ShellSettings.notifCriticalBypass = false
+        ShellSettings.notifPopupEnabled = test.popup !== false
+        ShellSettings.dndBypassApps = test.list
+        const command = ["notify-send", "--print-id", "--expire-time=0", "--app-name=" + test.name]
+        if (test.entry !== "") command.push("--hint=string:desktop-entry:" + test.entry)
+        command.push("Bypass probe " + root.bypassCase)
+        bypassSender.command = command
+        bypassSender.running = true
+    }
+
+    function _parsedBypass(list: string): string {
+        ShellSettings.dndBypassApps = list
+        return JSON.stringify(Notifications._bypassApps)
+    }
+
+    Process {
+        id: bypassSender
+        onExited: code => {
+            const test = root.bypassCases[root.bypassCase]
+            root._check(code === 0 && Notifications.activeCount === test.active,
+                test.label + " under DND (active " + test.active + ")")
+            while (Notifications.list.length > 0) {
+                const entry = Notifications.list[0]
+                Notifications.dismissObject(entry.id, entry.notification, false)
+            }
+            root.bypassCase++
+            Qt.callLater(root._nextBypassCase)
         }
     }
 

@@ -46,7 +46,9 @@ Singleton {
 
     // History edits and the menu's grouping log here, so a row that vanishes can be told
     // apart from one the model lost. A user's removal logs at Info; updates, trims and the
-    // grouping's bookkeeping only at Debug. Rows log by app and id, never their text
+    // grouping's bookkeeping only at Debug. Rows log by app and id, never their text.
+    // The delivery gate logs here as well: a notification that never popped up left no
+    // other trace of which gate held it
     readonly property LoggingCategory historyLog: LoggingCategory {
         name: "silere.notifications"
         defaultLogLevel: LoggingCategory.Info
@@ -547,6 +549,36 @@ Singleton {
     readonly property bool fullscreenSilenced: ShellSettings.notifFullscreenSilence
         && FullscreenState.active
 
+    // parsed once per settings change, not per notification. Entries take the same identityText
+    // pass as the sender fields below, so a doubled space cannot make an entry unmatchable
+    readonly property var _bypassApps: String(ShellSettings.dndBypassApps).split(",")
+        .map(entry => root.identityText(entry).toLowerCase()).filter(entry => entry.length > 0)
+
+    // Senders disagree on which field names them: some fill only appName, some only the desktop
+    // entry, some both with different text. Either field may match, whole and case-folded, so
+    // "slack" never lets "slack-updater" through. identityText trims and yields the text
+    // history stores
+    function _isBypassSender(n): bool {
+        if (root._bypassApps.length === 0) return false
+        const name = root.identityText(n.appName).toLowerCase()
+        const entry = root.identityText(n.desktopEntry).toLowerCase()
+        return (name.length > 0 && root._bypassApps.includes(name))
+            || (entry.length > 0 && root._bypassApps.includes(entry))
+    }
+
+    // the declared list is typed by hand, so the journal shows what it parsed to
+    on_BypassAppsChanged: console.info(root.historyLog, "delivery: apps let through DND:",
+        root._bypassApps.length > 0 ? root._bypassApps.join(", ") : "(none)")
+
+    // Both sender fields, as the list is matched against them: a line for a held
+    // notification is where the text to list an app by is read from. Quoted as JSON, so a
+    // name that holds a quote cannot pass for the entry beside it
+    function _traceDelivery(n, outcome: string): void {
+        console.debug(root.historyLog, "delivery:", outcome + ",",
+            "name", JSON.stringify(root.identityText(n.appName)),
+            "entry", JSON.stringify(root.identityText(n.desktopEntry)), "id", n.id)
+    }
+
     // every way DND turns on funnels through here (menu row, quick actions, bar pill
     // off-click), so the picked duration applies uniformly -- the same reason caffeine
     // routes its chord through toggle() instead of a raw systemctl
@@ -972,24 +1004,30 @@ Singleton {
             root._ensurePersistentState()
             const carriedAcrossReload = root._liveIds[String(n.id)] === true
             if (!carriedAcrossReload) root._forgetState(n.id)
-            const bypasses = ShellSettings.notifCriticalBypass
+            const critical = ShellSettings.notifCriticalBypass
                 && n.urgency === NotificationUrgency.Critical
+            const bypasses = critical || root._isBypassSender(n)
             // expired, not dismissed: a sender may read a dismissal as the user having seen it
             if (root.dnd && !bypasses) {
+                root._traceDelivery(n, "held by DND")
                 root._archiveNotification(n, n.id, Date.now())
                 n.expire()
                 return
             }
             if (root.fullscreenSilenced && !bypasses) {
+                root._traceDelivery(n, "held by fullscreen")
                 root._archiveNotification(n, n.id, Date.now())
                 n.expire()
                 return
             }
             if (!ShellSettings.notifPopupEnabled) {
+                root._traceDelivery(n, "held, popups are off")
                 root._archiveNotification(n, n.id, Date.now())
                 n.expire()
                 return
             }
+            if (root.silencingActive)
+                root._traceDelivery(n, critical ? "let through as critical" : "let through as a listed app")
             const arrivalTime = root._ensureTime(n.id)
             root._rememberLiveId(n.id)
             root.lastCritical = n.urgency === NotificationUrgency.Critical
