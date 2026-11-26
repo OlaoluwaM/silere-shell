@@ -15,8 +15,8 @@ Rectangle {
     property real targetWidth: width
     property bool centered: false
     property bool animatePlacement: true
-    // set by a card that takes another's place, and by the one it replaces: the pair fades through
-    // (see PopupAnimation.swap) instead of each sliding on its own clock
+    // set by a card that takes another's place, and by the one it replaces: the pair hands over in
+    // turn (see PopupAnimation.swap) instead of each running on its own clock
     property bool swapIn: false
     property bool swapOut: false
 

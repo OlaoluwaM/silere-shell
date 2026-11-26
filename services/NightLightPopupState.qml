@@ -11,12 +11,12 @@ AnchoredPopupState {
 
     controlSurface: true
 
-    // true while the card stands where the menu just was, so its entrance fades through from it
+    // true while the card stands where the menu just was, so its entrance waits for the menu to leave
     property bool fromMenu: false
     onOpenChanged: if (!open) fromMenu = false
 
     // the menu's Night Light row opens the card at the menu's own anchor; the coordinator closes
-    // the menu as the card opens, and the pair swap like two of the menu's pages
+    // the menu as the card opens, and the card enters once the menu has left
     function openFromMenu(): void {
         MenuState.handingOver = true
         root.fromMenu = true

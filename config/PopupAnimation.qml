@@ -8,27 +8,31 @@ ParallelAnimation {
     required property real hiddenOffset
     property string opacityProperty: "opacity"
     property string offsetProperty: "edgeOffset"
-    // one popup taking another's place fades through, as the menu's pages do: the leaving one
-    // clears where it stands before the arriving one starts, and neither slides
+    // one popup taking another's place hands over in turn: the leaving one goes first, a little
+    // slower than an ordinary close so the eye can follow it, and the arriving one waits that out
+    // before its ordinary entrance
     property bool swap: false
 
-    NumberAnimation {
-        target: root.target
-        property: root.offsetProperty
-        to: root.entering || root.swap ? 0.0 : root.hiddenOffset
-        duration: root.swap ? 0 : root.entering ? Motion.popIn : Motion.popOut
-        easing.type: Easing.BezierSpline
-        easing.bezierCurve: root.entering ? Motion.emphasizedDecel : Motion.emphasizedAccel
+    readonly property bool _swapExit: root.swap && !root.entering
+    readonly property int _wait: root.swap && root.entering ? Motion.medium : 0
+    SequentialAnimation {
+        PauseAnimation { duration: root._wait }
+        NumberAnimation {
+            target: root.target
+            property: root.offsetProperty
+            to: root.entering ? 0.0 : root.hiddenOffset
+            duration: root.entering ? Motion.popIn : root._swapExit ? Motion.medium : Motion.popOut
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: root.entering ? Motion.emphasizedDecel : Motion.emphasizedAccel
+        }
     }
     SequentialAnimation {
-        // the arriving popup waits out the leaving one's fade, so no frame holds both at partial opacity
-        PauseAnimation { duration: root.swap && root.entering ? Motion.pageSwapOut : 0 }
+        PauseAnimation { duration: root._wait }
         NumberAnimation {
             target: root.target
             property: root.opacityProperty
             to: root.entering ? 1.0 : 0.0
-            duration: root.swap ? (root.entering ? Motion.pageSwapIn : Motion.pageSwapOut)
-                : root.entering ? Motion.popInFade : Motion.popOutFade
+            duration: root.entering ? Motion.popInFade : root._swapExit ? Motion.normal : Motion.popOutFade
             easing.type: Easing.BezierSpline
             easing.bezierCurve: root.entering ? Motion.standardDecel : Motion.standardAccel
         }

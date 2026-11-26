@@ -283,7 +283,7 @@ ShellRoot {
             "registry count agrees with actual open states")
     }
 
-    // the card that opens in the menu's place marks both sides, which is what makes the pair fade through
+    // the card that opens in the menu's place marks both sides, which is what makes the pair hand over in turn
     function testMenuHandoff(): void {
         const anchor = anchorFactory.createObject(root)
         const screen = Quickshell.screens[0] ?? null

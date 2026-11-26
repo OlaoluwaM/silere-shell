@@ -72,8 +72,8 @@ AnchoredPopupState {
         _settingsSelectOwner = null
         if (previous) previous._setOpen(false)
     }
-    // set by a card that opens in the menu's place, so this close fades through to it; the next
-    // open clears it, which keeps the fade to that one close
+    // set by a card that opens in the menu's place, so this close is the slower one of a handover;
+    // the next open clears it, which keeps that to the one close
     property bool handingOver: false
     onOpenChanged: {
         if (!open) closeSettingsSelect()
