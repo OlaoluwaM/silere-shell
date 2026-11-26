@@ -50,7 +50,8 @@
               qt6.qtdeclarative # qmllint and qmlcachegen for the headless type-check
               fontconfig # fc-match validates layout text metrics
               jetbrainsMonoNerdFont # the shell's default UI font
-              hyprland # hyprctl — scripts/check.sh probes it; night light IPC
+              hyprland # hyprctl — scripts/check.sh probes it
+              sunsetr # NightLight.qml's daemon; scripts/check.sh probes for it
               matugen # regenerate the palette JSON while testing theming
               brightnessctl # Brightness.qml backend
               libnotify # notify-send paths in SystemTools.qml
