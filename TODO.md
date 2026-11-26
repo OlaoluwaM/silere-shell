@@ -3,6 +3,28 @@
 Deferred work worth revisiting. Each entry records why it waited, so it can be
 picked up without redoing the analysis.
 
+## Rework how drop-down lists open
+
+Give the lists that open from a chevron (Wi-Fi, Bluetooth, the Home page's
+pickers, the settings dropdowns) a reveal that holds up at the shell's slower
+pace. Today a list grows its height while its rows fade in, and the growing
+edge cuts through the rows for as long as it runs.
+
+Deferred on 2026-11-26 by the maintainer, when the pace was introduced: at
+1.62 the Wi-Fi and Bluetooth lists looked wrong, so `listOpen` and
+`listClose` were held outside the pace and the reveal was left as it was.
+One alternative was tried in a dev instance and turned down: opening the
+space first and fading the rows in once it had settled, which leaves an empty
+box for a beat.
+
+What a rework has to settle:
+
+- whether the rows may be cut by a moving edge at all, or the space opens
+  before they show;
+- what happens to rows that arrive late. Wi-Fi and Bluetooth fill in as the
+  scan answers, so the height a list is growing towards can change mid-run;
+- whether the lists then rejoin the pace.
+
 ## Remove on-the-fly reordering of bar widgets
 
 Drop the drag-to-reorder list on the Bar settings page
