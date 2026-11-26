@@ -3,6 +3,32 @@
 Deferred work worth revisiting. Each entry records why it waited, so it can be
 picked up without redoing the analysis.
 
+## Remove on-the-fly reordering of bar widgets
+
+Drop the drag-to-reorder list on the Bar settings page
+(`modules/menu/settings/DraggableWidgetList.qml`) and whatever exists only to
+survive a reorder while the shell runs. The maintainer sets the widget order
+in the deploying configuration (`barWidgetOrderLeft`, `barWidgetOrderCenter`,
+`barWidgetOrderRight`) and never reorders from the shell.
+
+Deferred on 2026-11-26 by the maintainer, who raised it while the Night
+Light card was built. The card borrows the menu's anchor without the recovery
+the menu has, so it closes if the bar's widgets are rebuilt under it. A drag
+cannot do that, since the list sits in the menu and the two are never open
+together; a change to the order from outside the menu, or a monitor leaving,
+can. That was left alone on the grounds that the reorder itself should go.
+
+What the removal has to settle:
+
+- what the settings page shows in the list's place: nothing, or the declared
+  order read-only, with `barWidgetOrderLocked` then redundant;
+- which anchor recovery stays. `AnchoredPopupState` regrabs an anchor for
+  150 ms after its widget is destroyed, and `Workspaces.qml` re-adopts the
+  menu and quick-actions anchors. A reorder is one cause; a bar leaving with
+  its monitor is another and still needs handling;
+- the show-and-hide switches in the same list, which are a separate feature
+  from the order and may be worth keeping.
+
 ## An editor for the apps that ignore DND
 
 Edit the list of apps that pop up through DND from inside the shell. Today
