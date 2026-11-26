@@ -15,6 +15,10 @@ Rectangle {
     property real targetWidth: width
     property bool centered: false
     property bool animatePlacement: true
+    // set by a card that takes another's place, and by the one it replaces: the pair fades through
+    // (see PopupAnimation.swap) instead of each sliding on its own clock
+    property bool swapIn: false
+    property bool swapOut: false
 
     signal closeFinished()
 
@@ -237,6 +241,7 @@ Rectangle {
         target: root
         entering: true
         hiddenOffset: root._hiddenEdge()
+        swap: root.swapIn
     }
 
     PopupAnimation {
@@ -244,6 +249,7 @@ Rectangle {
         target: root
         entering: false
         hiddenOffset: root._hiddenEdge()
+        swap: root.swapOut
         onFinished: {
             if (root.open || !root._closing) return
             // target inputs (notably bar edge) can change mid-exit. Normalize to today's hidden state before the next open reverses from it

@@ -11,14 +11,36 @@ AnchoredPopupState {
 
     controlSurface: true
 
+    // true while the card stands where the menu just was, so its entrance fades through from it
+    property bool fromMenu: false
+    onOpenChanged: if (!open) fromMenu = false
+
+    // the menu's Night Light row opens the card at the menu's own anchor; the coordinator closes
+    // the menu as the card opens, and the pair swap like two of the menu's pages
+    function openFromMenu(): void {
+        MenuState.handingOver = true
+        root.fromMenu = true
+        root.openAt(MenuState.effectiveAnchorX, MenuState.triggerScreen, MenuState.anchorSource)
+        // the coordinator turns an open away while the shell is idle or the overview is up,
+        // and neither side keeps a mark for a swap that never happened
+        if (!root.open) {
+            MenuState.handingOver = false
+            root.fromMenu = false
+        }
+    }
+
     IpcHandler {
         target: "nightlight"
 
         function toggle(): string {
             if (root.open) { root.close(); return "ok" }
-            // no widget to anchor to: borrow the spot the menu would open at
-            root.anchorX = MenuState.anchorX
-            root.openUnanchored()
+            // with the menu up the card takes its place, as it does from the menu's own row
+            if (MenuState.open) root.openFromMenu()
+            else {
+                // no widget to anchor to: borrow the spot the menu would open at
+                root.anchorX = MenuState.anchorX
+                root.openUnanchored()
+            }
             return root.open ? "ok" : root.refusedOpenText("the night light card", "stays")
         }
         function close(): void { root.close() }

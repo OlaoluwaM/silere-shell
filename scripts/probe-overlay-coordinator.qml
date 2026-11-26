@@ -258,6 +258,7 @@ ShellRoot {
         root.testRegistry()
         root.testEarlyOpen()
         root.testOpenMethods()
+        root.testMenuHandoff()
         root.testControlSurfaces()
         root.startAnchorChecks()
     }
@@ -280,6 +281,28 @@ ShellRoot {
         root.check(OverlayCoordinator._openCount === openCount
                 && OverlayCoordinator.anyOpen === (openCount > 0),
             "registry count agrees with actual open states")
+    }
+
+    // the card that opens in the menu's place marks both sides, which is what makes the pair fade through
+    function testMenuHandoff(): void {
+        const anchor = anchorFactory.createObject(root)
+        const screen = Quickshell.screens[0] ?? null
+        root.reset()
+        MenuState.toggleAt(42, screen, anchor)
+        NightLightPopupState.openFromMenu()
+        root.check(!MenuState.open && NightLightPopupState.open
+                && MenuState.handingOver && NightLightPopupState.fromMenu,
+            "opening the night light card from the menu closes the menu and marks the handoff on both")
+        NightLightPopupState.close()
+        root.check(!NightLightPopupState.fromMenu, "closing the card clears its side of the handoff")
+        MenuState.toggleAt(42, screen, anchor)
+        root.check(MenuState.open && !MenuState.handingOver, "the menu's next open clears its side")
+        root.reset()
+        NightLightPopupState.toggleAt(42, screen, anchor)
+        root.check(NightLightPopupState.open && !NightLightPopupState.fromMenu && !MenuState.handingOver,
+            "a card opened without the menu marks no handoff")
+        root.reset()
+        anchor.destroy()
     }
 
     function testOpenMethods(): void {

@@ -70,6 +70,7 @@ OverlayPopupWindow {
         barBottom: Metrics.barAtBottom
         targetWidth: placementW
         animatePlacement: false
+        swapOut: MenuState.handingOver
         clip: true
         // the rail and content pane below already paint Theme.menuPane edge to edge, so this
         // card's own fill would stack a second translucent layer under theirs; in glass mode

@@ -27,6 +27,7 @@ OverlayPopupWindow {
         open: NightLightPopupState.open
         anchorX: NightLightPopupState.effectiveAnchorX
         barBottom: Metrics.barAtBottom
+        swapIn: NightLightPopupState.fromMenu
 
         // the media card's width, so the two cards that hang off the bar match
         readonly property int cardWidth: 330

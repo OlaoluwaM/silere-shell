@@ -72,7 +72,13 @@ AnchoredPopupState {
         _settingsSelectOwner = null
         if (previous) previous._setOpen(false)
     }
-    onOpenChanged: if (!open) closeSettingsSelect()
+    // set by a card that opens in the menu's place, so this close fades through to it; the next
+    // open clears it, which keeps the fade to that one close
+    property bool handingOver: false
+    onOpenChanged: {
+        if (!open) closeSettingsSelect()
+        else handingOver = false
+    }
 
     // order by user impact and frequency: global appearance first, daily bar surfaces next, then feedback; operational and recovery tools stay last
     readonly property var settingsTree: [

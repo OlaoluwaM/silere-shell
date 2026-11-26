@@ -354,9 +354,7 @@ PageShell {
                 showSwitch: true
                 opensCard: true
                 onActivated: NightLight.toggle()
-                // the card takes the menu's place, so it opens at the menu's own anchor; the coordinator closes the menu as the card opens
-                onOpened: NightLightPopupState.openAt(MenuState.effectiveAnchorX,
-                    MenuState.triggerScreen, MenuState.anchorSource)
+                onOpened: NightLightPopupState.openFromMenu()
             }
 
             ControlRow {
