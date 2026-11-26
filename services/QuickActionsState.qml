@@ -53,7 +53,7 @@ AnchoredPopupState {
         // the optional-tool scan runs at startup; before it lands no tool looks installed
         if (!SystemTools.ready) return "error: still looking for a night light tool"
         if (!NightLight.available)
-            return "error: night light needs hyprsunset"
+            return "error: night light needs sunsetr"
         // a toggle that waits on a fresh check cannot name its target, so it only says one is under way
         switch (NightLight.toggleFresh()) {
         case "busy":   return "error: a night light change is already in progress"

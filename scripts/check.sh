@@ -163,7 +163,7 @@ optional_tool inotifywait "screenshot feedback"
 optional_tool nmcli "VPN indicator + Wi-Fi band"
 optional_tool ip "VPN tunnel link events"
 optional_tool matugen "wallpaper-matched colors"
-optional_tool hyprsunset "night light toggle"
+optional_tool sunsetr "night light toggle"
 optional_tool powerprofilesctl "power profile selector"
 optional_tool hyprlock "lock screen"
 optional_any_tool "power actions" "power menu actions" systemctl loginctl
@@ -575,11 +575,11 @@ if [ "$qs_usable" = 1 ]; then
       # Every default-off setting gates a Loader, so the pass above never loads those
       # paths and the type-check cannot see a runtime-only error inside one. Load once
       # more with them all on, in a scratch config so real settings stay untouched.
-      # nightLightAuto and neutralAccentAuto drive a gamma tool and matugen hooks;
+      # neutralAccentAuto drives matugen hooks;
       # reduceMotion would zero the animations this is meant to instantiate.
       cov_keys="$(sed -n 's/.*property bool[[:space:]]\{1,\}\([A-Za-z_][A-Za-z0-9_]*\)[[:space:]]*:[[:space:]]*false.*/\1/p' \
         services/ShellSettings.qml \
-        | grep -vxE '_loaded|nightLightAuto|neutralAccentAuto|reduceMotion' || true)"
+        | grep -vxE '_loaded|neutralAccentAuto|reduceMotion' || true)"
       if [ -z "$cov_keys" ]; then
         warn "off-path load" "no default-off settings found; coverage pass skipped"
       else

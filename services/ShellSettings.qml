@@ -330,9 +330,6 @@ Singleton {
         root[meta.setting] = visible
     }
 
-    property int    nightLightTemp:      3500
-    property bool   nightLightAuto:     false
-
     property int    wsMinVisible:        5
     property bool   wsDynamic:           GeneratedDefaults.wsDynamic
     property bool   wsShowNumbers:       false
@@ -494,8 +491,6 @@ Singleton {
         { k: "barWidgetOrderCenter", t: "re", re: /^[a-zA-Z]*(,[a-zA-Z]+)*$/, sec: "widgets" },
         { k: "barWidgetOrderRight", t: "re",   re: /^[a-zA-Z]*(,[a-zA-Z]+)*$/, sec: "widgets" },
 
-        { k: "nightLightTemp",      t: "int",  min: 1000, max: 6500, sec: "-" },
-        { k: "nightLightAuto",     t: "bool", sec: "-" },
         { k: "wsMinVisible",        t: "int",  min: 1,    max: 10, sec: "workspaces" },
         { k: "wsDynamic",           t: "bool", sec: "workspaces" },
         { k: "wsShowNumbers",       t: "bool", sec: "workspaces" },

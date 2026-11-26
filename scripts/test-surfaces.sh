@@ -89,7 +89,7 @@ printf '{"__version":1,"reduceMotion":true,"highContrast":true}\n' \
 # plain feature flags.
 allon_keys="$(sed -n 's/.*property bool[[:space:]]\{1,\}\([A-Za-z_][A-Za-z0-9_]*\)[[:space:]]*:[[:space:]]*false.*/\1/p' \
     services/ShellSettings.qml \
-    | grep -vxE '_loaded|nightLightAuto|neutralAccentAuto|reduceMotion' || true)"
+    | grep -vxE '_loaded|neutralAccentAuto|reduceMotion' || true)"
 mkdir -p "$allon_cfg/silere-shell"
 if [ -n "$allon_keys" ]; then
     { printf '{\n'

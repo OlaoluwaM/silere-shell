@@ -87,6 +87,8 @@ ipc keybinds toggle
 expect_reply 'cold keybinds IPC' ok popupProbe verify keybinds
 ipc wallpapers toggle
 expect_reply 'cold wallpapers IPC' ok popupProbe verify wallpapers
+ipc nightlight toggle
+expect_reply 'cold night light IPC' ok popupProbe verify nightLight
 # Control availability independently of the tools installed on the test host.
 ipc popupProbe powerTools false
 for action in logout reboot poweroff; do

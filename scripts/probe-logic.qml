@@ -1338,12 +1338,12 @@ ShellRoot {
             "a setting owned by two pages marks both")
         ShellSettings.underlineBattGlow = savedBattGlow
 
-        const savedNight = ShellSettings.nightLightTemp
-        ShellSettings.nightLightTemp = savedNight === 4000 ? 3500 : 4000
+        const savedCustomMinutes = ShellSettings.caffeineCustomMinutes
+        ShellSettings.caffeineCustomMinutes = savedCustomMinutes === 60 ? 90 : 60
         root._check(ShellSettings.modifiedCount === 0
                 && Object.keys(ShellSettings.modifiedSections).length === 0,
             "a setting with no page of its own does not offer a reset")
-        ShellSettings.nightLightTemp = savedNight
+        ShellSettings.caffeineCustomMinutes = savedCustomMinutes
         ShellSettings._loaded = savedLoaded
 
         // brightness write identity: a mid-write device switch must not let the old write
@@ -2893,31 +2893,7 @@ ShellRoot {
         ShellSettings.clock12h = clock12hForUpdate
         DateTime._update()
 
-        // auto is a mode, not a value: it must never consume the hand-picked temperature
-        const autoWas = ShellSettings.nightLightAuto
-        const tempWas = ShellSettings.nightLightTemp
-        ShellSettings.nightLightAuto = false
-        ShellSettings.nightLightTemp = 3400
-        root._check(NightLight.temperature === 3400,
-            "night light follows the manual temperature with auto off")
-        ShellSettings.nightLightAuto = true
-        root._check(NightLight.temperature === NightLight.suggestedTemp,
-            "night light follows the sun with auto on")
-        root._check(ShellSettings.nightLightTemp === 3400,
-            "night light auto does not overwrite the saved manual temperature")
-        ShellSettings.nightLightAuto = false
-        root._check(NightLight.temperature === 3400,
-            "night light restores the manual temperature when auto is turned off")
-        ShellSettings.nightLightTemp = tempWas
-        ShellSettings.nightLightAuto = autoWas
-
         const geoResolvedWas = NightLight._geoResolved
-        const hsDay = NightLight.temperatureArgv(6500)
-        const hsWarm = NightLight.temperatureArgv(6499)
-        root._check(hsDay.length === 3 && hsDay[2] === "identity"
-                && NightLight.temperatureArgv(99999)[2] === "identity"
-                && hsWarm.length === 4 && hsWarm[2] === "temperature" && hsWarm[3] === "6499",
-            "daylight runs hyprsunset's identity matrix, every warmer step a temperature")
         const winterLon = -new Date(2026, 0, 1).getTimezoneOffset() / 4
         const summerLon = -new Date(2026, 6, 1).getTimezoneOffset() / 4
         root._check(NightLight.standardOffsetLon(2026) === Math.min(winterLon, summerLon),
@@ -2950,6 +2926,78 @@ ShellRoot {
                 && NightLight.sunriseHour < NightLight._solarNoon
                 && NightLight._solarNoon < NightLight.sunsetHour,
             "night light puts solar noon between sunrise and sunset")
+        // sunsetr's geo fade runs from the sun at +10 degrees to -2 in the evening and back in the
+        // morning. Two checks: the sun's elevation at each returned hour, worked out here from the
+        // service's own declination and solar noon, pins the elevations and how the windows are put
+        // together to a hundredth of a degree, so a rule even a degree off fails on every day; and
+        // the Astronomical Almanac's low-precision sun, independent of the noaa series, checks those
+        // inputs. The two series drift up to about 0.6 degrees apart near the equinoxes, so that
+        // check only holds them to a degree
+        const modeWas = NightLight._mode
+        const knownWas = NightLight._configKnown
+        NightLight._configKnown = true
+        NightLight._mode = "geo"
+        const sunNow = new Date()
+        const rad = Math.PI / 180
+        const j2000Days = sunNow.getTime() / 86400000 + 2440587.5 - 2451545
+        const meanLon = 280.460 + 0.9856474 * j2000Days
+        const meanAnomaly = (357.528 + 0.9856003 * j2000Days) * rad
+        const eclipticLon = (meanLon + 1.915 * Math.sin(meanAnomaly) + 0.020 * Math.sin(2 * meanAnomaly)) * rad
+        const obliquity = (23.439 - 0.0000004 * j2000Days) * rad
+        const declDeg = Math.asin(Math.sin(obliquity) * Math.sin(eclipticLon)) / rad
+        const rightAscDeg = Math.atan2(Math.cos(obliquity) * Math.sin(eclipticLon), Math.cos(eclipticLon)) / rad
+        const eotMin = 4 * ((((meanLon - rightAscDeg) % 360) + 540) % 360 - 180)
+        const sunElevation = (latDeg, lonDeg, hour) => {
+            const noon = 12 - lonDeg / 15 - eotMin / 60 - sunNow.getTimezoneOffset() / 60
+            return Math.asin(Math.sin(latDeg * rad) * Math.sin(declDeg * rad)
+                + Math.cos(latDeg * rad) * Math.cos(declDeg * rad) * Math.cos((hour - noon) * 15 * rad)) / rad
+        }
+        // London, as parsed above
+        const londonLat = 51 + 30 / 60 + 30 / 3600
+        const londonLon = -(7 / 60 + 31 / 3600)
+        const inputDecl = NightLight._declRad
+        const inputNoon = NightLight._solarNoon
+        const elevationFromInputs = hour => Math.asin(Math.sin(londonLat * rad) * Math.sin(inputDecl)
+            + Math.cos(londonLat * rad) * Math.cos(inputDecl) * Math.cos((hour - inputNoon) * 15 * rad)) / rad
+        const atElevation = (hour, deg) => isFinite(hour) && Math.abs(elevationFromInputs(hour) - deg) < 0.01
+        root._check(atElevation(NightLight.eveningFadeStartHour, 10) && atElevation(NightLight.eveningFadeEndHour, -2)
+                && atElevation(NightLight.morningFadeStartHour, -2) && atElevation(NightLight.morningFadeEndHour, 10),
+            "night light's fade windows start and end where the sun sits at +10 and -2 degrees")
+        const sunNear = (hour, deg) => isFinite(hour) && Math.abs(sunElevation(londonLat, londonLon, hour) - deg) < 1
+        root._check(sunNear(NightLight.eveningFadeStartHour, 10) && sunNear(NightLight.eveningFadeEndHour, -2)
+                && sunNear(NightLight.morningFadeStartHour, -2) && sunNear(NightLight.morningFadeEndHour, 10),
+            "night light's fade hours agree with an independent solar model to a degree")
+        root._check(NightLight.morningFadeStartHour < NightLight.morningFadeEndHour
+                && NightLight.morningFadeEndHour < NightLight._solarNoon
+                && NightLight._solarNoon < NightLight.eveningFadeStartHour
+                && NightLight.eveningFadeStartHour < NightLight.eveningFadeEndHour,
+            "night light's morning fade rises before noon and its evening fade sets after it")
+        // at 75 degrees north the sun misses +10 or -2 for whole seasons; the check only runs on
+        // days clear of either edge
+        NightLight._parseCoord("+7500+02000")
+        const polarHigh = 90 - Math.abs(75 - declDeg)
+        const polarLow = Math.abs(75 + declDeg) - 90
+        const polarFades = [NightLight.eveningFadeStartHour, NightLight.eveningFadeEndHour,
+            NightLight.morningFadeStartHour, NightLight.morningFadeEndHour]
+        if (Math.abs(polarHigh - 10) > 0.5 && Math.abs(polarLow + 2) > 0.5) {
+            root._check(polarHigh > 10 && polarLow < -2
+                    ? polarFades.every(h => isFinite(h)) : polarFades.every(h => isNaN(h)),
+                "night light has fade windows at 75 degrees north only on days the sun crosses both elevations")
+        }
+        NightLight._parseCoord("+513030-0000731")
+        NightLight._configKnown = false
+        root._check(isNaN(NightLight.eveningFadeStartHour) && isNaN(NightLight.morningFadeEndHour),
+            "night light draws no fade windows before sunsetr's config is known")
+        NightLight._configKnown = true
+        NightLight._mode = "start_at"
+        root._check(isNaN(NightLight.eveningFadeStartHour) && isNaN(NightLight.eveningFadeEndHour)
+                && isNaN(NightLight.morningFadeStartHour) && isNaN(NightLight.morningFadeEndHour),
+            "night light has no sun fade windows on a clock schedule")
+        NightLight._mode = "static"
+        root._check(NightLight.schedule === "fixed" && isNaN(NightLight.eveningFadeStartHour),
+            "night light reads a static config as a fixed schedule with no fade windows")
+        NightLight._mode = modeWas
+        NightLight._configKnown = knownWas
         const clock12hForSun = ShellSettings.clock12h
         ShellSettings.clock12h = false
         root._check(/^\d\d:\d\d$/.test(NightLight.sunriseLabel),

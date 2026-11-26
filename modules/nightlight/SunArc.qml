@@ -45,10 +45,6 @@ Item {
         if (shown) Qt.callLater(root._playSweep)
         else       _sweep.stop()
     }
-    Connections {
-        target: MenuState
-        function onOpenChanged() { if (root.shown && MenuState.open) Qt.callLater(root._playSweep) }
-    }
 
     ShellText {
         x: 14; y: 11
@@ -97,6 +93,12 @@ Item {
                 readonly property real  nowHour:      NightLight.nowHour
                 readonly property real  riseHour:     NightLight.sunriseHour
                 readonly property real  setHour:      NightLight.sunsetHour
+                // the daemon's twilight windows, NaN unless the schedule follows the sun
+                readonly property color fadeColor:    Theme.withAlpha(Theme.warning, 0.55)
+                readonly property real  eveStart:     NightLight.eveningFadeStartHour
+                readonly property real  eveEnd:       NightLight.eveningFadeEndHour
+                readonly property real  mornStart:    NightLight.morningFadeStartHour
+                readonly property real  mornEnd:      NightLight.morningFadeEndHour
 
                 property var _fg: null; property string _fgKey: ""
                 property var _sg: null; property string _sgKey: ""
@@ -107,7 +109,12 @@ Item {
                 onIsDayChanged:        requestPaint()
                 onRiseHourChanged:     requestPaint()
                 onSetHourChanged:      requestPaint()
-                onNowHourChanged:      if (root.shown && MenuState.open) requestPaint()
+                onEveStartChanged:     requestPaint()
+                onEveEndChanged:       requestPaint()
+                onMornStartChanged:    requestPaint()
+                onMornEndChanged:      requestPaint()
+                onFadeColorChanged:    requestPaint()
+                onNowHourChanged:      if (root.shown) requestPaint()
                 onWidthChanged:        requestPaint()
                 onHeightChanged:       requestPaint()
 
@@ -161,6 +168,24 @@ Item {
                     ctx.strokeStyle = arcColor
                     ctx.lineWidth = 2
                     ctx.beginPath(); trace(t0, t1, Math.ceil(N * (t1 - t0))); ctx.stroke()
+
+                    // a fade wraps past the end of the day's strip when its start sits late in it, so it can need two strokes
+                    const tOf = (hr) => ((((hr - centre + 12) % 24) + 24) % 24) / 24
+                    const fadeStroke = (a, b) => {
+                        ctx.beginPath(); trace(a, b, Math.max(2, Math.ceil(N * (b - a)))); ctx.stroke()
+                    }
+                    ctx.strokeStyle = fadeColor
+                    ctx.lineWidth = 4
+                    const fades = [[eveStart, eveEnd], [mornStart, mornEnd]]
+                    for (let i = 0; i < fades.length; i++) {
+                        const from = fades[i][0], to = fades[i][1]
+                        if (!isFinite(from) || !isFinite(to)) continue
+                        const span = Math.min(1, ((((to - from) % 24) + 24) % 24) / 24)
+                        if (span <= 0) continue
+                        const a = tOf(from)
+                        if (a + span <= 1) fadeStroke(a, a + span)
+                        else { fadeStroke(a, 1); fadeStroke(0, a + span - 1) }
+                    }
 
                     if (tMark > t0) {
                         const fKey = [day, h, baseY, fillTop, fillBot, nightFillTop, nightFillBot].join()

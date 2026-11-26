@@ -3,7 +3,7 @@ pragma Singleton
 // Ownership split: a Nix-managed `hypr-shell-caffeine.service` systemd user unit is a
 // bare `systemd-inhibit --what=idle ... --mode=block sleep infinity` wrapper — the same
 // "shell only starts/stops the unit and mirrors its state" control surface NightLight
-// uses for hyprsunset.service. This singleton never spawns or holds an inhibitor itself.
+// uses for sunsetr.service. This singleton never spawns or holds an inhibitor itself.
 //
 // The pill and menu row also care about idle being blocked by anything, not just our
 // own unit, so this additionally tracks `systemd-inhibit --list` output. logind only

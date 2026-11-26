@@ -88,13 +88,6 @@ PageShell {
         }
     }
     Connections {
-        target: NightLight
-        enabled: root.active
-        function onEnabledChanged() {
-            if (root._picker === "nightlight" && !NightLight.enabled) root._closePicker()
-        }
-    }
-    Connections {
         target: Caffeine
         enabled: root.active
         function onAvailableChanged() {
@@ -355,52 +348,15 @@ PageShell {
                 active: NightLight.enabled
                 glyph: NightLight.enabled ? "󰖔" : "󰖙"
                 label: "Night Light"
-                status: NightLight.lastError.length > 0 ? NightLight.lastError
-                      : NightLight.enabled ? NightLight.temperature + "K" : NightLight.offStatus
+                status: NightLight.lastError.length > 0 ? NightLight.lastError : NightLight.statusLabel
                 accentColor: NightLight.lastError.length > 0 ? Theme.error : Theme.warning
                 statusColor: NightLight.lastError.length > 0 ? Theme.error : "transparent"
                 showSwitch: true
-                expandable: NightLight.enabled
-                expanded: root._picker === "nightlight"
+                opensCard: true
                 onActivated: NightLight.toggle()
-                onExpandToggled: root._togglePicker("nightlight")
-            }
-
-            InlinePicker {
-                id: _nightPicker
-                open: root._picker === "nightlight"
-                content: Component {
-                    Column {
-                        width: parent ? parent.width : 0
-                        spacing: 0
-
-                        ToggleRow {
-                            glyph: "󰖙"
-                            label: "Follow sun position"
-                            checked: ShellSettings.nightLightAuto
-                            onToggled: nextChecked => ShellSettings.nightLightAuto = nextChecked
-                        }
-                        CollapsibleSection {
-                            expanded: !ShellSettings.nightLightAuto
-                            SliderRow {
-                                glyph: "󰔄"
-                                label: "Temperature"
-                                displayValue: ShellSettings.nightLightTemp + "K"
-                                value: ShellSettings.nightLightTemp
-                                min: 1000; max: 6500; step: 100
-                                glyphColor: Theme.withAlpha(Theme.warning, 0.85)
-                                onChanged: (v) => ShellSettings.nightLightTemp = v
-                            }
-                        }
-                        CollapsibleSection {
-                            expanded: ShellSettings.nightLightAuto
-                            HintText { text: "Temperature tracks sunset and sunrise at " + NightLight.locationLabel + "." }
-                        }
-                        SunArc {
-                            shown: root._picker === "nightlight" && MenuState.open
-                        }
-                    }
-                }
+                // the card takes the menu's place, so it opens at the menu's own anchor; the coordinator closes the menu as the card opens
+                onOpened: NightLightPopupState.openAt(MenuState.effectiveAnchorX,
+                    MenuState.triggerScreen, MenuState.anchorSource)
             }
 
             ControlRow {

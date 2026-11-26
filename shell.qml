@@ -14,6 +14,7 @@ import "modules/calendar"
 import "modules/traymenu"
 import "modules/traypopup"
 import "modules/mediapopup"
+import "modules/nightlight"
 import "modules/quickactions"
 import "modules/keybinds"
 import "modules/wallpapers"
@@ -244,6 +245,13 @@ ShellRoot {
         wantOpen: MediaPopupState.open
         requestedScreen: MediaPopupState.triggerScreen ?? root.anchoredPopupScreen
         surface: Component { MediaPopup { targetScreen: _mediaPopup.latchedScreen } }
+    }
+
+    PopupLoader {
+        id: _nightLightPopup
+        wantOpen: NightLightPopupState.open
+        requestedScreen: NightLightPopupState.triggerScreen ?? root.anchoredPopupScreen
+        surface: Component { NightLightPopup { targetScreen: _nightLightPopup.latchedScreen } }
     }
 
     PopupLoader {

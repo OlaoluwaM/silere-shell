@@ -87,7 +87,7 @@ Column {
 
         const tool = (g, n, v) => out.push({ g: g, n: n, s: "Hidden until this is installed", v: v, p: true })
         if (!SystemTools.hasBrightnessctl)     tool("󰃟", "Brightness control", "brightnessctl")
-        if (!SystemTools.hasHyprsunset)        tool("󰖙", "Night light", "hyprsunset")
+        if (!SystemTools.hasSunsetr)           tool("󰖙", "Night light", "sunsetr")
         if (!PowerProfiles.available)          tool("󰾅", "Power profiles", "power-profiles-daemon")
         // a packaged lock command brings its own locker, so hyprlock is only the fallback's requirement
         if (!SystemTools.hasHyprlock && ShellSettings.lockCommand.trim().length === 0)

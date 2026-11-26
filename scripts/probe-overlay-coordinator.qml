@@ -9,7 +9,7 @@ ShellRoot {
 
     readonly property var controlNames: [
         "menu", "calendar", "tray", "traypopup", "quickActions", "keybinds", "wallpapers", "media",
-        "powerAction"
+        "nightLight", "powerAction"
     ]
     property alias checks: progress.checks
     property alias failures: progress.failures
@@ -21,6 +21,7 @@ ShellRoot {
     property QtObject temporaryPopup: null
     readonly property bool coldKeybindsOpen: KeybindsPopupState.open
     readonly property bool coldWallpapersOpen: WallpapersPopupState.open
+    readonly property bool coldNightLightOpen: NightLightPopupState.open
     readonly property bool coldPowerOpen: PowerActionState.open
 
     PersistentProperties {
@@ -75,6 +76,7 @@ ShellRoot {
         case "keybinds": return KeybindsPopupState.open
         case "wallpapers": return WallpapersPopupState.open
         case "media": return MediaPopupState.open
+        case "nightLight": return NightLightPopupState.open
         case "powerAction": return PowerActionState.open
         }
         return false
@@ -93,6 +95,7 @@ ShellRoot {
         case "keybinds": KeybindsPopupState.open = true; break
         case "wallpapers": WallpapersPopupState.open = true; break
         case "media": MediaPopupState.open = true; break
+        case "nightLight": NightLightPopupState.open = true; break
         case "powerAction": PowerActionState.open = true; break
         }
     }
@@ -123,6 +126,7 @@ ShellRoot {
         KeybindsPopupState.close()
         WallpapersPopupState.close()
         MediaPopupState.close()
+        NightLightPopupState.close()
         PowerActionState.close()
     }
 
@@ -261,15 +265,15 @@ ShellRoot {
     function states(): var {
         return [MenuState, CalendarState, TrayMenuState, TrayPopupState,
             QuickActionsState, KeybindsPopupState, WallpapersPopupState, MediaPopupState,
-            PowerActionState]
+            NightLightPopupState, PowerActionState]
     }
 
     function testRegistry(): void {
         const states = root.states()
-        root.check(OverlayCoordinator.popups.length === 9,
-            "all nine popup states register once")
+        root.check(OverlayCoordinator.popups.length === 10,
+            "all ten popup states register once")
         for (let i = 0; i < states.length; i++) OverlayCoordinator.registerPopup(states[i])
-        root.check(OverlayCoordinator.popups.length === 9,
+        root.check(OverlayCoordinator.popups.length === 10,
             "repeated registration does not duplicate states")
         let openCount = 0
         for (let i = 0; i < states.length; i++) if (states[i].open) openCount++
@@ -346,8 +350,10 @@ ShellRoot {
         for (let i = 0; i < states.length; i++) {
             const before = root.openedSignals
             states[i].open = true
+            const hints = states[i] === MenuState || states[i] === QuickActionsState
+                || states[i] === CalendarState || states[i] === TrayMenuState
             const controls = states[i] === MenuState || states[i] === QuickActionsState
-            const hints = controls || states[i] === CalendarState || states[i] === TrayMenuState
+                || states[i] === NightLightPopupState
             root.check(ControlSurfaces.anyOpen === controls
                     && ControlSurfaces.anyAnchoredOpen === hints,
                 "control and bar-hint classifications remain unchanged for " + root.controlNames[i])
@@ -418,13 +424,13 @@ ShellRoot {
                 root.reset()
                 root.testRegistry()
                 root.temporaryPopup = popupFactory.createObject(root)
-                root.check(OverlayCoordinator.popups.length === 10
+                root.check(OverlayCoordinator.popups.length === 11
                         && OverlayCoordinator._openCount === 1,
                     "an initially open popup registers and counts only once")
                 root.temporaryPopup.destroy()
                 interval = 40
             } else if (root.anchorPhase === 5) {
-                root.check(OverlayCoordinator.popups.length === 9
+                root.check(OverlayCoordinator.popups.length === 10
                         && OverlayCoordinator._openCount === 0,
                     "destroying an open popup removes its registration and count")
                 const environments = ["idle", "overview"]
@@ -445,7 +451,7 @@ ShellRoot {
                 }
                 root.reset()
             } else if (root.anchorPhase === 6) {
-                root.check(OverlayCoordinator.popups.length === 9,
+                root.check(OverlayCoordinator.popups.length === 10,
                     "destroying initially rejected popups removes their registrations")
                 MenuState.openUnanchored()
                 progress.reloaded = true

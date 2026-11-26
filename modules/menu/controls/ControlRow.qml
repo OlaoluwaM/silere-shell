@@ -17,6 +17,8 @@ MenuRow {
     property bool   showSwitch:   false
     property bool   expandable:   false
     property bool   expanded:     false
+    // trailing button that opens a surface of its own instead of unfolding in place: it takes the chevron's slot and hit area, shows the onward chevron the settings rows use, which never turns, and announces itself through opened()
+    property bool   opensCard:    false
     property bool   passive:      false
     // a value that is a call to action, not a datum: it reads as accent like an armed row does
     property bool   valueIsAction: false
@@ -27,6 +29,7 @@ MenuRow {
 
     signal activated()
     signal expandToggled()
+    signal opened()
 
     readonly property bool _canTap: !root.passive && root.enabled && root.visible && root.available
     function _activate(): void {
@@ -36,12 +39,16 @@ MenuRow {
         root.activated()
     }
 
-    function _toggleExpanded(): void {
-        if (root._canTap && root.expandable) root.expandToggled()
+    readonly property bool _hasSlot: root.expandable || root.opensCard
+
+    function _pressSlot(): void {
+        if (!root._canTap) return
+        if (root.opensCard) root.opened()
+        else if (root.expandable) root.expandToggled()
     }
 
     function _insideChevron(pos): bool {
-        if (!root.expandable || !_chevron.visible) return false
+        if (!root._hasSlot || !_chevron.visible) return false
         const x0 = _rightSlot.x + _chevron.x - 4
         const x1 = _rightSlot.x + _chevron.x + _chevron.width + 4
         return pos.x >= x0 && pos.x <= x1
@@ -178,7 +185,7 @@ MenuRow {
         // MouseArea (not TapHandler) so it doesn't fire the row body tap too
         Item {
             id: _chevron
-            visible: root.expandable
+            visible: root._hasSlot
             width:  visible ? 24 : 0
             height: parent.height
             anchors.right: (root.showSwitch || root.valueText.length > 0) ? undefined : parent.right
@@ -186,27 +193,34 @@ MenuRow {
                 ? parent.width - _rightSlot._ctrlW - 8 - width
                 : 0
 
+            // not announced for an expandable row: its row already carries the state, and a bare chevron says nothing
+            Accessible.ignored: !root.opensCard
+            Accessible.role: Accessible.Button
+            Accessible.name: "Open " + root.label
+            Accessible.focusable: root.opensCard && root._canTap
+            Accessible.onPressAction: root._pressSlot()
+
             ShellText {
                 anchors.centerIn: parent
-                text: "󰅀"
+                text: root.opensCard ? "󰅂" : "󰅀"
                 color: (_chevHover.hovered) ? Theme.text
                      : Theme.withAlpha(Theme.subtext, root.expanded ? 0.85 : 0.55)
                 font.pixelSize: Settings.fontSize
-                rotation: root.expanded ? 180 : 0
+                rotation: root.expanded && !root.opensCard ? 180 : 0
                 transformOrigin: Item.Center
                 Disclosure on rotation { list: true }
                 ColorFade on color {}
             }
 
-            HoverHandler { id: _chevHover; enabled: root.expandable; cursorShape: Qt.PointingHandCursor }
+            HoverHandler { id: _chevHover; enabled: root._hasSlot; cursorShape: Qt.PointingHandCursor }
             MouseArea {
                 anchors.fill: parent
                 anchors.leftMargin: -4
                 anchors.rightMargin: -4
-                enabled: root.expandable
+                enabled: root._hasSlot
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
-                    root._toggleExpanded()
+                    root._pressSlot()
                 }
             }
         }

@@ -8,6 +8,8 @@ Rectangle {
     id: root
 
     default property alias rows: col.data
+    // a popup that is already a card hosts these rows without a second surface inside it
+    property bool plain: false
 
     width:  parent ? parent.width : 0
     implicitHeight: col.implicitHeight
@@ -15,9 +17,10 @@ Rectangle {
     radius: Theme.radiusCard
     antialiasing: true
     clip: true
-    color: Theme.menuCard
+    color: root.plain ? "transparent" : Theme.menuCard
 
     OutlineBorder {
+        visible: !root.plain
         radius: root.radius
         outlineColor: Theme.menuCardBorder
     }
@@ -85,5 +88,7 @@ Rectangle {
     on_LastEdgeChanged:      _radiiDefer.restart()
     // a Column keeps counting hidden children, so a card in an unshown section flips visible without changing implicitHeight
     onVisibleChanged:        _radiiDefer.restart()
+    // a host can derive the card's radius from its own, which moves when the bar's does
+    onRadiusChanged:         _radiiDefer.restart()
     Component.onCompleted:   root._applyRadii()
 }

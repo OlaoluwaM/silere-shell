@@ -20,7 +20,7 @@ Each area logs under a category of its own:
   notifications were held back or let through.
 - `silere.network`: the VPN indicator and the kernel link watcher.
 - `silere.caffeine`: the idle inhibitor unit and its stop timer.
-- `silere.nightlight`: the hyprsunset unit and its temperature pushes.
+- `silere.nightlight`: the sunsetr unit, its status stream and its config.
 
 `journalctl --user -u silere-shell -g 'silere\.network'` shows one category.
 Warnings mean something failed or timed out, Info a state change someone may
@@ -147,9 +147,30 @@ pill stayed lit until the next key press.
 
 ## Debugging night light
 
-Warn shows a check that timed out, a start or stop that failed or timed out,
-a temperature push that hyprsunset did not accept, and the tool going missing.
-Each carries the exit code. Info shows each toggle request and how a keybind
-toggle was answered, a check that changed the state, and a start confirmed.
-Debug shows temperature pushes, pushes queued behind another, and the drift
-poll starting and stopping. Command output is never logged.
+The shell starts and stops `sunsetr.service`, follows the daemon through
+`sunsetr status --json --follow`, and reads and writes its config with
+`sunsetr get all` and `sunsetr set`. The daemon logs its own fades under
+`journalctl --user -u sunsetr`.
+
+Warn shows a check that timed out, a start or stop that failed or timed out, a
+config read that failed or gave no transition mode, a config write that
+failed, and the tool going missing. A start, stop, config read or config write
+that failed carries its exit code and whether it timed out. Info shows each toggle request and how a
+keybind toggle was answered, a check that changed the state, the status stream
+connecting and being lost, each period change with the period it left and the
+one it entered, each config write with its fields and values, and a timezone
+switch handing the new zone's location to sunsetr. A location is written by
+field name only, never by value. Debug shows each state the
+daemon applied, with its period and temperature, the status reader starting
+with its restart count or exiting before any state, config writes dropped
+because sunsetr went missing, by field name, a timezone switch's location
+dropped for the same reason, and the drift poll starting and stopping. Command
+output is never logged.
+
+A stream that is lost runs one `is-active` check, since the daemon may have
+stopped with its unit. A reader that exits before any state, as it does while
+the daemon is not yet listening, checks nothing and logs only at Debug, so a
+row that stays blank while night light is on means the stream never
+connected: look for the reader's Debug lines, then at the sunsetr unit itself.
+A config read that fails before the daemon's first start, which is when sunsetr
+writes its config, is retried once the stream connects.

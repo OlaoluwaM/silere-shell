@@ -44,6 +44,7 @@ singleton Media         1.0 Media.qml
 singleton MediaPopupState 1.0 MediaPopupState.qml
 singleton MenuState     1.0 MenuState.qml
 singleton Monitors      1.0 Monitors.qml
+singleton NightLightPopupState 1.0 NightLightPopupState.qml
 singleton NotifWatch    1.0 NotifWatch.qml
 singleton Notifications 1.0 Notifications.qml
 singleton FullscreenState 1.0 FullscreenState.qml

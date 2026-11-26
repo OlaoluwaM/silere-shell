@@ -60,10 +60,24 @@ If it needs a backend that may be absent, gate it in `BarZone._widgetEnabled()` 
 the `battery` and `brightness` cases; returning false there hides the widget rather than
 drawing a dead one.
 
+**A keybind for a surface.** A surface that can open without its widget carries an
+`IpcHandler` in its state singleton under `services/`, and that handler's `target` is the
+name a key calls. `qs -p <path to shell.qml> ipc call nightlight toggle` opens or closes
+the Night Light card. The path is required: a bare `qs ipc call` looks in Quickshell's own
+config directory and finds nothing. A surface opened this way has no widget to hang from,
+and where it lands is its own state's choice: the Night Light card borrows the menu's spot.
+`grep -rn 'target: "' services` lists every target.
+The compositor binds the key; the shell binds none itself. A deploying configuration that
+wraps the call, as nixos-config's `keybindings.nix` does, needs only the target and the
+function name.
+
 **Less shell.** Surfaces don't import each other, so you can delete a `modules/`
 folder along with its `import` and loader in `shell.qml` and the rest keeps working.
-Two exceptions: `mediapopup/` imports `menu/controls/` for the media card, and
-`lock/` imports `power/` for the countdown.
+Three exceptions: `mediapopup/` imports `menu/controls/` for the media card,
+`nightlight/` imports it for the rows of the Night Light card, and
+`lock/` imports `power/` for the countdown. One surface is also reached through a service:
+the menu's Night Light row opens the card through `NightLightPopupState`, so deleting
+`nightlight/` means taking that row's `opensCard` and `onOpened` out as well.
 
 ## Renaming your fork
 

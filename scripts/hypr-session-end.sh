@@ -90,7 +90,7 @@ _logged() {
 }
 
 # the shell's unit and whatever its session target wants that is running now. Only what was
-# running counts: a unit stopped on purpose, like night light's hyprsunset, stays stopped
+# running counts: a unit stopped on purpose, like night light's sunsetr, stays stopped
 _running_session_units() {
     local target unit units="$1"
     for target in $(systemctl --user show -p PartOf --value "$1" 2>/dev/null); do
