@@ -57,8 +57,8 @@ ShellRoot {
     function run(): void {
         root.reduceMotionWas = ShellSettings.reduceMotion
         ShellSettings.reduceMotion = false
-        root.check(Motion.bumpRise === 70 && Motion.bumpSettle === 140,
-            "normal motion exposes the shared 70ms rise and 140ms settle")
+        root.check(Motion.bumpRise === Motion.ms(70) && Motion.bumpSettle === Motion.ms(140),
+            "normal motion exposes the shared 70ms rise and 140ms settle, paced")
         bump.restart()
         root.check(bump.running,
             "the real bump helper starts against its configured target property")
@@ -95,7 +95,7 @@ ShellRoot {
         root.check(!bump.running && bumpTarget.value === bump.rest,
             "retiring a running bump restores its target to rest")
         bump.restart()
-        root.after(240, root.completed)
+        root.after(Motion.bumpRise + Motion.bumpSettle + 30, root.completed)
     }
 
     function completed(): void {
