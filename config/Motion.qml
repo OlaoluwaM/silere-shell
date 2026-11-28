@@ -7,10 +7,14 @@ import "../services"
 Singleton {
     readonly property bool _rm: ShellSettings.reduceMotion
 
-    // one multiplier on every duration the shell animates with: above 1 the whole shell moves
-    // slower. Waits that are not motion, like hoverLinger, stay outside it
+    // one multiplier on the durations the shell animates with: above 1 the whole shell moves
+    // slower. Waits that are not motion, like hoverLinger, stay outside it, and so do the
+    // few clocks that opt out through ms()'s factor
     readonly property real pace: 1.62
-    function ms(base: int): int { return _rm ? 0 : Math.round(base * pace) }
+    // a clock the pace should not stretch passes its own factor, usually 1. That parameter stays
+    // untyped because Qt 6.11 refuses to load a typed parameter that has a default, and one
+    // untyped parameter leaves the whole signature unenforced: Math.round keeps the result whole
+    function ms(base: int, factor = pace): int { return _rm ? 0 : Math.round(base * factor) }
 
     // idle and reduce motion both mean "no visible motion"; taking both as arguments keeps it testable without a live idle state
     function allowsMotion(idle: bool, reduceMotion: bool): bool { return !idle && !reduceMotion }
@@ -24,8 +28,10 @@ Singleton {
     readonly property int color:   ms(160)
     // wallpaper-driven palette swaps (ADR 0001): deliberately ends inside awww's
     // 2s grow — finished colors over a finishing wallpaper reads as intent, and
-    // matching the full 2s would drag text through muddy mid-contrast
-    readonly property int palette: ms(400)
+    // matching the full 2s would drag text through muddy mid-contrast. Outside the pace: a
+    // recolor is not something the eye follows the way it follows a surface moving, and a
+    // slower one only holds every widget mid-blend for longer
+    readonly property int palette: ms(400, 1)
 
     readonly property int hoverIn:  ms(145)
     readonly property int hoverOut: ms(190)
@@ -68,8 +74,8 @@ Singleton {
     // lists); the panel follows its growth frame by frame, so it needs no shared clock
     // outside the pace: a list is revealed by a moving clip edge, which cuts through its rows for
     // as long as it runs, and a slower run only shows that for longer
-    readonly property int listOpen:  _rm ? 0 : 320
-    readonly property int listClose: _rm ? 0 : 220
+    readonly property int listOpen:  ms(320, 1)
+    readonly property int listClose: ms(220, 1)
     // quiet window a viewport must hold before scroll affordances trust it (see ScrollSettle)
     readonly property int panelSettle:   ms(180)
     // paces the calendar's month paging and the settings section enter. The panel itself resizes over
