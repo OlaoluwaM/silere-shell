@@ -74,7 +74,7 @@ OverlayPopupWindow {
                 label: "Night Light"
                 active: NightLight.enabled
                 status: NightLight.lastError.length > 0 ? NightLight.lastError : NightLight.detailLabel
-                accentColor: NightLight.lastError.length > 0 ? Theme.error : Theme.warning
+                accentColor: NightLight.lastError.length > 0 ? Theme.error : Theme.accent
                 statusColor: NightLight.lastError.length > 0 ? Theme.error : "transparent"
                 showSwitch: true
                 // the card can be opened by a keybind on a machine without the tool
@@ -94,7 +94,6 @@ OverlayPopupWindow {
                 displayValue: NightLight.configKnown ? NightLight.nightTemp + "K" : ""
                 value: NightLight.nightTemp
                 min: card.tempMin; max: card.tempMax; step: card.tempStep
-                glyphColor: Theme.withAlpha(Theme.warning, 0.85)
                 onChanged: (v) => NightLight.setNightTemp(v)
             }
 
@@ -102,7 +101,6 @@ OverlayPopupWindow {
                 enabled: card.editable
                 glyph: "󰥔"
                 label: "Schedule"
-                accentColor: Theme.warning
                 model: [
                     { label: "Sun",   value: "sun" },
                     { label: "Clock", value: "clock" }
@@ -124,7 +122,6 @@ OverlayPopupWindow {
                     displayValue: card._clockLabel(NightLight.clockSunsetMin)
                     value: NightLight.clockSunsetMin
                     min: card.minuteMin; max: card.minuteMax; step: card.minuteStep
-                    glyphColor: Theme.withAlpha(Theme.warning, 0.85)
                     onChanged: (v) => NightLight.setClockSunset(v)
                 }
                 SliderRow {
@@ -134,7 +131,6 @@ OverlayPopupWindow {
                     displayValue: card._clockLabel(NightLight.clockSunriseMin)
                     value: NightLight.clockSunriseMin
                     min: card.minuteMin; max: card.minuteMax; step: card.minuteStep
-                    glyphColor: Theme.withAlpha(Theme.warning, 0.85)
                     onChanged: (v) => NightLight.setClockSunrise(v)
                 }
             }

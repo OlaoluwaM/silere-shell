@@ -349,7 +349,7 @@ PageShell {
                 glyph: NightLight.enabled ? "󰖔" : "󰖙"
                 label: "Night Light"
                 status: NightLight.lastError.length > 0 ? NightLight.lastError : NightLight.statusLabel
-                accentColor: NightLight.lastError.length > 0 ? Theme.error : Theme.warning
+                accentColor: NightLight.lastError.length > 0 ? Theme.error : Theme.accent
                 statusColor: NightLight.lastError.length > 0 ? Theme.error : "transparent"
                 showSwitch: true
                 opensCard: true
